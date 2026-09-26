@@ -1,3 +1,64 @@
+# المعجم الشامل لمخطط وجداول قاعدة البيانات (Database Schema Reference) — Vortex ERP
+
+> **محرك قاعدة البيانات:** PostgreSQL 15+ عبر منصة Supabase  
+> **إجمالي الجداول الموثقة:** 39 جدولاً تغطي كافة الوحدات التشغيلية والمالية والإدارية.
+
+---
+
+## فهرس وتصنيف جداول قاعدة البيانات
+
+### 1. إدارة الهوية والمستخدمين والإعدادات (Identity & Settings)
+- [`profiles`](#table-profiles): الملفات الشخصية للمستخدمين، تفضيلات اللغة والمظهر.
+- [`user_roles`](#table-user_roles): ربط المستخدمين بالأدوار التشغيلية في النظام (`owner`, `manager`, `accountant`, `cashier`, `warehouse`).
+- [`company_settings`](#table-company_settings): بيانات المنشأة، الشعار، العملة، نسبة الضريبة، وبادئة الفواتير.
+
+### 2. الفهرس والمنتجات والمواصفات (Catalog & Products)
+- [`categories`](#table-categories): تصنيفات الأصناف الشجرية.
+- [`brands`](#table-brands): العلامات التجارية والمصنعين.
+- [`units`](#table-units): وحدات القياس (حبة، كرتون، كجم، إلخ).
+- [`products`](#table-products): السجل الرئيسي للأصناف، أسعار البيع والتكلفة، الباركود، والحدود الدنيا.
+- [`product_batches`](#table-product_batches): تشغيلات ودفعات الإنتاج وتتبع تواريخ انتهاء الصلاحية.
+- [`countries_of_origin`](#table-countries_of_origin): بلدان المنشأ للأصناف.
+- [`quality_grades`](#table-quality_grades): درجات الجودة والمواصفات.
+- [`vehicle_makes`](#table-vehicle_makes) & [`vehicle_models`](#table-vehicle_models) & [`product_compatibilities`](#table-product_compatibilities): توافق قطع الغيار والأصناف مع طرازات السيارات.
+
+### 3. المستودعات وإدارة المخزون (Warehouses & Inventory)
+- [`warehouses`](#table-warehouses): المستودعات والمخازن وفروع التخزين.
+- [`inventory`](#table-inventory): أرصدة الأصناف الحالية في كل مستودع.
+- [`stock_movements`](#table-stock_movements): السجل التاريخي لحركات المخزون (إدخال، إخراج، تعديل).
+- [`stock_transfers`](#table-stock_transfers) & [`stock_transfer_items`](#table-stock_transfer_items): سندات التحويل المخزني بين الفروع وبنودها.
+
+### 4. المبيعات ونقاط البيع (Sales & POS)
+- [`sales_invoices`](#table-sales_invoices): فواتير المبيعات ونقاط البيع، الإجماليات، الضرائب، وحالة السداد.
+- [`sales_invoice_items`](#table-sales_invoice_items): البنود التفصيلية لفاتورة المبيعات، الكميات، والأسعار.
+- [`sales_returns`](#table-sales_returns) & [`sales_return_items`](#table-sales_return_items): فواتير مرتجعات المبيعات (إشعارات دائنة) وبنودها.
+
+### 5. المشتريات والموردين (Purchases & Suppliers)
+- [`suppliers`](#table-suppliers): سجل الموردين، بيانات الاتصال، والأرصدة الدائنة.
+- [`purchase_invoices`](#table-purchase_invoices) & [`purchase_invoice_items`](#table-purchase_invoice_items): فواتير المشتريات من الموردين وبنودها.
+- [`purchase_returns`](#table-purchase_returns) & [`purchase_return_items`](#table-purchase_return_items): مرتجعات المشتريات إلى الموردين وبنودها.
+
+### 6. العملاء والحسابات والولاء (Customers, Accounts & Loyalty)
+- [`customers`](#table-customers): سجل العملاء، بيانات الاتصال، الحدود الائتمانية، والأرصدة المدينة.
+- [`customer_ledger`](#table-customer_ledger): دفتر الأستاذ المحاسبي الحقيقي للعملاء (مدين/دائن/نوع الحركة).
+- [`customer_payments`](#table-customer_payments): سندات قبض وتحصيل مدفوعات العملاء.
+- [`loyalty_transactions`](#table-loyalty_transactions): حركات نقاط المكافآت والولاء للعملاء.
+
+### 7. المصروفات والمالية (Expenses & Finance)
+- [`expense_categories`](#table-expense_categories): تبويبات وتصنيفات المصروفات التشغيلية.
+- [`expenses`](#table-expenses): سندات صرف المصروفات التشغيلية والإدارية.
+
+### 8. إدارة المنصة والاشتراكات والتدقيق (Platform Admin & Auditing)
+- [`platform_plans`](#table-platform_plans): خطط وباقات الاشتراك المتاحة للمتاجر.
+- [`platform_modules`](#table-platform_modules): الموديولات والوحدات القابلة للتفعيل والإلغاء.
+- [`tenant_subscriptions`](#table-tenant_subscriptions): اشتراكات المتاجر والباقات المفعلة وصلاحيتها.
+- [`platform_admins`](#table-platform_admins): قائمة المشرفين الإداريين للمنصة.
+- [`audit_logs`](#table-audit_logs) & [`platform_audit_logs`](#table-platform_audit_logs): سجل التدقيق الأمني الشامل لتتبع كافة العمليات والتغييرات.
+
+---
+
+## تفاصيل الجداول والحقول والقيود
+
 ## Table `profiles`
 
 ### Columns

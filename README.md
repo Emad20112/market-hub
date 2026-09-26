@@ -27,6 +27,7 @@
 
 ## Table of Contents | فهرس المحتويات
 
+- 📚 **[Documentation Center | مركز التوثيق والخطط الهندسية](docs/README.md)**
 - [Overview](#overview--نظرة-عامة)
 - [Quick Start](#quick-start--بدء-سريع)
 - [Why This Project?](#why-this-project--لماذا-هذا-المشروع)
