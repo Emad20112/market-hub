@@ -19,6 +19,12 @@ import {
   CreditCard,
   Calendar,
   MapPin,
+  Mail,
+  User,
+  Phone,
+  CheckCircle2,
+  Loader2,
+  Sparkles,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/page-header";
@@ -626,86 +632,231 @@ function CustomersPage() {
 
       {/* ─── Edit / New Customer Dialog ─── */}
       {edit && (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-background/80 backdrop-blur-sm p-4">
-          <div className="panel-elevated w-full max-w-md p-6">
-            <div className="mb-4 flex items-center justify-between">
-              <h3 className="text-lg font-semibold">
-                {edit.id
-                  ? lang === "ar"
-                    ? "تعديل العميل"
-                    : "Edit customer"
-                  : lang === "ar"
-                    ? "عميل جديد"
-                    : "New customer"}
-              </h3>
-              <button onClick={() => setEdit(null)} className="rounded p-1 hover:bg-surface-2">
-                <X className="h-4 w-4" />
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-sm p-0 sm:items-center sm:p-4 animate-in fade-in duration-200"
+          onClick={() => !saving && setEdit(null)}
+        >
+          <div
+            className="w-full max-w-lg rounded-t-3xl sm:rounded-3xl border border-border/80 bg-background/95 backdrop-blur-md p-6 sm:p-7 shadow-2xl max-h-[92vh] overflow-y-auto animate-in slide-in-from-bottom-6 sm:zoom-in-95 duration-200"
+            onClick={(e) => e.stopPropagation()}
+            dir={lang === "ar" ? "rtl" : "ltr"}
+          >
+            {/* Sheet Header with Luxury Badge */}
+            <div className="flex items-start justify-between pb-5 border-b border-border/60">
+              <div className="flex items-center gap-3.5">
+                <div className="grid size-12 place-items-center rounded-2xl bg-primary/10 text-primary ring-1 ring-primary/20 shadow-sm">
+                  <User className="size-6" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-lg font-bold tracking-tight text-foreground">
+                      {edit.id
+                        ? lang === "ar"
+                          ? "تعديل بيانات العميل"
+                          : "Edit Customer Profile"
+                        : lang === "ar"
+                          ? "إضافة عميل جديد"
+                          : "New Customer Registration"}
+                    </h3>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {lang === "ar"
+                      ? "إدارة الحساب ومعلومات التواصل والحدود الائتمانية"
+                      : "Manage contact info, account status and credit terms"}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => !saving && setEdit(null)}
+                className="grid size-9 place-items-center rounded-full bg-muted/70 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                title={t("common.cancel")}
+              >
+                <X className="size-4" />
               </button>
             </div>
-            <div className="space-y-3">
-              <InputField
-                label={`${t("common.name")} *`}
-                value={edit.name ?? ""}
-                onChange={(v) => setEdit({ ...edit, name: v })}
-              />
-              <div className="grid grid-cols-2 gap-3">
-                <InputField
-                  label={t("common.phone")}
-                  value={edit.phone ?? ""}
-                  onChange={(v) => setEdit({ ...edit, phone: v })}
-                />
-                <InputField
-                  label={t("common.email")}
-                  value={edit.email ?? ""}
-                  onChange={(v) => setEdit({ ...edit, email: v })}
-                  type="email"
-                />
+
+            {/* Form Body - Mullak-style Card Blocks */}
+            <div className="mt-6 space-y-5">
+              {/* Block 1: Basic Identity */}
+              <div className="rounded-2xl border border-border/50 bg-card/50 p-4 space-y-3.5">
+                <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground">
+                  <Sparkles className="size-3.5 text-primary" />
+                  <span>{lang === "ar" ? "البيانات الأساسية" : "Primary Identity"}</span>
+                </div>
+                <div>
+                  <label className="block text-xs font-bold mb-1.5 text-foreground">
+                    {lang === "ar" ? "اسم العميل أو المؤسسة *" : "Customer or Company Name *"}
+                  </label>
+                  <div className="relative">
+                    <span className="pointer-events-none absolute inset-y-0 start-0 flex items-center ps-3.5 text-muted-foreground">
+                      <User className="size-4" />
+                    </span>
+                    <input
+                      type="text"
+                      autoFocus
+                      value={edit.name ?? ""}
+                      onChange={(e) => setEdit({ ...edit, name: e.target.value })}
+                      placeholder={lang === "ar" ? "مثال: مؤسسة الأمل للتجارة أو أحمد علي" : "e.g. Al-Amal Corp or John Doe"}
+                      className="w-full h-12 rounded-2xl border border-border/80 bg-background ps-10 pe-4 text-sm font-medium placeholder:text-muted-foreground/60 focus:border-primary focus:ring-4 focus:ring-primary/10 focus:outline-none transition-all shadow-sm"
+                    />
+                  </div>
+                </div>
               </div>
-              <InputField
-                label={t("common.address")}
-                value={edit.address ?? ""}
-                onChange={(v) => setEdit({ ...edit, address: v })}
-              />
-              <div>
-                <InputField
-                  label={t("customers.credit_limit")}
-                  value={String(edit.credit_limit ?? 0)}
-                  onChange={(v) => setEdit({ ...edit, credit_limit: Number(v) as any })}
-                  type="number"
-                />
-                <p className="mt-1 text-[11px] text-muted-foreground">
-                  {lang === "ar"
-                    ? "اتركه صفرًا لفتح الآجل بلا سقف (ما لم يُفعّل السقف من الإعدادات)."
-                    : "Zero means unlimited credit unless enforcement is enabled in Settings."}
-                </p>
+
+              {/* Block 2: Contact Information */}
+              <div className="rounded-2xl border border-border/50 bg-card/50 p-4 space-y-3.5">
+                <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground">
+                  <Phone className="size-3.5 text-primary" />
+                  <span>{lang === "ar" ? "معلومات التواصل والعنوان" : "Contact & Location"}</span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-bold mb-1.5 text-foreground">
+                      {lang === "ar" ? "رقم الهاتف / واتساب" : "Phone / WhatsApp"}
+                    </label>
+                    <div className="relative">
+                      <span className="pointer-events-none absolute inset-y-0 start-0 flex items-center ps-3.5 text-muted-foreground">
+                        <Phone className="size-4" />
+                      </span>
+                      <input
+                        type="tel"
+                        dir="ltr"
+                        value={edit.phone ?? ""}
+                        onChange={(e) => setEdit({ ...edit, phone: e.target.value })}
+                        placeholder="+967 77X XXX XXX"
+                        className="w-full h-11 rounded-2xl border border-border/80 bg-background ps-10 pe-4 text-sm font-medium tabular-nums placeholder:text-muted-foreground/60 focus:border-primary focus:ring-4 focus:ring-primary/10 focus:outline-none transition-all shadow-sm"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold mb-1.5 text-foreground">
+                      {lang === "ar" ? "البريد الإلكتروني" : "Email Address"}
+                    </label>
+                    <div className="relative">
+                      <span className="pointer-events-none absolute inset-y-0 start-0 flex items-center ps-3.5 text-muted-foreground">
+                        <Mail className="size-4" />
+                      </span>
+                      <input
+                        type="email"
+                        dir="ltr"
+                        value={edit.email ?? ""}
+                        onChange={(e) => setEdit({ ...edit, email: e.target.value })}
+                        placeholder="client@example.com"
+                        className="w-full h-11 rounded-2xl border border-border/80 bg-background ps-10 pe-4 text-sm font-medium placeholder:text-muted-foreground/60 focus:border-primary focus:ring-4 focus:ring-primary/10 focus:outline-none transition-all shadow-sm"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold mb-1.5 text-foreground">
+                    {lang === "ar" ? "العنوان أو المدينة" : "Address or City"}
+                  </label>
+                  <div className="relative">
+                    <span className="pointer-events-none absolute inset-y-0 start-0 flex items-center ps-3.5 text-muted-foreground">
+                      <MapPin className="size-4" />
+                    </span>
+                    <input
+                      type="text"
+                      value={edit.address ?? ""}
+                      onChange={(e) => setEdit({ ...edit, address: e.target.value })}
+                      placeholder={lang === "ar" ? "مثال: صنعاء - شارع حدة أو الرياض" : "e.g. Main Street, Commercial District"}
+                      className="w-full h-11 rounded-2xl border border-border/80 bg-background ps-10 pe-4 text-sm font-medium placeholder:text-muted-foreground/60 focus:border-primary focus:ring-4 focus:ring-primary/10 focus:outline-none transition-all shadow-sm"
+                    />
+                  </div>
+                </div>
               </div>
-              <label className="flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={edit.is_active ?? true}
-                  onChange={(e) => setEdit({ ...edit, is_active: e.target.checked })}
-                  className="h-4 w-4 rounded border-border"
-                />
-                {t("common.active")}
-              </label>
+
+              {/* Block 3: Financial & Credit Policy */}
+              <div className="rounded-2xl border border-border/50 bg-card/50 p-4 space-y-3.5">
+                <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground">
+                  <Wallet className="size-3.5 text-primary" />
+                  <span>{lang === "ar" ? "السياسة الائتمانية والحالة" : "Credit Terms & Status"}</span>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold mb-1.5 text-foreground">
+                    {lang === "ar" ? "الحد الائتماني المسموح به" : "Credit Limit"}
+                  </label>
+                  <div className="relative">
+                    <span className="pointer-events-none absolute inset-y-0 start-0 flex items-center ps-3.5 text-muted-foreground">
+                      <Wallet className="size-4" />
+                    </span>
+                    <input
+                      type="number"
+                      dir="ltr"
+                      min="0"
+                      step="any"
+                      value={edit.credit_limit ?? 0}
+                      onChange={(e) => setEdit({ ...edit, credit_limit: Number(e.target.value) || 0 })}
+                      className="w-full h-11 rounded-2xl border border-border/80 bg-background ps-10 pe-4 text-sm font-bold tabular-nums focus:border-primary focus:ring-4 focus:ring-primary/10 focus:outline-none transition-all shadow-sm"
+                    />
+                  </div>
+                  <p className="mt-1.5 text-[11px] text-muted-foreground leading-relaxed">
+                    {lang === "ar"
+                      ? "💡 اتركه صفرًا للسماح بالبيع الآجل بلا سقف ما لم يُفعّل خيار الإلزام بالحد في إعدادات النظام."
+                      : "Leave 0 for unlimited deferred balance unless enforced in Settings."}
+                  </p>
+                </div>
+
+                {/* Active switch styled */}
+                <div className="pt-2 border-t border-border/40 flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-bold text-foreground">
+                      {lang === "ar" ? "تفعيل حساب العميل" : "Active Customer Account"}
+                    </p>
+                    <p className="text-[11px] text-muted-foreground">
+                      {lang === "ar" ? "السماح بإصدار فواتير وسندات لهذا العميل" : "Allow issuing sales invoices and receipts"}
+                    </p>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={edit.is_active ?? true}
+                      onChange={(e) => setEdit({ ...edit, is_active: e.target.checked })}
+                      className="sr-only peer"
+                    />
+                    <div className="w-11 h-6 bg-muted peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+                  </label>
+                </div>
+              </div>
             </div>
-            <div className="mt-5 flex justify-end gap-2">
+
+            {/* Sticky Actions Footer */}
+            <div className="mt-7 flex items-center justify-end gap-3 pt-4 border-t border-border/60">
               <button
+                type="button"
+                disabled={saving}
                 onClick={() => setEdit(null)}
-                className="h-9 rounded-md border border-border px-4 text-sm hover:bg-surface-2"
+                className="h-11 px-5 rounded-2xl border border-border/80 text-sm font-bold text-muted-foreground hover:bg-muted hover:text-foreground transition-all disabled:opacity-50"
               >
                 {t("common.cancel")}
               </button>
               <button
+                type="button"
+                disabled={saving}
                 onClick={save}
-                className="h-9 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:opacity-90"
+                className="h-11 px-7 rounded-2xl bg-primary text-sm font-bold text-primary-foreground shadow-lg shadow-primary/20 hover:bg-primary/90 active:scale-[0.98] transition-all flex items-center gap-2 disabled:opacity-50"
               >
-                {t("common.save")}
+                {saving ? (
+                  <>
+                    <Loader2 className="size-4 animate-spin" />
+                    <span>{lang === "ar" ? "جاري الحفظ..." : "Saving..."}</span>
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle2 className="size-4" />
+                    <span>{lang === "ar" ? "حفظ البيانات" : "Save Customer"}</span>
+                  </>
+                )}
               </button>
             </div>
           </div>
         </div>
-      )}
+      )}      )}
 
       {/* ─── Enhanced Customer Detail Dialog ─── */}
       {selected && detailStats && (
