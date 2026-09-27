@@ -67,9 +67,13 @@ export interface TableToolbarProps {
   action?: React.ReactNode;
   /** Extra controls next to the primary action. */
   end?: React.ReactNode;
+  /** View toggle or custom slot beside search/filter/sort on all screens */
+  viewToggle?: React.ReactNode;
   /** Sticks the toolbar to the top of the list while scrolling. */
   sticky?: boolean;
   className?: string;
+  /** Children rendered inside the toolbar container (e.g. quick filter chips) */
+  children?: React.ReactNode;
 }
 
 /**
@@ -90,8 +94,10 @@ export function TableToolbar({
   sort,
   action,
   end,
+  viewToggle,
   sticky = false,
   className,
+  children,
 }: TableToolbarProps) {
   const [filterOpen, setFilterOpen] = React.useState(false);
   const [sortOpen, setSortOpen] = React.useState(false);
@@ -153,6 +159,8 @@ export function TableToolbar({
           />
         ) : null}
 
+        {viewToggle}
+
         {end ? <div className="hidden items-center gap-2 lg:flex">{end}</div> : null}
 
         {action}
@@ -196,6 +204,8 @@ export function TableToolbar({
           }}
         />
       ) : null}
+
+      {children}
     </div>
   );
 }

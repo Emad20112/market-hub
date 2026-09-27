@@ -679,191 +679,78 @@ function ProductsPage() {
         </div>
       </div>
 
-      {/* ─── Luxury Control Bar: Search + Filter Pills + View Switcher + New Product ─── */}
-      <div className="card-mullak p-3 sm:p-4 space-y-3">
-        <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3">
-          {/* Search Input with Luxury Styling */}
-          <div className="relative flex-1">
-            <Search className="pointer-events-none absolute right-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-            <input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder={lang === "ar" ? "ابحث باسم المنتج، الباركود، الكود (SKU)..." : "Search product, barcode, SKU…"}
-              className="h-11 w-full rounded-2xl border border-border/80 bg-surface/80 px-4 pr-10 text-sm font-medium placeholder:text-muted-foreground/70 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 transition"
-            />
-            {query && (
-              <button
-                onClick={() => setQuery("")}
-                className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-              >
-                <X className="size-3.5" />
-              </button>
-            )}
-          </div>
-
-          {/* Quick Filter Pills */}
-          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 lg:pb-0 scrollbar-x-none">
-            {[
-              { id: "all", label: lang === "ar" ? "الكل" : "All", count: productCount ?? products.length },
-              { id: "active", label: lang === "ar" ? "النشطة" : "Active", count: activeCount },
-              { id: "inactive", label: lang === "ar" ? "غير النشطة" : "Inactive", count: inactiveCount },
-              { id: "low_stock", label: lang === "ar" ? "تنبيه المخزون" : "Stock Alert", count: lowStockCount },
-            ].map((f) => (
-              <button
-                key={f.id}
-                onClick={() => setQuickFilter(f.id as any)}
-                className={`flex items-center gap-1.5 shrink-0 rounded-full px-3.5 py-1.5 text-xs font-bold transition border ${
-                  quickFilter === f.id
-                    ? "border-primary bg-primary text-primary-foreground shadow-sm shadow-primary/20"
-                    : "border-border/70 bg-surface text-muted-foreground hover:text-foreground hover:bg-surface-2"
-                }`}
-              >
-                <span>{f.label}</span>
-                {f.count !== undefined && (
-                  <span
-                    className={`rounded-full px-1.5 py-0.2 text-[10px] font-mono ${
-                      quickFilter === f.id ? "bg-white/20 text-white" : "bg-muted text-muted-foreground"
-                    }`}
-                  >
-                    {f.count}
-                  </span>
-                )}
-              </button>
-            ))}
-
-            {/* Advanced Filters Toggle */}
+      {/* ─── Luxury Sticky Toolbar: Search + Filters + Sort + View Toggle + New Product + Quick Pills ─── */}
+      <TableToolbar
+        sticky
+        search={{
+          value: query,
+          onValueChange: setQuery,
+          placeholder: t("products.search"),
+          resultCount: productCount ?? displayRows.length,
+        }}
+        filters={{
+          definitions: productFilterDefinitions,
+          values: filters,
+          onValueChange: setFilters,
+        }}
+        sort={{
+          options: productSortOptions,
+          value: sort?.key ?? "",
+          onValueChange: (v) =>
+            setSort(v ? { key: v, direction: sort?.direction ?? "asc" } : null),
+          label: lang === "ar" ? "ترتيب" : "Sort",
+        }}
+        viewToggle={
+          <ToolbarAction
+            label={viewMode === "cards" ? (lang === "ar" ? "قائمة" : "List") : (lang === "ar" ? "شبكة" : "Grid")}
+            icon={viewMode === "cards" ? <List /> : <LayoutGrid />}
+            onClick={() => setViewMode((prev) => (prev === "cards" ? "table" : "cards"))}
+            tone="ghost"
+          />
+        }
+        action={
+          <ToolbarAction
+            label={t("common.new")}
+            icon={<Plus />}
+            tone="primary"
+            onClick={openNew}
+          />
+        }
+      >
+        {/* Luxury Quick Filter Pills */}
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 scrollbar-x-none">
+          {[
+            { id: "all", label: lang === "ar" ? "الكل" : "All", count: productCount ?? products.length },
+            { id: "active", label: lang === "ar" ? "النشطة" : "Active", count: activeCount },
+            { id: "inactive", label: lang === "ar" ? "غير النشطة" : "Inactive", count: inactiveCount },
+            { id: "low_stock", label: lang === "ar" ? "تنبيه المخزون" : "Stock Alert", count: lowStockCount },
+          ].map((f) => (
             <button
-              onClick={() => setShowFilters((prev) => !prev)}
-              className={`flex items-center gap-1.5 shrink-0 rounded-full px-3.5 py-1.5 text-xs font-semibold border transition ${
-                showFilters || Object.keys(filters).length > 0
-                  ? "border-primary/50 bg-primary/10 text-primary"
-                  : "border-border/70 bg-surface text-muted-foreground hover:text-foreground"
+              key={f.id}
+              type="button"
+              onClick={() => setQuickFilter(f.id as any)}
+              className={`flex items-center gap-1.5 shrink-0 rounded-full px-3 py-1 text-xs font-bold transition border ${
+                quickFilter === f.id
+                  ? "border-primary bg-primary text-primary-foreground shadow-xs shadow-primary/20"
+                  : "border-border/70 bg-surface/70 text-muted-foreground hover:text-foreground hover:bg-surface-2"
               }`}
             >
-              <SlidersHorizontal className="size-3.5" />
-              <span>{lang === "ar" ? "فلاتر متقدمة" : "Filters"}</span>
-              {Object.keys(filters).length > 0 && (
-                <span className="size-2 rounded-full bg-primary animate-pulse" />
+              <span>{f.label}</span>
+              {f.count !== undefined && (
+                <span
+                  className={`rounded-full px-1.5 py-0.2 text-[10px] font-mono ${
+                    quickFilter === f.id ? "bg-white/20 text-white" : "bg-muted text-muted-foreground"
+                  }`}
+                >
+                  {f.count}
+                </span>
               )}
             </button>
-          </div>
-
-          {/* View Mode Toggle + New Product Button */}
-          <div className="flex items-center justify-between lg:justify-end gap-2.5">
-            {/* View Mode Toggle (Cards vs Table) */}
-            <div className="flex items-center rounded-2xl border border-border/80 bg-surface p-1">
-              <button
-                onClick={() => setViewMode("cards")}
-                title={lang === "ar" ? "عرض البطاقات الفاخرة" : "Cards view"}
-                className={`grid size-9 place-items-center rounded-xl transition ${
-                  viewMode === "cards"
-                    ? "bg-primary text-primary-foreground shadow-xs"
-                    : "text-muted-foreground hover:text-foreground hover:bg-surface-2"
-                }`}
-              >
-                <LayoutGrid className="size-4" />
-              </button>
-              <button
-                onClick={() => setViewMode("table")}
-                title={lang === "ar" ? "عرض الجدول المتقدم" : "Table view"}
-                className={`grid size-9 place-items-center rounded-xl transition ${
-                  viewMode === "table"
-                    ? "bg-primary text-primary-foreground shadow-xs"
-                    : "text-muted-foreground hover:text-foreground hover:bg-surface-2"
-                }`}
-              >
-                <List className="size-4" />
-              </button>
-            </div>
-
-            {/* New Product Button */}
-            <button
-              onClick={openNew}
-              className="flex h-11 items-center gap-2 rounded-2xl bg-primary px-4 sm:px-5 text-xs sm:text-sm font-bold text-primary-foreground shadow-md shadow-primary/25 hover:bg-primary/90 active:scale-95 transition"
-            >
-              <Plus className="size-4" />
-              <span>{lang === "ar" ? "منتج جديد" : "New Product"}</span>
-            </button>
-          </div>
+          ))}
         </div>
+      </TableToolbar>
 
-        {/* Expandable Advanced Filters Row */}
-        {showFilters && (
-          <div className="pt-3 border-t border-border/60 grid grid-cols-2 sm:grid-cols-4 gap-2.5 animate-in fade-in duration-200">
-            {meta?.categories && meta.categories.length > 0 && (
-              <div>
-                <label className="text-[10px] font-semibold text-muted-foreground block mb-1">
-                  {t("products.category")}
-                </label>
-                <select
-                  value={(filters.category as string) ?? ""}
-                  onChange={(e) => setFilters((prev) => ({ ...prev, category: e.target.value || undefined }))}
-                  className="h-9 w-full rounded-xl border border-border/80 bg-surface px-2.5 text-xs text-foreground focus:border-primary focus:outline-none"
-                >
-                  <option value="">{lang === "ar" ? "جميع التصنيفات" : "All categories"}</option>
-                  {meta.categories.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {label(c.name, c.name_ar)}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
-
-            {config.enableBrands && meta?.brands && meta.brands.length > 0 && (
-              <div>
-                <label className="text-[10px] font-semibold text-muted-foreground block mb-1">
-                  {t("products.brand")}
-                </label>
-                <select
-                  value={(filters.brand as string) ?? ""}
-                  onChange={(e) => setFilters((prev) => ({ ...prev, brand: e.target.value || undefined }))}
-                  className="h-9 w-full rounded-xl border border-border/80 bg-surface px-2.5 text-xs text-foreground focus:border-primary focus:outline-none"
-                >
-                  <option value="">{lang === "ar" ? "جميع الماركات" : "All brands"}</option>
-                  {meta.brands.map((b) => (
-                    <option key={b.id} value={b.id}>
-                      {label(b.name, b.name_ar)}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
-
-            {config.enableUnits && meta?.units && meta.units.length > 0 && (
-              <div>
-                <label className="text-[10px] font-semibold text-muted-foreground block mb-1">
-                  {t("products.unit")}
-                </label>
-                <select
-                  value={(filters.unit as string) ?? ""}
-                  onChange={(e) => setFilters((prev) => ({ ...prev, unit: e.target.value || undefined }))}
-                  className="h-9 w-full rounded-xl border border-border/80 bg-surface px-2.5 text-xs text-foreground focus:border-primary focus:outline-none"
-                >
-                  <option value="">{lang === "ar" ? "جميع الوحدات" : "All units"}</option>
-                  {meta.units.map((u) => (
-                    <option key={u.id} value={u.id}>
-                      {label(u.name, u.name_ar)}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
-
-            <div className="flex items-end">
-              <button
-                type="button"
-                onClick={() => setFilters({})}
-                className="h-9 px-3 rounded-xl border border-border/80 bg-surface text-xs font-semibold text-muted-foreground hover:text-foreground transition w-full"
-              >
-                {lang === "ar" ? "إعادة ضبط الفلاتر" : "Reset filters"}
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* ─── Main Records View: Cards vs Table ─── */}
+      {/* ─── Main Records View: Grid Cards vs Mullak Luxury Row Cards ─── */}
       {viewMode === "cards" ? (
         <div className="space-y-4">
           {isLoading ? (
@@ -901,9 +788,11 @@ function ProductsPage() {
                         setOpen(true);
                       }}
                       className={`card-mullak group relative overflow-hidden rounded-2xl p-4 sm:p-5 flex flex-col justify-between cursor-pointer border transition-all duration-200 ${
-                        p.is_active
-                          ? "border-r-4 border-r-emerald-500 hover:border-primary/40"
-                          : "border-r-4 border-r-muted-foreground/40 hover:border-border"
+                        !p.is_active
+                          ? "border-r-4 border-r-muted-foreground/40 hover:border-border"
+                          : p.min_stock != null && Number(p.min_stock) > 0
+                            ? "border-r-4 border-r-amber-500 hover:border-amber-500/60"
+                            : "border-r-4 border-r-emerald-500 hover:border-primary/40"
                       }`}
                     >
                       {/* Top Badges Row */}
@@ -927,7 +816,11 @@ function ProductsPage() {
 
                           <span
                             className={`size-2 rounded-full ${
-                              p.is_active ? "bg-emerald-500 ring-2 ring-emerald-500/20" : "bg-muted-foreground/40"
+                              !p.is_active
+                                ? "bg-muted-foreground/40"
+                                : p.min_stock != null && Number(p.min_stock) > 0
+                                  ? "bg-amber-500 ring-2 ring-amber-500/20"
+                                  : "bg-emerald-500 ring-2 ring-emerald-500/20"
                             }`}
                             title={p.is_active ? t("common.active") : t("common.inactive")}
                           />
@@ -1051,47 +944,197 @@ function ProductsPage() {
           )}
         </div>
       ) : (
-        /* ─── Table View (DataTable) ─── */
-        <div className="panel-elevated -mx-1 sm:mx-0 overflow-hidden rounded-2xl border border-border/80">
-          <DataTable
-            className="px-0"
-            columns={columns}
-            rows={displayRows}
-            rowKey={(p) => p.id}
-            loading={isLoading}
-            initialLoading={isLoading}
-            refreshing={isFetching && !isLoading && !isFetchingNextPage}
-            error={(error as Error) ?? null}
-            onRetry={() => refetch()}
-            sort={sort}
-            onSortChange={setSort}
-            infinite
-            hasMore={Boolean(hasNextPage)}
-            onLoadMore={() => {
-              if (hasNextPage && !isFetchingNextPage) void fetchNextPage();
-            }}
-            loadingMore={isFetchingNextPage}
-            pageSize={PRODUCTS_PAGE_SIZE}
-            totalCount={productCount}
-            minWidth={canViewCost ? 1050 : 930}
-            horizontalScroll={tableUsesHorizontalScroll}
-            stickyHeader
-            onRowClick={(product) => {
-              setEditing(product);
-              setPrefillBarcode(undefined);
-              setOpen(true);
-            }}
-            empty={{
-              icon: <Package />,
-              title: t("products.no_products"),
-              description: t("products.empty_hint"),
-              action: (
-                <Button size="sm" icon={<Plus />} onClick={openNew}>
-                  {t("common.new")}
-                </Button>
-              ),
-            }}
-          />
+        /* ─── Luxury Mullak Row-Cards View (Table Alternative with Right Accent Strip) ─── */
+        <div className="space-y-3">
+          {isLoading ? (
+            <div className="space-y-3">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <div key={i} className="card-mullak h-20 animate-pulse bg-surface-2/40 rounded-2xl" />
+              ))}
+            </div>
+          ) : displayRows.length === 0 ? (
+            <div className="card-mullak p-12 text-center flex flex-col items-center justify-center space-y-3">
+              <div className="grid size-14 place-items-center rounded-2xl bg-muted/30 text-muted-foreground">
+                <Package className="size-8" />
+              </div>
+              <h4 className="text-base font-bold text-foreground">{t("products.no_products")}</h4>
+              <p className="text-xs text-muted-foreground max-w-sm">{t("products.empty_hint")}</p>
+              <Button size="sm" icon={<Plus />} onClick={openNew}>
+                {t("common.new")}
+              </Button>
+            </div>
+          ) : (
+            <>
+              <div className="space-y-2.5">
+                {displayRows.map((p) => {
+                  const primary = lang === "ar" ? p.name_ar || p.name : p.name || p.name_ar || "—";
+                  const other = lang === "ar" ? p.name : p.name_ar;
+                  const secondary = other && other.trim() && other.trim() !== primary.trim() ? other : null;
+                  const categoryName = label(p.category?.name, p.category?.name_ar);
+
+                  const isLowStock = p.min_stock != null && Number(p.min_stock) > 0;
+                  const barColor = !p.is_active
+                    ? "bg-muted-foreground/30"
+                    : isLowStock
+                      ? "bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.5)]"
+                      : "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.4)]";
+
+                  return (
+                    <div
+                      key={p.id}
+                      onClick={() => {
+                        setEditing(p);
+                        setPrefillBarcode(undefined);
+                        setOpen(true);
+                      }}
+                      className="card-mullak group relative flex flex-col md:flex-row md:items-center justify-between gap-3 p-3.5 sm:p-4 rounded-2xl cursor-pointer border transition-all duration-200 hover:border-primary/50 hover:shadow-md"
+                    >
+                      {/* Right section: Colored Accent Bar + Avatar + Product Names & Tags */}
+                      <div className="flex items-center gap-3 min-w-0 flex-1">
+                        {/* Colored indicator bar on right (RTL indicator like Mullak) */}
+                        <span
+                          aria-hidden
+                          className={`h-11 sm:h-12 w-1.5 shrink-0 rounded-full ${barColor}`}
+                        />
+
+                        {/* Product Icon Avatar */}
+                        <div className="grid size-11 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary border border-primary/20 group-hover:bg-primary group-hover:text-primary-foreground group-hover:scale-105 transition-all">
+                          <Package className="size-5" />
+                        </div>
+
+                        {/* Title & Metadata */}
+                        <div className="min-w-0 flex-1">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <h4
+                              className="font-bold text-foreground text-sm sm:text-base leading-snug truncate group-hover:text-primary transition-colors"
+                              dir={lang === "ar" ? "rtl" : "ltr"}
+                            >
+                              {primary}
+                            </h4>
+                            {categoryName && (
+                              <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 border border-primary/20 px-2 py-0.5 text-[10px] font-semibold text-primary shrink-0">
+                                <Tag className="size-2.5" />
+                                <span>{categoryName}</span>
+                              </span>
+                            )}
+                          </div>
+
+                          <div className="flex flex-wrap items-center gap-2 mt-1 text-[11px] text-muted-foreground">
+                            {secondary && (
+                              <span className="text-muted-foreground/80 truncate max-w-[200px]" dir={lang === "ar" ? "ltr" : "rtl"}>
+                                {secondary}
+                              </span>
+                            )}
+                            {p.brand && (
+                              <span className="rounded-md bg-surface-2/80 px-2 py-0.5 border border-border/50 text-[10px]">
+                                {label(p.brand.name, p.brand.name_ar)}
+                              </span>
+                            )}
+                            {p.barcode ? (
+                              <span className="inline-flex items-center gap-1 rounded-md bg-surface-2 px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground border border-border/50">
+                                <Barcode className="size-2.5" />
+                                <span>{p.barcode}</span>
+                              </span>
+                            ) : p.sku ? (
+                              <span className="rounded-md bg-surface-2 px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
+                                {p.sku}
+                              </span>
+                            ) : null}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Middle section: Shelf location, Min stock, Status */}
+                      <div className="flex items-center gap-3 sm:gap-4 shrink-0 text-xs ps-4 md:ps-0">
+                        {p.shelf_location && (
+                          <div className="hidden sm:flex items-center gap-1 text-muted-foreground bg-surface-2/60 px-2.5 py-1 rounded-xl border border-border/40 text-[11px]">
+                            <MapPin className="size-3 text-muted-foreground" />
+                            <span className="font-mono">{p.shelf_location}</span>
+                          </div>
+                        )}
+
+                        {isLowStock && (
+                          <div className="flex items-center gap-1 text-amber-500 bg-amber-500/10 border border-amber-500/20 px-2.5 py-1 rounded-xl text-[11px] font-mono">
+                            <Boxes className="size-3" />
+                            <span>{qtyCell(p.min_stock)}</span>
+                          </div>
+                        )}
+
+                        <StatusBadge tone={p.is_active ? "success" : "neutral"} dot>
+                          {p.is_active ? t("common.active") : t("common.inactive")}
+                        </StatusBadge>
+                      </div>
+
+                      {/* Left section: Price + Actions */}
+                      <div className="flex items-center justify-between md:justify-end gap-3 pt-2 md:pt-0 border-t md:border-t-0 border-border/50 shrink-0 ps-4 md:ps-0">
+                        <div className="text-start md:text-end">
+                          <p className="font-mono font-bold text-base sm:text-lg text-foreground tracking-tight">
+                            {moneyCell(p.sale_price)}
+                          </p>
+                          {canViewCost && p.cost_price != null && (
+                            <p className="text-[10px] font-mono text-muted-foreground/70">
+                              {lang === "ar" ? "التكلفة: " : "Cost: "}
+                              {moneyCell(p.cost_price)}
+                            </p>
+                          )}
+                        </div>
+
+                        {/* Quick Action buttons */}
+                        <div className="flex items-center gap-1">
+                          <IconButton
+                            size="sm"
+                            variant="outline"
+                            tooltip
+                            ariaLabel={t("common.edit")}
+                            icon={<Pencil className="size-3.5" />}
+                            round
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              setEditing(p);
+                              setPrefillBarcode(undefined);
+                              setOpen(true);
+                            }}
+                          />
+                          <IconButton
+                            size="sm"
+                            variant="danger"
+                            tooltip
+                            ariaLabel={t("common.delete")}
+                            icon={<Trash2 className="size-3.5" />}
+                            round
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              setConfirmDelete(p);
+                            }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Load More Button in Table/List View */}
+              {hasNextPage && (
+                <div className="flex justify-center pt-4">
+                  <button
+                    onClick={() => void fetchNextPage()}
+                    disabled={isFetchingNextPage}
+                    className="flex items-center gap-2 rounded-2xl border border-border/80 bg-surface px-6 py-2.5 text-xs font-bold text-foreground shadow-sm hover:bg-surface-2 transition active:scale-95 disabled:opacity-50"
+                  >
+                    {isFetchingNextPage ? (
+                      <>
+                        <Loader2 className="size-4 animate-spin" />
+                        <span>{lang === "ar" ? "جاري التحميل..." : "Loading more…"}</span>
+                      </>
+                    ) : (
+                      <span>{lang === "ar" ? "عرض المزيد من المنتجات" : "Load more products"}</span>
+                    )}
+                  </button>
+                </div>
+              )}
+            </>
+          )}
         </div>
       )}
 
