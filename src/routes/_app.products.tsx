@@ -24,6 +24,7 @@ import {
   ScanBarcode,
   LayoutGrid,
   List,
+  TableProperties,
   Boxes,
   CheckCircle2,
   AlertTriangle,
@@ -145,7 +146,7 @@ function ProductsPage() {
   const [open, setOpen] = useState(false);
   const [prefillBarcode, setPrefillBarcode] = useState<string | undefined>(undefined);
   const [quickFilter, setQuickFilter] = useState<"all" | "active" | "inactive" | "low_stock">("all");
-  const [viewMode, setViewMode] = useState<"cards" | "table">("cards");
+  const [viewMode, setViewMode] = useState<"grid" | "list" | "table">("grid");
   const [showFilters, setShowFilters] = useState(false);
 
   const [confirmDelete, setConfirmDelete] = useState<ProductRow | null>(null);
@@ -679,46 +680,66 @@ function ProductsPage() {
         </div>
       </div>
 
-      {/* ─── Luxury Sticky Toolbar: Search + Filters + Sort + View Toggle + New Product + Quick Pills ─── */}
-      <TableToolbar
-        sticky
-        search={{
-          value: query,
-          onValueChange: setQuery,
-          placeholder: t("products.search"),
-          resultCount: productCount ?? displayRows.length,
-        }}
-        filters={{
-          definitions: productFilterDefinitions,
-          values: filters,
-          onValueChange: setFilters,
-        }}
-        sort={{
-          options: productSortOptions,
-          value: sort?.key ?? "",
-          onValueChange: (v) =>
-            setSort(v ? { key: v, direction: sort?.direction ?? "asc" } : null),
-          label: lang === "ar" ? "ترتيب" : "Sort",
-        }}
-        viewToggle={
-          <ToolbarAction
-            label={viewMode === "cards" ? (lang === "ar" ? "قائمة" : "List") : (lang === "ar" ? "شبكة" : "Grid")}
-            icon={viewMode === "cards" ? <List /> : <LayoutGrid />}
-            onClick={() => setViewMode((prev) => (prev === "cards" ? "table" : "cards"))}
-            tone="ghost"
-          />
-        }
-        action={
-          <ToolbarAction
-            label={t("common.new")}
-            icon={<Plus />}
-            tone="primary"
-            onClick={openNew}
-          />
-        }
-      >
-        {/* Luxury Quick Filter Pills */}
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 scrollbar-x-none">
+      {/* ─── Luxury Sticky Toolbar: Search + Filters + Sort + View Toggle (Grid / List / Classic Table) + New Product ─── */}
+      <div className="pt-2 sm:pt-3.5">
+        <TableToolbar
+          sticky
+          search={{
+            value: query,
+            onValueChange: setQuery,
+            placeholder: "ابحث في المنتجات",
+            resultCount: productCount ?? displayRows.length,
+          }}
+          filters={{
+            definitions: productFilterDefinitions,
+            values: filters,
+            onValueChange: setFilters,
+          }}
+          sort={{
+            options: productSortOptions,
+            value: sort?.key ?? "",
+            onValueChange: (v) =>
+              setSort(v ? { key: v, direction: sort?.direction ?? "asc" } : null),
+            label: lang === "ar" ? "ترتيب" : "Sort",
+          }}
+          viewToggle={
+            <ToolbarAction
+              label={
+                viewMode === "grid"
+                  ? (lang === "ar" ? "شبكة" : "Grid")
+                  : viewMode === "list"
+                    ? (lang === "ar" ? "قائمة" : "List")
+                    : (lang === "ar" ? "كلاسيكي" : "Classic")
+              }
+              icon={
+                viewMode === "grid" ? (
+                  <LayoutGrid />
+                ) : viewMode === "list" ? (
+                  <List />
+                ) : (
+                  <TableProperties />
+                )
+              }
+              onClick={() =>
+                setViewMode((prev) =>
+                  prev === "grid" ? "list" : prev === "list" ? "table" : "grid"
+                )
+              }
+              tone="ghost"
+            />
+          }
+          action={
+            <ToolbarAction
+              label={t("common.new")}
+              icon={<Plus />}
+              tone="primary"
+              onClick={openNew}
+            />
+          }
+        >
+          {/* Luxury Quick Filter Pills (visible only when view is Grid) */}
+          {viewMode === "grid" && (
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 scrollbar-x-none">
           {[
             { id: "all", label: lang === "ar" ? "الكل" : "All", count: productCount ?? products.length },
             { id: "active", label: lang === "ar" ? "النشطة" : "Active", count: activeCount },
@@ -747,11 +768,13 @@ function ProductsPage() {
               )}
             </button>
           ))}
-        </div>
-      </TableToolbar>
+            </div>
+          )}
+        </TableToolbar>
+      </div>
 
-      {/* ─── Main Records View: Grid Cards vs Mullak Luxury Row Cards ─── */}
-      {viewMode === "cards" ? (
+      {/* ─── Main Records View: Grid vs List (Mullak style) vs Classic Table ─── */}
+      {viewMode === "grid" ? (
         <div className="space-y-4">
           {isLoading ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
@@ -943,8 +966,8 @@ function ProductsPage() {
             </>
           )}
         </div>
-      ) : (
-        /* ─── Luxury Mullak Row-Cards View (Table Alternative with Right Accent Strip) ─── */
+      ) : viewMode === "list" ? (
+        /* ─── Luxury Mullak Row-Cards View (List with Right Accent Strip) ─── */
         <div className="space-y-3">
           {isLoading ? (
             <div className="space-y-3">
@@ -1114,7 +1137,7 @@ function ProductsPage() {
                 })}
               </div>
 
-              {/* Load More Button in Table/List View */}
+              {/* Load More Button in List View */}
               {hasNextPage && (
                 <div className="flex justify-center pt-4">
                   <button
@@ -1135,6 +1158,49 @@ function ProductsPage() {
               )}
             </>
           )}
+        </div>
+      ) : (
+        /* ─── Classic Table View: Original DataTable with column headers & full layout ─── */
+        <div className="panel-elevated -mx-1 sm:mx-0 overflow-hidden rounded-2xl border border-border/70">
+          <DataTable
+            className="px-0"
+            columns={columns}
+            rows={displayRows}
+            rowKey={(p) => p.id}
+            loading={isLoading}
+            initialLoading={isLoading}
+            refreshing={isFetching && !isLoading && !isFetchingNextPage}
+            error={(error as Error) ?? null}
+            onRetry={() => refetch()}
+            sort={sort}
+            onSortChange={setSort}
+            infinite
+            hasMore={Boolean(hasNextPage)}
+            onLoadMore={() => {
+              if (hasNextPage && !isFetchingNextPage) void fetchNextPage();
+            }}
+            loadingMore={isFetchingNextPage}
+            pageSize={PRODUCTS_PAGE_SIZE}
+            totalCount={productCount}
+            minWidth={canViewCost ? 1050 : 930}
+            horizontalScroll={tableUsesHorizontalScroll}
+            stickyHeader
+            onRowClick={(product) => {
+              setEditing(product);
+              setPrefillBarcode(undefined);
+              setOpen(true);
+            }}
+            empty={{
+              icon: <Package />,
+              title: t("products.no_products"),
+              description: t("products.empty_hint"),
+              action: (
+                <Button size="sm" icon={<Plus />} onClick={openNew}>
+                  {t("common.new")}
+                </Button>
+              ),
+            }}
+          />
         </div>
       )}
 
