@@ -856,7 +856,7 @@ function CustomersPage() {
             </div>
           </div>
         </div>
-      )}      )}
+      )}
 
       {/* ─── Enhanced Customer Detail Dialog ─── */}
       {selected && detailStats && (
