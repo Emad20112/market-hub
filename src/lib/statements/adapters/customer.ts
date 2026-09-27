@@ -84,15 +84,21 @@ async function enrichReferences(
   );
 
   const invoiceNumberById = new Map<string, string>();
+  const invoiceMethodById = new Map<string, string>();
   const methodByPaymentId = new Map<string, string>();
   const invoiceNumberByPaymentId = new Map<string, string>();
 
   if (invoiceIds.length > 0) {
     const { data } = await supabase
       .from("sales_invoices")
-      .select("id, invoice_number")
+      .select("id, invoice_number, payment_method")
       .in("id", invoiceIds);
-    for (const row of data ?? []) invoiceNumberById.set(row.id, row.invoice_number);
+    for (const row of data ?? []) {
+      invoiceNumberById.set(row.id, row.invoice_number);
+      if (row.payment_method) {
+        invoiceMethodById.set(row.id, row.payment_method);
+      }
+    }
   }
 
   if (paymentIds.length > 0) {
@@ -113,6 +119,7 @@ async function enrichReferences(
 
     if (entry.referenceType === "sales_invoice" && entry.referenceId) {
       reference = invoiceNumberById.get(entry.referenceId) ?? null;
+      paymentMethod = invoiceMethodById.get(entry.referenceId) ?? paymentMethod;
     } else if (entry.referenceType === "customer_payment" && entry.referenceId) {
       reference = invoiceNumberByPaymentId.get(entry.referenceId) ?? fallbackLabel.receipt;
       paymentMethod = methodByPaymentId.get(entry.referenceId) ?? paymentMethod;

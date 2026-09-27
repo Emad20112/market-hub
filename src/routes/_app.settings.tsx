@@ -1,4 +1,5 @@
 import { SubscriptionSettingsCard } from "@/components/subscription-settings-card";
+import { PrintSettingsCard } from "@/components/print-settings-card";
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { PageHeader } from "@/components/page-header";
@@ -335,90 +336,10 @@ function SettingsPage() {
               disabled={!canEdit}
             />
 
-            {/* Print Settings Section */}
-            <div className="pt-1 border-t border-border/60">
-              <div className="flex items-center gap-2 mb-3">
-                <Printer className="h-3.5 w-3.5 text-primary" />
-                <span className="text-xs font-bold text-foreground uppercase tracking-wider">
-                  {lang === "ar" ? "إعدادات الطباعة" : "Print Settings"}
-                </span>
-              </div>
-
-              {/* Print Mode */}
-              <div className="grid gap-1.5 mb-3">
-                <label className="text-xs text-muted-foreground font-medium">
-                  {lang === "ar" ? "وضع الطباعة بعد البيع" : "Print mode after sale"}
-                </label>
-                <div className="grid grid-cols-3 gap-2">
-                  {(
-                    [
-                      { val: "ask", ar: "سؤال دائمًا", en: "Always ask" },
-                      { val: "auto", ar: "طباعة تلقائية", en: "Auto print" },
-                      { val: "off", ar: "بدون طباعة", en: "No printing" },
-                    ] as const
-                  ).map((opt) => (
-                    <button
-                      key={opt.val}
-                      type="button"
-                      disabled={!canEdit}
-                      onClick={() => setPrintMode(opt.val)}
-                      className={`h-9 rounded-xl border text-xs font-semibold transition-all ${
-                        printMode === opt.val
-                          ? "border-primary bg-primary/10 text-primary ring-1 ring-primary/30"
-                          : "border-border/80 text-muted-foreground hover:bg-surface-2 hover:text-foreground disabled:opacity-50"
-                      }`}
-                    >
-                      {lang === "ar" ? opt.ar : opt.en}
-                    </button>
-                  ))}
-                </div>
-                <p className="text-[11px] text-muted-foreground">
-                  {lang === "ar"
-                    ? printMode === "ask"
-                      ? "سيظهر dialog بعد كل عملية بيع لاختيار الطباعة أو التخطي"
-                      : printMode === "auto"
-                        ? "ستطبع الفاتورة تلقائيًا بالقالب الافتراضي فور إتمام البيع"
-                        : "لن تُطبع أي فاتورة — بيع مباشر بدون طباعة"
-                    : printMode === "ask"
-                      ? "A dialog appears after each sale to choose print or skip"
-                      : printMode === "auto"
-                        ? "Invoice prints automatically using default template"
-                        : "No invoice printed — direct sale without printing"}
-                </p>
-              </div>
-
-              {/* Default Template (shown unless off) */}
-              {printMode !== "off" && (
-                <div className="grid gap-1.5">
-                  <label className="text-xs text-muted-foreground font-medium">
-                    {lang === "ar" ? "قالب الفاتورة الافتراضي" : "Default invoice template"}
-                  </label>
-                  <div className="grid grid-cols-3 gap-2">
-                    {(
-                      [
-                        { val: "thermal", ar: "حراري 80mm", en: "Thermal 80mm" },
-                        { val: "standard", ar: "A4 عادي", en: "Standard A4" },
-                        { val: "elegant", ar: "A4 فاخر", en: "Elegant A4" },
-                      ] as const
-                    ).map((tmpl) => (
-                      <button
-                        key={tmpl.val}
-                        type="button"
-                        disabled={!canEdit}
-                        onClick={() => setDefaultPrintTemplate(tmpl.val)}
-                        className={`h-9 rounded-xl border text-xs font-semibold transition-all ${
-                          defaultPrintTemplate === tmpl.val
-                            ? "border-primary bg-primary/10 text-primary ring-1 ring-primary/30"
-                            : "border-border/80 text-muted-foreground hover:bg-surface-2 hover:text-foreground disabled:opacity-50"
-                        }`}
-                      >
-                        {lang === "ar" ? tmpl.ar : tmpl.en}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
+            {/* Print Settings — unified printing architecture (templates, paper size,
+                auto-print jobs, and document field visibility). This card persists to the
+                single source of truth and stays in sync with the legacy POS keys. */}
+            <PrintSettingsCard canEdit={canEdit} />
           </CardContent>
         </Card>
 

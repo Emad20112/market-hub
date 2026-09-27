@@ -5,6 +5,7 @@ import {
   renderInvoiceHTML,
   UnifiedInvoiceData,
   DEFAULT_BRANDING,
+  getPrintSettings,
 } from "./templates";
 
 export type { InvoiceLabels as Labels };
@@ -17,12 +18,17 @@ export function printInvoice(
   labels: InvoiceLabels,
   rtl: boolean,
 ) {
+  // Honour the "no printing" mode configured in settings
+  if (getPrintSettings().printMode === "off") return;
+
   // Ensure default branding is present
   const fullDoc: UnifiedInvoiceData = {
     ...doc,
     brandingText: ("brandingText" in doc && doc.brandingText) ? doc.brandingText : DEFAULT_BRANDING,
   };
 
+  // Pass undefined options so renderInvoiceHTML merges the saved field-visibility
+  // settings (showLogo, showFinancialDetails, paper size, ...) from the store.
   const html = renderInvoiceHTML(template, fullDoc, labels, rtl);
 
   // Always use a hidden iframe — never open a new tab/window

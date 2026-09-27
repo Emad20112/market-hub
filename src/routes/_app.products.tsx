@@ -1777,7 +1777,7 @@ function ProductDialog({
                     setForm({ ...form, cost_price: String(num) })
                   }
                   min={0}
-                  currency="﷼"
+                  currencySymbol="﷼"
                   placeholder="0.00"
                 />
               </FormField>
@@ -1793,7 +1793,7 @@ function ProductDialog({
                     setForm({ ...form, sale_price: String(num) })
                   }
                   min={0}
-                  currency="﷼"
+                  currencySymbol="﷼"
                   placeholder="0.00"
                 />
               )}

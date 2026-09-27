@@ -726,13 +726,39 @@ function AccountStatementPage() {
                                 </span>
                               );
                               break;
-                            case "paymentMethod":
+                            case "paymentMethod": {
+                              const rawPm = String(row.meta?.paymentMethod ?? "").trim().toLowerCase();
+                              const pmLabel =
+                                rawPm === "cash"
+                                  ? ar
+                                    ? "نقدي"
+                                    : "Cash"
+                                  : rawPm === "card"
+                                    ? ar
+                                      ? "بطاقة"
+                                      : "Card"
+                                    : rawPm === "bank_transfer" || rawPm === "bank"
+                                      ? ar
+                                        ? "تحويل بنكي"
+                                        : "Bank transfer"
+                                      : rawPm === "credit"
+                                        ? ar
+                                          ? "آجل"
+                                          : "Credit"
+                                        : rawPm === "split"
+                                          ? ar
+                                            ? "دفع مجزأ"
+                                            : "Split payment"
+                                          : rawPm || "—";
                               content = (
-                                <span className="text-xs text-muted-foreground">
-                                  {String(row.meta?.paymentMethod ?? "—")}
+                                <span
+                                  className={`text-xs ${rawPm ? "font-medium text-foreground" : "text-muted-foreground"}`}
+                                >
+                                  {pmLabel}
                                 </span>
                               );
                               break;
+                            }
                           }
                           return (
                             <TableCell key={col.key} className={alignClass(col.align)}>

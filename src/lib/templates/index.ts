@@ -190,6 +190,12 @@ export function printDocument(
   rtl = true,
   options?: CustomFieldOptions,
 ): void {
+  // Respect the global "no printing" mode unless the caller forces a print
+  const settings = getPrintSettings();
+  if (settings.printMode === "off") {
+    return;
+  }
+
   const html = renderDocumentHTML(doc, templateId, labels, rtl, options);
 
   const iframe = document.createElement("iframe");
@@ -230,7 +236,21 @@ export function printJob(
 ): void {
   if (!items || items.length === 0) return;
 
-  items.forEach((item, index) => {
+  const settings = getPrintSettings();
+  if (settings.printMode === "off") return;
+
+  // Honour the per-document auto-print switches so the print job matches the
+  // configured architecture (customer invoice and/or inventory document).
+  const allowed = items.filter((item) => {
+    const isInventory = item.doc.docType === "inventory_document";
+    return isInventory
+      ? settings.autoPrintInventoryDocument
+      : settings.autoPrintCustomerInvoice;
+  });
+
+  if (allowed.length === 0) return;
+
+  allowed.forEach((item, index) => {
     setTimeout(() => {
       printDocument(item.doc, item.templateId, labels, rtl);
     }, index * 1000);

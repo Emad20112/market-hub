@@ -953,9 +953,6 @@ function CustomersPage() {
                     >
                       {selected.is_active ? t("common.active") : t("common.inactive")}
                     </span>
-                    {selectedIntegrity?.hasGap && (
-                      <StatementIntegrityBadge integrity={selectedIntegrity} variant="chip" />
-                    )}
                   </div>
                 </div>
               </div>
