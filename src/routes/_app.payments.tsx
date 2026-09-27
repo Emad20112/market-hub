@@ -8,6 +8,9 @@ import { PageHeader } from "@/components/page-header";
 import { useI18n } from "@/lib/i18n";
 import { money } from "@/lib/format";
 import { toast } from "sonner";
+import { WhatsAppButton } from "@/components/whatsapp-button";
+import { paymentReceiptMessage, debtReminderMessage } from "@/lib/whatsapp-templates";
+import { openWhatsApp } from "@/lib/whatsapp";
 
 const paymentsSearchSchema = z.object({
   customerId: z.string().optional(),
@@ -165,8 +168,29 @@ function PaymentsPage() {
         _note: note || null,
       });
       if (error) throw error;
+      const invNo = selectedInvoice?.invoice_number ?? null;
       toast.success(
         t("payments.recorded") || (lang === "ar" ? "تم تسجيل الدفعة" : "Payment recorded"),
+        {
+          action: selected.phone
+            ? {
+                label: lang === "ar" ? "إيصال واتساب" : "WhatsApp receipt",
+                onClick: () =>
+                  openWhatsApp(
+                    selected.phone,
+                    paymentReceiptMessage({
+                      name: selected.name,
+                      amount: money(amt),
+                      date,
+                      invoiceNumber: invNo,
+                      remaining: invNo ? money(Math.max(remaining - amt, 0)) : null,
+                      lang,
+                    }),
+                  ),
+              }
+            : undefined,
+          duration: 8000,
+        },
       );
       await refresh();
       // المستخدم يريد رؤية أثر الدفعة فورًا على الرصيد
@@ -299,14 +323,28 @@ function PaymentsPage() {
                   {money(Number(selected.balance))}
                 </div>
               </div>
-              <button
-                type="button"
-                onClick={() => goStatement(selected.id)}
-                className="flex h-9 items-center gap-1.5 rounded-full border border-border px-4 text-xs font-medium text-muted-foreground transition-colors hover:bg-surface-2 hover:text-foreground"
-              >
-                <FileText className="h-3.5 w-3.5" />
-                {lang === "ar" ? "كشف الحساب" : "Statement"}
-              </button>
+              <div className="flex items-center gap-2">
+                {Number(selected.balance) > 0 && (
+                  <WhatsAppButton
+                    phone={selected.phone}
+                    label={lang === "ar" ? "تذكير واتساب" : "WhatsApp reminder"}
+                    message={debtReminderMessage({
+                      name: selected.name,
+                      balance: money(Number(selected.balance)),
+                      lang,
+                    })}
+                    className="flex h-9 items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-4 text-xs font-medium text-emerald-500 transition hover:bg-emerald-500/20 disabled:cursor-not-allowed disabled:opacity-40"
+                  />
+                )}
+                <button
+                  type="button"
+                  onClick={() => goStatement(selected.id)}
+                  className="flex h-9 items-center gap-1.5 rounded-full border border-border px-4 text-xs font-medium text-muted-foreground transition-colors hover:bg-surface-2 hover:text-foreground"
+                >
+                  <FileText className="h-3.5 w-3.5" />
+                  {lang === "ar" ? "كشف الحساب" : "Statement"}
+                </button>
+              </div>
             </div>
 
             {/* Record payment */}

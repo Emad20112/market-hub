@@ -18,12 +18,13 @@ import {
   Printer,
   CreditCard,
   Calendar,
-  MapPin,
-} from "lucide-react";
+  MapPin, MessageCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/page-header";
 import { useI18n } from "@/lib/i18n";
 import { money } from "@/lib/format";
+import { openWhatsApp } from "@/lib/whatsapp";
+import { debtReminderMessage } from "@/lib/whatsapp-templates";
 import { useDebtIndex } from "@/hooks/use-debts-overview";
 import { StatementIntegrityBadge } from "@/components/statements/statement-integrity-badge";
 import { toast } from "sonner";
@@ -534,6 +535,23 @@ function CustomersPage() {
                                 onClick={() => {
                                   setMenuOpen(null);
                                   goPayment(r);
+                                }}
+                              />
+                            )}
+                            {Number(r.balance) > 0 && (
+                              <QuickActionItem
+                                icon={<MessageCircle className="h-3.5 w-3.5 text-emerald-500" />}
+                                label={lang === "ar" ? "تذكير واتساب" : "WhatsApp reminder"}
+                                onClick={() => {
+                                  setMenuOpen(null);
+                                  openWhatsApp(
+                                    r.phone,
+                                    debtReminderMessage({
+                                      name: r.name,
+                                      balance: money(Number(r.balance)),
+                                      lang,
+                                    }),
+                                  );
                                 }}
                               />
                             )}

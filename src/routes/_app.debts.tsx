@@ -18,6 +18,8 @@ import { useI18n } from "@/lib/i18n";
 import { money } from "@/lib/format";
 import { useDebtIndex } from "@/hooks/use-debts-overview";
 import { StatementIntegrityBadge } from "@/components/statements/statement-integrity-badge";
+import { WhatsAppButton } from "@/components/whatsapp-button";
+import { debtReminderMessage } from "@/lib/whatsapp-templates";
 
 const debtsSearchSchema = z.object({
   customerId: z.string().optional(),
@@ -321,9 +323,21 @@ function DebtsPage() {
                         )}
                       </td>
                       <td className="px-3 py-2.5 text-end">
-                        <button className="rounded-full border border-border bg-surface px-3 py-1 text-xs text-muted-foreground hover:bg-surface-2">
-                          {t("debts.view")}
-                        </button>
+                        <div className="flex items-center justify-end gap-1.5">
+                          {bal > 0 && (
+                            <WhatsAppButton
+                              phone={r.phone}
+                              message={debtReminderMessage({
+                                name: r.name,
+                                balance: money(bal),
+                                lang,
+                              })}
+                            />
+                          )}
+                          <button className="rounded-full border border-border bg-surface px-3 py-1 text-xs text-muted-foreground hover:bg-surface-2">
+                            {t("debts.view")}
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );
@@ -460,6 +474,18 @@ function DebtsPage() {
               >
                 {t("common.close")}
               </button>
+              {selectedLedgerBalance > 0 && (
+                <WhatsAppButton
+                  phone={selected.phone}
+                  label={lang === "ar" ? "تذكير واتساب" : "WhatsApp reminder"}
+                  message={debtReminderMessage({
+                    name: selected.name,
+                    balance: money(selectedLedgerBalance),
+                    lang,
+                  })}
+                  className="flex h-9 items-center gap-1.5 rounded-md border border-emerald-500/30 bg-emerald-500/10 px-4 text-sm font-medium text-emerald-500 transition hover:bg-emerald-500/20 disabled:cursor-not-allowed disabled:opacity-40"
+                />
+              )}
               <button
                 onClick={() => goStatement(selected.id)}
                 className="flex h-9 items-center gap-1.5 rounded-md border border-border px-4 text-sm hover:bg-surface-2"

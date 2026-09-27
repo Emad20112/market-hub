@@ -6,6 +6,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/page-header";
 import { useI18n } from "@/lib/i18n";
 import { money } from "@/lib/format";
+import { WhatsAppButton } from "@/components/whatsapp-button";
+import { supplierMessage } from "@/lib/whatsapp-templates";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_app/suppliers")({
@@ -164,6 +166,14 @@ function SuppliersPage() {
                     </td>
                     <td className="px-3 py-2.5 text-end">
                       <div className="flex justify-end gap-1.5">
+                        <WhatsAppButton
+                          phone={r.phone}
+                          message={supplierMessage({
+                            name: r.name,
+                            balance: money(Number(r.balance)),
+                            lang,
+                          })}
+                        />
                         <button
                           onClick={() => setEdit(r)}
                           title={t("common.edit")}
