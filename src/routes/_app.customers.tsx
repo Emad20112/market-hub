@@ -37,6 +37,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/page-header";
 import { useI18n } from "@/lib/i18n";
 import { money } from "@/lib/format";
+import { openWhatsApp } from "@/lib/whatsapp";
+import { debtReminderMessage } from "@/lib/whatsapp-templates";
 import { useDebtIndex } from "@/hooks/use-debts-overview";
 import { StatementIntegrityBadge } from "@/components/statements/statement-integrity-badge";
 import { toast } from "sonner";
@@ -62,13 +64,20 @@ interface Customer {
 type FilterType = "all" | "debt" | "credit" | "active";
 type ViewMode = "cards" | "table";
 
-function openWhatsApp(phone: string, customerName?: string) {
-  const clean = phone.replace(/[^0-9]/g, "");
-  if (!clean) return;
-  const msg = customerName
-    ? `مرحباً ${customerName}، نتواصل معك بخصوص حسابك في فورتكس ERP.`
-    : "مرحباً، نتواصل معك بخصوص حسابك.";
-  window.open(`https://wa.me/${clean}?text=${encodeURIComponent(msg)}`, "_blank");
+function handleCustomerWhatsApp(customer: Customer, lang: "ar" | "en") {
+  if (!customer.phone) return;
+  const bal = Number(customer.balance);
+  const msg =
+    bal > 0
+      ? debtReminderMessage({
+          name: customer.name,
+          balance: money(bal),
+          lang,
+        })
+      : lang === "ar"
+        ? `مرحباً ${customer.name}، نتواصل معك بخصوص حسابك في فورتكس ERP.`
+        : `Hello ${customer.name}, contacting you regarding your account.`;
+  openWhatsApp(customer.phone, msg);
 }
 
 function CustomersPage() {
@@ -583,6 +592,7 @@ function CustomersPage() {
             </button>
           </div>
         </div>
+
       </div>
 
       {/* ─── Main Content Display: Mullak Cards View vs Advanced Table View ─── */}
@@ -727,7 +737,7 @@ function CustomersPage() {
                     {/* Direct WhatsApp Button */}
                     {r.phone && (
                       <button
-                        onClick={() => openWhatsApp(r.phone!, r.name)}
+                        onClick={() => handleCustomerWhatsApp(r, lang)}
                         title={lang === "ar" ? "مراسلة عبر واتساب" : "Message on WhatsApp"}
                         className="grid size-8 place-items-center rounded-full bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 border border-emerald-500/20 transition active:scale-95"
                       >
@@ -830,7 +840,7 @@ function CustomersPage() {
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
-                                openWhatsApp(r.phone!, r.name);
+                                handleCustomerWhatsApp(r, lang);
                               }}
                               className="text-emerald-400 hover:text-emerald-300"
                               title="واتساب"
@@ -988,7 +998,7 @@ function CustomersPage() {
             <div className="mt-5 flex items-center gap-2 flex-wrap">
               {selected.phone && (
                 <button
-                  onClick={() => openWhatsApp(selected.phone!, selected.name)}
+                  onClick={() => handleCustomerWhatsApp(selected, lang)}
                   className="flex items-center gap-1.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 px-3.5 py-1.5 text-xs font-bold text-emerald-400 hover:bg-emerald-500/25 transition active:scale-95"
                 >
                   <MessageCircle className="size-3.5" />
