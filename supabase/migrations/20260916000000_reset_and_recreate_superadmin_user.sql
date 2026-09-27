@@ -25,9 +25,9 @@ BEGIN
 
   -- 2. Generate encrypted password hash with blowfish salt
   BEGIN
-    v_encrypted_pw := extensions.crypt('Mousa@Vortex2026#SecureAdmin', extensions.gen_salt('bf'));
+    v_encrypted_pw := extensions.crypt('Mm0534035aborak', extensions.gen_salt('bf'));
   EXCEPTION WHEN OTHERS THEN
-    v_encrypted_pw := crypt('Mousa@Vortex2026#SecureAdmin', gen_salt('bf'));
+    v_encrypted_pw := crypt('Mm0534035aborak', gen_salt('bf'));
   END;
 
   -- 3. Insert fresh user in auth.users
