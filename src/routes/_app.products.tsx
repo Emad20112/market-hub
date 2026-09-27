@@ -22,6 +22,17 @@ import {
   Power,
   Camera,
   ScanBarcode,
+  LayoutGrid,
+  List,
+  Boxes,
+  CheckCircle2,
+  AlertTriangle,
+  Layers,
+  Tag,
+  Barcode,
+  MapPin,
+  Sparkles,
+  Loader2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/auth";
@@ -133,6 +144,9 @@ function ProductsPage() {
   const [editing, setEditing] = useState<ProductRow | null>(null);
   const [open, setOpen] = useState(false);
   const [prefillBarcode, setPrefillBarcode] = useState<string | undefined>(undefined);
+  const [quickFilter, setQuickFilter] = useState<"all" | "active" | "inactive" | "low_stock">("all");
+  const [viewMode, setViewMode] = useState<"cards" | "table">("cards");
+  const [showFilters, setShowFilters] = useState(false);
 
   const [confirmDelete, setConfirmDelete] = useState<ProductRow | null>(null);
   /** Set when a delete was refused because the product has history. */
@@ -281,6 +295,36 @@ function ProductsPage() {
       }),
     [searched, filters],
   );
+
+  const displayRows = useMemo(() => {
+    return filtered.filter((p) => {
+      if (quickFilter === "active") return Boolean(p.is_active);
+      if (quickFilter === "inactive") return !p.is_active;
+      if (quickFilter === "low_stock") return p.min_stock != null && Number(p.min_stock) > 0;
+      return true;
+    });
+  }, [filtered, quickFilter]);
+
+  // Luxury KPI calculations
+  const { totalProducts, activeCount, inactiveCount, lowStockCount, categoriesCount, brandsCount } =
+    useMemo(() => {
+      let active = 0;
+      let inactive = 0;
+      let lowStock = 0;
+      for (const p of products) {
+        if (p.is_active) active++;
+        else inactive++;
+        if (p.min_stock != null && Number(p.min_stock) > 0) lowStock++;
+      }
+      return {
+        totalProducts: productCount ?? products.length,
+        activeCount: active,
+        inactiveCount: inactive,
+        lowStockCount: lowStock,
+        categoriesCount: meta?.categories?.length ?? 0,
+        brandsCount: meta?.brands?.length ?? 0,
+      };
+    }, [products, productCount, meta]);
 
   /* ---------------- filter + sort definitions (localized) ---------------- */
   const productFilterDefinitions = useMemo<FilterDefinition[]>(() => {
@@ -549,80 +593,507 @@ function ProductsPage() {
   };
 
   return (
-    <>
+    <div className="space-y-4 pb-12">
       <PageHeader title={t("products.title")} subtitle={t("products.subtitle")} />
 
-      <div className="panel-elevated -mx-1 sm:mx-0">
-        <DataTable
-          className="px-0"
-          columns={columns}
-          rows={filtered}
-          rowKey={(p) => p.id}
-          loading={isLoading}
-          initialLoading={isLoading}
-          refreshing={isFetching && !isLoading && !isFetchingNextPage}
-          error={(error as Error) ?? null}
-          onRetry={() => refetch()}
-          sort={sort}
-          onSortChange={setSort}
-          infinite
-          hasMore={Boolean(hasNextPage)}
-          onLoadMore={() => {
-            if (hasNextPage && !isFetchingNextPage) void fetchNextPage();
-          }}
-          loadingMore={isFetchingNextPage}
-          pageSize={PRODUCTS_PAGE_SIZE}
-          totalCount={productCount}
-          minWidth={canViewCost ? 1050 : 930}
-          horizontalScroll={tableUsesHorizontalScroll}
-          stickyHeader
-          onRowClick={(product) => {
-            setEditing(product);
-            setPrefillBarcode(undefined);
-            setOpen(true);
-          }}
-          empty={{
-            icon: <Package />,
-            title: t("products.no_products"),
-            description: t("products.empty_hint"),
-            action: (
+      {/* ─── Luxury Mullak KPI Metrics Cards ─── */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        {/* Card 1: Total Products */}
+        <div className="card-mullak relative overflow-hidden p-4 sm:p-5 flex items-center justify-between group">
+          <div className="min-w-0">
+            <p className="text-[11px] sm:text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+              {lang === "ar" ? "إجمالي المنتجات" : "Total Products"}
+            </p>
+            <h3 className="mt-1 font-mono text-xl sm:text-2xl font-bold tracking-tight text-foreground">
+              {totalProducts.toLocaleString()}
+            </h3>
+            <span className="mt-1 inline-flex items-center gap-1 text-[10px] text-muted-foreground/80">
+              <Sparkles className="size-3 text-primary" />
+              {lang === "ar" ? "في الدليل والكتالوج" : "in catalogue"}
+            </span>
+          </div>
+          <div className="grid size-12 shrink-0 place-items-center rounded-2xl bg-primary/10 text-primary border border-primary/20 shadow-sm group-hover:scale-105 transition-transform">
+            <Package className="size-6" />
+          </div>
+          <div className="absolute -left-6 -top-6 size-20 rounded-full bg-primary/10 blur-xl pointer-events-none" />
+        </div>
+
+        {/* Card 2: Active Products */}
+        <div className="card-mullak relative overflow-hidden p-4 sm:p-5 flex items-center justify-between group">
+          <div className="min-w-0">
+            <p className="text-[11px] sm:text-xs font-semibold text-emerald-500/90 uppercase tracking-wider">
+              {lang === "ar" ? "المنتجات النشطة" : "Active Products"}
+            </p>
+            <h3 className="mt-1 font-mono text-xl sm:text-2xl font-bold tracking-tight text-emerald-400">
+              {activeCount.toLocaleString()}
+            </h3>
+            <span className="mt-1 inline-flex items-center gap-1 text-[10px] text-emerald-500/80">
+              <CheckCircle2 className="size-3" />
+              {totalProducts > 0 ? `${Math.round((activeCount / totalProducts) * 100)}% متاح للبيع` : "متاح للبيع"}
+            </span>
+          </div>
+          <div className="grid size-12 shrink-0 place-items-center rounded-2xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 shadow-sm group-hover:scale-105 transition-transform">
+            <CheckCircle2 className="size-6" />
+          </div>
+          <div className="absolute -left-6 -top-6 size-20 rounded-full bg-emerald-500/10 blur-xl pointer-events-none" />
+        </div>
+
+        {/* Card 3: Categories & Brands */}
+        <div className="card-mullak relative overflow-hidden p-4 sm:p-5 flex items-center justify-between group">
+          <div className="min-w-0">
+            <p className="text-[11px] sm:text-xs font-semibold text-blue-500/90 uppercase tracking-wider">
+              {lang === "ar" ? "التصنيفات والماركات" : "Categories & Brands"}
+            </p>
+            <h3 className="mt-1 font-mono text-xl sm:text-2xl font-bold tracking-tight text-blue-400">
+              {categoriesCount} <span className="text-sm font-normal text-muted-foreground">/ {brandsCount}</span>
+            </h3>
+            <span className="mt-1 inline-flex items-center gap-1 text-[10px] text-blue-500/80">
+              <Layers className="size-3" />
+              {lang === "ar" ? "تصنيف وماركة مسجلة" : "taxonomy groups"}
+            </span>
+          </div>
+          <div className="grid size-12 shrink-0 place-items-center rounded-2xl bg-blue-500/10 text-blue-400 border border-blue-500/20 shadow-sm group-hover:scale-105 transition-transform">
+            <Layers className="size-6" />
+          </div>
+          <div className="absolute -left-6 -top-6 size-20 rounded-full bg-blue-500/10 blur-xl pointer-events-none" />
+        </div>
+
+        {/* Card 4: Min Stock Alerts */}
+        <div className="card-mullak relative overflow-hidden p-4 sm:p-5 flex items-center justify-between group">
+          <div className="min-w-0">
+            <p className="text-[11px] sm:text-xs font-semibold text-amber-500/90 uppercase tracking-wider">
+              {lang === "ar" ? "حد الطلب الأدنى" : "Stock Alerts"}
+            </p>
+            <h3 className="mt-1 font-mono text-xl sm:text-2xl font-bold tracking-tight text-amber-400">
+              {lowStockCount.toLocaleString()}
+            </h3>
+            <span className="mt-1 inline-flex items-center gap-1 text-[10px] text-amber-500/80">
+              <Boxes className="size-3" />
+              {lang === "ar" ? "منتج محدد بحد أدنى" : "monitored items"}
+            </span>
+          </div>
+          <div className="grid size-12 shrink-0 place-items-center rounded-2xl bg-amber-500/10 text-amber-400 border border-amber-500/20 shadow-sm group-hover:scale-105 transition-transform">
+            <Boxes className="size-6" />
+          </div>
+          <div className="absolute -left-6 -top-6 size-20 rounded-full bg-amber-500/10 blur-xl pointer-events-none" />
+        </div>
+      </div>
+
+      {/* ─── Luxury Control Bar: Search + Filter Pills + View Switcher + New Product ─── */}
+      <div className="card-mullak p-3 sm:p-4 space-y-3">
+        <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3">
+          {/* Search Input with Luxury Styling */}
+          <div className="relative flex-1">
+            <Search className="pointer-events-none absolute right-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder={lang === "ar" ? "ابحث باسم المنتج، الباركود، الكود (SKU)..." : "Search product, barcode, SKU…"}
+              className="h-11 w-full rounded-2xl border border-border/80 bg-surface/80 px-4 pr-10 text-sm font-medium placeholder:text-muted-foreground/70 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 transition"
+            />
+            {query && (
+              <button
+                onClick={() => setQuery("")}
+                className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              >
+                <X className="size-3.5" />
+              </button>
+            )}
+          </div>
+
+          {/* Quick Filter Pills */}
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 lg:pb-0 scrollbar-x-none">
+            {[
+              { id: "all", label: lang === "ar" ? "الكل" : "All", count: productCount ?? products.length },
+              { id: "active", label: lang === "ar" ? "النشطة" : "Active", count: activeCount },
+              { id: "inactive", label: lang === "ar" ? "غير النشطة" : "Inactive", count: inactiveCount },
+              { id: "low_stock", label: lang === "ar" ? "تنبيه المخزون" : "Stock Alert", count: lowStockCount },
+            ].map((f) => (
+              <button
+                key={f.id}
+                onClick={() => setQuickFilter(f.id as any)}
+                className={`flex items-center gap-1.5 shrink-0 rounded-full px-3.5 py-1.5 text-xs font-bold transition border ${
+                  quickFilter === f.id
+                    ? "border-primary bg-primary text-primary-foreground shadow-sm shadow-primary/20"
+                    : "border-border/70 bg-surface text-muted-foreground hover:text-foreground hover:bg-surface-2"
+                }`}
+              >
+                <span>{f.label}</span>
+                {f.count !== undefined && (
+                  <span
+                    className={`rounded-full px-1.5 py-0.2 text-[10px] font-mono ${
+                      quickFilter === f.id ? "bg-white/20 text-white" : "bg-muted text-muted-foreground"
+                    }`}
+                  >
+                    {f.count}
+                  </span>
+                )}
+              </button>
+            ))}
+
+            {/* Advanced Filters Toggle */}
+            <button
+              onClick={() => setShowFilters((prev) => !prev)}
+              className={`flex items-center gap-1.5 shrink-0 rounded-full px-3.5 py-1.5 text-xs font-semibold border transition ${
+                showFilters || Object.keys(filters).length > 0
+                  ? "border-primary/50 bg-primary/10 text-primary"
+                  : "border-border/70 bg-surface text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <SlidersHorizontal className="size-3.5" />
+              <span>{lang === "ar" ? "فلاتر متقدمة" : "Filters"}</span>
+              {Object.keys(filters).length > 0 && (
+                <span className="size-2 rounded-full bg-primary animate-pulse" />
+              )}
+            </button>
+          </div>
+
+          {/* View Mode Toggle + New Product Button */}
+          <div className="flex items-center justify-between lg:justify-end gap-2.5">
+            {/* View Mode Toggle (Cards vs Table) */}
+            <div className="flex items-center rounded-2xl border border-border/80 bg-surface p-1">
+              <button
+                onClick={() => setViewMode("cards")}
+                title={lang === "ar" ? "عرض البطاقات الفاخرة" : "Cards view"}
+                className={`grid size-9 place-items-center rounded-xl transition ${
+                  viewMode === "cards"
+                    ? "bg-primary text-primary-foreground shadow-xs"
+                    : "text-muted-foreground hover:text-foreground hover:bg-surface-2"
+                }`}
+              >
+                <LayoutGrid className="size-4" />
+              </button>
+              <button
+                onClick={() => setViewMode("table")}
+                title={lang === "ar" ? "عرض الجدول المتقدم" : "Table view"}
+                className={`grid size-9 place-items-center rounded-xl transition ${
+                  viewMode === "table"
+                    ? "bg-primary text-primary-foreground shadow-xs"
+                    : "text-muted-foreground hover:text-foreground hover:bg-surface-2"
+                }`}
+              >
+                <List className="size-4" />
+              </button>
+            </div>
+
+            {/* New Product Button */}
+            <button
+              onClick={openNew}
+              className="flex h-11 items-center gap-2 rounded-2xl bg-primary px-4 sm:px-5 text-xs sm:text-sm font-bold text-primary-foreground shadow-md shadow-primary/25 hover:bg-primary/90 active:scale-95 transition"
+            >
+              <Plus className="size-4" />
+              <span>{lang === "ar" ? "منتج جديد" : "New Product"}</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Expandable Advanced Filters Row */}
+        {showFilters && (
+          <div className="pt-3 border-t border-border/60 grid grid-cols-2 sm:grid-cols-4 gap-2.5 animate-in fade-in duration-200">
+            {meta?.categories && meta.categories.length > 0 && (
+              <div>
+                <label className="text-[10px] font-semibold text-muted-foreground block mb-1">
+                  {t("products.category")}
+                </label>
+                <select
+                  value={(filters.category as string) ?? ""}
+                  onChange={(e) => setFilters((prev) => ({ ...prev, category: e.target.value || undefined }))}
+                  className="h-9 w-full rounded-xl border border-border/80 bg-surface px-2.5 text-xs text-foreground focus:border-primary focus:outline-none"
+                >
+                  <option value="">{lang === "ar" ? "جميع التصنيفات" : "All categories"}</option>
+                  {meta.categories.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {label(c.name, c.name_ar)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {config.enableBrands && meta?.brands && meta.brands.length > 0 && (
+              <div>
+                <label className="text-[10px] font-semibold text-muted-foreground block mb-1">
+                  {t("products.brand")}
+                </label>
+                <select
+                  value={(filters.brand as string) ?? ""}
+                  onChange={(e) => setFilters((prev) => ({ ...prev, brand: e.target.value || undefined }))}
+                  className="h-9 w-full rounded-xl border border-border/80 bg-surface px-2.5 text-xs text-foreground focus:border-primary focus:outline-none"
+                >
+                  <option value="">{lang === "ar" ? "جميع الماركات" : "All brands"}</option>
+                  {meta.brands.map((b) => (
+                    <option key={b.id} value={b.id}>
+                      {label(b.name, b.name_ar)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {config.enableUnits && meta?.units && meta.units.length > 0 && (
+              <div>
+                <label className="text-[10px] font-semibold text-muted-foreground block mb-1">
+                  {t("products.unit")}
+                </label>
+                <select
+                  value={(filters.unit as string) ?? ""}
+                  onChange={(e) => setFilters((prev) => ({ ...prev, unit: e.target.value || undefined }))}
+                  className="h-9 w-full rounded-xl border border-border/80 bg-surface px-2.5 text-xs text-foreground focus:border-primary focus:outline-none"
+                >
+                  <option value="">{lang === "ar" ? "جميع الوحدات" : "All units"}</option>
+                  {meta.units.map((u) => (
+                    <option key={u.id} value={u.id}>
+                      {label(u.name, u.name_ar)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            <div className="flex items-end">
+              <button
+                type="button"
+                onClick={() => setFilters({})}
+                className="h-9 px-3 rounded-xl border border-border/80 bg-surface text-xs font-semibold text-muted-foreground hover:text-foreground transition w-full"
+              >
+                {lang === "ar" ? "إعادة ضبط الفلاتر" : "Reset filters"}
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* ─── Main Records View: Cards vs Table ─── */}
+      {viewMode === "cards" ? (
+        <div className="space-y-4">
+          {isLoading ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+              {Array.from({ length: 8 }).map((_, i) => (
+                <div key={i} className="card-mullak h-44 animate-pulse bg-surface-2/40 rounded-2xl" />
+              ))}
+            </div>
+          ) : displayRows.length === 0 ? (
+            <div className="card-mullak p-12 text-center flex flex-col items-center justify-center space-y-3">
+              <div className="grid size-14 place-items-center rounded-2xl bg-muted/30 text-muted-foreground">
+                <Package className="size-8" />
+              </div>
+              <h4 className="text-base font-bold text-foreground">{t("products.no_products")}</h4>
+              <p className="text-xs text-muted-foreground max-w-sm">{t("products.empty_hint")}</p>
               <Button size="sm" icon={<Plus />} onClick={openNew}>
                 {t("common.new")}
               </Button>
-            ),
-          }}
-          toolbar={
-            <TableToolbar
-              search={{
-                value: query,
-                onValueChange: setQuery,
-                placeholder: t("products.search"),
-                resultCount: productCount ?? filtered.length,
-              }}
-              filters={{
-                definitions: productFilterDefinitions,
-                values: filters,
-                onValueChange: setFilters,
-              }}
-              sort={{
-                options: productSortOptions,
-                value: sort?.key ?? "",
-                onValueChange: (v) =>
-                  setSort(v ? { key: v, direction: sort?.direction ?? "asc" } : null),
-                label: lang === "ar" ? "ترتيب" : "Sort",
-              }}
-              action={
-                <ToolbarAction
-                  label={t("common.new")}
-                  icon={<Plus />}
-                  tone="primary"
-                  onClick={openNew}
-                />
-              }
-            />
-          }
-        />
-      </div>
+            </div>
+          ) : (
+            <>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3.5 sm:gap-4">
+                {displayRows.map((p) => {
+                  const primary = lang === "ar" ? p.name_ar || p.name : p.name || p.name_ar || "—";
+                  const other = lang === "ar" ? p.name : p.name_ar;
+                  const secondary = other && other.trim() && other.trim() !== primary.trim() ? other : null;
+                  const categoryName = label(p.category?.name, p.category?.name_ar);
+
+                  return (
+                    <div
+                      key={p.id}
+                      onClick={() => {
+                        setEditing(p);
+                        setPrefillBarcode(undefined);
+                        setOpen(true);
+                      }}
+                      className={`card-mullak group relative overflow-hidden rounded-2xl p-4 sm:p-5 flex flex-col justify-between cursor-pointer border transition-all duration-200 ${
+                        p.is_active
+                          ? "border-r-4 border-r-emerald-500 hover:border-primary/40"
+                          : "border-r-4 border-r-muted-foreground/40 hover:border-border"
+                      }`}
+                    >
+                      {/* Top Badges Row */}
+                      <div className="flex items-center justify-between gap-2 mb-2.5">
+                        <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 border border-primary/20 px-2.5 py-0.5 text-[11px] font-semibold text-primary truncate max-w-[140px]">
+                          <Tag className="size-3 shrink-0" />
+                          <span className="truncate">{categoryName || (lang === "ar" ? "عام" : "General")}</span>
+                        </span>
+
+                        <div className="flex items-center gap-1.5">
+                          {p.barcode ? (
+                            <span className="inline-flex items-center gap-1 rounded-md bg-surface-2 px-2 py-0.5 font-mono text-[10px] text-muted-foreground border border-border/60">
+                              <Barcode className="size-3" />
+                              <span>{p.barcode}</span>
+                            </span>
+                          ) : p.sku ? (
+                            <span className="rounded-md bg-surface-2 px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
+                              {p.sku}
+                            </span>
+                          ) : null}
+
+                          <span
+                            className={`size-2 rounded-full ${
+                              p.is_active ? "bg-emerald-500 ring-2 ring-emerald-500/20" : "bg-muted-foreground/40"
+                            }`}
+                            title={p.is_active ? t("common.active") : t("common.inactive")}
+                          />
+                        </div>
+                      </div>
+
+                      {/* Product Title & Subtitle */}
+                      <div className="mb-3">
+                        <h4
+                          className="font-bold text-foreground text-sm sm:text-base leading-snug line-clamp-2 group-hover:text-primary transition-colors"
+                          dir={lang === "ar" ? "rtl" : "ltr"}
+                        >
+                          {primary}
+                        </h4>
+                        {secondary && (
+                          <p
+                            className="text-[11px] text-muted-foreground/80 line-clamp-1 mt-0.5"
+                            dir={lang === "ar" ? "ltr" : "rtl"}
+                          >
+                            {secondary}
+                          </p>
+                        )}
+                      </div>
+
+                      {/* Attribute Pills: Brand, Unit, Shelf */}
+                      <div className="flex flex-wrap items-center gap-1.5 mb-3.5 text-[11px] text-muted-foreground">
+                        {p.brand && (
+                          <span className="rounded-md bg-surface-2/70 px-2 py-0.5 border border-border/50">
+                            {label(p.brand.name, p.brand.name_ar)}
+                          </span>
+                        )}
+                        {p.unit && (
+                          <span className="rounded-md bg-surface-2/70 px-2 py-0.5 border border-border/50">
+                            {label(p.unit.short_name, p.unit.name_ar)}
+                          </span>
+                        )}
+                        {p.shelf_location && (
+                          <span className="inline-flex items-center gap-1 rounded-md bg-surface-2/70 px-2 py-0.5 border border-border/50 text-[10px]">
+                            <MapPin className="size-2.5 text-muted-foreground" />
+                            <span>{p.shelf_location}</span>
+                          </span>
+                        )}
+                        {p.min_stock != null && Number(p.min_stock) > 0 && (
+                          <span className="inline-flex items-center gap-1 rounded-md bg-amber-500/10 text-amber-500 border border-amber-500/20 px-2 py-0.5 text-[10px] font-mono">
+                            <Boxes className="size-2.5" />
+                            <span>{qtyCell(p.min_stock)}</span>
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Price & Action Row */}
+                      <div className="pt-3 border-t border-border/60 flex items-center justify-between gap-2 mt-auto">
+                        <div>
+                          <p className="text-[10px] text-muted-foreground font-medium">{t("common.price")}</p>
+                          <p className="font-mono font-bold text-base sm:text-lg text-foreground tracking-tight">
+                            {moneyCell(p.sale_price)}
+                          </p>
+                          {canViewCost && p.cost_price != null && (
+                            <p className="text-[10px] font-mono text-muted-foreground/70">
+                              {lang === "ar" ? "التكلفة: " : "Cost: "}
+                              {moneyCell(p.cost_price)}
+                            </p>
+                          )}
+                        </div>
+
+                        {/* Quick Action Buttons */}
+                        <div className="flex items-center gap-1 opacity-90 sm:opacity-0 group-hover:opacity-100 transition-opacity">
+                          <IconButton
+                            size="sm"
+                            variant="outline"
+                            tooltip
+                            ariaLabel={t("common.edit")}
+                            icon={<Pencil className="size-3.5" />}
+                            round
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              setEditing(p);
+                              setPrefillBarcode(undefined);
+                              setOpen(true);
+                            }}
+                          />
+                          <IconButton
+                            size="sm"
+                            variant="danger"
+                            tooltip
+                            ariaLabel={t("common.delete")}
+                            icon={<Trash2 className="size-3.5" />}
+                            round
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              setConfirmDelete(p);
+                            }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Load More Button in Cards View */}
+              {hasNextPage && (
+                <div className="flex justify-center pt-4">
+                  <button
+                    onClick={() => void fetchNextPage()}
+                    disabled={isFetchingNextPage}
+                    className="flex items-center gap-2 rounded-2xl border border-border/80 bg-surface px-6 py-2.5 text-xs font-bold text-foreground shadow-sm hover:bg-surface-2 transition active:scale-95 disabled:opacity-50"
+                  >
+                    {isFetchingNextPage ? (
+                      <>
+                        <Loader2 className="size-4 animate-spin" />
+                        <span>{lang === "ar" ? "جاري التحميل..." : "Loading more…"}</span>
+                      </>
+                    ) : (
+                      <span>{lang === "ar" ? "عرض المزيد من المنتجات" : "Load more products"}</span>
+                    )}
+                  </button>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      ) : (
+        /* ─── Table View (DataTable) ─── */
+        <div className="panel-elevated -mx-1 sm:mx-0 overflow-hidden rounded-2xl border border-border/80">
+          <DataTable
+            className="px-0"
+            columns={columns}
+            rows={displayRows}
+            rowKey={(p) => p.id}
+            loading={isLoading}
+            initialLoading={isLoading}
+            refreshing={isFetching && !isLoading && !isFetchingNextPage}
+            error={(error as Error) ?? null}
+            onRetry={() => refetch()}
+            sort={sort}
+            onSortChange={setSort}
+            infinite
+            hasMore={Boolean(hasNextPage)}
+            onLoadMore={() => {
+              if (hasNextPage && !isFetchingNextPage) void fetchNextPage();
+            }}
+            loadingMore={isFetchingNextPage}
+            pageSize={PRODUCTS_PAGE_SIZE}
+            totalCount={productCount}
+            minWidth={canViewCost ? 1050 : 930}
+            horizontalScroll={tableUsesHorizontalScroll}
+            stickyHeader
+            onRowClick={(product) => {
+              setEditing(product);
+              setPrefillBarcode(undefined);
+              setOpen(true);
+            }}
+            empty={{
+              icon: <Package />,
+              title: t("products.no_products"),
+              description: t("products.empty_hint"),
+              action: (
+                <Button size="sm" icon={<Plus />} onClick={openNew}>
+                  {t("common.new")}
+                </Button>
+              ),
+            }}
+          />
+        </div>
+      )}
 
       {open && (
         <ProductDialog
@@ -774,7 +1245,7 @@ function ProductsPage() {
       </Modal>
 
       {/* Catalog Modules Customization Dialog */}
-    </>
+    </div>
   );
 }
 
