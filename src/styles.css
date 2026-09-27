@@ -601,3 +601,28 @@
 *::-webkit-scrollbar-thumb:hover {
   background-color: hsl(var(--muted-foreground) / 0.45);
 }
+
+/* ============================================================
+ * Mullak-inspired Luxury Real Estate & Executive UI tokens
+ * ========================================================== */
+.card-mullak {
+  border-radius: 1.25rem;
+  border: 1px solid oklch(1 0 0 / 0.08);
+  background: color-mix(in oklab, var(--card) 95%, transparent);
+  box-shadow: 0 2px 12px -2px oklch(0 0 0 / 0.35);
+  transition: all 0.2s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+.card-mullak:hover {
+  border-color: color-mix(in oklab, var(--primary) 35%, transparent);
+  box-shadow: 0 10px 30px -10px oklch(0 0 0 / 0.5);
+  transform: translateY(-1px);
+}
+
+.table-row-mullak {
+  transition: all 0.15s ease;
+}
+
+.table-row-mullak:hover {
+  background-color: color-mix(in oklab, var(--surface-2) 75%, transparent);
+}
