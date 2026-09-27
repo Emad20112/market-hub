@@ -31,7 +31,7 @@ import { supabase } from "@/integrations/supabase/client";
  * the client. That is deliberate: it keeps the generated types honest for
  * everyone else instead of widening them globally.
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+
 type LooseClient = any;
 const db = supabase as LooseClient;
 

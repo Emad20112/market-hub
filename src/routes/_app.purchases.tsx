@@ -80,7 +80,8 @@ function PurchasesPage() {
   const [selected, setSelected] = useState<Invoice | null>(null);
   const [lines, setLines] = useState<Line[]>([]);
   const [creating, setCreating] = useState(false);
-  const productLabel = (p?: Pick<Product, "name" | "name_ar"> | null) => (!p ? "—" : lang === "ar" ? (p.name_ar || p.name) : (p.name || p.name_ar || "—"));
+  const productLabel = (p?: Pick<Product, "name" | "name_ar"> | null) =>
+    !p ? "—" : lang === "ar" ? p.name_ar || p.name : p.name || p.name_ar || "—";
 
   async function load() {
     setLoading(true);
@@ -154,7 +155,8 @@ function PurchasesPage() {
               to="/purchase-pos"
               className="flex h-9 items-center gap-1.5 rounded-md border border-primary/40 bg-primary/10 px-3 text-sm font-medium text-primary hover:bg-primary/20 transition"
             >
-              <ShoppingCart className="h-4 w-4" /> {lang === "ar" ? "نقطة المشتريات السريعة (POP)" : "Fast Purchase POS"}
+              <ShoppingCart className="h-4 w-4" />{" "}
+              {lang === "ar" ? "نقطة المشتريات السريعة (POP)" : "Fast Purchase POS"}
             </Link>
             <button
               onClick={() => setCreating(true)}
@@ -385,12 +387,9 @@ function CreateDialog({
   const [note, setNote] = useState("");
   const [loading, setLoading] = useState(false);
   const productLabel = (p?: Pick<Product, "name" | "name_ar"> | null) =>
-    !p ? "—" : lang === "ar" ? (p.name_ar || p.name) : (p.name || p.name_ar || "—");
+    !p ? "—" : lang === "ar" ? p.name_ar || p.name : p.name || p.name_ar || "—";
   const lowStockSuggestions = useMemo(
-    () =>
-      products
-        .filter((p) => Number(stockMap[p.id] ?? 0) <= 10)
-        .slice(0, 6),
+    () => products.filter((p) => Number(stockMap[p.id] ?? 0) <= 10).slice(0, 6),
     [products, stockMap],
   );
 
@@ -422,7 +421,10 @@ function CreateDialog({
       return;
     }
     void (async () => {
-      const { data, error } = await supabase.from("inventory").select("product_id,quantity").eq("warehouse_id", warehouseId);
+      const { data, error } = await supabase
+        .from("inventory")
+        .select("product_id,quantity")
+        .eq("warehouse_id", warehouseId);
       if (error) return;
       const next: Record<string, number> = {};
       for (const row of data ?? []) {
@@ -434,13 +436,14 @@ function CreateDialog({
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return (q
-      ? products.filter((p) =>
-          [p.name, p.name_ar, p.sku, p.barcode].some((value) =>
-            (value ?? "").toLowerCase().includes(q),
-          ),
-        )
-      : products
+    return (
+      q
+        ? products.filter((p) =>
+            [p.name, p.name_ar, p.sku, p.barcode].some((value) =>
+              (value ?? "").toLowerCase().includes(q),
+            ),
+          )
+        : products
     ).slice(0, 30);
   }, [products, search]);
 
@@ -495,9 +498,21 @@ function CreateDialog({
     if (!warehouseId || !supplierId) return toast.error(t("purchases.select_ws"));
     if (cart.length === 0) return toast.error(t("purchases.add_items"));
 
-    const invalidLine = cart.find((line) => !Number.isFinite(line.quantity) || line.quantity <= 0 || !Number.isFinite(line.unit_cost) || line.unit_cost < 0 || !Number.isFinite(line.tax_rate) || line.tax_rate < 0);
+    const invalidLine = cart.find(
+      (line) =>
+        !Number.isFinite(line.quantity) ||
+        line.quantity <= 0 ||
+        !Number.isFinite(line.unit_cost) ||
+        line.unit_cost < 0 ||
+        !Number.isFinite(line.tax_rate) ||
+        line.tax_rate < 0,
+    );
     if (invalidLine) {
-      return toast.error(lang === "ar" ? "يجب أن تكون الكمية والسعر والضريبة أرقامًا صحيحة وموجبة" : "Quantity, cost, and tax must be valid positive numbers.");
+      return toast.error(
+        lang === "ar"
+          ? "يجب أن تكون الكمية والسعر والضريبة أرقامًا صحيحة وموجبة"
+          : "Quantity, cost, and tax must be valid positive numbers.",
+      );
     }
 
     setLoading(true);
@@ -631,7 +646,9 @@ function CreateDialog({
                       </div>
                     </div>
                     <div className="text-end">
-                      <div className="text-xs text-muted-foreground">{money(Number(p.cost_price))}</div>
+                      <div className="text-xs text-muted-foreground">
+                        {money(Number(p.cost_price))}
+                      </div>
                       <div className="text-[10px] text-muted-foreground">
                         {lang === "ar" ? `المخزون: ${available}` : `Stock: ${available}`}
                       </div>

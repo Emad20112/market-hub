@@ -117,7 +117,11 @@ export function CompanySection({ form, setForm, canEdit, lang }: CompanySectionP
             value={form.address ?? ""}
             onChange={(e) => setForm({ ...form, address: e.target.value })}
             disabled={!canEdit}
-            placeholder={isAr ? "المدينة، الشارع، المبنى، الرمز البريدي" : "City, Street, Building, Postal Code"}
+            placeholder={
+              isAr
+                ? "المدينة، الشارع، المبنى، الرمز البريدي"
+                : "City, Street, Building, Postal Code"
+            }
             className="rounded-2xl resize-none"
           />
         </div>

@@ -31,11 +31,14 @@ export function getPrintSettings(): PrintSettings {
     if (!raw) {
       // Fallback to legacy keys if present
       const legacyTemplate = localStorage.getItem("pos_default_template") || "thermal";
-      const legacyMode = localStorage.getItem("pos_print_mode") as any || "ask";
+      const legacyMode = (localStorage.getItem("pos_print_mode") as any) || "ask";
       return {
         ...DEFAULT_PRINT_SETTINGS,
         defaultCustomerTemplate: legacyTemplate,
-        printMode: legacyMode === "auto" || legacyMode === "ask" || legacyMode === "off" ? legacyMode : "ask",
+        printMode:
+          legacyMode === "auto" || legacyMode === "ask" || legacyMode === "off"
+            ? legacyMode
+            : "ask",
       };
     }
     const parsed = JSON.parse(raw);

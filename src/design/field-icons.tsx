@@ -132,10 +132,45 @@ export function inferFieldKind(hints: {
   if (has("email", "البريد", "ايميل", "إيميل")) return "email";
   if (has("phone", "mobile", "هاتف", "جوال", "الهاتف", "الجوال")) return "phone";
   if (has("password", "كلمة المرور", "كلمه المرور")) return "password";
-  if (has("price", "cost", "amount", "total", "salary", "balance", "paid", "سعر", "السعر", "تكلفة", "التكلفة", "مبلغ", "المبلغ", "الاجمالي", "الإجمالي", "رصيد", "الرصيد", "مدفوع"))
+  if (
+    has(
+      "price",
+      "cost",
+      "amount",
+      "total",
+      "salary",
+      "balance",
+      "paid",
+      "سعر",
+      "السعر",
+      "تكلفة",
+      "التكلفة",
+      "مبلغ",
+      "المبلغ",
+      "الاجمالي",
+      "الإجمالي",
+      "رصيد",
+      "الرصيد",
+      "مدفوع",
+    )
+  )
     return "currency";
-  if (has("tax", "discount", "rate %", "ضريبة", "الضريبة", "خصم", "الخصم", "نسبة")) return "percent";
-  if (has("quantity", "qty", "stock", "min", "count", "الكمية", "كمية", "المخزون", "الحد الأدنى", "العدد"))
+  if (has("tax", "discount", "rate %", "ضريبة", "الضريبة", "خصم", "الخصم", "نسبة"))
+    return "percent";
+  if (
+    has(
+      "quantity",
+      "qty",
+      "stock",
+      "min",
+      "count",
+      "الكمية",
+      "كمية",
+      "المخزون",
+      "الحد الأدنى",
+      "العدد",
+    )
+  )
     return "quantity";
   if (has("unit", "الوحدة", "وحدة")) return "unit";
   if (has("category", "التصنيف", "الفئة")) return "category";
@@ -145,7 +180,8 @@ export function inferFieldKind(hints: {
   if (has("warehouse", "store", "المستودع", "المخزن")) return "warehouse";
   if (has("product", "item", "المنتج", "منتج", "الصنف")) return "product";
   if (has("date", "expiry", "التاريخ", "تاريخ", "الانتهاء")) return "date";
-  if (has("address", "location", "city", "العنوان", "الموقع", "المدينة", "موقع الرف")) return "address";
+  if (has("address", "location", "city", "العنوان", "الموقع", "المدينة", "موقع الرف"))
+    return "address";
   if (has("note", "description", "remark", "ملاحظة", "ملاحظات", "الوصف")) return "notes";
   if (has("code", "serial", "الرمز", "الكود")) return "code";
   if (has("name", "اسم", "الاسم")) return "name";

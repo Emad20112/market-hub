@@ -93,11 +93,11 @@ export function useVortexTableRealtime<T extends { id: string | number }>({
             }
 
             return oldData;
-          }
+          },
         );
 
         onRowChange?.(event, event === "DELETE" ? oldItem : newItem);
-      }
+      },
     );
 
     channel.subscribe();

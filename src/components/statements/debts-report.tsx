@@ -40,7 +40,9 @@ const columnsFor = (entityType: StatementEntityType) =>
 export function DebtsReport({ ar, onBack }: DebtsReportProps) {
   const [entityType, setEntityType] = useState<"customer" | "supplier">(() => {
     if (typeof window === "undefined") return "customer";
-    return window.localStorage.getItem("market_hub_debts_entity_v1") === "supplier" ? "supplier" : "customer";
+    return window.localStorage.getItem("market_hub_debts_entity_v1") === "supplier"
+      ? "supplier"
+      : "customer";
   });
   const [rows, setRows] = useState<DebtRow[]>([]);
   const [query, setQuery] = useState("");
@@ -48,10 +50,9 @@ export function DebtsReport({ ar, onBack }: DebtsReportProps) {
   const [error, setError] = useState<string | null>(null);
   const reportColumns = useMemo(() => columnsFor(entityType), [entityType]);
   const [visible, setVisible] = useState<Record<StatementFieldKey, boolean>>(() => {
-    const defaults = Object.fromEntries(columnsFor("customer").map((column) => [column.key, true])) as Record<
-      StatementFieldKey,
-      boolean
-    >;
+    const defaults = Object.fromEntries(
+      columnsFor("customer").map((column) => [column.key, true]),
+    ) as Record<StatementFieldKey, boolean>;
     if (typeof window === "undefined") return defaults;
     try {
       return {
@@ -71,7 +72,9 @@ export function DebtsReport({ ar, onBack }: DebtsReportProps) {
   }, [entityType, visible]);
 
   useEffect(() => {
-    const defaults = Object.fromEntries(reportColumns.map((column) => [column.key, true])) as Record<StatementFieldKey, boolean>;
+    const defaults = Object.fromEntries(
+      reportColumns.map((column) => [column.key, true]),
+    ) as Record<StatementFieldKey, boolean>;
     setVisible((current) => ({ ...defaults, ...current }));
   }, [reportColumns]);
   const load = useCallback(async () => {
@@ -96,7 +99,10 @@ export function DebtsReport({ ar, onBack }: DebtsReportProps) {
       ? rows.filter((row) => `${row.name} ${row.phone ?? ""}`.toLowerCase().includes(value))
       : rows;
   }, [query, rows]);
-  const options = reportColumns.map((column) => ({ key: column.key, label: ar ? column.ar : column.en }));
+  const options = reportColumns.map((column) => ({
+    key: column.key,
+    label: ar ? column.ar : column.en,
+  }));
   const visibleCount = Math.max(options.filter((column) => visible[column.key]).length, 1);
 
   return (
@@ -104,7 +110,13 @@ export function DebtsReport({ ar, onBack }: DebtsReportProps) {
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border p-4">
         <div>
           <h2 className="text-sm font-semibold">
-            {entityType === "supplier" ? (ar ? "مستحقات الموردين" : "Supplier payables") : ar ? "ديون العملاء" : "Customer debts"}
+            {entityType === "supplier"
+              ? ar
+                ? "مستحقات الموردين"
+                : "Supplier payables"
+              : ar
+                ? "ديون العملاء"
+                : "Customer debts"}
           </h2>
           <p className="mt-1 text-[11px] text-muted-foreground">
             {ar
@@ -118,10 +130,18 @@ export function DebtsReport({ ar, onBack }: DebtsReportProps) {
         </div>
         <div className="flex flex-wrap gap-2">
           <div className="flex rounded-md border-border bg-surface-2 p-0.5">
-            <Button size="sm" variant={entityType === "customer" ? "default" : "ghost"} onClick={() => setEntityType("customer")}>
+            <Button
+              size="sm"
+              variant={entityType === "customer" ? "default" : "ghost"}
+              onClick={() => setEntityType("customer")}
+            >
               {ar ? "ديون العملاء" : "Customer debts"}
             </Button>
-            <Button size="sm" variant={entityType === "supplier" ? "default" : "ghost"} onClick={() => setEntityType("supplier")}>
+            <Button
+              size="sm"
+              variant={entityType === "supplier" ? "default" : "ghost"}
+              onClick={() => setEntityType("supplier")}
+            >
               {ar ? "مستحقات الموردين" : "Supplier payables"}
             </Button>
           </div>
@@ -237,7 +257,9 @@ export function DebtsReport({ ar, onBack }: DebtsReportProps) {
                     : ar
                       ? "كشف ديون العملاء"
                       : "Customer Debts",
-                subtitle: ar ? "تقرير أرصدة الحسابات ومتابعة الديون" : "Accounts balances and debt aging report",
+                subtitle: ar
+                  ? "تقرير أرصدة الحسابات ومتابعة الديون"
+                  : "Accounts balances and debt aging report",
                 periodLabel: ar ? "حتى تاريخه" : "Up to date",
                 headers,
                 rows: outputRows,
@@ -305,7 +327,13 @@ export function DebtsReport({ ar, onBack }: DebtsReportProps) {
               </tr>
             ) : (
               filtered.map((row) => (
-                <DebtRowView key={row.id} row={row} visible={visible} ar={ar} entityType={entityType} />
+                <DebtRowView
+                  key={row.id}
+                  row={row}
+                  visible={visible}
+                  ar={ar}
+                  entityType={entityType}
+                />
               ))
             )}
           </tbody>
@@ -332,7 +360,9 @@ function DebtRowView({
     <tr className="border-t border-border/60">
       <>{cell("description", row.name)}</>
       <>{cell("debit", money(row.ledgerBalance), "text-end font-mono")}</>
-      {entityType === "customer" && <>{cell("credit", row.creditLimit ? money(row.creditLimit) : "—", "text-end font-mono")}</>}
+      {entityType === "customer" && (
+        <>{cell("credit", row.creditLimit ? money(row.creditLimit) : "—", "text-end font-mono")}</>
+      )}
       <>
         {cell(
           "balance",
@@ -356,8 +386,12 @@ function DebtRowView({
               ? "دفتر مع فرق"
               : "Ledger with gap"
             : ar
-              ? entityType === "supplier" ? "فواتير ومرتجعات المورد" : "دفتر العميل"
-              : entityType === "supplier" ? "Supplier documents" : "Customer ledger",
+              ? entityType === "supplier"
+                ? "فواتير ومرتجعات المورد"
+                : "دفتر العميل"
+              : entityType === "supplier"
+                ? "Supplier documents"
+                : "Customer ledger",
         )}
       </>
     </tr>

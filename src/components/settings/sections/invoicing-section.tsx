@@ -64,7 +64,9 @@ export function InvoicingSection({
           </div>
 
           <div className="grid gap-1.5">
-            <Label className="text-xs font-semibold">{isAr ? "رمز العملة" : "Currency symbol"}</Label>
+            <Label className="text-xs font-semibold">
+              {isAr ? "رمز العملة" : "Currency symbol"}
+            </Label>
             <Input
               value={form.currency_symbol ?? ""}
               onChange={(e) => setForm({ ...form, currency_symbol: e.target.value })}
@@ -75,7 +77,9 @@ export function InvoicingSection({
           </div>
 
           <div className="grid gap-1.5">
-            <Label className="text-xs font-semibold">{isAr ? "نسبة الضريبة %" : "Tax rate %"}</Label>
+            <Label className="text-xs font-semibold">
+              {isAr ? "نسبة الضريبة %" : "Tax rate %"}
+            </Label>
             <Input
               type="number"
               value={String(form.tax_rate ?? 0)}
@@ -87,7 +91,9 @@ export function InvoicingSection({
           </div>
 
           <div className="grid gap-1.5">
-            <Label className="text-xs font-semibold">{isAr ? "بادئة الفاتورة" : "Invoice prefix"}</Label>
+            <Label className="text-xs font-semibold">
+              {isAr ? "بادئة الفاتورة" : "Invoice prefix"}
+            </Label>
             <Input
               value={form.invoice_prefix ?? "INV"}
               onChange={(e) => setForm({ ...form, invoice_prefix: e.target.value })}

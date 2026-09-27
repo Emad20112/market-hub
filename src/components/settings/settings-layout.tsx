@@ -1,9 +1,6 @@
 import { useState } from "react";
 import { SettingsSidebar } from "./settings-sidebar";
-import {
-  getSettingsSection,
-  SettingsSectionId,
-} from "./settings-registry";
+import { getSettingsSection, SettingsSectionId } from "./settings-registry";
 
 interface SettingsLayoutProps {
   form: any;

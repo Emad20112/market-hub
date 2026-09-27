@@ -58,13 +58,7 @@ type Item = {
   key: string;
   moduleId?: string;
   superadminOnly?: boolean;
-  allowedRoles?: (
-    | "owner"
-    | "manager"
-    | "accountant"
-    | "cashier"
-    | "warehouse"
-  )[];
+  allowedRoles?: ("owner" | "manager" | "accountant" | "cashier" | "warehouse")[];
   color?: string;
   bg?: string;
 };
@@ -419,17 +413,9 @@ function SidebarContents({
 }) {
   const { t, dir, lang } = useI18n();
 
-  const {
-    user,
-    signOut,
-    isPlatformAdmin,
-    isPlatformSuperadmin,
-    hasRole,
-    roles,
-  } = useAuth();
+  const { user, signOut, isPlatformAdmin, isPlatformSuperadmin, hasRole, roles } = useAuth();
 
-  const isSuperOrOwner =
-    isPlatformAdmin || isPlatformSuperadmin || hasRole("owner");
+  const isSuperOrOwner = isPlatformAdmin || isPlatformSuperadmin || hasRole("owner");
 
   const { isModuleEnabled } = useModules();
 
@@ -459,9 +445,7 @@ function SidebarContents({
           if (
             !isSuperOrOwner &&
             it.allowedRoles &&
-            !it.allowedRoles.some((role) =>
-              roles.includes(role),
-            )
+            !it.allowedRoles.some((role) => roles.includes(role))
           ) {
             return false;
           }
@@ -478,9 +462,7 @@ function SidebarContents({
       <div
         className={cn(
           "flex h-16 items-center border-b border-sidebar-border/60 transition-all duration-300",
-          collapsed
-            ? "justify-center px-2"
-            : "justify-start gap-2.5 px-4",
+          collapsed ? "justify-center px-2" : "justify-start gap-2.5 px-4",
         )}
       >
         {collapsed ? (
@@ -514,9 +496,7 @@ function SidebarContents({
       <nav
         className={cn(
           "flex-1 min-h-0 overflow-y-auto overflow-x-hidden overscroll-contain custom-scrollbar",
-          collapsed
-            ? "px-2 py-3 space-y-2"
-            : "px-3 py-3.5 space-y-4",
+          collapsed ? "px-2 py-3 space-y-2" : "px-3 py-3.5 space-y-4",
         )}
       >
         {filteredSections.map((sec, secIdx) => (
@@ -526,21 +506,14 @@ function SidebarContents({
                 {t(sec.titleKey)}
               </div>
             ) : (
-              secIdx > 0 && (
-                <div className="my-2 h-px w-7 mx-auto bg-sidebar-border/60" />
-              )
+              secIdx > 0 && <div className="my-2 h-px w-7 mx-auto bg-sidebar-border/60" />
             )}
 
-            <ul
-              className={cn(
-                collapsed ? "space-y-1.5" : "space-y-1",
-              )}
-            >
+            <ul className={cn(collapsed ? "space-y-1.5" : "space-y-1")}>
               {sec.items.map((it) => {
                 const active =
                   pathname === it.to ||
-                  (it.to !== "/dashboard" &&
-                    pathname.startsWith(`${it.to}/`));
+                  (it.to !== "/dashboard" && pathname.startsWith(`${it.to}/`));
 
                 return (
                   <li key={it.to} className="relative">
@@ -567,9 +540,7 @@ function SidebarContents({
                         <span
                           className={cn(
                             "absolute inset-y-2 w-[3px] rounded-full bg-primary",
-                            dir === "rtl"
-                              ? "right-0"
-                              : "left-0",
+                            dir === "rtl" ? "right-0" : "left-0",
                           )}
                         />
                       )}
@@ -583,8 +554,7 @@ function SidebarContents({
                             : cn(
                                 "h-7 w-7 rounded-lg group-hover:scale-110",
                                 it.bg || "bg-surface-2/60",
-                                active &&
-                                  "ring-1 ring-primary/40 shadow-sm",
+                                active && "ring-1 ring-primary/40 shadow-sm",
                               ),
                         )}
                       >
@@ -597,34 +567,26 @@ function SidebarContents({
                                 ? "h-5 w-5 text-primary-foreground stroke-[2.2]"
                                 : cn(
                                     "h-5 w-5",
-                                    it.color ||
-                                      "text-muted-foreground group-hover:text-foreground",
+                                    it.color || "text-muted-foreground group-hover:text-foreground",
                                   )
                               : active
                                 ? "h-4 w-4 text-primary stroke-[2.5]"
                                 : cn(
                                     "h-4 w-4",
-                                    it.color ||
-                                      "text-muted-foreground group-hover:text-foreground",
+                                    it.color || "text-muted-foreground group-hover:text-foreground",
                                   ),
                           )}
                         />
                       </div>
 
-                      {!collapsed && (
-                        <span className="truncate leading-normal">
-                          {t(it.key)}
-                        </span>
-                      )}
+                      {!collapsed && <span className="truncate leading-normal">{t(it.key)}</span>}
 
                       {/* Tooltip in Icon-only mode */}
                       {collapsed && (
                         <div
                           className={cn(
                             "pointer-events-none absolute z-50 whitespace-nowrap rounded-xl bg-popover/95 backdrop-blur-md px-3 py-1.5 text-xs font-semibold text-popover-foreground shadow-xl border border-border/80 transition-all duration-150 scale-95 opacity-0 group-hover:scale-100 group-hover:opacity-100",
-                            dir === "rtl"
-                              ? "right-full me-3.5"
-                              : "left-full ms-3.5",
+                            dir === "rtl" ? "right-full me-3.5" : "left-full ms-3.5",
                           )}
                         >
                           <div className="flex items-center gap-1.5">
@@ -671,15 +633,9 @@ function SidebarContents({
           }}
           className={cn(
             "group relative flex items-center rounded-xl text-[13.5px] font-medium text-muted-foreground hover:bg-sidebar-accent hover:text-foreground transition-colors",
-            collapsed
-              ? "h-10 w-10 justify-center p-0"
-              : "w-full gap-2.5 px-3 p-2",
+            collapsed ? "h-10 w-10 justify-center p-0" : "w-full gap-2.5 px-3 p-2",
           )}
-          title={
-            lang === "ar"
-              ? "تسجيل الخروج"
-              : "Sign out"
-          }
+          title={lang === "ar" ? "تسجيل الخروج" : "Sign out"}
         >
           <div className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-gradient-to-br from-primary/20 to-chart-4/20 text-[11px] font-bold text-foreground border border-primary/20">
             {(user?.email ?? "?").charAt(0).toUpperCase()}
@@ -699,16 +655,11 @@ function SidebarContents({
             <div
               className={cn(
                 "pointer-events-none absolute z-50 whitespace-nowrap rounded-xl bg-popover/95 backdrop-blur-md px-3 py-1.5 text-xs font-semibold text-popover-foreground shadow-xl border border-border/80 transition-all duration-150 scale-95 opacity-0 group-hover:scale-100 group-hover:opacity-100",
-                dir === "rtl"
-                  ? "right-full me-3.5"
-                  : "left-full ms-3.5",
+                dir === "rtl" ? "right-full me-3.5" : "left-full ms-3.5",
               )}
             >
               <span>
-                {lang === "ar"
-                  ? "تسجيل الخروج"
-                  : "Sign out"}{" "}
-                ({user?.email})
+                {lang === "ar" ? "تسجيل الخروج" : "Sign out"} ({user?.email})
               </span>
 
               <div
@@ -727,11 +678,7 @@ function SidebarContents({
   );
 }
 
-export function AppShell({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export function AppShell({ children }: { children: React.ReactNode }) {
   const { t, dir } = useI18n();
 
   const navigate = useNavigate();
@@ -746,94 +693,61 @@ export function AppShell({
     pathname === "/purchase-pos" ||
     pathname.startsWith("/purchase-pos/");
 
-  const [paletteOpen, setPaletteOpen] =
-    useState(false);
+  const [paletteOpen, setPaletteOpen] = useState(false);
 
-  const [mobileOpen, setMobileOpen] =
-    useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
 
-  const [collapsed, setCollapsed] =
-    useState<boolean>(() => {
-      if (typeof window !== "undefined") {
-        return (
-          localStorage.getItem(
-            "vortex_sidebar_collapsed",
-          ) === "true"
-        );
-      }
+  const [collapsed, setCollapsed] = useState<boolean>(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("vortex_sidebar_collapsed") === "true";
+    }
 
-      return false;
-    });
+    return false;
+  });
 
   const toggleCollapsed = () => {
     setCollapsed((prev) => {
       const next = !prev;
 
       if (typeof window !== "undefined") {
-        localStorage.setItem(
-          "vortex_sidebar_collapsed",
-          String(next),
-        );
+        localStorage.setItem("vortex_sidebar_collapsed", String(next));
       }
 
       return next;
     });
   };
 
-  const [theme, setTheme] =
-    useState<"dark" | "light">(
-      () =>
-        (typeof window !== "undefined" &&
-          (localStorage.getItem("theme") as
-            | "dark"
-            | "light")) ||
-        "dark",
-    );
+  const [theme, setTheme] = useState<"dark" | "light">(
+    () =>
+      (typeof window !== "undefined" && (localStorage.getItem("theme") as "dark" | "light")) ||
+      "dark",
+  );
 
   useEffect(() => {
     const root = document.documentElement;
 
-    root.classList.toggle(
-      "dark",
-      theme === "dark",
-    );
+    root.classList.toggle("dark", theme === "dark");
 
-    root.classList.toggle(
-      "light",
-      theme === "light",
-    );
+    root.classList.toggle("light", theme === "light");
 
     localStorage.setItem("theme", theme);
   }, [theme]);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (
-        (e.metaKey || e.ctrlKey) &&
-        e.key.toLowerCase() === "k"
-      ) {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
         e.preventDefault();
 
         setPaletteOpen((x) => !x);
       }
     };
 
-    window.addEventListener(
-      "keydown",
-      handler,
-    );
+    window.addEventListener("keydown", handler);
 
-    return () =>
-      window.removeEventListener(
-        "keydown",
-        handler,
-      );
+    return () => window.removeEventListener("keydown", handler);
   }, []);
 
-  const sideEdge =
-    dir === "rtl"
-      ? "border-l"
-      : "border-r";
+  const sideEdge = dir === "rtl" ? "border-l" : "border-r";
 
   return (
     <div className="relative z-10 flex h-screen w-full overflow-hidden text-foreground">
@@ -842,38 +756,22 @@ export function AppShell({
         className={cn(
           "hidden md:flex h-full shrink-0 flex-col overflow-hidden transition-all duration-300 ease-in-out",
 
-          collapsed
-            ? "w-[72px]"
-            : "w-64",
+          collapsed ? "w-[72px]" : "w-64",
 
           sideEdge,
           "border-sidebar-border/60",
         )}
       >
-        <SidebarContents
-          collapsed={collapsed}
-          onToggleCollapse={toggleCollapsed}
-        />
+        <SidebarContents collapsed={collapsed} onToggleCollapse={toggleCollapsed} />
       </aside>
 
       {/* Mobile drawer */}
-      <Sheet
-        open={mobileOpen}
-        onOpenChange={setMobileOpen}
-      >
+      <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
         <SheetContent
-          side={
-            dir === "rtl"
-              ? "right"
-              : "left"
-          }
+          side={dir === "rtl" ? "right" : "left"}
           className="w-72 p-0 bg-sidebar border-sidebar-border/60 overflow-hidden"
         >
-          <SidebarContents
-            onNavigate={() =>
-              setMobileOpen(false)
-            }
-          />
+          <SidebarContents onNavigate={() => setMobileOpen(false)} />
         </SheetContent>
       </Sheet>
 
@@ -885,9 +783,7 @@ export function AppShell({
         {/* Top bar */}
         <header className="sticky top-0 z-30 flex h-16 items-center gap-2.5 border-b border-border/60 bg-background/70 px-4 backdrop-blur-xl sm:px-6">
           <button
-            onClick={() =>
-              setMobileOpen(true)
-            }
+            onClick={() => setMobileOpen(true)}
             className="md:hidden grid h-10 w-10 place-items-center rounded-full border border-border/60 bg-surface text-muted-foreground hover:text-foreground transition-colors"
             aria-label="Open menu"
           >
@@ -917,16 +813,12 @@ export function AppShell({
           </button>
 
           <button
-            onClick={() =>
-              setPaletteOpen(true)
-            }
+            onClick={() => setPaletteOpen(true)}
             className="group flex h-10 flex-1 max-w-xl items-center gap-2.5 rounded-full border border-border/60 bg-surface/80 px-4 text-sm text-muted-foreground transition-all hover:border-ring/40 hover:bg-surface hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
           >
             <Search className="h-4 w-4" />
 
-            <span className="flex-1 text-start truncate">
-              {t("common.search")}
-            </span>
+            <span className="flex-1 text-start truncate">{t("common.search")}</span>
 
             <kbd className="hidden sm:inline-flex items-center gap-1 rounded-full border border-border/60 bg-background/60 px-2 py-0.5 text-[10px] font-mono text-muted-foreground">
               <CommandIcon className="h-3 w-3" /> K
@@ -935,22 +827,12 @@ export function AppShell({
 
           <div className="ms-auto flex items-center gap-2">
             <button
-              onClick={() =>
-                setTheme(
-                  theme === "dark"
-                    ? "light"
-                    : "dark",
-                )
-              }
+              onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
               className="grid h-10 w-10 place-items-center rounded-full border border-border/60 bg-surface text-muted-foreground hover:text-foreground hover:border-ring/40 transition-colors"
               title={t("common.theme")}
               aria-label={t("common.theme")}
             >
-              {theme === "dark" ? (
-                <Sun className="h-4 w-4" />
-              ) : (
-                <Moon className="h-4 w-4" />
-              )}
+              {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
             </button>
 
             <button
@@ -973,7 +855,7 @@ export function AppShell({
         <main
           className={cn(
             "flex-1 min-h-0 overflow-y-auto overflow-x-hidden custom-scrollbar",
-            isPosRoute ? "flex flex-col" : ""
+            isPosRoute ? "flex flex-col" : "",
           )}
         >
           {isPosRoute ? (
@@ -989,10 +871,7 @@ export function AppShell({
         </main>
       </div>
 
-      <CommandPalette
-        open={paletteOpen}
-        onOpenChange={setPaletteOpen}
-      />
+      <CommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} />
     </div>
   );
 }

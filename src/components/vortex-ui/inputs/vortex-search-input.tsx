@@ -3,8 +3,10 @@ import { Search, X, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { pillFieldSurface, FieldSize, fieldSize } from "@/design/styles";
 
-export interface VortexSearchInputProps
-  extends Omit<React.InputHTMLAttributes<HTMLInputElement>, "size" | "onChange" | "value"> {
+export interface VortexSearchInputProps extends Omit<
+  React.InputHTMLAttributes<HTMLInputElement>,
+  "size" | "onChange" | "value"
+> {
   value: string;
   onValueChange: (value: string) => void;
   size?: FieldSize;
@@ -98,12 +100,7 @@ export const VortexSearchInput = React.forwardRef<HTMLInputElement, VortexSearch
           onChange={handleChange}
           disabled={disabled}
           placeholder={placeholder}
-          className={cn(
-            pillFieldSurface,
-            fieldSize[size],
-            "ps-9 pe-14",
-            className,
-          )}
+          className={cn(pillFieldSurface, fieldSize[size], "ps-9 pe-14", className)}
           {...props}
         />
 

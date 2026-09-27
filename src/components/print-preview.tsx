@@ -24,9 +24,30 @@ const SAMPLE_CUSTOMER_INVOICE: UnifiedDocumentData = {
   payment: "نقداً (Cash)",
   status: "مدفوعة",
   lines: [
-    { product: "مرفاع زيت هيدروليكي 3 طن", qty: 2, unit: "حبة", price: 150, total: 300, code: "HYD-3T" },
-    { product: "طقم مفاتيح رينج 12 قطعة", qty: 5, unit: "طقم", price: 45, total: 225, code: "RNG-12" },
-    { product: "زيت محرك سوبر 15W-40 4L", qty: 4, unit: "جالون", price: 28, total: 112, code: "OIL-15W40" },
+    {
+      product: "مرفاع زيت هيدروليكي 3 طن",
+      qty: 2,
+      unit: "حبة",
+      price: 150,
+      total: 300,
+      code: "HYD-3T",
+    },
+    {
+      product: "طقم مفاتيح رينج 12 قطعة",
+      qty: 5,
+      unit: "طقم",
+      price: 45,
+      total: 225,
+      code: "RNG-12",
+    },
+    {
+      product: "زيت محرك سوبر 15W-40 4L",
+      qty: 4,
+      unit: "جالون",
+      price: 28,
+      total: 112,
+      code: "OIL-15W40",
+    },
   ],
   subtotal: 637,
   tax: 95.55,
@@ -57,7 +78,13 @@ const SAMPLE_INVENTORY_DOC: UnifiedDocumentData = {
   lines: [
     { product: "مرفاع زيت هيدروليكي 3 طن", qty: 2, unit: "حبة", code: "HYD-3T", note: " رف A-14" },
     { product: "طقم مفاتيح رينج 12 قطعة", qty: 5, unit: "طقم", code: "RNG-12", note: "رف B-02" },
-    { product: "زيت محرك سوبر 15W-40 4L", qty: 4, unit: "جالون", code: "OIL-15W40", note: "كرتون أصل" },
+    {
+      product: "زيت محرك سوبر 15W-40 4L",
+      qty: 4,
+      unit: "جالون",
+      code: "OIL-15W40",
+      note: "كرتون أصل",
+    },
   ],
   company: {
     name: "مؤسسة فورتكس للتجارة والمحركات",

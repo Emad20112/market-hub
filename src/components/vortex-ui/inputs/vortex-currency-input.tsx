@@ -4,8 +4,10 @@ import * as React from "react";
 import { Coins, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-export interface VortexCurrencyInputProps
-  extends Omit<React.InputHTMLAttributes<HTMLInputElement>, "value" | "onChange"> {
+export interface VortexCurrencyInputProps extends Omit<
+  React.InputHTMLAttributes<HTMLInputElement>,
+  "value" | "onChange"
+> {
   value: number | null | undefined;
   onValueChange: (val: number | null) => void;
   currencySymbol?: string;
@@ -49,7 +51,7 @@ export const VortexCurrencyInput = React.forwardRef<HTMLInputElement, VortexCurr
       placeholder = "0.00",
       ...props
     },
-    ref
+    ref,
   ) => {
     const inputRef = React.useRef<HTMLInputElement | null>(null);
     const combinedRef = (node: HTMLInputElement | null) => {
@@ -89,7 +91,10 @@ export const VortexCurrencyInput = React.forwardRef<HTMLInputElement, VortexCurr
       if (dotIndex !== -1) {
         cleaned =
           cleaned.substring(0, dotIndex + 1) +
-          cleaned.substring(dotIndex + 1).replace(/\./g, "").slice(0, decimals);
+          cleaned
+            .substring(dotIndex + 1)
+            .replace(/\./g, "")
+            .slice(0, decimals);
       }
 
       // Compute number
@@ -155,7 +160,7 @@ export const VortexCurrencyInput = React.forwardRef<HTMLInputElement, VortexCurr
             "shadow-xs hover:border-primary/40 hover:bg-background/90",
             "focus:border-primary focus:bg-background focus:outline-none focus:ring-4 focus:ring-primary/15",
             "disabled:cursor-not-allowed disabled:opacity-50",
-            className
+            className,
           )}
           {...props}
         />
@@ -174,6 +179,6 @@ export const VortexCurrencyInput = React.forwardRef<HTMLInputElement, VortexCurr
         )}
       </div>
     );
-  }
+  },
 );
 VortexCurrencyInput.displayName = "VortexCurrencyInput";

@@ -19,7 +19,7 @@ export interface RealtimeTableConfig<T extends { id: string | number } = any> {
 export function updateQueryListCache<T extends { id: string | number }>(
   queryClient: QueryClient,
   queryKey: readonly unknown[],
-  payload: RealtimePostgresChangesPayload<T>
+  payload: RealtimePostgresChangesPayload<T>,
 ) {
   queryClient.setQueryData(queryKey, (oldData: any) => {
     if (!oldData) return oldData;
@@ -33,7 +33,7 @@ export function updateQueryListCache<T extends { id: string | number }>(
         }
         case "UPDATE": {
           return oldData.map((item) =>
-            item.id === (payload.new as T).id ? { ...item, ...payload.new } : item
+            item.id === (payload.new as T).id ? { ...item, ...payload.new } : item,
           );
         }
         case "DELETE": {
@@ -59,7 +59,7 @@ export function updateQueryListCache<T extends { id: string | number }>(
           return {
             ...oldData,
             data: oldData.data.map((item: any) =>
-              item.id === (payload.new as T).id ? { ...item, ...payload.new } : item
+              item.id === (payload.new as T).id ? { ...item, ...payload.new } : item,
             ),
           };
         }
@@ -113,7 +113,7 @@ export function updateQueryListCache<T extends { id: string | number }>(
  */
 export function useRealtimeTable<T extends { id: string | number }>(
   config: RealtimeTableConfig<T>,
-  queryClient?: QueryClient
+  queryClient?: QueryClient,
 ) {
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -149,7 +149,7 @@ export function useRealtimeTable<T extends { id: string | number }>(
         } else {
           handleEvent();
         }
-      }
+      },
     );
 
     channel.subscribe();

@@ -3,9 +3,30 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Printer, Eye, ScrollText, Sparkles, Layers, Sliders, CheckCircle2, ShieldCheck } from "lucide-react";
-import { getPrintSettings, savePrintSettings, PrintSettings, InvoiceTemplateId, PaperSize } from "@/lib/templates";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Printer,
+  Eye,
+  ScrollText,
+  Sparkles,
+  Layers,
+  Sliders,
+  CheckCircle2,
+  ShieldCheck,
+} from "lucide-react";
+import {
+  getPrintSettings,
+  savePrintSettings,
+  PrintSettings,
+  InvoiceTemplateId,
+  PaperSize,
+} from "@/lib/templates";
 import { PrintPreviewModal } from "@/components/print-preview";
 import { toast } from "sonner";
 
@@ -67,7 +88,9 @@ export function PrintSettingsCard({ canEdit = true }: PrintSettingsCardProps) {
                 <Label className="text-xs font-semibold">قالب فاتورة العميل الافتراضي</Label>
                 <Select
                   value={settings.defaultCustomerTemplate}
-                  onValueChange={(val: InvoiceTemplateId) => handleSelect("defaultCustomerTemplate", val)}
+                  onValueChange={(val: InvoiceTemplateId) =>
+                    handleSelect("defaultCustomerTemplate", val)
+                  }
                   disabled={!canEdit}
                 >
                   <SelectTrigger className="rounded-xl bg-background">
@@ -89,7 +112,9 @@ export function PrintSettingsCard({ canEdit = true }: PrintSettingsCardProps) {
                 <Label className="text-xs font-semibold">قالب مستند حركة المخزون</Label>
                 <Select
                   value={settings.defaultInventoryTemplate}
-                  onValueChange={(val: InvoiceTemplateId) => handleSelect("defaultInventoryTemplate", val)}
+                  onValueChange={(val: InvoiceTemplateId) =>
+                    handleSelect("defaultInventoryTemplate", val)
+                  }
                   disabled={!canEdit}
                 >
                   <SelectTrigger className="rounded-xl bg-background">
@@ -174,17 +199,72 @@ export function PrintSettingsCard({ canEdit = true }: PrintSettingsCardProps) {
               3. تخصيص إظهار وإخفاء عناصر المستندات (Field Visibility Customization)
             </h4>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 text-xs">
-              <ToggleOption label="شعار المنشأة" checked={settings.showLogo} onChange={() => handleToggle("showLogo")} disabled={!canEdit} />
-              <ToggleOption label="بيانات المنشأة" checked={settings.showCompanyInfo} onChange={() => handleToggle("showCompanyInfo")} disabled={!canEdit} />
-              <ToggleOption label="بيانات العميل" checked={settings.showCustomerInfo} onChange={() => handleToggle("showCustomerInfo")} disabled={!canEdit} />
-              <ToggleOption label="رقم المستند والتاريخ" checked={settings.showDocNumberDate} onChange={() => handleToggle("showDocNumberDate")} disabled={!canEdit} />
-              <ToggleOption label="بيانات الحركة والمستودع" checked={settings.showMovementInfo} onChange={() => handleToggle("showMovementInfo")} disabled={!canEdit} />
-              <ToggleOption label="الضريبة والخصم" checked={settings.showFinancialDetails} onChange={() => handleToggle("showFinancialDetails")} disabled={!canEdit} />
-              <ToggleOption label="طريقة الدفع والمدفوع" checked={settings.showPaymentInfo} onChange={() => handleToggle("showPaymentInfo")} disabled={!canEdit} />
-              <ToggleOption label="الملاحظات والشروط" checked={settings.showNotes} onChange={() => handleToggle("showNotes")} disabled={!canEdit} />
-              <ToggleOption label="خانات التوقيعات" checked={settings.showSignatures} onChange={() => handleToggle("showSignatures")} disabled={!canEdit} />
-              <ToggleOption label="الهامش السفلي Footer" checked={settings.showFooter} onChange={() => handleToggle("showFooter")} disabled={!canEdit} />
-              <ToggleOption label="التوقيع البرمجي (Inama Soft)" checked={settings.showBranding} onChange={() => handleToggle("showBranding")} disabled={!canEdit} />
+              <ToggleOption
+                label="شعار المنشأة"
+                checked={settings.showLogo}
+                onChange={() => handleToggle("showLogo")}
+                disabled={!canEdit}
+              />
+              <ToggleOption
+                label="بيانات المنشأة"
+                checked={settings.showCompanyInfo}
+                onChange={() => handleToggle("showCompanyInfo")}
+                disabled={!canEdit}
+              />
+              <ToggleOption
+                label="بيانات العميل"
+                checked={settings.showCustomerInfo}
+                onChange={() => handleToggle("showCustomerInfo")}
+                disabled={!canEdit}
+              />
+              <ToggleOption
+                label="رقم المستند والتاريخ"
+                checked={settings.showDocNumberDate}
+                onChange={() => handleToggle("showDocNumberDate")}
+                disabled={!canEdit}
+              />
+              <ToggleOption
+                label="بيانات الحركة والمستودع"
+                checked={settings.showMovementInfo}
+                onChange={() => handleToggle("showMovementInfo")}
+                disabled={!canEdit}
+              />
+              <ToggleOption
+                label="الضريبة والخصم"
+                checked={settings.showFinancialDetails}
+                onChange={() => handleToggle("showFinancialDetails")}
+                disabled={!canEdit}
+              />
+              <ToggleOption
+                label="طريقة الدفع والمدفوع"
+                checked={settings.showPaymentInfo}
+                onChange={() => handleToggle("showPaymentInfo")}
+                disabled={!canEdit}
+              />
+              <ToggleOption
+                label="الملاحظات والشروط"
+                checked={settings.showNotes}
+                onChange={() => handleToggle("showNotes")}
+                disabled={!canEdit}
+              />
+              <ToggleOption
+                label="خانات التوقيعات"
+                checked={settings.showSignatures}
+                onChange={() => handleToggle("showSignatures")}
+                disabled={!canEdit}
+              />
+              <ToggleOption
+                label="الهامش السفلي Footer"
+                checked={settings.showFooter}
+                onChange={() => handleToggle("showFooter")}
+                disabled={!canEdit}
+              />
+              <ToggleOption
+                label="التوقيع البرمجي (Inama Soft)"
+                checked={settings.showBranding}
+                onChange={() => handleToggle("showBranding")}
+                disabled={!canEdit}
+              />
             </div>
           </div>
 
@@ -196,7 +276,10 @@ export function PrintSettingsCard({ canEdit = true }: PrintSettingsCardProps) {
                 محرك الطباعة المباشر ودعم طابعات الـ Thermal و A4
               </div>
               <p className="text-xs text-muted-foreground leading-relaxed">
-                يدعم النظام طباعة الفواتير بدون توقف عبر متصفح الويب (Browser Print Engine) دون الحاجة لإضافات معقدة. كما أُعدت معمارية النظام (Architecture) لتكون جاهزة للتكامل المباشر مع خدمات الطباعة المحلية مثل <b>QZ Tray</b> أو برامج الـ Desktop Wrappers للطابعات الحرارية الشبكية والمباشرة USB.
+                يدعم النظام طباعة الفواتير بدون توقف عبر متصفح الويب (Browser Print Engine) دون
+                الحاجة لإضافات معقدة. كما أُعدت معمارية النظام (Architecture) لتكون جاهزة للتكامل
+                المباشر مع خدمات الطباعة المحلية مثل <b>QZ Tray</b> أو برامج الـ Desktop Wrappers
+                للطابعات الحرارية الشبكية والمباشرة USB.
               </p>
             </div>
           </div>
@@ -208,11 +291,26 @@ export function PrintSettingsCard({ canEdit = true }: PrintSettingsCardProps) {
   );
 }
 
-function ToggleOption({ label, checked, onChange, disabled }: { label: string; checked?: boolean; onChange: () => void; disabled?: boolean }) {
+function ToggleOption({
+  label,
+  checked,
+  onChange,
+  disabled,
+}: {
+  label: string;
+  checked?: boolean;
+  onChange: () => void;
+  disabled?: boolean;
+}) {
   return (
     <div className="flex items-center justify-between p-2.5 rounded-xl border bg-surface/60 hover:bg-surface transition">
       <span className="font-medium text-foreground text-[11.5px] pe-2">{label}</span>
-      <Switch checked={!!checked} onCheckedChange={onChange} disabled={disabled} className="scale-90" />
+      <Switch
+        checked={!!checked}
+        onCheckedChange={onChange}
+        disabled={disabled}
+        className="scale-90"
+      />
     </div>
   );
 }

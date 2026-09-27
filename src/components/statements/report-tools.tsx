@@ -55,7 +55,8 @@ export function exportReportToExcel(
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
-  const cleanName = filename.trim().replace(/[\\/:*?"<>|]/g, "_") || (ar ? "كشف_البيانات" : "report");
+  const cleanName =
+    filename.trim().replace(/[\\/:*?"<>|]/g, "_") || (ar ? "كشف_البيانات" : "report");
   link.download = `${cleanName}.csv`;
   document.body.appendChild(link);
   link.click();
@@ -108,21 +109,41 @@ export async function printLuxuryReport(options: LuxuryReportOptions): Promise<v
   const thCells = [
     `<th style="width:40px;text-align:center;">#</th>`,
     ...normalizedHeaders.map((h) => {
-      const align = h.align === "end" ? (ar ? "left" : "right") : h.align === "start" ? (ar ? "right" : "left") : "center";
+      const align =
+        h.align === "end"
+          ? ar
+            ? "left"
+            : "right"
+          : h.align === "start"
+            ? ar
+              ? "right"
+              : "left"
+            : "center";
       return `<th style="text-align:${align};">${escapeHtml(h.label)}</th>`;
     }),
   ].join("");
 
   // صفوف البيانات
-  const bodyRows = rows.map((row, idx) => {
-    const cells = row.map((cell, cIdx) => {
-      const headerDef = normalizedHeaders[cIdx];
-      const align = headerDef?.align === "end" ? (ar ? "left" : "right") : headerDef?.align === "start" ? (ar ? "right" : "left") : "center";
-      const isNum = headerDef?.align === "end";
-      return `<td class="${isNum ? "num" : ""}" style="text-align:${align};">${escapeHtml(String(cell ?? "—"))}</td>`;
-    });
-    return `<tr><td class="num" style="text-align:center;">${idx + 1}</td>${cells.join("")}</tr>`;
-  }).join("");
+  const bodyRows = rows
+    .map((row, idx) => {
+      const cells = row.map((cell, cIdx) => {
+        const headerDef = normalizedHeaders[cIdx];
+        const align =
+          headerDef?.align === "end"
+            ? ar
+              ? "left"
+              : "right"
+            : headerDef?.align === "start"
+              ? ar
+                ? "right"
+                : "left"
+              : "center";
+        const isNum = headerDef?.align === "end";
+        return `<td class="${isNum ? "num" : ""}" style="text-align:${align};">${escapeHtml(String(cell ?? "—"))}</td>`;
+      });
+      return `<tr><td class="num" style="text-align:center;">${idx + 1}</td>${cells.join("")}</tr>`;
+    })
+    .join("");
 
   // صف الإجمالي النهائي
   let grandTotalRow = "";

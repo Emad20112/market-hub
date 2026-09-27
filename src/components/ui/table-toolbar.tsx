@@ -252,7 +252,7 @@ export function ToolbarAction({
             ? "border-primary/45 bg-primary/12 text-primary"
             : "border-border/70 bg-surface/55 text-muted-foreground hover:border-primary/30 hover:bg-surface/85 hover:text-foreground",
       )}
-      >
+    >
       <span className="[&_svg]:size-4">{icon}</span>
       <span className="hidden sm:inline">{label}</span>
       {badge > 0 ? (
@@ -467,7 +467,13 @@ const controlClass =
 
 function filterIcon(type: FilterDefinition["type"]) {
   const Icon =
-    type === "date-range" ? CalendarDays : type === "text" ? Search : type === "boolean" ? ToggleLeft : ListFilter;
+    type === "date-range"
+      ? CalendarDays
+      : type === "text"
+        ? Search
+        : type === "boolean"
+          ? ToggleLeft
+          : ListFilter;
   return <Icon className="size-3.5" aria-hidden />;
 }
 
@@ -475,8 +481,13 @@ function FilterControl({ def, value, onChange }: FilterControlProps) {
   if (def.type === "select") {
     return (
       <div className="flex flex-col gap-1.5">
-        <label htmlFor={`filter-${def.key}`} className="flex items-center gap-1.5 text-label text-muted-foreground">
-          <span className="grid size-5 place-items-center rounded-full bg-primary/10 text-primary">{filterIcon(def.type)}</span>
+        <label
+          htmlFor={`filter-${def.key}`}
+          className="flex items-center gap-1.5 text-label text-muted-foreground"
+        >
+          <span className="grid size-5 place-items-center rounded-full bg-primary/10 text-primary">
+            {filterIcon(def.type)}
+          </span>
           {def.label}
         </label>
         <div className="relative">
@@ -493,7 +504,10 @@ function FilterControl({ def, value, onChange }: FilterControlProps) {
               </option>
             ))}
           </select>
-          <ChevronDown className="pointer-events-none absolute inset-y-0 end-4 my-auto size-4 text-muted-foreground" aria-hidden />
+          <ChevronDown
+            className="pointer-events-none absolute inset-y-0 end-4 my-auto size-4 text-muted-foreground"
+            aria-hidden
+          />
         </div>
       </div>
     );
@@ -504,7 +518,9 @@ function FilterControl({ def, value, onChange }: FilterControlProps) {
     return (
       <div className="flex flex-col gap-1.5">
         <span className="flex items-center gap-1.5 text-label text-muted-foreground">
-          <span className="grid size-5 place-items-center rounded-full bg-primary/10 text-primary">{filterIcon(def.type)}</span>
+          <span className="grid size-5 place-items-center rounded-full bg-primary/10 text-primary">
+            {filterIcon(def.type)}
+          </span>
           {def.label}
         </span>
         <div className="flex gap-1.5" role="radiogroup" aria-label={def.label}>
@@ -543,7 +559,9 @@ function FilterControl({ def, value, onChange }: FilterControlProps) {
     return (
       <div className="flex flex-col gap-1.5">
         <span className="flex items-center gap-1.5 text-label text-muted-foreground">
-          <span className="grid size-5 place-items-center rounded-full bg-primary/10 text-primary">{filterIcon(def.type)}</span>
+          <span className="grid size-5 place-items-center rounded-full bg-primary/10 text-primary">
+            {filterIcon(def.type)}
+          </span>
           {def.label}
         </span>
         <div className="grid grid-cols-2 gap-2">
@@ -568,8 +586,13 @@ function FilterControl({ def, value, onChange }: FilterControlProps) {
 
   return (
     <div className="flex flex-col gap-1.5">
-      <label htmlFor={`filter-${def.key}`} className="flex items-center gap-1.5 text-label text-muted-foreground">
-        <span className="grid size-5 place-items-center rounded-full bg-primary/10 text-primary">{filterIcon(def.type)}</span>
+      <label
+        htmlFor={`filter-${def.key}`}
+        className="flex items-center gap-1.5 text-label text-muted-foreground"
+      >
+        <span className="grid size-5 place-items-center rounded-full bg-primary/10 text-primary">
+          {filterIcon(def.type)}
+        </span>
         {def.label}
       </label>
       <input

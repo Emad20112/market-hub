@@ -96,7 +96,10 @@ export function Modal({
 }: ModalProps) {
   const compactAtMd = useIsCompact();
   const breakpoint = useBreakpoint();
-  const compact = sheetUntil === "lg" ? breakpoint !== "lg" && breakpoint !== "xl" && breakpoint !== "2xl" : compactAtMd;
+  const compact =
+    sheetUntil === "lg"
+      ? breakpoint !== "lg" && breakpoint !== "xl" && breakpoint !== "2xl"
+      : compactAtMd;
   const [mounted, setMounted] = React.useState(false);
   const panelRef = React.useRef<HTMLDivElement>(null);
   const previouslyFocused = React.useRef<HTMLElement | null>(null);
@@ -231,8 +234,7 @@ export function Modal({
           asFullscreen && "panel-enter h-[100dvh] rounded-none border-0",
           asCentered &&
             cn("panel-enter m-auto max-h-[calc(100dvh-2rem)] rounded-[16px]", sizeClass[size]),
-          asPopover &&
-            cn("panel-enter max-h-[calc(100dvh-6rem)] rounded-[20px]", sizeClass[size]),
+          asPopover && cn("panel-enter max-h-[calc(100dvh-6rem)] rounded-[20px]", sizeClass[size]),
           asPopover && desktop === "popover-start" && "absolute left-4 sm:left-6",
           asPopover && desktop === "popover-end" && "absolute right-4 sm:right-6",
           className,

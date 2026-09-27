@@ -83,7 +83,9 @@ export function PageGuideButton({
   className?: string;
 }) {
   const [open, setOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<"overview" | "matrix" | "steps" | "security">("overview");
+  const [activeTab, setActiveTab] = useState<"overview" | "matrix" | "steps" | "security">(
+    "overview",
+  );
   const impactMatrix = config.impactMatrix;
 
   return (
@@ -225,9 +227,7 @@ export function PageGuideButton({
                             </div>
                           )}
                           <div>
-                            <h4 className="text-sm font-semibold text-foreground">
-                              {card.title}
-                            </h4>
+                            <h4 className="text-sm font-semibold text-foreground">{card.title}</h4>
                             <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
                               {card.description}
                             </p>
@@ -251,9 +251,7 @@ export function PageGuideButton({
                       </h4>
                     )}
                     {config.matrixDescription && (
-                      <p className="text-xs text-muted-foreground">
-                        {config.matrixDescription}
-                      </p>
+                      <p className="text-xs text-muted-foreground">{config.matrixDescription}</p>
                     )}
                   </div>
                 )}
@@ -275,10 +273,7 @@ export function PageGuideButton({
                       </thead>
                       <tbody className="divide-y divide-border/60">
                         {impactMatrix.rows.map((row, rIdx) => (
-                          <tr
-                            key={rIdx}
-                            className="transition-colors hover:bg-accent/40"
-                          >
+                          <tr key={rIdx} className="transition-colors hover:bg-accent/40">
                             {impactMatrix.columns.map((col, cIdx) => (
                               <td
                                 key={col.key}
@@ -326,9 +321,7 @@ export function PageGuideButton({
             {activeTab === "steps" && config.steps && (
               <div className="space-y-4">
                 {config.stepsTitle && (
-                  <h4 className="text-sm font-semibold text-foreground">
-                    {config.stepsTitle}
-                  </h4>
+                  <h4 className="text-sm font-semibold text-foreground">{config.stepsTitle}</h4>
                 )}
                 <div className="space-y-3">
                   {config.steps.map((st, idx) => (
@@ -340,9 +333,7 @@ export function PageGuideButton({
                         {st.number}
                       </div>
                       <div className="space-y-1">
-                        <h5 className="text-sm font-semibold text-foreground">
-                          {st.title}
-                        </h5>
+                        <h5 className="text-sm font-semibold text-foreground">{st.title}</h5>
                         <p className="text-xs leading-relaxed text-muted-foreground">
                           {st.description}
                         </p>
@@ -357,9 +348,7 @@ export function PageGuideButton({
             {activeTab === "security" && config.rules && (
               <div className="space-y-4">
                 {config.rulesTitle && (
-                  <h4 className="text-sm font-semibold text-foreground">
-                    {config.rulesTitle}
-                  </h4>
+                  <h4 className="text-sm font-semibold text-foreground">{config.rulesTitle}</h4>
                 )}
                 <div className="space-y-3">
                   {config.rules.map((rule, idx) => (

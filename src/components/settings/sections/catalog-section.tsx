@@ -42,7 +42,9 @@ export function CatalogSection({ lang }: CatalogSectionProps) {
                 <SlidersHorizontal className="h-5 w-5" />
               </div>
               <div>
-                <div>{isAr ? "تخصيص النشاط وموديولات الفهرسة" : "Industry Profile & Catalog Modules"}</div>
+                <div>
+                  {isAr ? "تخصيص النشاط وموديولات الفهرسة" : "Industry Profile & Catalog Modules"}
+                </div>
                 <div className="text-xs text-muted-foreground font-normal mt-0.5">
                   {isAr
                     ? "تكييف حقول الفهرس والمنتجات بحسب نشاطك التجاري (قطع غيار، مواد غذائية، ملابس، تجارة عامة)"

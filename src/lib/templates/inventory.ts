@@ -14,7 +14,17 @@ export function renderInventoryThermalTemplate(
 ): string {
   const esc = escapeHtml;
   const branding = doc.brandingText || DEFAULT_BRANDING;
-  const opts = { showLogo: true, showCompanyInfo: true, showDocNumberDate: true, showMovementInfo: true, showSignatures: true, showFooter: true, showBranding: true, ...options, ...doc.options };
+  const opts = {
+    showLogo: true,
+    showCompanyInfo: true,
+    showDocNumberDate: true,
+    showMovementInfo: true,
+    showSignatures: true,
+    showFooter: true,
+    showBranding: true,
+    ...options,
+    ...doc.options,
+  };
 
   const rows = doc.lines
     .map(
@@ -56,36 +66,52 @@ export function renderInventoryThermalTemplate(
     ${opts.showCompanyInfo && doc.company?.address ? `<div class="muted">${esc(doc.company.address)}</div>` : ""}
   </div>
   <div class="hr"></div>
-  ${opts.showDocNumberDate ? `
+  ${
+    opts.showDocNumberDate
+      ? `
   <div class="row"><span>${rtl ? "رقم المستند" : "Doc No"}:</span><b>#${esc(doc.number)}</b></div>
   ${doc.relatedRef ? `<div class="row"><span>${rtl ? "العملية المرتبطة" : "Ref No"}:</span><span>#${esc(doc.relatedRef)}</span></div>` : ""}
   <div class="row"><span>${L.date}:</span><span>${esc(doc.date)}</span></div>
-  ` : ""}
+  `
+      : ""
+  }
   
-  ${opts.showMovementInfo ? `
+  ${
+    opts.showMovementInfo
+      ? `
   <div class="hr"></div>
   ${doc.movementType ? `<div class="row"><span>${rtl ? "نوع الحركة" : "Movement"}:</span><b>${esc(doc.movementType)}</b></div>` : ""}
   ${doc.warehouse ? `<div class="row"><span>${rtl ? "المستودع" : "Warehouse"}:</span><span>${esc(doc.warehouse)}</span></div>` : ""}
   ${doc.destinationWarehouse ? `<div class="row"><span>${rtl ? "المستودع الوجهة" : "Destination"}:</span><span>${esc(doc.destinationWarehouse)}</span></div>` : ""}
   ${doc.operatorName ? `<div class="row"><span>${rtl ? "المسؤول" : "Operator"}:</span><span>${esc(doc.operatorName)}</span></div>` : ""}
-  ` : ""}
+  `
+      : ""
+  }
 
   <div class="hr"></div>
   <div style="font-weight:700; font-size:11px; margin-bottom:4px">${rtl ? "تفاصيل الاصناف والمخزون" : "Stock Items"}</div>
   ${rows}
   <div class="hr"></div>
 
-  ${opts.showNotes && doc.notes ? `
+  ${
+    opts.showNotes && doc.notes
+      ? `
   <div style="font-size:10.5px; margin: 4px 0;"><b>${rtl ? "ملاحظات" : "Notes"}:</b> ${esc(doc.notes)}</div>
   <div class="hr"></div>
-  ` : ""}
+  `
+      : ""
+  }
 
-  ${opts.showSignatures ? `
+  ${
+    opts.showSignatures
+      ? `
   <div class="sign-box">
     ${rtl ? "توقيع أمين المستودع / المستلم" : "Warehouse Keeper Signature"}
     <div style="height: 30px;"></div>
   </div>
-  ` : ""}
+  `
+      : ""
+  }
 
   ${opts.showFooter ? `<div class="foot">${L.thanks || (rtl ? "مستند موثق مخزنياً" : "Verified Stock Record")}</div>` : ""}
   ${opts.showBranding ? `<div class="branding">${esc(branding)}</div>` : ""}
@@ -100,7 +126,17 @@ export function renderInventoryStandardTemplate(
 ): string {
   const esc = escapeHtml;
   const branding = doc.brandingText || DEFAULT_BRANDING;
-  const opts = { showLogo: true, showCompanyInfo: true, showDocNumberDate: true, showMovementInfo: true, showSignatures: true, showFooter: true, showBranding: true, ...options, ...doc.options };
+  const opts = {
+    showLogo: true,
+    showCompanyInfo: true,
+    showDocNumberDate: true,
+    showMovementInfo: true,
+    showSignatures: true,
+    showFooter: true,
+    showBranding: true,
+    ...options,
+    ...doc.options,
+  };
 
   const rows = doc.lines
     .map(
@@ -159,22 +195,30 @@ export function renderInventoryStandardTemplate(
       </div>
       <div class="inv">
         <div class="type-tag">${esc(doc.title || (rtl ? "مستند حركة مخزون" : "Stock Movement"))}</div>
-        ${opts.showDocNumberDate ? `
+        ${
+          opts.showDocNumberDate
+            ? `
         <div class="n">رقم المستند: #${esc(doc.number)}</div>
         ${doc.relatedRef ? `<div class="n">مرجع العملية: #${esc(doc.relatedRef)}</div>` : ""}
         <div class="n">التاريخ: ${esc(doc.date)}</div>
-        ` : ""}
+        `
+            : ""
+        }
       </div>
     </header>
 
-    ${opts.showMovementInfo ? `
+    ${
+      opts.showMovementInfo
+        ? `
     <div class="meta-grid">
       <div class="card"><div class="k">${rtl ? "نوع الحركة" : "Movement Type"}</div><div class="v">${esc(doc.movementType ?? "صرف / تحويل")}</div></div>
       <div class="card"><div class="k">${rtl ? "المستودع الرئيسي" : "Warehouse"}</div><div class="v">${esc(doc.warehouse ?? "—")}</div></div>
       <div class="card"><div class="k">${rtl ? "المستودع الوجهة" : "Destination"}</div><div class="v">${esc(doc.destinationWarehouse ?? "—")}</div></div>
       <div class="card"><div class="k">${rtl ? "المسؤول / المشغل" : "Operator"}</div><div class="v">${esc(doc.operatorName ?? "—")}</div></div>
     </div>
-    ` : ""}
+    `
+        : ""
+    }
 
     <table>
       <thead>
@@ -190,26 +234,38 @@ export function renderInventoryStandardTemplate(
       <tbody>${rows}</tbody>
     </table>
 
-    ${opts.showNotes && doc.notes ? `
+    ${
+      opts.showNotes && doc.notes
+        ? `
     <div class="notes-box">
       <b>${rtl ? "ملاحظات المستند:" : "Document Notes:"}</b> ${esc(doc.notes)}
     </div>
-    ` : ""}
+    `
+        : ""
+    }
 
-    ${opts.showSignatures ? `
+    ${
+      opts.showSignatures
+        ? `
     <div class="signatures">
       <div><div style="height:45px"></div><div class="sig-line">${rtl ? "توقيع المستلم" : "Recipient Signature"}</div></div>
       <div><div style="height:45px"></div><div class="sig-line">${rtl ? "أمين المستودع" : "Warehouse Keeper"}</div></div>
       <div><div style="height:45px"></div><div class="sig-line">${rtl ? "اعتماد الإدارة" : "Authorized"}</div></div>
     </div>
-    ` : ""}
+    `
+        : ""
+    }
   </div>
 
-  ${opts.showFooter ? `
+  ${
+    opts.showFooter
+      ? `
   <footer>
     <div>${rtl ? "تم إنشاء وتوثيق هذا المستند عبر نظام فورتكس ERP للمخزون" : "System Generated Stock Movement Document"}</div>
     ${opts.showBranding ? `<div class="branding">${esc(branding)}</div>` : ""}
   </footer>
-  ` : ""}
+  `
+      : ""
+  }
 </div></body></html>`;
 }

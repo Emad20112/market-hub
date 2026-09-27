@@ -54,7 +54,7 @@ export function renderElegantTemplate(
         <div class="p-title">${esc(l.product)}</div>
         ${l.code ? `<div class="p-code">${rtl ? "كود" : "SKU"}: ${esc(l.code)}</div>` : ""}
       </td>
-      <td class="col-qty">${l.qty} ${l.unit ? esc(l.unit) : (rtl ? "حبة" : "")}</td>
+      <td class="col-qty">${l.qty} ${l.unit ? esc(l.unit) : rtl ? "حبة" : ""}</td>
       <td class="col-price">${money(itemPrice)}</td>
       <td class="col-total">${money(itemTotal)}</td>
     </tr>`;
@@ -569,7 +569,9 @@ export function renderElegantTemplate(
     <!-- Top Header -->
     <header>
       <div class="brand-section">
-        ${opts.showLogo ? `
+        ${
+          opts.showLogo
+            ? `
         <div class="logo-container">
           <img
             src="${esc(logoUrl)}"
@@ -577,14 +579,18 @@ export function renderElegantTemplate(
             class="company-logo-img"
             onerror="this.onerror=null; this.src='${DEFAULT_COMPANY_LOGO}';"
           />
-        </div>` : ""}
+        </div>`
+            : ""
+        }
         <div class="company-title-group">
           <h1>${esc(companyName)}</h1>
           ${opts.showBranding ? `<div class="brand-sub">${esc(branding)}</div>` : ""}
         </div>
       </div>
 
-      ${opts.showCompanyInfo ? `
+      ${
+        opts.showCompanyInfo
+          ? `
       <div class="company-contacts">
         <div class="contact-item">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
@@ -594,12 +600,18 @@ export function renderElegantTemplate(
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
           <span>${esc(companyPhone)}</span>
         </div>
-        ${companyVat ? `
+        ${
+          companyVat
+            ? `
         <div class="contact-item">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M7 7h10M7 12h10M7 17h6"/></svg>
           <span>${rtl ? "الرقم الضريبي" : "Tax ID"}: ${esc(companyVat)}</span>
-        </div>` : ""}
-      </div>` : "<div></div>"}
+        </div>`
+            : ""
+        }
+      </div>`
+          : "<div></div>"
+      }
     </header>
 
     <!-- Invoice Title & Date Banner -->
@@ -609,19 +621,25 @@ export function renderElegantTemplate(
         ${esc(doc.title || L.invoice)}
       </h2>
 
-      ${opts.showDocNumberDate ? `
+      ${
+        opts.showDocNumberDate
+          ? `
       <div class="inv-number-badge">#${esc(doc.number)}</div>
 
       <div class="inv-date-tag">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
         <span>${L.date}: ${esc(doc.date)}</span>
-      </div>` : ""}
+      </div>`
+          : ""
+      }
     </div>
 
     <!-- 3 Info Cards Grid -->
     <div class="cards-grid">
       <!-- Card 1: Customer -->
-      ${opts.showCustomerInfo && doc.partyName ? `
+      ${
+        opts.showCustomerInfo && doc.partyName
+          ? `
       <div class="info-card">
         <div class="card-icon-circle">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
@@ -632,7 +650,8 @@ export function renderElegantTemplate(
           ${doc.partyVat ? `<div class="card-subtext">${rtl ? "الرقم الضريبي" : "VAT"}: ${esc(doc.partyVat)}</div>` : ""}
           ${doc.partyPhone ? `<div class="card-subtext">${rtl ? "هاتف" : "Tel"}: ${esc(doc.partyPhone)}</div>` : ""}
         </div>
-      </div>` : `
+      </div>`
+          : `
       <div class="info-card">
         <div class="card-icon-circle">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
@@ -641,10 +660,13 @@ export function renderElegantTemplate(
           <div class="card-label">${L.billTo}</div>
           <div class="card-value">${rtl ? "عميل عام" : "General Customer"}</div>
         </div>
-      </div>`}
+      </div>`
+      }
 
       <!-- Card 2: Warehouse -->
-      ${opts.showMovementInfo ? `
+      ${
+        opts.showMovementInfo
+          ? `
       <div class="info-card">
         <div class="card-icon-circle">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
@@ -654,10 +676,14 @@ export function renderElegantTemplate(
           <div class="card-value">${esc(doc.warehouse || (rtl ? "المستودع الرئيسي" : "Main Warehouse"))}</div>
           ${doc.destinationWarehouse ? `<div class="card-subtext">${rtl ? "إلى" : "To"}: ${esc(doc.destinationWarehouse)}</div>` : ""}
         </div>
-      </div>` : `<div></div>`}
+      </div>`
+          : `<div></div>`
+      }
 
       <!-- Card 3: Payment Method -->
-      ${opts.showPaymentInfo ? `
+      ${
+        opts.showPaymentInfo
+          ? `
       <div class="info-card">
         <div class="card-icon-circle">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
@@ -667,7 +693,9 @@ export function renderElegantTemplate(
           <div class="card-value">${esc(doc.payment || (rtl ? "نقداً (Cash)" : "Cash"))}</div>
           <div class="card-subtext">${L.status}: ${esc(doc.status || (rtl ? "مدفوعة" : "Paid"))}</div>
         </div>
-      </div>` : `<div></div>`}
+      </div>`
+          : `<div></div>`
+      }
     </div>
 
     <!-- Items Table -->
@@ -692,46 +720,64 @@ export function renderElegantTemplate(
     <div class="bottom-grid">
       <!-- Notes Box & Tafqeet -->
       <div class="notes-card">
-        ${opts.showFinancialDetails ? `
+        ${
+          opts.showFinancialDetails
+            ? `
         <div class="tafqeet-banner">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7V4a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v3"/><path d="M4 17v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/><rect width="20" height="10" x="2" y="7" rx="2"/><circle cx="12" cy="12" r="2"/></svg>
           <span><b>${rtl ? "المبلغ كتابةً" : "Amount in words"}:</b> ${esc(numberToArabicWords(doc.total ?? 0, doc.currency))}</span>
-        </div>` : ""}
+        </div>`
+            : ""
+        }
 
-        ${opts.showNotes && doc.notes ? `
+        ${
+          opts.showNotes && doc.notes
+            ? `
         <div class="notes-header-title">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></svg>
           <span>${rtl ? "ملاحظات" : "Notes"}</span>
         </div>
         <div class="notes-body-text">${esc(doc.notes)}</div>
-        ` : `
+        `
+            : `
         <div class="notes-header-title">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></svg>
           <span>${L.thanks}</span>
         </div>
         <div class="notes-body-text">${rtl ? "نشكركم على اختياركم خدماتنا ونتطلع دائماً لخدمتكم." : "We appreciate your business and look forward to serving you."}</div>
-        `}
+        `
+        }
       </div>
 
       <!-- Financial Totals Box -->
-      ${opts.showFinancialDetails ? `
+      ${
+        opts.showFinancialDetails
+          ? `
       <div class="totals-card">
         <div class="totals-row">
           <span>${L.subtotal}</span>
           <span style="font-family: system-ui, sans-serif; font-weight: 700;">${money(doc.subtotal)}</span>
         </div>
 
-        ${doc.discount ? `
+        ${
+          doc.discount
+            ? `
         <div class="totals-row discount-row">
           <span>${L.discount}</span>
           <span style="font-family: system-ui, sans-serif; font-weight: 700;">- ${money(doc.discount)}</span>
-        </div>` : ""}
+        </div>`
+            : ""
+        }
 
-        ${doc.tax ? `
+        ${
+          doc.tax
+            ? `
         <div class="totals-row">
           <span>${L.tax}</span>
           <span style="font-family: system-ui, sans-serif; font-weight: 700;">+ ${money(doc.tax)}</span>
-        </div>` : ""}
+        </div>`
+            : ""
+        }
 
         <!-- Grand Total Gold Box -->
         <div class="grand-total-banner">
@@ -739,7 +785,9 @@ export function renderElegantTemplate(
           <span class="gt-amount">${money(doc.total)}</span>
         </div>
 
-        ${doc.paid !== undefined ? `
+        ${
+          doc.paid !== undefined
+            ? `
         <div class="totals-row" style="margin-top: 4px;">
           <span>${L.paid}</span>
           <span style="font-family: system-ui, sans-serif; font-weight: 700;">${money(doc.paid)}</span>
@@ -747,12 +795,18 @@ export function renderElegantTemplate(
         <div class="totals-row">
           <span>${L.balance}</span>
           <span style="font-family: system-ui, sans-serif; font-weight: 700;">${money((doc.total ?? 0) - doc.paid)}</span>
-        </div>` : ""}
-      </div>` : "<div></div>"}
+        </div>`
+            : ""
+        }
+      </div>`
+          : "<div></div>"
+      }
     </div>
 
     <!-- Signatures -->
-    ${opts.showSignatures ? `
+    ${
+      opts.showSignatures
+        ? `
     <div class="signatures-row">
       <div class="sig-box">
         <div class="sig-graphic">
@@ -773,11 +827,15 @@ export function renderElegantTemplate(
         </div>
         <div class="sig-title-line">${rtl ? "توقيع المدير / المخزن" : "Manager / Warehouse Signature"}</div>
       </div>
-    </div>` : ""}
+    </div>`
+        : ""
+    }
   </div>
 
   <!-- Footer Ornament & Text -->
-  ${opts.showFooter ? `
+  ${
+    opts.showFooter
+      ? `
   <footer>
     <svg class="footer-wave-svg" viewBox="0 0 1200 40" preserveAspectRatio="none" fill="none">
       <path d="M0,25 C150,5 350,38 500,20 C650,2 850,35 1000,15 C1100,2 1170,25 1200,30 L1200,40 L0,40 Z" fill="url(#footer-gold-grad)" opacity="0.75"/>
@@ -791,7 +849,9 @@ export function renderElegantTemplate(
     </svg>
     <div class="footer-company-name">${esc(companyName)}</div>
     ${opts.showBranding ? `<div class="footer-branding-line">${esc(branding)}</div>` : ""}
-  </footer>` : ""}
+  </footer>`
+      : ""
+  }
 </div>
 
 </body>

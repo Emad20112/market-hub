@@ -54,7 +54,7 @@ export function getTemplateRenderer(
   if (registered) {
     return registered.renderer;
   }
-  
+
   // Default customer invoice fallbacks
   switch (id) {
     case "thermal":
@@ -223,11 +223,7 @@ export function printDocument(
  * Multi-Document Print Job Manager:
  * Print multiple documents sequentially (e.g. Customer Invoice + Inventory Document)
  */
-export function printJob(
-  items: PrintJobItem[],
-  labels?: Partial<InvoiceLabels>,
-  rtl = true,
-): void {
+export function printJob(items: PrintJobItem[], labels?: Partial<InvoiceLabels>, rtl = true): void {
   if (!items || items.length === 0) return;
 
   items.forEach((item, index) => {

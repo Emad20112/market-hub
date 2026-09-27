@@ -1,15 +1,15 @@
 export type DocumentType =
-  | "customer_invoice"     // فاتورة العميل
-  | "inventory_document"   // مستند حركة المخزون
-  | "purchase_invoice"     // فاتورة الشراء
-  | "sales_return"         // مردود المبيعات
-  | "purchase_return"      // مردود المشتريات
-  | "stock_transfer"       // تحويل مخزني
-  | "stock_receipt"        // إذن استلام مخزني
-  | "stock_issue"          // إذن صرف مخزني
-  | "payment_receipt"      // سند قبض/صرف
-  | "quotation"            // عرض سعر
-  | "delivery_note";       // إذن تسليم
+  | "customer_invoice" // فاتورة العميل
+  | "inventory_document" // مستند حركة المخزون
+  | "purchase_invoice" // فاتورة الشراء
+  | "sales_return" // مردود المبيعات
+  | "purchase_return" // مردود المشتريات
+  | "stock_transfer" // تحويل مخزني
+  | "stock_receipt" // إذن استلام مخزني
+  | "stock_issue" // إذن صرف مخزني
+  | "payment_receipt" // سند قبض/صرف
+  | "quotation" // عرض سعر
+  | "delivery_note"; // إذن تسليم
 
 export type PaperSize = "80mm" | "58mm" | "A4" | "A5";
 
@@ -58,7 +58,7 @@ export interface UnifiedDocumentData {
   relatedRef?: string; // رقم الفاتورة أو العملية المرتبطة
   date: string;
   dueDate?: string;
-  
+
   // Party & Customer Details
   partyLabel?: string;
   partyName?: string;
@@ -89,7 +89,7 @@ export interface UnifiedDocumentData {
   lines: DocumentLine[];
   company?: CompanyDetails;
   brandingText?: string;
-  
+
   // Dynamic Field Customization Override
   options?: CustomFieldOptions;
 }
@@ -142,7 +142,7 @@ export type TemplateRenderer = (
   doc: UnifiedDocumentData,
   labels: InvoiceLabels,
   rtl: boolean,
-  options?: CustomFieldOptions
+  options?: CustomFieldOptions,
 ) => string;
 
 export interface PrintSettings extends CustomFieldOptions {

@@ -1,10 +1,17 @@
-import { UnifiedDocumentData, InvoiceLabels, escapeHtml, formatMoney, DEFAULT_BRANDING, CustomFieldOptions } from "./types";
+import {
+  UnifiedDocumentData,
+  InvoiceLabels,
+  escapeHtml,
+  formatMoney,
+  DEFAULT_BRANDING,
+  CustomFieldOptions,
+} from "./types";
 
 export function renderThermalTemplate(
   doc: UnifiedDocumentData,
   L: InvoiceLabels,
   rtl: boolean,
-  options?: CustomFieldOptions
+  options?: CustomFieldOptions,
 ): string {
   const c = doc.currency ?? "";
   const esc = escapeHtml;
@@ -64,16 +71,22 @@ export function renderThermalTemplate(
     ${opts.showCompanyInfo && doc.company?.vat ? `<div class="muted">VAT: ${esc(doc.company.vat)}</div>` : ""}
   </div>
   <div class="hr"></div>
-  ${opts.showDocNumberDate ? `
+  ${
+    opts.showDocNumberDate
+      ? `
   <div class="row"><span>${L.invoice}</span><b>#${esc(doc.number)}</b></div>
   <div class="row"><span>${L.date}</span><span>${esc(doc.date)}</span></div>
-  ` : ""}
+  `
+      : ""
+  }
   ${opts.showCustomerInfo && doc.partyName ? `<div class="row"><span>${L.billTo}</span><span>${esc(doc.partyName)}</span></div>` : ""}
   ${opts.showPaymentInfo && doc.payment ? `<div class="row"><span>${L.payment}</span><span>${esc(doc.payment)}</span></div>` : ""}
   <div class="hr"></div>
   ${rows}
   <div class="hr"></div>
-  ${opts.showFinancialDetails ? `
+  ${
+    opts.showFinancialDetails
+      ? `
   <div class="tot"><span>${L.subtotal}</span><span>${money(doc.subtotal)}</span></div>
   <div class="tot"><span>${L.tax}</span><span>${money(doc.tax)}</span></div>
   <div class="tot"><span>${L.discount}</span><span>${money(doc.discount)}</span></div>
@@ -87,7 +100,9 @@ export function renderThermalTemplate(
       : ""
   }
   <div class="hr"></div>
-  ` : ""}
+  `
+      : ""
+  }
   ${opts.showFooter ? `<div class="foot">${L.thanks}</div>` : ""}
   ${opts.showBranding ? `<div class="branding">${esc(branding)}</div>` : ""}
 </div></body></html>`;

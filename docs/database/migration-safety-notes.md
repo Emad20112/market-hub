@@ -56,7 +56,7 @@ CREATE POLICY tenant_subscriptions_insert ON public.tenant_subscriptions
 - لا تعديل على علاقات المفاتيح الأجنبية (Foreign Keys).
 - لا مساس بسياسات أمان الصفوف (RLS Policies).
 - لم يتم تشغيل أي أمر `seed` أو `reset` أو `truncate` أو `drop` أو حذف جماعي.
-- ملفات SQL التجريبية في الجذر (`public_dump.sql`, `yemen_grocery_seed.sql`, `yemen_stationery_seed.sql`) لم يتم تشغيلها مطلقاً.
+- ملفات SQL التجريبية (`docs/seed/yemen_grocery_seed.sql`, `docs/seed/yemen_stationery_seed.sql`) لم يتم تشغيلها مطلقاً.
 
 ---
 

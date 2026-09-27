@@ -69,14 +69,12 @@ export function ProfitSalesReport({
         itemsRequest = itemsRequest.gte("sales_invoices.created_at", fromTs);
         returnsRequest = returnsRequest.gte("created_at", fromTs);
         expensesRequest = expensesRequest.gte("expense_date", from);
-
       }
       if (toTs) {
         salesRequest = salesRequest.lte("created_at", toTs);
         itemsRequest = itemsRequest.lte("sales_invoices.created_at", toTs);
         returnsRequest = returnsRequest.lte("created_at", toTs);
         expensesRequest = expensesRequest.lte("expense_date", to);
-
       }
       const [sales, items, returns, expenses] = await Promise.all([
         salesRequest,
@@ -178,18 +176,39 @@ export function ProfitSalesReport({
             ar={ar}
             disabled={loading}
             onExport={() => {
-              const headers = [ar ? "البند" : "Metric", ar ? "المبلغ" : "Amount", ar ? "ملاحظات" : "Notes"];
+              const headers = [
+                ar ? "البند" : "Metric",
+                ar ? "المبلغ" : "Amount",
+                ar ? "ملاحظات" : "Notes",
+              ];
               const rows = [
                 [ar ? "إجمالي المبيعات" : "Gross Sales", money(data.sales), ""],
                 [ar ? "الخصومات الممنوحة" : "Discounts", money(data.discounts), ""],
                 [ar ? "المرتجعات" : "Returns", money(data.returns), ""],
-                [ar ? "صافي المبيعات" : "Net Sales", money(data.netSales), ar ? "المبيعات - الخصومات - المرتجعات" : "Sales - Discounts - Returns"],
+                [
+                  ar ? "صافي المبيعات" : "Net Sales",
+                  money(data.netSales),
+                  ar ? "المبيعات - الخصومات - المرتجعات" : "Sales - Discounts - Returns",
+                ],
                 [ar ? "تكلفة البضاعة المباعة" : "Cost of Goods Sold", money(data.cost), ""],
-                [ar ? "إجمالي الربح الأساسي" : "Gross Profit", money(data.gross), ar ? "صافي المبيعات - التكلفة" : "Net Sales - Cost"],
+                [
+                  ar ? "إجمالي الربح الأساسي" : "Gross Profit",
+                  money(data.gross),
+                  ar ? "صافي المبيعات - التكلفة" : "Net Sales - Cost",
+                ],
                 [ar ? "إجمالي المصروفات" : "Expenses", money(data.expenses), ""],
-                [ar ? "صافي النتيجة الأساسية" : "Net Result", money(data.net), ar ? "إجمالي الربح - المصروفات" : "Gross Profit - Expenses"],
+                [
+                  ar ? "صافي النتيجة الأساسية" : "Net Result",
+                  money(data.net),
+                  ar ? "إجمالي الربح - المصروفات" : "Gross Profit - Expenses",
+                ],
               ];
-              exportReportToExcel(ar ? "كشف_الأرباح_والمبيعات" : "profit-sales-report", headers, rows, ar);
+              exportReportToExcel(
+                ar ? "كشف_الأرباح_والمبيعات" : "profit-sales-report",
+                headers,
+                rows,
+                ar,
+              );
             }}
             onPrint={() => {
               const headers = [
@@ -201,15 +220,25 @@ export function ProfitSalesReport({
                 [ar ? "إجمالي المبيعات" : "Gross Sales", money(data.sales), ""],
                 [ar ? "الخصومات الممنوحة" : "Discounts", money(data.discounts), ""],
                 [ar ? "المرتجعات" : "Returns", money(data.returns), ""],
-                [ar ? "صافي المبيعات" : "Net Sales", money(data.netSales), ar ? "المبيعات - الخصومات - المرتجعات" : "Sales - Discounts - Returns"],
+                [
+                  ar ? "صافي المبيعات" : "Net Sales",
+                  money(data.netSales),
+                  ar ? "المبيعات - الخصومات - المرتجعات" : "Sales - Discounts - Returns",
+                ],
                 [ar ? "تكلفة البضاعة المباعة" : "Cost of Goods Sold", money(data.cost), ""],
-                [ar ? "إجمالي الربح الأساسي" : "Gross Profit", money(data.gross), ar ? "صافي المبيعات - التكلفة" : "Net Sales - Cost"],
+                [
+                  ar ? "إجمالي الربح الأساسي" : "Gross Profit",
+                  money(data.gross),
+                  ar ? "صافي المبيعات - التكلفة" : "Net Sales - Cost",
+                ],
                 [ar ? "إجمالي المصروفات" : "Expenses", money(data.expenses), ""],
               ];
 
               void printLuxuryReport({
                 title: ar ? "كشف الأرباح والمبيعات الأساسي" : "Basic Profit & Sales Report",
-                subtitle: ar ? "ملخص حركة المبيعات والتكاليف والمصروفات وصافي النتيجة" : "Summary of sales, costs, expenses and net profit",
+                subtitle: ar
+                  ? "ملخص حركة المبيعات والتكاليف والمصروفات وصافي النتيجة"
+                  : "Summary of sales, costs, expenses and net profit",
                 periodLabel:
                   from && to
                     ? ar

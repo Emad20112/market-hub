@@ -73,7 +73,7 @@ export function VortexStreamingTable<T extends { id: string | number }>({
           }
         }
       },
-      { rootMargin: "320px 0px" }
+      { rootMargin: "320px 0px" },
     );
     if (sentinelRef.current) {
       observer.observe(sentinelRef.current);
@@ -84,7 +84,12 @@ export function VortexStreamingTable<T extends { id: string | number }>({
   // Empty / Loading / Error states
   if (isLoading) {
     return (
-      <div className={cn("flex flex-col gap-2.5 rounded-2xl border border-border/60 bg-card/60 p-6", className)}>
+      <div
+        className={cn(
+          "flex flex-col gap-2.5 rounded-2xl border border-border/60 bg-card/60 p-6",
+          className,
+        )}
+      >
         {Array.from({ length: 5 }).map((_, i) => (
           <div
             key={i}
@@ -119,7 +124,9 @@ export function VortexStreamingTable<T extends { id: string | number }>({
 
   if (!rows || rows.length === 0) {
     return (
-      <div className={cn("rounded-2xl border border-dashed border-border/60 bg-card/40", className)}>
+      <div
+        className={cn("rounded-2xl border border-dashed border-border/60 bg-card/40", className)}
+      >
         {emptyState || (
           <div className="flex flex-col items-center justify-center gap-2 py-12">
             <Inbox className="h-8 w-8 text-muted-foreground/40" />
@@ -131,7 +138,9 @@ export function VortexStreamingTable<T extends { id: string | number }>({
   }
 
   return (
-    <div className={cn("overflow-hidden rounded-2xl border border-border/60 bg-card/60", className)}>
+    <div
+      className={cn("overflow-hidden rounded-2xl border border-border/60 bg-card/60", className)}
+    >
       {toolbar}
       <div ref={scrollRef} className="relative overflow-x-auto">
         <table className="w-full caption-bottom text-sm">
@@ -142,9 +151,13 @@ export function VortexStreamingTable<T extends { id: string | number }>({
                   key={col.key}
                   className={cn(
                     "h-10 px-3 text-xs font-semibold text-muted-foreground whitespace-nowrap select-none",
-                    col.align === "end" ? "text-end" : col.align === "center" ? "text-center" : "text-start",
+                    col.align === "end"
+                      ? "text-end"
+                      : col.align === "center"
+                        ? "text-center"
+                        : "text-start",
                     col.hideBelow && hideClass[col.hideBelow],
-                    col.className
+                    col.className,
                   )}
                   style={col.width ? { width: col.width } : undefined}
                 >
@@ -162,7 +175,7 @@ export function VortexStreamingTable<T extends { id: string | number }>({
                   "border-b border-border/40 transition-colors duration-200",
                   onRowClick && "cursor-pointer hover:bg-muted/40",
                   highlightRowId === row.id && "bg-primary/8 flash-row-update",
-                  rowClassName?.(row)
+                  rowClassName?.(row),
                 )}
               >
                 {columns.map((col) => (
@@ -170,9 +183,13 @@ export function VortexStreamingTable<T extends { id: string | number }>({
                     key={col.key}
                     className={cn(
                       "px-3 py-2.5 align-middle whitespace-nowrap",
-                      col.align === "end" ? "text-end" : col.align === "center" ? "text-center" : "text-start",
+                      col.align === "end"
+                        ? "text-end"
+                        : col.align === "center"
+                          ? "text-center"
+                          : "text-start",
                       col.hideBelow && hideClass[col.hideBelow],
-                      col.className
+                      col.className,
                     )}
                   >
                     {col.cell(row, index)}

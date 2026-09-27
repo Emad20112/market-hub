@@ -15,7 +15,15 @@ import { ModuleGuard } from "@/lib/modules";
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { z } from "zod";
-import { FileSpreadsheet, Loader2, Printer, UserCheck, Building2, Wallet, ClipboardList } from "lucide-react";
+import {
+  FileSpreadsheet,
+  Loader2,
+  Printer,
+  UserCheck,
+  Building2,
+  Wallet,
+  ClipboardList,
+} from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { useI18n } from "@/lib/i18n";
 import { supabase } from "@/integrations/supabase/client";
@@ -408,9 +416,14 @@ function AccountStatementPage() {
           onFilterChange={updateFilterValues}
           onFilterReset={resetOptions}
         />
-      ) : ["sales-invoices", "returns", "expenses", "inventory-movements", "product"].includes(reportType) ? (
+      ) : ["sales-invoices", "returns", "expenses", "inventory-movements", "product"].includes(
+          reportType,
+        ) ? (
         <OperationalReports
-          type={reportType as "sales-invoices" | "returns" | "expenses" | "inventory-movements" | "product"}
+          type={
+            reportType as
+              "sales-invoices" | "returns" | "expenses" | "inventory-movements" | "product"
+          }
           from={from}
           to={to}
           ar={ar}
@@ -421,383 +434,385 @@ function AccountStatementPage() {
           onFilterReset={resetOptions}
         />
       ) : (
-      <div className="space-y-4">
-        {/* ═══ شريط الاختيار (كما كان) ═══ */}
-        <div className="panel-elevated p-4 flex flex-wrap items-center justify-between gap-4">
-          <div className="flex flex-wrap items-center gap-4">
-            <div className="flex items-center gap-2 border border-border p-1 rounded-lg bg-surface-2">
-              {partyTabs.map((tab) => {
-                const Icon = tab.icon;
-                return (
-                  <Button
-                    key={tab.type}
-                    variant={partyType === tab.type ? "default" : "ghost"}
-                    size="sm"
-                    onClick={() => {
-                      setPartyType(tab.type);
-                      setReportType(reportTypeForEntity(tab.type));
-                    }}
-                    className="gap-2 text-xs"
-                  >
-                    <Icon className="h-4 w-4" />
-                    {tab.label}
-                  </Button>
-                );
-              })}
+        <div className="space-y-4">
+          {/* ═══ شريط الاختيار (كما كان) ═══ */}
+          <div className="panel-elevated p-4 flex flex-wrap items-center justify-between gap-4">
+            <div className="flex flex-wrap items-center gap-4">
+              <div className="flex items-center gap-2 border border-border p-1 rounded-lg bg-surface-2">
+                {partyTabs.map((tab) => {
+                  const Icon = tab.icon;
+                  return (
+                    <Button
+                      key={tab.type}
+                      variant={partyType === tab.type ? "default" : "ghost"}
+                      size="sm"
+                      onClick={() => {
+                        setPartyType(tab.type);
+                        setReportType(reportTypeForEntity(tab.type));
+                      }}
+                      className="gap-2 text-xs"
+                    >
+                      <Icon className="h-4 w-4" />
+                      {tab.label}
+                    </Button>
+                  );
+                })}
+              </div>
+
+              {partyType !== "cash" && (
+                <Select value={partyId} onValueChange={setPartyId}>
+                  <SelectTrigger className="w-64">
+                    <SelectValue
+                      placeholder={
+                        loadingParties
+                          ? t("common.loading")
+                          : ar
+                            ? "اختر الحساب..."
+                            : "Select account..."
+                      }
+                    />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {partyList.map((p) => (
+                      <SelectItem key={p.id} value={p.id}>
+                        {p.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
             </div>
 
-            {partyType !== "cash" && (
-              <Select value={partyId} onValueChange={setPartyId}>
-                <SelectTrigger className="w-64">
-                  <SelectValue
-                    placeholder={
-                      loadingParties
-                        ? t("common.loading")
-                        : ar
-                          ? "اختر الحساب..."
-                          : "Select account..."
-                    }
-                  />
-                </SelectTrigger>
-                <SelectContent>
-                  {partyList.map((p) => (
-                    <SelectItem key={p.id} value={p.id}>
-                      {p.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            {/* المجاميع — كما كانت */}
+            {result && (
+              <div className="flex items-center gap-6">
+                <div className="text-end">
+                  <span className="text-xs text-muted-foreground">
+                    {ar ? "إجمالي المدين (له):" : "Total Debit:"}{" "}
+                  </span>
+                  <span className="font-bold font-mono text-rose-500 text-sm block">
+                    {money(totalDebit)}
+                  </span>
+                </div>
+                <div className="text-end">
+                  <span className="text-xs text-muted-foreground">
+                    {ar ? "إجمالي الدائن (عليه):" : "Total Credit:"}{" "}
+                  </span>
+                  <span className="font-bold font-mono text-emerald-500 text-sm block">
+                    {money(totalCredit)}
+                  </span>
+                </div>
+                <div className="text-end border-r pr-6 border-border">
+                  <span className="text-xs text-muted-foreground">
+                    {ar ? "الرصيد المتبقي الحالي:" : "Net Balance:"}{" "}
+                  </span>
+                  <span className="font-bold font-mono text-primary text-base block">
+                    {money(closingBalance)}
+                  </span>
+                </div>
+              </div>
             )}
           </div>
 
-          {/* المجاميع — كما كانت */}
-          {result && (
-            <div className="flex items-center gap-6">
-              <div className="text-end">
-                <span className="text-xs text-muted-foreground">
-                  {ar ? "إجمالي المدين (له):" : "Total Debit:"}{" "}
-                </span>
-                <span className="font-bold font-mono text-rose-500 text-sm block">
-                  {money(totalDebit)}
-                </span>
-              </div>
-              <div className="text-end">
-                <span className="text-xs text-muted-foreground">
-                  {ar ? "إجمالي الدائن (عليه):" : "Total Credit:"}{" "}
-                </span>
-                <span className="font-bold font-mono text-emerald-500 text-sm block">
-                  {money(totalCredit)}
-                </span>
-              </div>
-              <div className="text-end border-r pr-6 border-border">
-                <span className="text-xs text-muted-foreground">
-                  {ar ? "الرصيد المتبقي الحالي:" : "Net Balance:"}{" "}
-                </span>
-                <span className="font-bold font-mono text-primary text-base block">
-                  {money(closingBalance)}
-                </span>
-              </div>
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            <ReportFilterMenu
+              values={filterValues}
+              presets={filterPresets}
+              onChange={updateFilterValues}
+              onReset={resetOptions}
+              labels={{
+                trigger: ar ? "تصفية الكشف" : "Filter statement",
+                title: ar ? "تصفية الكشف" : "Statement filters",
+                date: ar ? "التاريخ والفترة" : "Date and period",
+                period: ar ? "الفترة" : "Period",
+                options: ar ? "خيارات إضافية" : "More options",
+                includeZeroRows: ar ? "إظهار الفواتير المسددة" : "Include settled",
+                reset: ar ? "إعادة ضبط الفلاتر" : "Reset filters",
+                back: ar ? "رجوع" : "Back",
+                from: ar ? "من" : "From",
+                to: ar ? "إلى" : "To",
+              }}
+            />
+            <ColumnVisibilityMenu
+              columns={columnOptions}
+              visible={visibleColumns}
+              onChange={(key, value) =>
+                setVisibleColumns((current) => ({ ...current, [key]: value }))
+              }
+              label={ar ? "الأعمدة" : "Columns"}
+              title={ar ? "إظهار أعمدة الكشف" : "Visible columns"}
+            />
+          </div>
+
+          {/* ═══ تنبيهات ═══ */}
+          {result?.integrity.hasGap && (
+            <StatementIntegrityBadge integrity={result.integrity} variant="panel" />
+          )}
+          {from && to && from > to && (
+            <div className="rounded-xl border border-amber-500/40 bg-amber-500/5 px-3.5 py-2 text-[11px] text-amber-700">
+              {ar
+                ? "تاريخ البداية بعد تاريخ النهاية — سيظهر الكشف فارغًا."
+                : "Start date is after end date — the statement will be empty."}
             </div>
           )}
-        </div>
 
-        <div className="flex flex-wrap items-center justify-end gap-2">
-          <ReportFilterMenu
-            values={filterValues}
-            presets={filterPresets}
-            onChange={updateFilterValues}
-            onReset={resetOptions}
-            labels={{
-              trigger: ar ? "تصفية الكشف" : "Filter statement",
-              title: ar ? "تصفية الكشف" : "Statement filters",
-              date: ar ? "التاريخ والفترة" : "Date and period",
-              period: ar ? "الفترة" : "Period",
-              options: ar ? "خيارات إضافية" : "More options",
-              includeZeroRows: ar ? "إظهار الفواتير المسددة" : "Include settled",
-              reset: ar ? "إعادة ضبط الفلاتر" : "Reset filters",
-              back: ar ? "رجوع" : "Back",
-              from: ar ? "من" : "From",
-              to: ar ? "إلى" : "To",
-            }}
-          />
-          <ColumnVisibilityMenu
-            columns={columnOptions}
-            visible={visibleColumns}
-            onChange={(key, value) =>
-              setVisibleColumns((current) => ({ ...current, [key]: value }))
-            }
-            label={ar ? "الأعمدة" : "Columns"}
-            title={ar ? "إظهار أعمدة الكشف" : "Visible columns"}
-          />
-        </div>
-
-        {/* ═══ تنبيهات ═══ */}
-        {result?.integrity.hasGap && (
-          <StatementIntegrityBadge integrity={result.integrity} variant="panel" />
-        )}
-        {from && to && from > to && (
-          <div className="rounded-xl border border-amber-500/40 bg-amber-500/5 px-3.5 py-2 text-[11px] text-amber-700">
-            {ar
-              ? "تاريخ البداية بعد تاريخ النهاية — سيظهر الكشف فارغًا."
-              : "Start date is after end date — the statement will be empty."}
-          </div>
-        )}
-
-        {/* ═══ جدول الكشف (نفس التصميم السابق) ═══ */}
-        <div className="panel-elevated p-4">
-          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-            <div className="flex items-center gap-2">
-              <SourceBadge derived={derived} hasSourceData={hasSourceData} />
-              {result && (
-                <span className="text-[11px] text-muted-foreground">
-                  {result.countedRows} {ar ? "حركة" : "entries"}
-                </span>
-              )}
+          {/* ═══ جدول الكشف (نفس التصميم السابق) ═══ */}
+          <div className="panel-elevated p-4">
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <SourceBadge derived={derived} hasSourceData={hasSourceData} />
+                {result && (
+                  <span className="text-[11px] text-muted-foreground">
+                    {result.countedRows} {ar ? "حركة" : "entries"}
+                  </span>
+                )}
+              </div>
+              <span className="text-[11px] text-muted-foreground">
+                {result ? directionLabel(result.direction, result.entityType, lang) : ""}
+              </span>
             </div>
-            <span className="text-[11px] text-muted-foreground">
-              {result ? directionLabel(result.direction, result.entityType, lang) : ""}
-            </span>
-          </div>
 
-          <div className="mb-2 text-[11px] text-muted-foreground">
-            {result ? `${ar ? "الفترة" : "Period"}: ${result.period.label}` : ""}
-          </div>
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  {columns.map((col) => (
-                    <TableHead
-                      key={col.key}
-                      className={cn(
-                        col.key === "debit" && "text-end text-rose-500 font-semibold",
-                        col.key === "credit" && "text-end text-emerald-500 font-semibold",
-                        col.key === "balance" && "text-end font-semibold",
-                        alignClass(col.align),
-                      )}
-                      style={col.width ? { width: col.width } : undefined}
-                    >
-                      {col.label}
-                    </TableHead>
-                  ))}
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {isLoading ? (
+            <div className="mb-2 text-[11px] text-muted-foreground">
+              {result ? `${ar ? "الفترة" : "Period"}: ${result.period.label}` : ""}
+            </div>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
                   <TableRow>
-                    <TableCell colSpan={Math.max(columns.length, 1)} className="py-8 text-center">
-                      <Loader2 className="mx-auto h-5 w-5 animate-spin text-muted-foreground" />
-                    </TableCell>
-                  </TableRow>
-                ) : !partyId ? (
-                  <TableRow>
-                    <TableCell
-                      colSpan={Math.max(columns.length, 1)}
-                      className="py-12 text-center text-muted-foreground"
-                    >
-                      {ar ? "اختر حسابًا لعرض الكشف" : "Select an account to view the statement"}
-                    </TableCell>
-                  </TableRow>
-                ) : statementRows.length === 0 ? (
-                  <TableRow>
-                    <TableCell
-                      colSpan={Math.max(columns.length, 1)}
-                      className="py-12 text-center text-muted-foreground"
-                    >
-                      {ar
-                        ? "لا توجد حركات حسابية مسجلة لهذه الفترة"
-                        : "No statement records for this period"}
-                      {result && Math.abs(result.openingBalance) > 0.005 && (
-                        <div className="mt-1 text-[11px]">
-                          {ar
-                            ? `يوجد رصيد سابق بمقدار ${fmtAmount(result.openingBalance)}`
-                            : `Opening balance carried: ${fmtAmount(result.openingBalance)}`}
-                        </div>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  <>
-                    {/* سطر الرصيد الافتتاحي */}
-                    {layout?.showOpeningRow && (
-                      <TableRow className="bg-surface/70 hover:bg-surface/70">
-                        {columns.map((col) => {
-                          let content: React.ReactNode = "—";
-                          if (col.key === "index")
-                            content = (
-                              <span className="font-mono text-xs text-muted-foreground">—</span>
-                            );
-                          else if (col.key === "kind")
-                            content = (
-                              <span className="text-xs font-medium italic text-muted-foreground">
-                                {kindLabel("opening", partyType, lang)}
-                              </span>
-                            );
-                          else if (col.key === "description")
-                            content = (
-                              <span className="text-xs italic text-muted-foreground">
-                                {ar ? "رصيد ما قبل بداية الفترة" : "Balance before period start"}
-                              </span>
-                            );
-                          else if (col.key === "date")
-                            content = (
-                              <span className="font-mono text-xs text-muted-foreground">
-                                {result?.period.from ?? "—"}
-                              </span>
-                            );
-                          else if (col.key === "balance")
-                            content = (
-                              <span className="font-mono text-xs font-bold">
-                                {fmtAmount(result?.openingBalance ?? 0)}
-                              </span>
-                            );
-                          return (
-                            <TableCell key={col.key} className={alignClass(col.align)}>
-                              {content}
-                            </TableCell>
-                          );
-                        })}
-                      </TableRow>
-                    )}
-
-                    {statementRows.map((row) => (
-                      <TableRow
-                        key={row.id}
-                        className="cursor-pointer hover:bg-surface-2/60"
-                        onClick={() => setDetailEntry(row)}
-                        title={ar ? "عرض تفاصيل القيد" : "View entry details"}
+                    {columns.map((col) => (
+                      <TableHead
+                        key={col.key}
+                        className={cn(
+                          col.key === "debit" && "text-end text-rose-500 font-semibold",
+                          col.key === "credit" && "text-end text-emerald-500 font-semibold",
+                          col.key === "balance" && "text-end font-semibold",
+                          alignClass(col.align),
+                        )}
+                        style={col.width ? { width: col.width } : undefined}
                       >
-                        {columns.map((col) => {
-                          let content: React.ReactNode = "—";
-                          switch (col.key) {
-                            case "index":
+                        {col.label}
+                      </TableHead>
+                    ))}
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {isLoading ? (
+                    <TableRow>
+                      <TableCell colSpan={Math.max(columns.length, 1)} className="py-8 text-center">
+                        <Loader2 className="mx-auto h-5 w-5 animate-spin text-muted-foreground" />
+                      </TableCell>
+                    </TableRow>
+                  ) : !partyId ? (
+                    <TableRow>
+                      <TableCell
+                        colSpan={Math.max(columns.length, 1)}
+                        className="py-12 text-center text-muted-foreground"
+                      >
+                        {ar ? "اختر حسابًا لعرض الكشف" : "Select an account to view the statement"}
+                      </TableCell>
+                    </TableRow>
+                  ) : statementRows.length === 0 ? (
+                    <TableRow>
+                      <TableCell
+                        colSpan={Math.max(columns.length, 1)}
+                        className="py-12 text-center text-muted-foreground"
+                      >
+                        {ar
+                          ? "لا توجد حركات حسابية مسجلة لهذه الفترة"
+                          : "No statement records for this period"}
+                        {result && Math.abs(result.openingBalance) > 0.005 && (
+                          <div className="mt-1 text-[11px]">
+                            {ar
+                              ? `يوجد رصيد سابق بمقدار ${fmtAmount(result.openingBalance)}`
+                              : `Opening balance carried: ${fmtAmount(result.openingBalance)}`}
+                          </div>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    <>
+                      {/* سطر الرصيد الافتتاحي */}
+                      {layout?.showOpeningRow && (
+                        <TableRow className="bg-surface/70 hover:bg-surface/70">
+                          {columns.map((col) => {
+                            let content: React.ReactNode = "—";
+                            if (col.key === "index")
+                              content = (
+                                <span className="font-mono text-xs text-muted-foreground">—</span>
+                              );
+                            else if (col.key === "kind")
+                              content = (
+                                <span className="text-xs font-medium italic text-muted-foreground">
+                                  {kindLabel("opening", partyType, lang)}
+                                </span>
+                              );
+                            else if (col.key === "description")
+                              content = (
+                                <span className="text-xs italic text-muted-foreground">
+                                  {ar ? "رصيد ما قبل بداية الفترة" : "Balance before period start"}
+                                </span>
+                              );
+                            else if (col.key === "date")
                               content = (
                                 <span className="font-mono text-xs text-muted-foreground">
-                                  {row.index}
+                                  {result?.period.from ?? "—"}
                                 </span>
                               );
-                              break;
-                            case "date":
+                            else if (col.key === "balance")
                               content = (
-                                <span className="text-xs text-muted-foreground">
-                                  {new Date(row.occurredAt).toLocaleString(ar ? "ar-YE" : "en-GB")}
+                                <span className="font-mono text-xs font-bold">
+                                  {fmtAmount(result?.openingBalance ?? 0)}
                                 </span>
                               );
-                              break;
-                            case "kind":
-                              content = (
-                                <span className="text-xs font-semibold">
-                                  {kindLabel(row.kind, partyType, lang)}
-                                </span>
-                              );
-                              break;
-                            case "reference":
-                              content = (
-                                <span className="font-mono text-xs text-primary">
-                                  {row.reference ?? "—"}
-                                </span>
-                              );
-                              break;
-                            case "description":
-                              content = (
-                                <span className="text-xs text-muted-foreground">
-                                  {row.description ?? "—"}
-                                </span>
-                              );
-                              break;
-                            case "debit":
-                              content = (
-                                <span className="font-mono text-rose-500">
-                                  {fmtOrDash(row.debit)}
-                                </span>
-                              );
-                              break;
-                            case "credit":
-                              content = (
-                                <span className="font-mono text-emerald-500">
-                                  {fmtOrDash(row.credit)}
-                                </span>
-                              );
-                              break;
-                            case "balance":
-                              content = (
-                                <span className="font-mono font-bold">
-                                  {fmtAmount(row.runningBalance)}
-                                </span>
-                              );
-                              break;
-                            case "paymentMethod":
-                              content = (
-                                <span className="text-xs text-muted-foreground">
-                                  {String(row.meta?.paymentMethod ?? "—")}
-                                </span>
-                              );
-                              break;
-                          }
-                          return (
-                            <TableCell key={col.key} className={alignClass(col.align)}>
-                              {content}
-                            </TableCell>
+                            return (
+                              <TableCell key={col.key} className={alignClass(col.align)}>
+                                {content}
+                              </TableCell>
+                            );
+                          })}
+                        </TableRow>
+                      )}
+
+                      {statementRows.map((row) => (
+                        <TableRow
+                          key={row.id}
+                          className="cursor-pointer hover:bg-surface-2/60"
+                          onClick={() => setDetailEntry(row)}
+                          title={ar ? "عرض تفاصيل القيد" : "View entry details"}
+                        >
+                          {columns.map((col) => {
+                            let content: React.ReactNode = "—";
+                            switch (col.key) {
+                              case "index":
+                                content = (
+                                  <span className="font-mono text-xs text-muted-foreground">
+                                    {row.index}
+                                  </span>
+                                );
+                                break;
+                              case "date":
+                                content = (
+                                  <span className="text-xs text-muted-foreground">
+                                    {new Date(row.occurredAt).toLocaleString(
+                                      ar ? "ar-YE" : "en-GB",
+                                    )}
+                                  </span>
+                                );
+                                break;
+                              case "kind":
+                                content = (
+                                  <span className="text-xs font-semibold">
+                                    {kindLabel(row.kind, partyType, lang)}
+                                  </span>
+                                );
+                                break;
+                              case "reference":
+                                content = (
+                                  <span className="font-mono text-xs text-primary">
+                                    {row.reference ?? "—"}
+                                  </span>
+                                );
+                                break;
+                              case "description":
+                                content = (
+                                  <span className="text-xs text-muted-foreground">
+                                    {row.description ?? "—"}
+                                  </span>
+                                );
+                                break;
+                              case "debit":
+                                content = (
+                                  <span className="font-mono text-rose-500">
+                                    {fmtOrDash(row.debit)}
+                                  </span>
+                                );
+                                break;
+                              case "credit":
+                                content = (
+                                  <span className="font-mono text-emerald-500">
+                                    {fmtOrDash(row.credit)}
+                                  </span>
+                                );
+                                break;
+                              case "balance":
+                                content = (
+                                  <span className="font-mono font-bold">
+                                    {fmtAmount(row.runningBalance)}
+                                  </span>
+                                );
+                                break;
+                              case "paymentMethod":
+                                content = (
+                                  <span className="text-xs text-muted-foreground">
+                                    {String(row.meta?.paymentMethod ?? "—")}
+                                  </span>
+                                );
+                                break;
+                            }
+                            return (
+                              <TableCell key={col.key} className={alignClass(col.align)}>
+                                {content}
+                              </TableCell>
+                            );
+                          })}
+                        </TableRow>
+                      ))}
+                    </>
+                  )}
+
+                  {/* سطر الإجماليات — كما كان */}
+                  {statementRows.length > 0 && (
+                    <TableRow className="border-t-2 border-border font-bold bg-surface-2/50">
+                      {columns.map((col) => {
+                        let content: React.ReactNode = "";
+                        if (col.key === "kind")
+                          content = (
+                            <span className="text-sm">{ar ? "الإجمالي الكلي:" : "Total:"}</span>
                           );
-                        })}
-                      </TableRow>
-                    ))}
-                  </>
-                )}
-
-                {/* سطر الإجماليات — كما كان */}
-                {statementRows.length > 0 && (
-                  <TableRow className="border-t-2 border-border font-bold bg-surface-2/50">
-                    {columns.map((col) => {
-                      let content: React.ReactNode = "";
-                      if (col.key === "kind")
-                        content = (
-                          <span className="text-sm">{ar ? "الإجمالي الكلي:" : "Total:"}</span>
+                        else if (col.key === "debit")
+                          content = (
+                            <span className="font-mono text-rose-500">{money(totalDebit)}</span>
+                          );
+                        else if (col.key === "credit")
+                          content = (
+                            <span className="font-mono text-emerald-500">
+                              {fmtOrDash(totalCredit)}
+                            </span>
+                          );
+                        else if (col.key === "balance")
+                          content = (
+                            <span className="font-mono text-primary text-base">
+                              {money(closingBalance)}
+                            </span>
+                          );
+                        return (
+                          <TableCell key={col.key} className={cn(alignClass(col.align), "text-sm")}>
+                            {content}
+                          </TableCell>
                         );
-                      else if (col.key === "debit")
-                        content = (
-                          <span className="font-mono text-rose-500">{money(totalDebit)}</span>
-                        );
-                      else if (col.key === "credit")
-                        content = (
-                          <span className="font-mono text-emerald-500">
-                            {fmtOrDash(totalCredit)}
-                          </span>
-                        );
-                      else if (col.key === "balance")
-                        content = (
-                          <span className="font-mono text-primary text-base">
-                            {money(closingBalance)}
-                          </span>
-                        );
-                      return (
-                        <TableCell key={col.key} className={cn(alignClass(col.align), "text-sm")}>
-                          {content}
-                        </TableCell>
-                      );
-                    })}
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </div>
-
-          {/* تذييل الجدول */}
-          {statementRows.length > 0 && (
-            <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-border/60 pt-3 text-[11px] text-muted-foreground">
-              <span>
-                {ar ? "الرصيد الختامي" : "Closing balance"}:{" "}
-                <b className="font-mono text-foreground">
-                  {money(closingBalance)} {currencySymbol}
-                </b>
-              </span>
-              <button type="button" onClick={refetch} className="text-primary hover:underline">
-                {ar ? "تحديث" : "Refresh"}
-              </button>
+                      })}
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
             </div>
-          )}
+
+            {/* تذييل الجدول */}
+            {statementRows.length > 0 && (
+              <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-border/60 pt-3 text-[11px] text-muted-foreground">
+                <span>
+                  {ar ? "الرصيد الختامي" : "Closing balance"}:{" "}
+                  <b className="font-mono text-foreground">
+                    {money(closingBalance)} {currencySymbol}
+                  </b>
+                </span>
+                <button type="button" onClick={refetch} className="text-primary hover:underline">
+                  {ar ? "تحديث" : "Refresh"}
+                </button>
+              </div>
+            )}
+          </div>
         </div>
-      </div>
       )}
 
       {/* تفاصيل القيد — تُفتح بالنقر على أي حركة */}

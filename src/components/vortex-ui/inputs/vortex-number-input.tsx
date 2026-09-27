@@ -4,8 +4,10 @@ import * as React from "react";
 import { Plus, Minus, Hash } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-export interface VortexNumberInputProps
-  extends Omit<React.InputHTMLAttributes<HTMLInputElement>, "value" | "onChange"> {
+export interface VortexNumberInputProps extends Omit<
+  React.InputHTMLAttributes<HTMLInputElement>,
+  "value" | "onChange"
+> {
   value: number | null | undefined;
   onValueChange: (val: number | null) => void;
   min?: number;
@@ -34,9 +36,11 @@ export const VortexNumberInput = React.forwardRef<HTMLInputElement, VortexNumber
       placeholder = "0",
       ...props
     },
-    ref
+    ref,
   ) => {
-    const [rawText, setRawText] = React.useState<string>(() => (value == null ? "" : String(value)));
+    const [rawText, setRawText] = React.useState<string>(() =>
+      value == null ? "" : String(value),
+    );
     const isEditing = React.useRef(false);
 
     React.useEffect(() => {
@@ -63,8 +67,14 @@ export const VortexNumberInput = React.forwardRef<HTMLInputElement, VortexNumber
     };
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-      let text = e.target.value.replace(/[٠-٩]/g, (d) => String(d.charCodeAt(0) - 1632));
-      const allowed = decimals ? (allowNegative ? /^-?[0-9]*\.?[0-9]*$/ : /^[0-9]*\.?[0-9]*$/) : (allowNegative ? /^-?[0-9]*$/ : /^[0-9]*$/);
+      const text = e.target.value.replace(/[٠-٩]/g, (d) => String(d.charCodeAt(0) - 1632));
+      const allowed = decimals
+        ? allowNegative
+          ? /^-?[0-9]*\.?[0-9]*$/
+          : /^[0-9]*\.?[0-9]*$/
+        : allowNegative
+          ? /^-?[0-9]*$/
+          : /^[0-9]*$/;
 
       if (text !== "" && !allowed.test(text)) return;
       setRawText(text);
@@ -107,13 +117,18 @@ export const VortexNumberInput = React.forwardRef<HTMLInputElement, VortexNumber
             "focus:border-primary focus:bg-background focus:outline-none focus:ring-4 focus:ring-primary/15",
             showSteppers && "pe-20",
             unit && !showSteppers && "pe-12",
-            className
+            className,
           )}
           {...props}
         />
 
         {unit && (
-          <span className={cn("pointer-events-none absolute text-xs font-medium text-muted-foreground select-none", showSteppers ? "end-16" : "end-3")}>
+          <span
+            className={cn(
+              "pointer-events-none absolute text-xs font-medium text-muted-foreground select-none",
+              showSteppers ? "end-16" : "end-3",
+            )}
+          >
             {unit}
           </span>
         )}
@@ -142,6 +157,6 @@ export const VortexNumberInput = React.forwardRef<HTMLInputElement, VortexNumber
         )}
       </div>
     );
-  }
+  },
 );
 VortexNumberInput.displayName = "VortexNumberInput";

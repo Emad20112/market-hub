@@ -409,7 +409,9 @@ function NewSalesReturn({
               <Label>{lang === "ar" ? "الفاتورة" : "Invoice"}</Label>
               <Select value={customerInvoiceId} onValueChange={setCustomerInvoiceId}>
                 <SelectTrigger>
-                  <SelectValue placeholder={lang === "ar" ? "اختر الفاتورة..." : "Select invoice..."} />
+                  <SelectValue
+                    placeholder={lang === "ar" ? "اختر الفاتورة..." : "Select invoice..."}
+                  />
                 </SelectTrigger>
                 <SelectContent>
                   {!customerId && (
@@ -473,24 +475,31 @@ function NewSalesReturn({
               <div className="mt-2 grid gap-2 sm:grid-cols-2">
                 {invoiceItems.map((item: any) => {
                   const productId = item.product_id ?? item.products?.id ?? "";
-                  const label = lang === "ar" ? item.products?.name_ar || item.products?.name : item.products?.name || item.products?.name_ar;
+                  const label =
+                    lang === "ar"
+                      ? item.products?.name_ar || item.products?.name
+                      : item.products?.name || item.products?.name_ar;
                   return (
                     <button
                       key={productId}
                       type="button"
-                      onClick={() => addLine({
-                        id: productId,
-                        name: label,
-                        sku: item.products?.sku,
-                        sale_price: Number(item.unit_price ?? 0),
-                        tax_rate: Number(item.tax_rate ?? 0),
-                      })}
+                      onClick={() =>
+                        addLine({
+                          id: productId,
+                          name: label,
+                          sku: item.products?.sku,
+                          sale_price: Number(item.unit_price ?? 0),
+                          tax_rate: Number(item.tax_rate ?? 0),
+                        })
+                      }
                       className="rounded-xl border border-border bg-surface px-3 py-2 text-left text-sm hover:border-primary/40 hover:bg-primary/5"
                     >
                       <div className="font-medium">{label}</div>
                       <div className="mt-1 flex items-center justify-between text-[11px] text-muted-foreground">
                         <span>{item.products?.sku ?? "—"}</span>
-                        <span>{item.quantity} {lang === "ar" ? "قطعة" : "pcs"}</span>
+                        <span>
+                          {item.quantity} {lang === "ar" ? "قطعة" : "pcs"}
+                        </span>
                       </div>
                     </button>
                   );

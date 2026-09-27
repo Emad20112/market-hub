@@ -3,8 +3,10 @@ import { Eye, EyeOff, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { fieldSurface, disabledState, FieldSize, fieldSize } from "@/design/styles";
 
-export interface VortexTextInputProps
-  extends Omit<React.InputHTMLAttributes<HTMLInputElement>, "size"> {
+export interface VortexTextInputProps extends Omit<
+  React.InputHTMLAttributes<HTMLInputElement>,
+  "size"
+> {
   size?: FieldSize;
   startIcon?: React.ReactNode;
   endIcon?: React.ReactNode;
@@ -98,11 +100,7 @@ export const VortexTextInput = React.forwardRef<HTMLInputElement, VortexTextInpu
               className="flex h-6 w-6 items-center justify-center rounded-full text-muted-foreground/70 transition-colors hover:bg-surface-2 hover:text-foreground focus:outline-none"
               title={showPassword ? "إخفاء كلمة المرور" : "إظهار كلمة المرور"}
             >
-              {showPassword ? (
-                <EyeOff className="h-3.5 w-3.5" />
-              ) : (
-                <Eye className="h-3.5 w-3.5" />
-              )}
+              {showPassword ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
             </button>
           )}
 

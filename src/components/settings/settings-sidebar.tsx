@@ -13,11 +13,7 @@ interface SettingsSidebarProps {
   lang: string;
 }
 
-export function SettingsSidebar({
-  activeSectionId,
-  onSelectSection,
-  lang,
-}: SettingsSidebarProps) {
+export function SettingsSidebar({ activeSectionId, onSelectSection, lang }: SettingsSidebarProps) {
   const isAr = lang === "ar";
   const sections = getRegisteredSettingsSections();
   const [searchQuery, setSearchQuery] = useState("");
@@ -69,7 +65,9 @@ export function SettingsSidebar({
             >
               <div
                 className={`p-2 rounded-xl transition-colors ${
-                  isActive ? "bg-primary text-primary-foreground" : "bg-muted/80 text-muted-foreground group-hover:text-foreground"
+                  isActive
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-muted/80 text-muted-foreground group-hover:text-foreground"
                 }`}
               >
                 <Icon className="h-4 w-4" />

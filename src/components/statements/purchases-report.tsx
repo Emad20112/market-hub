@@ -70,17 +70,29 @@ export function PurchasesReport({
     { key: "kind" as StatementFieldKey, label: ar ? "الحالة" : "Status" },
   ];
   const [visibleColumns, setVisibleColumns] = useState<Record<StatementFieldKey, boolean>>(() => {
-    const defaults = Object.fromEntries(columns.map((column) => [column.key, true])) as Record<StatementFieldKey, boolean>;
+    const defaults = Object.fromEntries(columns.map((column) => [column.key, true])) as Record<
+      StatementFieldKey,
+      boolean
+    >;
     if (typeof window === "undefined") return defaults;
     try {
-      return { ...defaults, ...(JSON.parse(window.localStorage.getItem("market_hub_report_columns_purchases_v1") ?? "{}") as Partial<Record<StatementFieldKey, boolean>>) };
+      return {
+        ...defaults,
+        ...(JSON.parse(
+          window.localStorage.getItem("market_hub_report_columns_purchases_v1") ?? "{}",
+        ) as Partial<Record<StatementFieldKey, boolean>>),
+      };
     } catch {
       return defaults;
     }
   });
 
   useEffect(() => {
-    if (typeof window !== "undefined") window.localStorage.setItem("market_hub_report_columns_purchases_v1", JSON.stringify(visibleColumns));
+    if (typeof window !== "undefined")
+      window.localStorage.setItem(
+        "market_hub_report_columns_purchases_v1",
+        JSON.stringify(visibleColumns),
+      );
   }, [visibleColumns]);
 
   const load = useCallback(async () => {
@@ -116,19 +128,25 @@ export function PurchasesReport({
 
   const total = filteredRows.reduce((sum, row) => sum + Number(row.total ?? 0), 0);
   const paid = filteredRows.reduce((sum, row) => sum + Number(row.paid ?? 0), 0);
-  const outputHeaders = columns.filter((column) => visibleColumns[column.key]).map((column) => column.label);
+  const outputHeaders = columns
+    .filter((column) => visibleColumns[column.key])
+    .map((column) => column.label);
   const outputRows = filteredRows.map((row) => {
     const values: Record<string, string> = {
       reference: row.invoice_number,
       date: new Date(row.created_at).toLocaleDateString(ar ? "ar-YE" : "en-GB"),
       description: row.suppliers?.name ?? "—",
-      paymentMethod: ar ? row.warehouses?.name_ar || row.warehouses?.name || "—" : row.warehouses?.name || "—",
+      paymentMethod: ar
+        ? row.warehouses?.name_ar || row.warehouses?.name || "—"
+        : row.warehouses?.name || "—",
       debit: money(Number(row.total ?? 0)),
       credit: money(Number(row.paid ?? 0)),
       balance: money(Number(row.total ?? 0) - Number(row.paid ?? 0)),
       kind: row.status ?? "—",
     };
-    return columns.filter((column) => visibleColumns[column.key]).map((column) => values[column.key]);
+    return columns
+      .filter((column) => visibleColumns[column.key])
+      .map((column) => values[column.key]);
   });
 
   return (
@@ -188,7 +206,9 @@ export function PurchasesReport({
 
               void printLuxuryReport({
                 title: ar ? "كشف المشتريات" : "Purchases Report",
-                subtitle: ar ? "فواتير المشتريات وحركة الموردين" : "Purchase invoices & supplier transactions",
+                subtitle: ar
+                  ? "فواتير المشتريات وحركة الموردين"
+                  : "Purchase invoices & supplier transactions",
                 periodLabel:
                   from && to
                     ? ar
@@ -224,7 +244,9 @@ export function PurchasesReport({
           <ColumnVisibilityMenu
             columns={columns}
             visible={visibleColumns}
-            onChange={(key, value) => setVisibleColumns((current) => ({ ...current, [key]: value }))}
+            onChange={(key, value) =>
+              setVisibleColumns((current) => ({ ...current, [key]: value }))
+            }
             label={ar ? "الأعمدة" : "Columns"}
             title={ar ? "إظهار أعمدة الكشف" : "Visible columns"}
           />
@@ -254,11 +276,20 @@ export function PurchasesReport({
         <table className="w-full text-xs">
           <thead className="bg-surface-2 text-muted-foreground">
             <tr>
-              {columns.filter((column) => visibleColumns[column.key]).map((column) => (
-                <Head key={column.key} align={column.key === "debit" || column.key === "credit" || column.key === "balance" ? "end" : "start"}>
-                  {column.label}
-                </Head>
-              ))}
+              {columns
+                .filter((column) => visibleColumns[column.key])
+                .map((column) => (
+                  <Head
+                    key={column.key}
+                    align={
+                      column.key === "debit" || column.key === "credit" || column.key === "balance"
+                        ? "end"
+                        : "start"
+                    }
+                  >
+                    {column.label}
+                  </Head>
+                ))}
             </tr>
           </thead>
           <tbody>
@@ -279,14 +310,43 @@ export function PurchasesReport({
                 const rowTotal = Number(row.total ?? 0);
                 const rowPaid = Number(row.paid ?? 0);
                 return (
-                  <tr key={row.id} onClick={() => setSelectedRow(row)} className="cursor-pointer border-t border-border/60 hover:bg-surface-2/40" title={ar ? "عرض التفاصيل" : "View details"}>
-                    {visibleColumns.reference && <td className="px-3 py-2 font-mono">{row.invoice_number}</td>}
-                    {visibleColumns.date && <td className="px-3 py-2 text-muted-foreground">{new Date(row.created_at).toLocaleDateString(ar ? "ar-YE" : "en-GB")}</td>}
-                    {visibleColumns.description && <td className="px-3 py-2">{row.suppliers?.name ?? "—"}</td>}
-                    {visibleColumns.paymentMethod && <td className="px-3 py-2">{ar ? row.warehouses?.name_ar || row.warehouses?.name || "—" : row.warehouses?.name || "—"}</td>}
-                    {visibleColumns.debit && <td className="px-3 py-2 text-end font-mono">{money(rowTotal)}</td>}
-                    {visibleColumns.credit && <td className="px-3 py-2 text-end font-mono text-emerald-500">{money(rowPaid)}</td>}
-                    {visibleColumns.balance && <td className="px-3 py-2 text-end font-mono text-amber-500">{money(rowTotal - rowPaid)}</td>}
+                  <tr
+                    key={row.id}
+                    onClick={() => setSelectedRow(row)}
+                    className="cursor-pointer border-t border-border/60 hover:bg-surface-2/40"
+                    title={ar ? "عرض التفاصيل" : "View details"}
+                  >
+                    {visibleColumns.reference && (
+                      <td className="px-3 py-2 font-mono">{row.invoice_number}</td>
+                    )}
+                    {visibleColumns.date && (
+                      <td className="px-3 py-2 text-muted-foreground">
+                        {new Date(row.created_at).toLocaleDateString(ar ? "ar-YE" : "en-GB")}
+                      </td>
+                    )}
+                    {visibleColumns.description && (
+                      <td className="px-3 py-2">{row.suppliers?.name ?? "—"}</td>
+                    )}
+                    {visibleColumns.paymentMethod && (
+                      <td className="px-3 py-2">
+                        {ar
+                          ? row.warehouses?.name_ar || row.warehouses?.name || "—"
+                          : row.warehouses?.name || "—"}
+                      </td>
+                    )}
+                    {visibleColumns.debit && (
+                      <td className="px-3 py-2 text-end font-mono">{money(rowTotal)}</td>
+                    )}
+                    {visibleColumns.credit && (
+                      <td className="px-3 py-2 text-end font-mono text-emerald-500">
+                        {money(rowPaid)}
+                      </td>
+                    )}
+                    {visibleColumns.balance && (
+                      <td className="px-3 py-2 text-end font-mono text-amber-500">
+                        {money(rowTotal - rowPaid)}
+                      </td>
+                    )}
                     {visibleColumns.kind && <td className="px-3 py-2">{row.status ?? "—"}</td>}
                   </tr>
                 );
@@ -299,16 +359,31 @@ export function PurchasesReport({
         open={Boolean(selectedRow)}
         onOpenChange={(open) => !open && setSelectedRow(null)}
         title={ar ? "تفاصيل فاتورة المشتريات" : "Purchase invoice details"}
-        values={selectedRow ? [
-          [ar ? "رقم الفاتورة" : "Invoice", selectedRow.invoice_number],
-          [ar ? "التاريخ" : "Date", new Date(selectedRow.created_at).toLocaleString(ar ? "ar-YE" : "en-GB")],
-          [ar ? "المورد" : "Supplier", selectedRow.suppliers?.name ?? "—"],
-          [ar ? "المستودع" : "Warehouse", ar ? selectedRow.warehouses?.name_ar || selectedRow.warehouses?.name || "—" : selectedRow.warehouses?.name || "—"],
-          [ar ? "الإجمالي" : "Total", money(Number(selectedRow.total ?? 0))],
-          [ar ? "المدفوع" : "Paid", money(Number(selectedRow.paid ?? 0))],
-          [ar ? "المتبقي" : "Remaining", money(Number(selectedRow.total ?? 0) - Number(selectedRow.paid ?? 0))],
-          [ar ? "الحالة" : "Status", selectedRow.status ?? "—"],
-        ] : []}
+        values={
+          selectedRow
+            ? [
+                [ar ? "رقم الفاتورة" : "Invoice", selectedRow.invoice_number],
+                [
+                  ar ? "التاريخ" : "Date",
+                  new Date(selectedRow.created_at).toLocaleString(ar ? "ar-YE" : "en-GB"),
+                ],
+                [ar ? "المورد" : "Supplier", selectedRow.suppliers?.name ?? "—"],
+                [
+                  ar ? "المستودع" : "Warehouse",
+                  ar
+                    ? selectedRow.warehouses?.name_ar || selectedRow.warehouses?.name || "—"
+                    : selectedRow.warehouses?.name || "—",
+                ],
+                [ar ? "الإجمالي" : "Total", money(Number(selectedRow.total ?? 0))],
+                [ar ? "المدفوع" : "Paid", money(Number(selectedRow.paid ?? 0))],
+                [
+                  ar ? "المتبقي" : "Remaining",
+                  money(Number(selectedRow.total ?? 0) - Number(selectedRow.paid ?? 0)),
+                ],
+                [ar ? "الحالة" : "Status", selectedRow.status ?? "—"],
+              ]
+            : []
+        }
       />
     </div>
   );

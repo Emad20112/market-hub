@@ -162,9 +162,7 @@ function AnalyticsPage() {
       daily[key].orders += 1;
     });
     items.forEach((it: any) => {
-      const key = it.sales_invoices?.created_at
-        ? localDayKey(it.sales_invoices.created_at)
-        : null;
+      const key = it.sales_invoices?.created_at ? localDayKey(it.sales_invoices.created_at) : null;
       if (!key || !daily[key]) return;
       const p = prodMap.get(it.product_id) as any;
       const cost = p ? Number(p.cost ?? 0) : 0;
@@ -453,12 +451,7 @@ function AnalyticsPage() {
                   tickLine={false}
                   axisLine={false}
                 />
-                <YAxis
-                  stroke={CHART_AXIS_STROKE}
-                  fontSize={11}
-                  tickLine={false}
-                  axisLine={false}
-                />
+                <YAxis stroke={CHART_AXIS_STROKE} fontSize={11} tickLine={false} axisLine={false} />
                 <Tooltip
                   contentStyle={TOOLTIP_STYLE}
                   itemStyle={TOOLTIP_ITEM_STYLE}
@@ -663,11 +656,7 @@ function AnalyticsPage() {
                         : [`${num(Number(val))} ${chartLabels.orders}`, name]
                     }
                   />
-                  <Bar
-                    dataKey="revenue"
-                    name={chartLabels.revenue}
-                    radius={[8, 8, 0, 0]}
-                  >
+                  <Bar dataKey="revenue" name={chartLabels.revenue} radius={[8, 8, 0, 0]}>
                     {(insights?.weekday ?? []).map((_, i) => (
                       <Cell key={i} fill={PALETTE[i % PALETTE.length]} />
                     ))}
@@ -680,8 +669,7 @@ function AnalyticsPage() {
 
         <div className="panel-elevated p-5">
           <h3 className="text-sm font-semibold mb-1 flex items-center gap-1.5">
-            <Activity className="h-4 w-4 text-chart-4" />{" "}
-            {isAr ? "الساعات الذروة" : "Peak Hours"}
+            <Activity className="h-4 w-4 text-chart-4" /> {isAr ? "الساعات الذروة" : "Peak Hours"}
           </h3>
           <p className="text-xs text-muted-foreground mb-3">
             {isAr ? "الإيراد خلال اليوم" : "Revenue throughout the day"}
@@ -813,7 +801,10 @@ function AnalyticsPage() {
                     contentStyle={TOOLTIP_STYLE}
                     itemStyle={TOOLTIP_ITEM_STYLE}
                     labelStyle={TOOLTIP_LABEL_STYLE}
-                    formatter={(val: any, name: any) => [`${num(Number(val))} ${chartLabels.quantity}`, name]}
+                    formatter={(val: any, name: any) => [
+                      `${num(Number(val))} ${chartLabels.quantity}`,
+                      name,
+                    ]}
                   />
                 </PieChart>
               </ResponsiveContainer>
@@ -840,8 +831,7 @@ function AnalyticsPage() {
       <div className="grid grid-cols-1 gap-3 lg:grid-cols-2 mb-6">
         <div className="panel-elevated p-5">
           <h3 className="text-sm font-semibold mb-1 flex items-center gap-1.5">
-            <Wallet className="h-4 w-4 text-chart-3" />{" "}
-            {isAr ? "طرق الدفع" : "Payment Methods"}
+            <Wallet className="h-4 w-4 text-chart-3" /> {isAr ? "طرق الدفع" : "Payment Methods"}
           </h3>
           <p className="text-xs text-muted-foreground mb-3">
             {isAr ? "توزيع المحصّلات" : "Collected split"}

@@ -20,6 +20,10 @@ dist-ssr
 .wrangler/
 .dev.vars
 
+# Local tooling caches
+.playwright-mcp/
+.codebuddy/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

@@ -293,7 +293,11 @@ function CustomersPage() {
             e.preventDefault();
             setEdit(active);
           } else {
-            toast.info(lang === "ar" ? "حدد أو مرر المؤشر على عميل للتعديل (F2)" : "Select a customer to edit (F2)");
+            toast.info(
+              lang === "ar"
+                ? "حدد أو مرر المؤشر على عميل للتعديل (F2)"
+                : "Select a customer to edit (F2)",
+            );
           }
           break;
         case "F3":
@@ -301,7 +305,11 @@ function CustomersPage() {
             e.preventDefault();
             goPayment(active);
           } else {
-            toast.info(lang === "ar" ? "حدد عميلاً للتحصيل (F3)" : "Select a customer to collect payment (F3)");
+            toast.info(
+              lang === "ar"
+                ? "حدد عميلاً للتحصيل (F3)"
+                : "Select a customer to collect payment (F3)",
+            );
           }
           break;
         case "F4":
@@ -315,7 +323,11 @@ function CustomersPage() {
             e.preventDefault();
             goStatement(active);
           } else {
-            toast.info(lang === "ar" ? "حدد عميلاً لكشف الحساب (F5)" : "Select a customer for statement (F5)");
+            toast.info(
+              lang === "ar"
+                ? "حدد عميلاً لكشف الحساب (F5)"
+                : "Select a customer for statement (F5)",
+            );
           }
           break;
         case "F6":
@@ -324,7 +336,11 @@ function CustomersPage() {
               e.preventDefault();
               goDebts(active);
             } else {
-              toast.info(lang === "ar" ? "هذا العميل ليس عليه ديون" : "This customer has no outstanding debt");
+              toast.info(
+                lang === "ar"
+                  ? "هذا العميل ليس عليه ديون"
+                  : "This customer has no outstanding debt",
+              );
             }
           }
           break;
@@ -499,7 +515,11 @@ function CustomersPage() {
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder={lang === "ar" ? "ابحث بالاسم، رقم الهاتف، البريد..." : "Search by name, phone, email…"}
+              placeholder={
+                lang === "ar"
+                  ? "ابحث بالاسم، رقم الهاتف، البريد..."
+                  : "Search by name, phone, email…"
+              }
               className="h-11 w-full rounded-2xl border border-border/80 bg-surface/80 px-4 pr-10 text-sm font-medium placeholder:text-muted-foreground/70 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 transition"
             />
             {search && (
@@ -533,7 +553,9 @@ function CustomersPage() {
                 {f.count !== undefined && (
                   <span
                     className={`rounded-full px-1.5 py-0.2 text-[10px] font-mono ${
-                      filterType === f.id ? "bg-white/20 text-white" : "bg-muted text-muted-foreground"
+                      filterType === f.id
+                        ? "bg-white/20 text-white"
+                        : "bg-muted text-muted-foreground"
                     }`}
                   >
                     {f.count}
@@ -592,7 +614,6 @@ function CustomersPage() {
             </button>
           </div>
         </div>
-
       </div>
 
       {/* ─── Main Content Display: Mullak Cards View vs Advanced Table View ─── */}
@@ -725,7 +746,11 @@ function CustomersPage() {
                     </span>
                     <span
                       className={`font-mono text-base font-bold tracking-tight ${
-                        bal > 0 ? "text-amber-400" : bal < 0 ? "text-emerald-400" : "text-muted-foreground"
+                        bal > 0
+                          ? "text-amber-400"
+                          : bal < 0
+                            ? "text-emerald-400"
+                            : "text-muted-foreground"
                       }`}
                     >
                       {money(bal)}
@@ -792,7 +817,9 @@ function CustomersPage() {
                   <th className="px-4 py-3.5 text-start font-bold">{t("common.email")}</th>
                   <th className="px-4 py-3.5 text-end font-bold">{t("common.balance")}</th>
                   <th className="px-4 py-3.5 text-start font-bold">{t("common.status")}</th>
-                  <th className="px-4 py-3.5 text-end font-bold">{lang === "ar" ? "الإجراءات" : "Actions"}</th>
+                  <th className="px-4 py-3.5 text-end font-bold">
+                    {lang === "ar" ? "الإجراءات" : "Actions"}
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border/40">
@@ -822,7 +849,9 @@ function CustomersPage() {
                             {r.name.slice(0, 1)}
                           </div>
                           <div className="min-w-0">
-                            <span className="font-bold text-foreground block truncate">{r.name}</span>
+                            <span className="font-bold text-foreground block truncate">
+                              {r.name}
+                            </span>
                             {limit > 0 && (
                               <span className="text-[10px] text-rose-400 font-mono block">
                                 {lang === "ar" ? "حد الائتمان:" : "Credit:"} {money(limit)}
@@ -860,7 +889,11 @@ function CustomersPage() {
                       <td className="px-4 py-3 text-end">
                         <span
                           className={`font-mono font-bold text-sm ${
-                            bal > 0 ? "text-amber-400" : bal < 0 ? "text-emerald-400" : "text-muted-foreground"
+                            bal > 0
+                              ? "text-amber-400"
+                              : bal < 0
+                                ? "text-emerald-400"
+                                : "text-muted-foreground"
                           }`}
                         >
                           {money(bal)}
@@ -972,7 +1005,13 @@ function CustomersPage() {
               <MiniStat
                 label={lang === "ar" ? "الرصيد الدفتري" : "Ledger Balance"}
                 value={money(selectedBalance)}
-                color={selectedBalance > 0 ? "text-amber-400" : selectedBalance < 0 ? "text-emerald-400" : undefined}
+                color={
+                  selectedBalance > 0
+                    ? "text-amber-400"
+                    : selectedBalance < 0
+                      ? "text-emerald-400"
+                      : undefined
+                }
               />
               <MiniStat
                 label={lang === "ar" ? "حد الائتمان" : "Credit Limit"}
@@ -1039,8 +1078,10 @@ function CustomersPage() {
                   {tab === "all"
                     ? (lang === "ar" ? "الكل" : "All") + ` (${activity.length})`
                     : tab === "invoices"
-                      ? (lang === "ar" ? "فواتير" : "Invoices") + ` (${detailStats?.invoiceCount ?? 0})`
-                      : (lang === "ar" ? "دفعات" : "Payments") + ` (${detailStats?.paymentCount ?? 0})`}
+                      ? (lang === "ar" ? "فواتير" : "Invoices") +
+                        ` (${detailStats?.invoiceCount ?? 0})`
+                      : (lang === "ar" ? "دفعات" : "Payments") +
+                        ` (${detailStats?.paymentCount ?? 0})`}
                 </button>
               ))}
             </div>
@@ -1052,8 +1093,8 @@ function CustomersPage() {
                   detailTab === "all"
                     ? activity
                     : detailTab === "invoices"
-                      ? detailStats?.invoiceItems ?? []
-                      : detailStats?.paymentItems ?? [];
+                      ? (detailStats?.invoiceItems ?? [])
+                      : (detailStats?.paymentItems ?? []);
 
                 return items.length === 0 ? (
                   <p className="py-8 text-center text-xs text-muted-foreground">
@@ -1166,7 +1207,9 @@ function CustomersPage() {
                       required
                       value={edit.name ?? ""}
                       onChange={(e) => setEdit({ ...edit, name: e.target.value })}
-                      placeholder={lang === "ar" ? "اسم العميل أو المؤسسة" : "Customer or Company Name"}
+                      placeholder={
+                        lang === "ar" ? "اسم العميل أو المؤسسة" : "Customer or Company Name"
+                      }
                       className="h-11 w-full rounded-2xl border border-border/80 bg-surface/80 px-4 pr-10 text-sm font-medium placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 transition"
                     />
                   </div>
@@ -1223,7 +1266,9 @@ function CustomersPage() {
                     <input
                       value={edit.address ?? ""}
                       onChange={(e) => setEdit({ ...edit, address: e.target.value })}
-                      placeholder={lang === "ar" ? "المدينة، الحي، الشارع" : "City, District, Street"}
+                      placeholder={
+                        lang === "ar" ? "المدينة، الحي، الشارع" : "City, District, Street"
+                      }
                       className="h-11 w-full rounded-2xl border border-border/80 bg-surface/80 px-4 pr-10 text-sm font-medium placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 transition"
                     />
                   </div>
@@ -1275,12 +1320,12 @@ function CustomersPage() {
                     type="button"
                     onClick={() => setEdit({ ...edit, is_active: !(edit.is_active ?? true) })}
                     className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                      edit.is_active ?? true ? "bg-primary" : "bg-muted"
+                      (edit.is_active ?? true) ? "bg-primary" : "bg-muted"
                     }`}
                   >
                     <span
                       className={`pointer-events-none inline-block size-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                        edit.is_active ?? true ? "translate-x-5" : "translate-x-0"
+                        (edit.is_active ?? true) ? "translate-x-5" : "translate-x-0"
                       }`}
                     />
                   </button>

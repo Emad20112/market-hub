@@ -426,8 +426,10 @@ Keep `SUPABASE_SERVICE_ROLE_KEY` out of `VITE_` variables and client code. The s
 
 ```text
 market-hub/
+├── docs/            # خطط، تقارير، معمارية، قاعدة بيانات، وبيانات تجريبية
 ├── public/
 ├── screenshots/
+├── scripts/
 ├── src/
 ├── supabase/
 ├── .env

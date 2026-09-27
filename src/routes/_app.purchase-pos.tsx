@@ -107,43 +107,49 @@ interface Compatibility {
   vehicle_model_id: string;
 }
 
-
 const purchasePosGuideConfig: PageGuideConfig = {
   title: "دليل نقطة المشتريات السريعة والتوريد (POP)",
-  subtitle: "شرح لدورة إدخال البضاعة اللحظية، تحديث أسعار التكلفة والمخزون، ومعالجة الموردين النقديين والآجلين.",
+  subtitle:
+    "شرح لدورة إدخال البضاعة اللحظية، تحديث أسعار التكلفة والمخزون، ومعالجة الموردين النقديين والآجلين.",
   badge: "توريد ومشتريات سريعة",
   icon: <ShoppingBag className="h-5 w-5 text-sky-500" />,
-  summaryText: "تم تصميم واجهة نقطة المشتريات (Point of Purchase) لتمنح مسؤولي المشتريات وأمناء المخازن نفس سلاسة وسرعة الكاشير، لتوثيق استلام البضائع وزيادة الأرصدة وتعديل أسعار الشراء لحظة بلحظة.",
+  summaryText:
+    "تم تصميم واجهة نقطة المشتريات (Point of Purchase) لتمنح مسؤولي المشتريات وأمناء المخازن نفس سلاسة وسرعة الكاشير، لتوثيق استلام البضائع وزيادة الأرصدة وتعديل أسعار الشراء لحظة بلحظة.",
   overviewCards: [
     {
       title: "دعم كامل للمورد النقدي (Cash Vendor)",
-      description: "إمكانية الشراء السريع والنثري دون الحاجة لفتح حساب مالي مستقل لكل بائع عابر في السوق.",
-      icon: <DollarSign className="h-4 w-4" />
+      description:
+        "إمكانية الشراء السريع والنثري دون الحاجة لفتح حساب مالي مستقل لكل بائع عابر في السوق.",
+      icon: <DollarSign className="h-4 w-4" />,
     },
     {
       title: "تعديل فوري لسعر التكلفة لكل صنف",
-      description: "إمكانية مراجعة وتحديث سعر الشراء مباشرة في السلة لكل بند ليتناسب مع فاتورة المورد الفعلية.",
-      icon: <Truck className="h-4 w-4" />
+      description:
+        "إمكانية مراجعة وتحديث سعر الشراء مباشرة في السلة لكل بند ليتناسب مع فاتورة المورد الفعلية.",
+      icon: <Truck className="h-4 w-4" />,
     },
     {
       title: "إضافة فورية للرصيد بالمستودع",
-      description: "زيادة كميات المخزون وتحديث متوسط التكلفة في المستودع المختار فور الضغط على زر الحفظ.",
-      icon: <Archive className="h-4 w-4" />
+      description:
+        "زيادة كميات المخزون وتحديث متوسط التكلفة في المستودع المختار فور الضغط على زر الحفظ.",
+      icon: <Archive className="h-4 w-4" />,
     },
     {
       title: "حفظ سريع باختصار لوحة المفاتيح",
-      description: "البحث السريع بـ (F2) وحفظ وتأكيد فاتورة الشراء بالكامل بضغطة زر أو اختصار (F4).",
-      icon: <Zap className="h-4 w-4" />
-    }
+      description:
+        "البحث السريع بـ (F2) وحفظ وتأكيد فاتورة الشراء بالكامل بضغطة زر أو اختصار (F4).",
+      icon: <Zap className="h-4 w-4" />,
+    },
   ],
   matrixTitle: "مصفوفة الأثر المالي والمخزني لفواتير المشتريات السريعة",
-  matrixDescription: "جدول تحليلي يوضح قيود اليومية وتأثير حركة الشراء على الذمم وأرصدة المستودعات:",
+  matrixDescription:
+    "جدول تحليلي يوضح قيود اليومية وتأثير حركة الشراء على الذمم وأرصدة المستودعات:",
   impactMatrix: {
     columns: [
       { key: "purchaseType", label: "نوع العملية وطريقة السداد", className: "w-[22%]" },
       { key: "inventoryImpact", label: "التأثير المخزني", className: "w-[24%]" },
       { key: "financialImpact", label: "الأثر المالي والقيد المحاسبي", className: "w-[30%]" },
-      { key: "auditControls", label: "الضوابط والتدقيق", className: "w-[24%]" }
+      { key: "auditControls", label: "الضوابط والتدقيق", className: "w-[24%]" },
     ],
     rows: [
       {
@@ -152,8 +158,8 @@ const purchasePosGuideConfig: PageGuideConfig = {
           purchaseType: "فاتورة مشتريات نقدية كاملة",
           inventoryImpact: "زيادة رصيد المستودع المختار فوراً بالكميات المستلمة.",
           accountingImpact: "من حـ/ المخزون (مدين) إلى حـ/ الصندوق أو العهدة النقدية (دائن).",
-          auditControls: "تسوية فورية دون تسجيل أي ذمة أو مديونية على المنشأة."
-        }
+          auditControls: "تسوية فورية دون تسجيل أي ذمة أو مديونية على المنشأة.",
+        },
       },
       {
         badge: { label: "شراء آجل (ذمم موردين)", variant: "purple" },
@@ -161,8 +167,8 @@ const purchasePosGuideConfig: PageGuideConfig = {
           purchaseType: "فاتورة مشتريات على الحساب",
           inventoryImpact: "زيادة رصيد المستودع بالكميات المستلمة.",
           accountingImpact: "من حـ/ المخزون (مدين) إلى حـ/ المورد المختار (دائن) كالتزام مالي.",
-          auditControls: "اشتراط اختيار مورد معتمد ومطابقة كشف حساب المورد لاحقاً."
-        }
+          auditControls: "اشتراط اختيار مورد معتمد ومطابقة كشف حساب المورد لاحقاً.",
+        },
       },
       {
         badge: { label: "سداد بنكي / شبكة", variant: "blue" },
@@ -170,8 +176,8 @@ const purchasePosGuideConfig: PageGuideConfig = {
           purchaseType: "دفع بالتحويل أو البطاقة",
           inventoryImpact: "زيادة كميات المخزون وتحديث التكلفة.",
           accountingImpact: "من حـ/ المخزون (مدين) إلى حـ/ البنك أو الحساب الجاري (دائن).",
-          auditControls: "توثيق رقم المرجع البنكي في حقل الملاحظات."
-        }
+          auditControls: "توثيق رقم المرجع البنكي في حقل الملاحظات.",
+        },
       },
       {
         badge: { label: "سداد جزئي", variant: "amber" },
@@ -179,25 +185,57 @@ const purchasePosGuideConfig: PageGuideConfig = {
           purchaseType: "دفع دفعة مقدمة والباقي آجل",
           inventoryImpact: "زيادة كامل كميات البضاعة في المستودع.",
           accountingImpact: "قيد مركب: إلى حـ/ الصندوق (بالمبلغ المدفوع) وحـ/ المورد (بالمتبقي).",
-          auditControls: "تحديث رصيد المورد التراكمي بالمبلغ المتبقي غير المسدد فقط."
-        }
-      }
-    ]
+          auditControls: "تحديث رصيد المورد التراكمي بالمبلغ المتبقي غير المسدد فقط.",
+        },
+      },
+    ],
   },
   stepsTitle: "الخطوات القياسية لتسجيل مشتريات سريعة",
   steps: [
-    { number: "1", title: "اختيار المستودع والمورد", description: "حدد المستودع الذي ستدخل إليه البضاعة، واختر المورد (أو اترك المورد النقدي الافتراضي للمشتريات العاجلة)." },
-    { number: "2", title: "مسح أو اختيار المنتجات", description: "ابحث بالاسم أو امسح الباركود لإضافة الأصناف المطلوبة إلى سلة الشراء." },
-    { number: "3", title: "مراجعة سعر الشراء والكمية", description: "تأكد من مطابقة سعر التكلفة للوحدة مع فاتورة المورد الورقية وعدل الكميات بدقة." },
-    { number: "4", title: "تحديد الدفع والحفظ (F4)", description: "اختر طريقة السداد (نقدي/آجل/بنكي) واضغط زر الحفظ (F4) لترحيل الفاتورة فوراً." }
+    {
+      number: "1",
+      title: "اختيار المستودع والمورد",
+      description:
+        "حدد المستودع الذي ستدخل إليه البضاعة، واختر المورد (أو اترك المورد النقدي الافتراضي للمشتريات العاجلة).",
+    },
+    {
+      number: "2",
+      title: "مسح أو اختيار المنتجات",
+      description: "ابحث بالاسم أو امسح الباركود لإضافة الأصناف المطلوبة إلى سلة الشراء.",
+    },
+    {
+      number: "3",
+      title: "مراجعة سعر الشراء والكمية",
+      description: "تأكد من مطابقة سعر التكلفة للوحدة مع فاتورة المورد الورقية وعدل الكميات بدقة.",
+    },
+    {
+      number: "4",
+      title: "تحديد الدفع والحفظ (F4)",
+      description: "اختر طريقة السداد (نقدي/آجل/بنكي) واضغط زر الحفظ (F4) لترحيل الفاتورة فوراً.",
+    },
   ],
   rulesTitle: "ضوابط الرقابة وسلامة التكلفة",
   rules: [
-    { type: "danger", title: "دقة تكلفة الشراء", description: "سعر الشراء المدخل هو الأساس لحساب متوسط تكلفة الصنف وأرباح المبيعات لاحقاً، احرص على مطابقته التامة مع الفاتورة الضريبية." },
-    { type: "warning", title: "تحديد المستودع بعناية", description: "لا يمكن تعديل المستودع بعد حفظ الفاتورة؛ تأكد من المستودع الفعلي الذي تم تفريغ البضاعة فيه لتجنب فروقات الجرد." },
-    { type: "info", title: "تحديث المخزون التلقائي", description: "يقوم النظام بتحديث رصيد الصنف محلياً وعبر السيرفر فوراً دون الحاجة لتحديث الصفحة." }
+    {
+      type: "danger",
+      title: "دقة تكلفة الشراء",
+      description:
+        "سعر الشراء المدخل هو الأساس لحساب متوسط تكلفة الصنف وأرباح المبيعات لاحقاً، احرص على مطابقته التامة مع الفاتورة الضريبية.",
+    },
+    {
+      type: "warning",
+      title: "تحديد المستودع بعناية",
+      description:
+        "لا يمكن تعديل المستودع بعد حفظ الفاتورة؛ تأكد من المستودع الفعلي الذي تم تفريغ البضاعة فيه لتجنب فروقات الجرد.",
+    },
+    {
+      type: "info",
+      title: "تحديث المخزون التلقائي",
+      description:
+        "يقوم النظام بتحديث رصيد الصنف محلياً وعبر السيرفر فوراً دون الحاجة لتحديث الصفحة.",
+    },
   ],
-  footerTip: "فورتيكس ERP — وحدة التوريد ونقاط المشتريات السريعة"
+  footerTip: "فورتيكس ERP — وحدة التوريد ونقاط المشتريات السريعة",
 };
 
 function PurchasePOSPage() {
@@ -238,7 +276,9 @@ function PurchasePOSPage() {
   const [cart, setCart] = useState<CartLine[]>([]);
   const [paid, setPaid] = useState<string>("");
   const [discount, setDiscount] = useState<string>("");
-  const [paymentMethod, setPaymentMethod] = useState<"cash" | "card" | "bank_transfer" | "credit">("cash");
+  const [paymentMethod, setPaymentMethod] = useState<"cash" | "card" | "bank_transfer" | "credit">(
+    "cash",
+  );
   const [note, setNote] = useState("");
   const [purchaseDate, setPurchaseDate] = useState(() => new Date().toISOString().slice(0, 10));
 
@@ -250,7 +290,13 @@ function PurchasePOSPage() {
 
   const [loading, setLoading] = useState(false);
   const [scannerOpen, setScannerOpen] = useState(false);
-  const [successInvoice, setSuccessInvoice] = useState<{ id: string; number?: string; total: number; paid: number; supplierName: string } | null>(null);
+  const [successInvoice, setSuccessInvoice] = useState<{
+    id: string;
+    number?: string;
+    total: number;
+    paid: number;
+    supplierName: string;
+  } | null>(null);
 
   const searchRef = useRef<HTMLInputElement>(null);
   const scanHandlerRef = useRef<(code: string) => void>(() => undefined);
@@ -292,7 +338,10 @@ function PurchasePOSPage() {
         supabase.from("brands").select("id,name,name_ar").order("name"),
         supabase.from("units").select("id,name,name_ar,short_name").order("name"),
         (supabase as any).from("countries_of_origin").select("id,name,name_ar,code").order("name"),
-        (supabase as any).from("quality_grades").select("id,name,name_ar,code,sort_order").order("sort_order"),
+        (supabase as any)
+          .from("quality_grades")
+          .select("id,name,name_ar,code,sort_order")
+          .order("sort_order"),
         (supabase as any).from("vehicle_makes").select("id,name,name_ar").order("name"),
         (supabase as any).from("vehicle_models").select("id,name,name_ar,make_id").order("name"),
         (supabase as any).from("product_compatibilities").select("product_id,vehicle_model_id"),
@@ -320,7 +369,10 @@ function PurchasePOSPage() {
       // Auto-select "مورد نقدي" or default first supplier
       if (loadedSuppliers.length > 0) {
         const cashSup = loadedSuppliers.find(
-          (s) => s.name.includes("نقدي") || s.name.toLowerCase().includes("cash") || s.name.includes("كاش")
+          (s) =>
+            s.name.includes("نقدي") ||
+            s.name.toLowerCase().includes("cash") ||
+            s.name.includes("كاش"),
         );
         setSupplierId(cashSup ? cashSup.id : loadedSuppliers[0].id);
       }
@@ -410,7 +462,9 @@ function PurchasePOSPage() {
     if (qty <= 0) {
       setCart((prev) => prev.filter((l) => l.product_id !== productId));
     } else {
-      setCart((prev) => prev.map((l) => (l.product_id === productId ? { ...l, quantity: qty } : l)));
+      setCart((prev) =>
+        prev.map((l) => (l.product_id === productId ? { ...l, quantity: qty } : l)),
+      );
     }
   }
 
@@ -437,7 +491,9 @@ function PurchasePOSPage() {
           : `Added: ${found.name || found.name_ar}`,
       );
     } else {
-      toast.error(lang === "ar" ? "لم يتم العثور على الصنف بالباركود" : "Product barcode not found");
+      toast.error(
+        lang === "ar" ? "لم يتم العثور على الصنف بالباركود" : "Product barcode not found",
+      );
     }
   };
 
@@ -487,8 +543,13 @@ function PurchasePOSPage() {
       if (selectedCategory && p.category_id !== selectedCategory) return false;
       if (catalogConfig.enableBrands && selectedBrand && p.brand_id !== selectedBrand) return false;
       if (catalogConfig.enableUnits && selectedUnit && p.unit_id !== selectedUnit) return false;
-      if (catalogConfig.enableOrigins && selectedOrigin && p.origin_id !== selectedOrigin) return false;
-      if (catalogConfig.enableQualityGrades && selectedQuality && p.quality_grade_id !== selectedQuality)
+      if (catalogConfig.enableOrigins && selectedOrigin && p.origin_id !== selectedOrigin)
+        return false;
+      if (
+        catalogConfig.enableQualityGrades &&
+        selectedQuality &&
+        p.quality_grade_id !== selectedQuality
+      )
         return false;
       return true;
     });
@@ -537,7 +598,9 @@ function PurchasePOSPage() {
   async function submitPurchase() {
     if (loading) return;
     if (!warehouseId) {
-      return toast.error(lang === "ar" ? "يرجى تحديد مستودع الاستلام" : "Please select receiving warehouse");
+      return toast.error(
+        lang === "ar" ? "يرجى تحديد مستودع الاستلام" : "Please select receiving warehouse",
+      );
     }
     if (!supplierId) {
       return toast.error(lang === "ar" ? "يرجى اختيار المورد" : "Please select a supplier");
@@ -584,7 +647,11 @@ function PurchasePOSPage() {
         return next;
       });
 
-      toast.success(lang === "ar" ? "تم تسجيل فاتورة الشراء وتحديث المخزون بنجاح" : "Purchase recorded successfully");
+      toast.success(
+        lang === "ar"
+          ? "تم تسجيل فاتورة الشراء وتحديث المخزون بنجاح"
+          : "Purchase recorded successfully",
+      );
 
       setSuccessInvoice({
         id: invoiceId || "recorded",
@@ -599,7 +666,9 @@ function PurchasePOSPage() {
       setDiscount("");
       setNote("");
     } catch (e: any) {
-      toast.error(e.message || (lang === "ar" ? "حدث خطأ أثناء حفظ الفاتورة" : "Failed to record purchase"));
+      toast.error(
+        e.message || (lang === "ar" ? "حدث خطأ أثناء حفظ الفاتورة" : "Failed to record purchase"),
+      );
     } finally {
       setLoading(false);
     }
@@ -860,7 +929,9 @@ function PurchasePOSPage() {
               <div className="grid place-items-center py-16 text-center text-muted-foreground">
                 <ShoppingBag className="h-10 w-10 opacity-30 mb-2" />
                 <p className="text-sm font-semibold">
-                  {lang === "ar" ? "لم يتم العثور على أي منتجات مطابقة" : "No matching products found"}
+                  {lang === "ar"
+                    ? "لم يتم العثور على أي منتجات مطابقة"
+                    : "No matching products found"}
                 </p>
                 <button
                   type="button"
@@ -874,8 +945,14 @@ function PurchasePOSPage() {
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-2.5">
                 {filtered.map((p) => {
                   const stock = stockMap[p.id] ?? 0;
-                  const catLabel = lang === "ar" ? p.category?.name_ar || p.category?.name : p.category?.name || p.category?.name_ar;
-                  const qualityLabel = lang === "ar" ? p.quality?.name_ar || p.quality?.name : p.quality?.name || p.quality?.name_ar;
+                  const catLabel =
+                    lang === "ar"
+                      ? p.category?.name_ar || p.category?.name
+                      : p.category?.name || p.category?.name_ar;
+                  const qualityLabel =
+                    lang === "ar"
+                      ? p.quality?.name_ar || p.quality?.name
+                      : p.quality?.name || p.quality?.name_ar;
 
                   return (
                     <button
@@ -927,7 +1004,9 @@ function PurchasePOSPage() {
                           <span className="text-[10px] text-muted-foreground block">
                             {lang === "ar" ? "المخزون:" : "Stock:"}
                           </span>
-                          <span className={`font-mono text-xs font-semibold ${stock <= 0 ? "text-amber-500" : "text-muted-foreground"}`}>
+                          <span
+                            className={`font-mono text-xs font-semibold ${stock <= 0 ? "text-amber-500" : "text-muted-foreground"}`}
+                          >
                             {stock}
                           </span>
                         </div>
@@ -1078,7 +1157,9 @@ function PurchasePOSPage() {
 
               {/* Discount Input */}
               <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">{lang === "ar" ? "الخصم" : "Discount"}</span>
+                <span className="text-muted-foreground">
+                  {lang === "ar" ? "الخصم" : "Discount"}
+                </span>
                 <input
                   type="number"
                   min="0"
@@ -1094,9 +1175,7 @@ function PurchasePOSPage() {
                 <span className="text-xs font-bold text-foreground">
                   {lang === "ar" ? "الإجمالي الصافي" : "Net Total"}
                 </span>
-                <span className="text-base font-bold font-mono text-primary">
-                  {money(total)}
-                </span>
+                <span className="text-base font-bold font-mono text-primary">{money(total)}</span>
               </div>
             </div>
 
@@ -1154,7 +1233,9 @@ function PurchasePOSPage() {
               type="text"
               value={note}
               onChange={(e) => setNote(e.target.value)}
-              placeholder={lang === "ar" ? "ملاحظة على فاتورة الشراء (اختياري)..." : "Note (optional)..."}
+              placeholder={
+                lang === "ar" ? "ملاحظة على فاتورة الشراء (اختياري)..." : "Note (optional)..."
+              }
               className="h-8 w-full rounded-xl border border-border/80 bg-surface px-2.5 text-xs text-foreground placeholder:text-muted-foreground/70 outline-none focus:border-primary"
             />
 
@@ -1173,7 +1254,9 @@ function PurchasePOSPage() {
               ) : (
                 <>
                   <PackagePlus className="h-4 w-4" />
-                  <span>{lang === "ar" ? "تسجيل وحفظ فاتورة الشراء (F4)" : "Save Purchase Order (F4)"}</span>
+                  <span>
+                    {lang === "ar" ? "تسجيل وحفظ فاتورة الشراء (F4)" : "Save Purchase Order (F4)"}
+                  </span>
                 </>
               )}
             </button>
@@ -1208,7 +1291,11 @@ function PurchasePOSPage() {
                   type="text"
                   value={newSupplierName}
                   onChange={(e) => setNewSupplierName(e.target.value)}
-                  placeholder={lang === "ar" ? "مثال: شركة التوريدات المتقدمة أو مورد نقدي" : "e.g. Advanced Supplies or Cash Supplier"}
+                  placeholder={
+                    lang === "ar"
+                      ? "مثال: شركة التوريدات المتقدمة أو مورد نقدي"
+                      : "e.g. Advanced Supplies or Cash Supplier"
+                  }
                   className="h-9 w-full rounded-xl border border-border bg-background px-3 text-xs text-foreground outline-none focus:border-primary"
                 />
               </div>
@@ -1259,7 +1346,9 @@ function PurchasePOSPage() {
 
             <div>
               <h3 className="text-base font-bold text-foreground">
-                {lang === "ar" ? "تم تسجيل فاتورة الشراء بنجاح!" : "Purchase Recorded Successfully!"}
+                {lang === "ar"
+                  ? "تم تسجيل فاتورة الشراء بنجاح!"
+                  : "Purchase Recorded Successfully!"}
               </h3>
               <p className="text-xs text-muted-foreground mt-1">
                 {lang === "ar"
@@ -1271,16 +1360,22 @@ function PurchasePOSPage() {
             <div className="rounded-xl border border-border/70 bg-surface-2/40 p-3 space-y-1 text-xs">
               <div className="flex justify-between text-muted-foreground">
                 <span>{lang === "ar" ? "إجمالي الفاتورة:" : "Total:"}</span>
-                <span className="font-mono font-bold text-foreground">{money(successInvoice.total)}</span>
+                <span className="font-mono font-bold text-foreground">
+                  {money(successInvoice.total)}
+                </span>
               </div>
               <div className="flex justify-between text-muted-foreground">
                 <span>{lang === "ar" ? "المسدد نقداً:" : "Paid:"}</span>
-                <span className="font-mono font-bold text-emerald-500">{money(successInvoice.paid)}</span>
+                <span className="font-mono font-bold text-emerald-500">
+                  {money(successInvoice.paid)}
+                </span>
               </div>
               {successInvoice.total > successInvoice.paid && (
                 <div className="flex justify-between text-amber-500 font-semibold pt-1 border-t border-border/60">
                   <span>{lang === "ar" ? "المتبقي (آجل):" : "Balance Due:"}</span>
-                  <span className="font-mono">{money(successInvoice.total - successInvoice.paid)}</span>
+                  <span className="font-mono">
+                    {money(successInvoice.total - successInvoice.paid)}
+                  </span>
                 </div>
               )}
             </div>

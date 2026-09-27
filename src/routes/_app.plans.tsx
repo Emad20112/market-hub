@@ -96,7 +96,9 @@ function PlansShowcasePage() {
             {isAr ? "باقتك الحالية" : "Current package"}
           </div>
           <div className="mt-1 font-semibold text-foreground">
-            {isAr ? plans.find((p) => p.id === currentPlanId)?.name.ar : plans.find((p) => p.id === currentPlanId)?.name.en}
+            {isAr
+              ? plans.find((p) => p.id === currentPlanId)?.name.ar
+              : plans.find((p) => p.id === currentPlanId)?.name.en}
           </div>
         </div>
         <div className="rounded-full border border-border/60 bg-surface px-3 py-1 text-xs text-muted-foreground">

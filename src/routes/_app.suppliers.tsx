@@ -138,7 +138,11 @@ function SuppliersPage() {
                   <td colSpan={6} className="py-10 text-center text-sm text-destructive">
                     <p>{lang === "ar" ? "تعذر تحميل الموردين" : "Could not load suppliers"}</p>
                     <p className="mt-1 text-xs text-muted-foreground">{loadError}</p>
-                    <button type="button" onClick={() => void load()} className="mt-3 rounded-md border-border px-3 py-1.5 text-xs hover:bg-surface-2">
+                    <button
+                      type="button"
+                      onClick={() => void load()}
+                      className="mt-3 rounded-md border-border px-3 py-1.5 text-xs hover:bg-surface-2"
+                    >
                       {lang === "ar" ? "إعادة المحاولة" : "Retry"}
                     </button>
                   </td>

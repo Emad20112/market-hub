@@ -44,7 +44,12 @@ export function VortexTableHeader({
   className,
 }: VortexTableHeaderProps) {
   return (
-    <div className={cn("flex flex-col gap-3 rounded-2xl border border-border/60 bg-surface/40 p-3.5 backdrop-blur-md shadow-xs sm:p-4", className)}>
+    <div
+      className={cn(
+        "flex flex-col gap-3 rounded-2xl border border-border/60 bg-surface/40 p-3.5 backdrop-blur-md shadow-xs sm:p-4",
+        className,
+      )}
+    >
       {/* Title & Primary Actions Row (if title supplied) */}
       {(title || onAddNew || extraActions) && (
         <div className="flex flex-wrap items-center justify-between gap-2.5">
@@ -56,7 +61,11 @@ export function VortexTableHeader({
                   {totalCount}
                 </span>
               )}
-              {subtitle && <span className="hidden text-xs text-muted-foreground md:inline-block">{subtitle}</span>}
+              {subtitle && (
+                <span className="hidden text-xs text-muted-foreground md:inline-block">
+                  {subtitle}
+                </span>
+              )}
             </div>
           )}
 
@@ -108,7 +117,8 @@ export function VortexTableHeader({
               onClick={onOpenFilters}
               className={cn(
                 "gap-1.5 rounded-full text-xs font-medium border-border/80 shadow-2xs transition-all",
-                activeFiltersCount > 0 && "border-primary/40 bg-primary/10 text-primary font-semibold hover:bg-primary/20",
+                activeFiltersCount > 0 &&
+                  "border-primary/40 bg-primary/10 text-primary font-semibold hover:bg-primary/20",
               )}
             >
               <SlidersHorizontal className="h-3.5 w-3.5" />
@@ -142,7 +152,9 @@ export function VortexTableHeader({
               className="h-8 w-8 rounded-full border-border/80 text-muted-foreground hover:text-foreground shadow-2xs"
               title="تحديث البيانات"
             >
-              <RefreshCw className={cn("h-3.5 w-3.5", isRefreshing && "animate-spin text-primary")} />
+              <RefreshCw
+                className={cn("h-3.5 w-3.5", isRefreshing && "animate-spin text-primary")}
+              />
             </Button>
           )}
         </div>

@@ -16,13 +16,7 @@ import { SubscriptionSection } from "./sections/subscription-section";
 import { AppearanceSection } from "./sections/appearance-section";
 
 export type SettingsSectionId =
-  | "company"
-  | "invoicing"
-  | "printing"
-  | "catalog"
-  | "subscription"
-  | "appearance"
-  | string;
+  "company" | "invoicing" | "printing" | "catalog" | "subscription" | "appearance" | string;
 
 export interface SettingsSectionMeta {
   id: SettingsSectionId;

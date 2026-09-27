@@ -35,14 +35,18 @@ function writeCachedAuth(data: CachedAuthData) {
   if (typeof window === "undefined") return;
   try {
     localStorage.setItem(AUTH_CACHE_KEY, JSON.stringify(data));
-  } catch {}
+  } catch {
+    /* localStorage unavailable (private mode / quota) — cache is best-effort */
+  }
 }
 
 function clearCachedAuth() {
   if (typeof window === "undefined") return;
   try {
     localStorage.removeItem(AUTH_CACHE_KEY);
-  } catch {}
+  } catch {
+    /* localStorage unavailable — cache is best-effort */
+  }
 }
 
 interface AuthCtx {

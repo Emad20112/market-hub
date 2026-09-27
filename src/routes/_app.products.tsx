@@ -1,5 +1,10 @@
-import { VortexDrawerDialog, VortexTextInput, VortexCurrencyInput, VortexNumberInput } from "@/components/vortex-ui";
-﻿import { useModules } from "@/lib/modules";
+import {
+  VortexDrawerDialog,
+  VortexTextInput,
+  VortexCurrencyInput,
+  VortexNumberInput,
+} from "@/components/vortex-ui";
+import { useModules } from "@/lib/modules";
 import { createFileRoute } from "@tanstack/react-router";
 import { useInfiniteQuery, useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
@@ -138,14 +143,17 @@ function ProductsPage() {
   const qc = useQueryClient();
   const searchParams = Route.useSearch();
   const breakpoint = useBreakpoint();
-  const tableUsesHorizontalScroll = breakpoint === "xs" || breakpoint === "sm" || breakpoint === "md";
+  const tableUsesHorizontalScroll =
+    breakpoint === "xs" || breakpoint === "sm" || breakpoint === "md";
   const [query, setQuery] = useState("");
   const [filters, setFilters] = useState<FilterValues>({});
   const [sort, setSort] = useState<DataTableSort | null>(null);
   const [editing, setEditing] = useState<ProductRow | null>(null);
   const [open, setOpen] = useState(false);
   const [prefillBarcode, setPrefillBarcode] = useState<string | undefined>(undefined);
-  const [quickFilter, setQuickFilter] = useState<"all" | "active" | "inactive" | "low_stock">("all");
+  const [quickFilter, setQuickFilter] = useState<"all" | "active" | "inactive" | "low_stock">(
+    "all",
+  );
   const [viewMode, setViewMode] = useState<"grid" | "list" | "table">("grid");
   const [showFilters, setShowFilters] = useState(false);
 
@@ -228,11 +236,14 @@ function ProductsPage() {
     [productPages],
   );
 
-  useRealtimeTable<ProductRow>({
-    table: "products",
-    queryKey: QUERY_KEYS.products,
-    debounceMs: 100,
-  }, qc);
+  useRealtimeTable<ProductRow>(
+    {
+      table: "products",
+      queryKey: QUERY_KEYS.products,
+      debounceMs: 100,
+    },
+    qc,
+  );
 
   useEffect(() => {
     if (!searchParams.barcode) return;
@@ -454,11 +465,17 @@ function ProductsPage() {
           const secondary = other && other.trim() && other.trim() !== primary.trim() ? other : null;
           return (
             <div className="flex flex-col py-0.5">
-              <span className="font-semibold text-foreground text-sm leading-snug truncate" dir={lang === "ar" ? "rtl" : "ltr"}>
+              <span
+                className="font-semibold text-foreground text-sm leading-snug truncate"
+                dir={lang === "ar" ? "rtl" : "ltr"}
+              >
                 {primary}
               </span>
               {secondary ? (
-                <span className="text-[11px] text-muted-foreground truncate" dir={lang === "ar" ? "ltr" : "rtl"}>
+                <span
+                  className="text-[11px] text-muted-foreground truncate"
+                  dir={lang === "ar" ? "ltr" : "rtl"}
+                >
                   {secondary}
                 </span>
               ) : null}
@@ -498,7 +515,9 @@ function ProductsPage() {
         width: "w-[124px]",
         sortValue: (p) => Number(p.cost_price),
         cell: (p) => (
-          <span className="font-mono text-xs tabular-nums text-muted-foreground">{moneyCell(p.cost_price)}</span>
+          <span className="font-mono text-xs tabular-nums text-muted-foreground">
+            {moneyCell(p.cost_price)}
+          </span>
         ),
       });
     }
@@ -630,7 +649,9 @@ function ProductsPage() {
             </h3>
             <span className="mt-1 inline-flex items-center gap-1 text-[10px] text-emerald-500/80">
               <CheckCircle2 className="size-3" />
-              {totalProducts > 0 ? `${Math.round((activeCount / totalProducts) * 100)}% متاح للبيع` : "متاح للبيع"}
+              {totalProducts > 0
+                ? `${Math.round((activeCount / totalProducts) * 100)}% متاح للبيع`
+                : "متاح للبيع"}
             </span>
           </div>
           <div className="grid size-12 shrink-0 place-items-center rounded-2xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 shadow-sm group-hover:scale-105 transition-transform">
@@ -646,7 +667,8 @@ function ProductsPage() {
               {lang === "ar" ? "التصنيفات والماركات" : "Categories & Brands"}
             </p>
             <h3 className="mt-1 font-mono text-xl sm:text-2xl font-bold tracking-tight text-blue-400">
-              {categoriesCount} <span className="text-sm font-normal text-muted-foreground">/ {brandsCount}</span>
+              {categoriesCount}{" "}
+              <span className="text-sm font-normal text-muted-foreground">/ {brandsCount}</span>
             </h3>
             <span className="mt-1 inline-flex items-center gap-1 text-[10px] text-blue-500/80">
               <Layers className="size-3" />
@@ -706,10 +728,16 @@ function ProductsPage() {
             <ToolbarAction
               label={
                 viewMode === "grid"
-                  ? (lang === "ar" ? "شبكة" : "Grid")
+                  ? lang === "ar"
+                    ? "شبكة"
+                    : "Grid"
                   : viewMode === "list"
-                    ? (lang === "ar" ? "قائمة" : "List")
-                    : (lang === "ar" ? "كلاسيكي" : "Classic")
+                    ? lang === "ar"
+                      ? "قائمة"
+                      : "List"
+                    : lang === "ar"
+                      ? "كلاسيكي"
+                      : "Classic"
               }
               icon={
                 viewMode === "grid" ? (
@@ -722,7 +750,7 @@ function ProductsPage() {
               }
               onClick={() =>
                 setViewMode((prev) =>
-                  prev === "grid" ? "list" : prev === "list" ? "table" : "grid"
+                  prev === "grid" ? "list" : prev === "list" ? "table" : "grid",
                 )
               }
               tone="ghost"
@@ -740,34 +768,48 @@ function ProductsPage() {
           {/* Luxury Quick Filter Pills (visible only when view is Grid) */}
           {viewMode === "grid" && (
             <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 scrollbar-x-none">
-          {[
-            { id: "all", label: lang === "ar" ? "الكل" : "All", count: productCount ?? products.length },
-            { id: "active", label: lang === "ar" ? "النشطة" : "Active", count: activeCount },
-            { id: "inactive", label: lang === "ar" ? "غير النشطة" : "Inactive", count: inactiveCount },
-            { id: "low_stock", label: lang === "ar" ? "تنبيه المخزون" : "Stock Alert", count: lowStockCount },
-          ].map((f) => (
-            <button
-              key={f.id}
-              type="button"
-              onClick={() => setQuickFilter(f.id as any)}
-              className={`flex items-center gap-1.5 shrink-0 rounded-full px-3 py-1 text-xs font-bold transition border ${
-                quickFilter === f.id
-                  ? "border-primary bg-primary text-primary-foreground shadow-xs shadow-primary/20"
-                  : "border-border/70 bg-surface/70 text-muted-foreground hover:text-foreground hover:bg-surface-2"
-              }`}
-            >
-              <span>{f.label}</span>
-              {f.count !== undefined && (
-                <span
-                  className={`rounded-full px-1.5 py-0.2 text-[10px] font-mono ${
-                    quickFilter === f.id ? "bg-white/20 text-white" : "bg-muted text-muted-foreground"
+              {[
+                {
+                  id: "all",
+                  label: lang === "ar" ? "الكل" : "All",
+                  count: productCount ?? products.length,
+                },
+                { id: "active", label: lang === "ar" ? "النشطة" : "Active", count: activeCount },
+                {
+                  id: "inactive",
+                  label: lang === "ar" ? "غير النشطة" : "Inactive",
+                  count: inactiveCount,
+                },
+                {
+                  id: "low_stock",
+                  label: lang === "ar" ? "تنبيه المخزون" : "Stock Alert",
+                  count: lowStockCount,
+                },
+              ].map((f) => (
+                <button
+                  key={f.id}
+                  type="button"
+                  onClick={() => setQuickFilter(f.id as any)}
+                  className={`flex items-center gap-1.5 shrink-0 rounded-full px-3 py-1 text-xs font-bold transition border ${
+                    quickFilter === f.id
+                      ? "border-primary bg-primary text-primary-foreground shadow-xs shadow-primary/20"
+                      : "border-border/70 bg-surface/70 text-muted-foreground hover:text-foreground hover:bg-surface-2"
                   }`}
                 >
-                  {f.count}
-                </span>
-              )}
-            </button>
-          ))}
+                  <span>{f.label}</span>
+                  {f.count !== undefined && (
+                    <span
+                      className={`rounded-full px-1.5 py-0.2 text-[10px] font-mono ${
+                        quickFilter === f.id
+                          ? "bg-white/20 text-white"
+                          : "bg-muted text-muted-foreground"
+                      }`}
+                    >
+                      {f.count}
+                    </span>
+                  )}
+                </button>
+              ))}
             </div>
           )}
         </TableToolbar>
@@ -779,7 +821,10 @@ function ProductsPage() {
           {isLoading ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
               {Array.from({ length: 8 }).map((_, i) => (
-                <div key={i} className="card-mullak h-44 animate-pulse bg-surface-2/40 rounded-2xl" />
+                <div
+                  key={i}
+                  className="card-mullak h-44 animate-pulse bg-surface-2/40 rounded-2xl"
+                />
               ))}
             </div>
           ) : displayRows.length === 0 ? (
@@ -799,7 +844,8 @@ function ProductsPage() {
                 {displayRows.map((p) => {
                   const primary = lang === "ar" ? p.name_ar || p.name : p.name || p.name_ar || "—";
                   const other = lang === "ar" ? p.name : p.name_ar;
-                  const secondary = other && other.trim() && other.trim() !== primary.trim() ? other : null;
+                  const secondary =
+                    other && other.trim() && other.trim() !== primary.trim() ? other : null;
                   const categoryName = label(p.category?.name, p.category?.name_ar);
 
                   return (
@@ -822,7 +868,9 @@ function ProductsPage() {
                       <div className="flex items-center justify-between gap-2 mb-2.5">
                         <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 border border-primary/20 px-2.5 py-0.5 text-[11px] font-semibold text-primary truncate max-w-[140px]">
                           <Tag className="size-3 shrink-0" />
-                          <span className="truncate">{categoryName || (lang === "ar" ? "عام" : "General")}</span>
+                          <span className="truncate">
+                            {categoryName || (lang === "ar" ? "عام" : "General")}
+                          </span>
                         </span>
 
                         <div className="flex items-center gap-1.5">
@@ -897,7 +945,9 @@ function ProductsPage() {
                       {/* Price & Action Row */}
                       <div className="pt-3 border-t border-border/60 flex items-center justify-between gap-2 mt-auto">
                         <div>
-                          <p className="text-[10px] text-muted-foreground font-medium">{t("common.price")}</p>
+                          <p className="text-[10px] text-muted-foreground font-medium">
+                            {t("common.price")}
+                          </p>
                           <p className="font-mono font-bold text-base sm:text-lg text-foreground tracking-tight">
                             {moneyCell(p.sale_price)}
                           </p>
@@ -972,7 +1022,10 @@ function ProductsPage() {
           {isLoading ? (
             <div className="space-y-3">
               {Array.from({ length: 6 }).map((_, i) => (
-                <div key={i} className="card-mullak h-20 animate-pulse bg-surface-2/40 rounded-2xl" />
+                <div
+                  key={i}
+                  className="card-mullak h-20 animate-pulse bg-surface-2/40 rounded-2xl"
+                />
               ))}
             </div>
           ) : displayRows.length === 0 ? (
@@ -992,7 +1045,8 @@ function ProductsPage() {
                 {displayRows.map((p) => {
                   const primary = lang === "ar" ? p.name_ar || p.name : p.name || p.name_ar || "—";
                   const other = lang === "ar" ? p.name : p.name_ar;
-                  const secondary = other && other.trim() && other.trim() !== primary.trim() ? other : null;
+                  const secondary =
+                    other && other.trim() && other.trim() !== primary.trim() ? other : null;
                   const categoryName = label(p.category?.name, p.category?.name_ar);
 
                   const isLowStock = p.min_stock != null && Number(p.min_stock) > 0;
@@ -1044,7 +1098,10 @@ function ProductsPage() {
 
                           <div className="flex flex-wrap items-center gap-2 mt-1 text-[11px] text-muted-foreground">
                             {secondary && (
-                              <span className="text-muted-foreground/80 truncate max-w-[200px]" dir={lang === "ar" ? "ltr" : "rtl"}>
+                              <span
+                                className="text-muted-foreground/80 truncate max-w-[200px]"
+                                dir={lang === "ar" ? "ltr" : "rtl"}
+                              >
                                 {secondary}
                               </span>
                             )}
@@ -1466,7 +1523,9 @@ function ProductDialog({
       if (toAdd.length) {
         const { error: insertError } = await (supabase as any)
           .from("product_compatibilities")
-          .insert(toAdd.map((vehicle_model_id) => ({ product_id: savedProductId, vehicle_model_id })));
+          .insert(
+            toAdd.map((vehicle_model_id) => ({ product_id: savedProductId, vehicle_model_id })),
+          );
         writeError = insertError;
       }
       if (!writeError && toRemove.length) {
@@ -1512,10 +1571,20 @@ function ProductDialog({
   return (
     <VortexDrawerDialog
       open={true}
-      onOpenChange={(isOpen) => { if (!isOpen) onClose(); }}
+      onOpenChange={(isOpen) => {
+        if (!isOpen) onClose();
+      }}
       size="lg"
       title={initial ? t("products.edit_product") : t("products.new_product")}
-      description={initial ? (lang === "ar" ? "تعديل تفاصيل المنتج والأسعار والمخزون" : "Edit product details, pricing, and stock") : (lang === "ar" ? "إضافة منتج جديد وتحديد الأسعار والمخزون" : "Create a new product with pricing and stock")}
+      description={
+        initial
+          ? lang === "ar"
+            ? "تعديل تفاصيل المنتج والأسعار والمخزون"
+            : "Edit product details, pricing, and stock"
+          : lang === "ar"
+            ? "إضافة منتج جديد وتحديد الأسعار والمخزون"
+            : "Create a new product with pricing and stock"
+      }
       footer={
         <div className="flex w-full items-center justify-end gap-3">
           <Button
@@ -1549,7 +1618,9 @@ function ProductDialog({
                   clearable
                   value={form.name_ar}
                   onChange={(e) => setForm({ ...form, name_ar: e.target.value })}
-                  placeholder={lang === "ar" ? "أدخل اسم المنتج بالعربية..." : "Product name in Arabic..."}
+                  placeholder={
+                    lang === "ar" ? "أدخل اسم المنتج بالعربية..." : "Product name in Arabic..."
+                  }
                 />
               )}
             </FormField>
@@ -1621,7 +1692,9 @@ function ProductDialog({
                       type="button"
                       size="md"
                       variant="outline"
-                      ariaLabel={lang === "ar" ? "مسح الباركود بالكاميرا" : "Scan barcode with camera"}
+                      ariaLabel={
+                        lang === "ar" ? "مسح الباركود بالكاميرا" : "Scan barcode with camera"
+                      }
                       icon={<Camera />}
                       onClick={() => setScannerOpen(true)}
                     />
@@ -1773,9 +1846,7 @@ function ProductDialog({
               >
                 <VortexCurrencyInput
                   value={form.cost_price === "" ? 0 : Number(form.cost_price)}
-                  onValueChange={(num) =>
-                    setForm({ ...form, cost_price: String(num) })
-                  }
+                  onValueChange={(num) => setForm({ ...form, cost_price: String(num) })}
                   min={0}
                   currency="﷼"
                   placeholder="0.00"
@@ -1789,9 +1860,7 @@ function ProductDialog({
                   id={p.id}
                   aria-describedby={p["aria-describedby"]}
                   value={form.sale_price === "" ? 0 : Number(form.sale_price)}
-                  onValueChange={(num) =>
-                    setForm({ ...form, sale_price: String(num) })
-                  }
+                  onValueChange={(num) => setForm({ ...form, sale_price: String(num) })}
                   min={0}
                   currency="﷼"
                   placeholder="0.00"
@@ -1850,7 +1919,10 @@ function ProductDialog({
         </FormSection>
       </form>
 
-      <div className="flex items-center gap-1.5 text-caption text-muted-foreground" aria-live="polite">
+      <div
+        className="flex items-center gap-1.5 text-caption text-muted-foreground"
+        aria-live="polite"
+      >
         <ScanBarcode className="size-3.5 text-primary" aria-hidden />
         <span>
           {lang === "ar"

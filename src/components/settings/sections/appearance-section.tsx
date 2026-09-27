@@ -30,7 +30,9 @@ export function AppearanceSection() {
       <CardContent className="pt-5">
         <div className="flex items-center justify-between rounded-2xl border border-border/80 bg-surface/70 p-4">
           <div>
-            <div className="text-sm font-semibold">{isAr ? "لغة عرض الواجهة" : "Interface Language"}</div>
+            <div className="text-sm font-semibold">
+              {isAr ? "لغة عرض الواجهة" : "Interface Language"}
+            </div>
             <div className="text-xs text-muted-foreground mt-0.5">
               {isAr
                 ? "اختر لغة الواجهة الرئيسية للنظام، يتم حفظ اختيارك تلقائياً."

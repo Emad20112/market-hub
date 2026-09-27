@@ -347,27 +347,27 @@ export function DataTable<T>({
   /* مع min-width يبقى التخطيط تلقائيًا ليتسع المحتوى؛ مع ثبات الأعمدة
    * نستخدم table-fixed ليكون الجدولان متطابقين تمامًا وعمودًا بعمود. */
   const allColsWidths =
-    visibleColumns.length > 0 &&
-    visibleColumns.every((c) => /w-\[[\d.]+px\]/.test(c.width ?? ""));
+    visibleColumns.length > 0 && visibleColumns.every((c) => /w-\[[\d.]+px\]/.test(c.width ?? ""));
   const alignedTableClassName =
     minWidth && allColsWidths ? cn(tableClassName, "table-fixed") : tableClassName;
 
   // مزامنة أفقية موحدة وفورية تمنع حلقة الصدى (echo loop) والتقطع،
   // وتسمح للمتصفح بالاحتفاظ بعزم الحركة الطبيعي (120Hz momentum) والمطاطية (rubber-band)
-  const syncHorizontalScroll = (source: "header" | "body") => (event: React.UIEvent<HTMLDivElement>) => {
-    if (activeScrollerRef.current && activeScrollerRef.current !== source) return;
+  const syncHorizontalScroll =
+    (source: "header" | "body") => (event: React.UIEvent<HTMLDivElement>) => {
+      if (activeScrollerRef.current && activeScrollerRef.current !== source) return;
 
-    activeScrollerRef.current = source;
-    if (scrollTimeoutRef.current) clearTimeout(scrollTimeoutRef.current);
-    scrollTimeoutRef.current = setTimeout(() => {
-      activeScrollerRef.current = null;
-    }, 100);
+      activeScrollerRef.current = source;
+      if (scrollTimeoutRef.current) clearTimeout(scrollTimeoutRef.current);
+      scrollTimeoutRef.current = setTimeout(() => {
+        activeScrollerRef.current = null;
+      }, 100);
 
-    const target = source === "header" ? scrollRef.current : headerScrollRef.current;
-    if (target && target.scrollLeft !== event.currentTarget.scrollLeft) {
-      target.scrollLeft = event.currentTarget.scrollLeft;
-    }
-  };
+      const target = source === "header" ? scrollRef.current : headerScrollRef.current;
+      if (target && target.scrollLeft !== event.currentTarget.scrollLeft) {
+        target.scrollLeft = event.currentTarget.scrollLeft;
+      }
+    };
 
   return (
     <div
@@ -425,112 +425,112 @@ export function DataTable<T>({
             ref={scrollRef}
             onScroll={detachedHeader ? syncHorizontalScroll("body") : undefined}
             className={cn(
-            /* الحاوية متزامنة بسلاسة ومطاطية طبيعية مع الرأس */
-            horizontalScroll || minWidth
-              ? "w-full overflow-x-auto touch-auto [-webkit-overflow-scrolling:touch] overscroll-x-contain scrollbar-x-none"
-              : "w-full overscroll-x-auto",
-            refreshing && "opacity-70 transition-opacity",
-            scrollClassName,
-          )}
+              /* الحاوية متزامنة بسلاسة ومطاطية طبيعية مع الرأس */
+              horizontalScroll || minWidth
+                ? "w-full overflow-x-auto touch-auto [-webkit-overflow-scrolling:touch] overscroll-x-contain scrollbar-x-none"
+                : "w-full overscroll-x-auto",
+              refreshing && "opacity-70 transition-opacity",
+              scrollClassName,
+            )}
           >
-          <table
-            /* `table-layout: auto` with `w-full` lets the browser grow the table
-             * past its container when a cell's content needs more room — on a
-             * 390px phone the four remaining columns summed to 384px inside a
-             * 344px container, pushing the table 17px off-screen and clipping
-             * the row-action buttons (measured: `childWiderThanParent: true`).
-             *
-             * `table-fixed` makes the declared width authoritative so cells wrap
-             * instead of expanding the table. It is applied from `sm` up only
-             * when a `minWidth` is requested (wide accounting tables that are
-             * *meant* to scroll); otherwise it applies at every width. */
-            className={alignedTableClassName}
-            style={tableStyle}
-          >
-            {colGroup}
-            <TableHead
-              columns={visibleColumns}
-              sort={sort}
-              onSortChange={onSortChange}
-              pinFirst={pinFirst}
-              sticky={stickyHeader && !detachedHeader}
-              visuallyHidden={detachedHeader}
-            />
+            <table
+              /* `table-layout: auto` with `w-full` lets the browser grow the table
+               * past its container when a cell's content needs more room — on a
+               * 390px phone the four remaining columns summed to 384px inside a
+               * 344px container, pushing the table 17px off-screen and clipping
+               * the row-action buttons (measured: `childWiderThanParent: true`).
+               *
+               * `table-fixed` makes the declared width authoritative so cells wrap
+               * instead of expanding the table. It is applied from `sm` up only
+               * when a `minWidth` is requested (wide accounting tables that are
+               * *meant* to scroll); otherwise it applies at every width. */
+              className={alignedTableClassName}
+              style={tableStyle}
+            >
+              {colGroup}
+              <TableHead
+                columns={visibleColumns}
+                sort={sort}
+                onSortChange={onSortChange}
+                pinFirst={pinFirst}
+                sticky={stickyHeader && !detachedHeader}
+                visuallyHidden={detachedHeader}
+              />
 
-            <tbody>
-              {displayRows.map((row, index) => (
-                <tr
-                  key={rowKey(row)}
-                  className={cn(
-                    "border-b border-border/60 transition-colors duration-150 hover:bg-accent/40",
-                    onRowClick && "cursor-pointer",
-                  )}
-                  onClick={onRowClick ? () => onRowClick(row) : undefined}
+              <tbody>
+                {displayRows.map((row, index) => (
+                  <tr
+                    key={rowKey(row)}
+                    className={cn(
+                      "border-b border-border/60 transition-colors duration-150 hover:bg-accent/40",
+                      onRowClick && "cursor-pointer",
+                    )}
+                    onClick={onRowClick ? () => onRowClick(row) : undefined}
+                  >
+                    {visibleColumns.map((col) => {
+                      const stickyCol = col.sticky ?? (pinFirst && col === visibleColumns[0]);
+                      return (
+                        <td
+                          key={col.key}
+                          className={cn(
+                            "px-3 py-2.5 align-middle first:ps-4 last:pe-5",
+                            /* On a phone, forced single-line cells are what push a
+                             * wide table past the viewport. Let text wrap under
+                             * `sm` and keep the single-line ERP look from `sm`
+                             * up, where there is room for it. */
+                            !col.wrap && "whitespace-normal sm:whitespace-nowrap",
+                            col.align === "end"
+                              ? "text-end"
+                              : col.align === "center"
+                                ? "text-center"
+                                : "text-start",
+                            col.className,
+                            col.hideBelow && HIDE_BELOW[col.hideBelow],
+                            stickyCol && "sticky start-0 z-10 bg-surface",
+                          )}
+                        >
+                          {col.cell(row, index)}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+
+            {/* ---------- Infinite-scroll footer ---------- */}
+            {infinite ? (
+              <div ref={sentinelRef} className="flex items-center justify-center gap-2 py-4">
+                {loadingMore ? (
+                  <>
+                    <Loader2 className="size-4 animate-spin text-muted-foreground" aria-hidden />
+                    <span className="text-[11px] text-muted-foreground">جارٍ تحميل المزيد…</span>
+                  </>
+                ) : hasMore ? (
+                  <ChevronDown
+                    className="size-4 animate-bounce text-muted-foreground/50"
+                    aria-hidden
+                  />
+                ) : loadedCount > 0 ? (
+                  <span className="text-[11px] text-muted-foreground/70">
+                    تم عرض جميع السجلات ({loadedCount})
+                  </span>
+                ) : null}
+              </div>
+            ) : null}
+
+            {/* ---------- "Load more" for legacy paged tables ---------- */}
+            {paginate && legacyPageRows.length < sortedRows.length ? (
+              <div className="flex justify-center py-3">
+                <button
+                  type="button"
+                  onClick={() => setPage((p) => p + 1)}
+                  className="rounded-full border border-border bg-surface px-4 py-1.5 text-xs font-medium transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
                 >
-                  {visibleColumns.map((col) => {
-                    const stickyCol = col.sticky ?? (pinFirst && col === visibleColumns[0]);
-                    return (
-                      <td
-                        key={col.key}
-                        className={cn(
-                          "px-3 py-2.5 align-middle first:ps-4 last:pe-5",
-                          /* On a phone, forced single-line cells are what push a
-                           * wide table past the viewport. Let text wrap under
-                           * `sm` and keep the single-line ERP look from `sm`
-                           * up, where there is room for it. */
-                          !col.wrap && "whitespace-normal sm:whitespace-nowrap",
-                          col.align === "end"
-                            ? "text-end"
-                            : col.align === "center"
-                              ? "text-center"
-                              : "text-start",
-                          col.className,
-                          col.hideBelow && HIDE_BELOW[col.hideBelow],
-                          stickyCol && "sticky start-0 z-10 bg-surface",
-                        )}
-                      >
-                        {col.cell(row, index)}
-                      </td>
-                    );
-                  })}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-
-          {/* ---------- Infinite-scroll footer ---------- */}
-          {infinite ? (
-            <div ref={sentinelRef} className="flex items-center justify-center gap-2 py-4">
-              {loadingMore ? (
-                <>
-                  <Loader2 className="size-4 animate-spin text-muted-foreground" aria-hidden />
-                  <span className="text-[11px] text-muted-foreground">جارٍ تحميل المزيد…</span>
-                </>
-              ) : hasMore ? (
-                <ChevronDown
-                  className="size-4 animate-bounce text-muted-foreground/50"
-                  aria-hidden
-                />
-              ) : loadedCount > 0 ? (
-                <span className="text-[11px] text-muted-foreground/70">
-                  تم عرض جميع السجلات ({loadedCount})
-                </span>
-              ) : null}
-            </div>
-          ) : null}
-
-          {/* ---------- "Load more" for legacy paged tables ---------- */}
-          {paginate && legacyPageRows.length < sortedRows.length ? (
-            <div className="flex justify-center py-3">
-              <button
-                type="button"
-                onClick={() => setPage((p) => p + 1)}
-                className="rounded-full border border-border bg-surface px-4 py-1.5 text-xs font-medium transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
-              >
-                تحميل المزيد
-              </button>
-            </div>
-          ) : null}
+                  تحميل المزيد
+                </button>
+              </div>
+            ) : null}
           </div>
         </>
       )}
@@ -618,7 +618,9 @@ function TableHead<T>({
                 <button
                   type="button"
                   onClick={() => toggleSort(column)}
-                  aria-label={typeof column.header === "string" ? `Sort by ${column.header}` : "Sort"}
+                  aria-label={
+                    typeof column.header === "string" ? `Sort by ${column.header}` : "Sort"
+                  }
                   className={cn(
                     "inline-flex items-center gap-1 rounded-sm transition-colors hover:text-foreground",
                     "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50",
