@@ -1,3 +1,11 @@
+import {
+  VortexMetricCard,
+  VortexCollectionSheet,
+  VortexFilterSheet,
+  VortexFilterSection,
+  type PaymentMethod
+} from "@/components/vortex-ui";
+import { SlidersHorizontal, HandCoins, AlertTriangle, UserCheck } from "lucide-react";
 /**
  * شاشة الديون — تعرض الأرصدة **من الدفتر** لا من العمود المخزَّن.
  *
@@ -70,6 +78,15 @@ function DebtsPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<"all" | "debt" | "over_limit">("debt");
+  const [advancedFilterOpen, setAdvancedFilterOpen] = useState(false);
+  const [hasPhoneOnly, setHasPhoneOnly] = useState(false);
+  const [collectionCustomer, setCollectionCustomer] = useState<{
+    id: string;
+    name: string;
+    phone: string | null;
+    balance: number;
+  } | null>(null);
+  const [collectionOpen, setCollectionOpen] = useState(false);
   const [selected, setSelected] = useState<Customer | null>(null);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [payments, setPayments] = useState<Payment[]>([]);
@@ -211,10 +228,33 @@ function DebtsPage() {
         }
       />
 
-      <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
-        <SumCard label={t("debts.total_debt")} value={money(totals.totalDebt)} tone="warn" />
-        <SumCard label={t("debts.debtors")} value={String(totals.debtors)} tone="info" />
-        <SumCard label={t("debts.over_limit")} value={String(totals.overLimit)} tone="neg" />
+      {/* ─── Luxury Vortex Metric Cards ─── */}
+      <div className="mb-5 grid grid-cols-1 gap-3.5 sm:grid-cols-3">
+        <VortexMetricCard
+          title={t("debts.total_debt")}
+          value={totals.totalDebt}
+          currency="ر.س"
+          highlight
+          icon={<HandCoins className="size-5 text-amber-600 dark:text-amber-400" />}
+          iconClassName="bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20"
+          subtitle="إجمالي المبالغ المستحقة طرف العملاء"
+        />
+        <VortexMetricCard
+          title={t("debts.debtors")}
+          value={totals.debtors}
+          currency="عميل"
+          icon={<UserCheck className="size-5 text-sky-600 dark:text-sky-400" />}
+          iconClassName="bg-sky-500/10 text-sky-600 dark:text-sky-400 border border-sky-500/20"
+          subtitle="عملاء عليهم أرصدة مدينة قائمة"
+        />
+        <VortexMetricCard
+          title={t("debts.over_limit")}
+          value={totals.overLimit}
+          currency="حساب"
+          icon={<AlertTriangle className="size-5 text-rose-600 dark:text-rose-400" />}
+          iconClassName="bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20"
+          subtitle="حسابات تجاوزت الحد الائتماني المسموح"
+        />
       </div>
 
       <div className="panel-elevated p-4">
@@ -228,6 +268,17 @@ function DebtsPage() {
               className="flex-1 bg-transparent outline-none placeholder:text-muted-foreground"
             />
           </div>
+          {/* Advanced Filter Button */}
+          <button
+            type="button"
+            onClick={() => setAdvancedFilterOpen(true)}
+            className={}
+          >
+            <SlidersHorizontal className="size-3.5 text-primary" />
+            <span>فلترة متقدمة</span>
+            {hasPhoneOnly && <span className="size-1.5 rounded-full bg-primary" />}
+          </button>
+
           <div className="flex rounded-full border border-input bg-surface p-1 text-xs">
             {(["debt", "over_limit", "all"] as const).map((f) => (
               <button
