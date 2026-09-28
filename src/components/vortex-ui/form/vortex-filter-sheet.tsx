@@ -5,7 +5,7 @@ import { Filter, RotateCcw, Check } from "lucide-react";
 import { VortexDrawerDialog } from "./vortex-drawer-dialog";
 
 export interface FilterSectionProps {
-  id: string;
+  id?: string;
   title: string;
   icon?: React.ReactNode;
   description?: string;
@@ -40,9 +40,10 @@ export interface VortexFilterSheetProps {
   title?: string;
   subtitle?: string;
   activeCount?: number;
+  activeFiltersCount?: number;
   children: React.ReactNode;
-  onApply: () => void;
-  onReset: () => void;
+  onApply?: () => void;
+  onReset?: () => void;
   applyLabel?: string;
   resetLabel?: string;
   className?: string;
@@ -53,7 +54,8 @@ export function VortexFilterSheet({
   onOpenChange,
   title = "التصفية والفلاتر المتقدمة",
   subtitle = "تخصيص وترتيب البيانات بدقة عالية",
-  activeCount = 0,
+  activeCount,
+  activeFiltersCount,
   children,
   onApply,
   onReset,
@@ -61,6 +63,7 @@ export function VortexFilterSheet({
   resetLabel = "إعادة ضبط",
   className,
 }: VortexFilterSheetProps) {
+  const effectiveCount = activeFiltersCount ?? activeCount ?? 0;
   return (
     <VortexDrawerDialog
       open={open}
@@ -70,9 +73,9 @@ export function VortexFilterSheet({
       icon={
         <div className="relative grid size-10 place-items-center rounded-2xl bg-foreground text-background shadow-md shadow-foreground/10">
           <Filter className="size-5" />
-          {activeCount > 0 && (
+          {effectiveCount > 0 && (
             <span className="absolute -top-1 -left-1 flex size-5 items-center justify-center rounded-full bg-primary text-[10px] font-black text-primary-foreground ring-2 ring-background">
-              {activeCount}
+              {effectiveCount}
             </span>
           )}
         </div>
@@ -80,9 +83,9 @@ export function VortexFilterSheet({
       title={
         <div className="flex items-center gap-2">
           <span className="font-bold text-base sm:text-lg">{title}</span>
-          {activeCount > 0 && (
+          {effectiveCount > 0 && (
             <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-semibold text-primary border border-primary/20">
-              {activeCount} مفعل
+              {effectiveCount} مفعل
             </span>
           )}
         </div>
@@ -93,7 +96,7 @@ export function VortexFilterSheet({
           <button
             type="button"
             onClick={() => {
-              onApply();
+              onApply?.();
               onOpenChange(false);
             }}
             className="flex-1 h-12 rounded-2xl bg-foreground text-background font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-lg shadow-foreground/15 hover:opacity-95 active:scale-[0.98] transition cursor-pointer"
@@ -104,7 +107,7 @@ export function VortexFilterSheet({
           <button
             type="button"
             onClick={() => {
-              onReset();
+              onReset?.();
               onOpenChange(false);
             }}
             className="h-12 px-4 rounded-2xl bg-muted/80 text-muted-foreground hover:text-foreground font-bold text-xs sm:text-sm flex items-center gap-1.5 transition active:scale-[0.98] cursor-pointer"

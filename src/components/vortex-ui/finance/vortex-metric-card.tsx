@@ -12,7 +12,8 @@ export interface VortexMetricCardProps {
   iconClassName?: string;
   trend?: {
     value: string | number;
-    direction: "up" | "down" | "neutral";
+    direction?: "up" | "down" | "neutral";
+    isPositive?: boolean;
     label?: string;
   };
   highlight?: boolean;
@@ -78,7 +79,11 @@ export function VortexMetricCard({
               iconClassName
             )}
           >
-            {icon}
+            {React.isValidElement(icon)
+              ? icon
+              : typeof icon === "function" || (typeof icon === "object" && icon !== null && "$$typeof" in icon)
+              ? React.createElement(icon as React.ComponentType<{ className?: string }>, { className: "size-5" })
+              : (icon as React.ReactNode)}
           </div>
         )}
       </div>
@@ -89,15 +94,15 @@ export function VortexMetricCard({
             <div
               className={cn(
                 "flex items-center gap-1 font-bold text-[11px]",
-                trend.direction === "up"
+                (trend.direction === "up" || trend.isPositive === true)
                   ? "text-emerald-600 dark:text-emerald-400"
-                  : trend.direction === "down"
+                  : (trend.direction === "down" || trend.isPositive === false)
                   ? "text-rose-600 dark:text-rose-400"
                   : "text-muted-foreground"
               )}
             >
-              {trend.direction === "up" && <TrendingUp className="size-3.5" />}
-              {trend.direction === "down" && <TrendingDown className="size-3.5" />}
+              {(trend.direction === "up" || trend.isPositive === true) && <TrendingUp className="size-3.5" />}
+              {(trend.direction === "down" || trend.isPositive === false) && <TrendingDown className="size-3.5" />}
               {trend.direction === "neutral" && <Minus className="size-3.5" />}
               <span>{trend.value}</span>
               {trend.label && (
