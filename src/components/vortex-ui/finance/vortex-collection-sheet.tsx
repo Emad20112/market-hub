@@ -118,14 +118,20 @@ export function VortexCollectionSheet({
   ] as const;
 
   const generateMessage = (r: CollectionReceipt) => {
-    return ;
+    return `سند قبض إلكتروني
+العميل: ${r.customerName}
+المبلغ المستلم: ${r.amount.toLocaleString("ar-SA")} ر.س
+المتبقي: ${r.remainingBalance.toLocaleString("ar-SA")} ر.س
+رقم السند: #${r.receiptNumber}
+التاريخ: ${r.date}
+شكراً لتعاملكم معنا.`;
   };
 
   const shareWhatsApp = () => {
     if (!receipt) return;
     const text = encodeURIComponent(generateMessage(receipt));
     const phone = (receipt.customerPhone || "").replace(/\D/g, "");
-    const url = phone ?  : ;
+    const url = phone ? `https://wa.me/${phone}?text=${text}` : `https://wa.me/?text=${text}`;
     window.open(url, "_blank");
   };
 
@@ -133,7 +139,7 @@ export function VortexCollectionSheet({
     if (!receipt) return;
     const text = encodeURIComponent(generateMessage(receipt));
     const phone = (receipt.customerPhone || "").replace(/\D/g, "");
-    window.open(, "_blank");
+    window.open(`sms:${phone}?body=${text}`, "_blank");
   };
 
   const copyReceiptText = () => {
@@ -149,7 +155,11 @@ export function VortexCollectionSheet({
       onOpenChange={onOpenChange}
       size="md"
       title={receipt ? "تم تسجيل سند القبض بنجاح" : "سند قبض وتحصيل سريع"}
-      subtitle={receipt ? "يمكنك الآن إرسال إشعار السند للعميل مباشرة" : }
+      subtitle={
+        receipt
+          ? "يمكنك الآن إرسال إشعار السند للعميل مباشرة"
+          : `العميل: ${customer.name} (الرصيد الحالي: ${currentBalance.toLocaleString("ar-SA")} ر.س)`
+      }
       icon={
         <div className="grid size-10 place-items-center rounded-2xl bg-foreground text-background shadow-md">
           {receipt ? <CheckCircle2 className="size-5 text-emerald-500" /> : <Receipt className="size-5" />}

@@ -272,7 +272,7 @@ function DebtsPage() {
           <button
             type="button"
             onClick={() => setAdvancedFilterOpen(true)}
-            className={}
+            className="flex items-center gap-1.5 rounded-full border border-input bg-surface px-3 py-1.5 text-xs font-medium hover:bg-surface-elevated transition-colors text-foreground"
           >
             <SlidersHorizontal className="size-3.5 text-primary" />
             <span>فلترة متقدمة</span>
