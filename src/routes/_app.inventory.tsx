@@ -7,7 +7,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useI18n } from "@/lib/i18n";
 import { useAuth } from "@/lib/auth";
 import { StockAdjustmentDialog } from "@/components/stock/stock-adjustment-dialog";
-import { Warehouse, Search, ArrowUpDown, AlertTriangle } from "lucide-react";
+import { DirectStockInDialog } from "@/components/stock/direct-stock-in-dialog";
+import { Warehouse, Search, Scale, PackagePlus, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_app/inventory")({
@@ -30,6 +31,7 @@ function InventoryPage() {
   const [query, setQuery] = useState("");
   const [warehouseId, setWarehouseId] = useState<string>("");
   const [adjust, setAdjust] = useState<{ product: Row } | null>(null);
+  const [directIn, setDirectIn] = useState<{ product?: Row } | null>(null);
 
   const { data: warehouses } = useQuery({
     queryKey: ["warehouses"],
@@ -77,8 +79,8 @@ function InventoryPage() {
       <PageHeader title={t("inventory.title")} subtitle={t("inventory.subtitle")} />
 
       <div className="panel-elevated overflow-hidden">
-        <div className="flex flex-wrap items-center gap-2 border-b border-border p-3">
-          <div className="flex h-9 flex-1 min-w-[200px] items-center gap-2 rounded-md border border-border bg-surface px-3 text-sm">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border p-3">
+          <div className="flex flex-1 min-w-[200px] items-center gap-2 rounded-md border border-border bg-surface px-3 h-9 text-sm">
             <Search className="h-3.5 w-3.5 text-muted-foreground" />
             <input
               value={query}
@@ -87,23 +89,33 @@ function InventoryPage() {
               className="flex-1 bg-transparent outline-none placeholder:text-muted-foreground"
             />
           </div>
-          {isModuleEnabled("multi_warehouse") && (
-            <select
-              value={warehouseId}
-              onChange={(e) => setWarehouseId(e.target.value)}
-              className="h-9 rounded-md border border-border bg-surface px-3 text-sm text-foreground outline-none"
+          <div className="flex items-center gap-2">
+            {isModuleEnabled("multi_warehouse") && (
+              <select
+                value={warehouseId}
+                onChange={(e) => setWarehouseId(e.target.value)}
+                className="h-9 rounded-md border border-border bg-surface px-3 text-sm text-foreground outline-none"
+              >
+                <option value="">{t("inventory.all_warehouses")}</option>
+                {(warehouses ?? []).map((w: any) => (
+                  <option key={w.id} value={w.id}>
+                    {lang === "ar" ? w.name_ar || w.name : w.name || w.name_ar}
+                  </option>
+                ))}
+              </select>
+            )}
+            <button
+              type="button"
+              onClick={() => setDirectIn({})}
+              className="flex h-9 items-center gap-1.5 rounded-md bg-emerald-600 hover:bg-emerald-700 px-3 text-xs font-bold text-white shadow-xs transition"
             >
-              <option value="">{t("inventory.all_warehouses")}</option>
-              {(warehouses ?? []).map((w: any) => (
-                <option key={w.id} value={w.id}>
-                  {lang === "ar" ? w.name_ar || w.name : w.name || w.name_ar}
-                </option>
-              ))}
-            </select>
-          )}
-          <span className="text-[11px] text-muted-foreground tabular-nums">
-            {filtered.length} {t("inventory.items")}
-          </span>
+              <PackagePlus className="h-3.5 w-3.5" />
+              <span>{lang === "ar" ? "إدخال مخزني (توريد بضاعة)" : "Direct Stock In"}</span>
+            </button>
+            <span className="text-[11px] text-muted-foreground tabular-nums px-1">
+              {filtered.length} {t("inventory.items")}
+            </span>
+          </div>
         </div>
 
         <div className="overflow-x-auto">
@@ -168,18 +180,32 @@ function InventoryPage() {
                       )}
                     </td>
                     <td className="px-4 py-2.5 text-end">
-                      <button
-                        onClick={() => setAdjust({ product: r })}
-                        disabled={!warehouseId}
-                        title={
-                          !warehouseId
-                            ? t("inventory.select_warehouse")
-                            : t("inventory.adjust_stock")
-                        }
-                        className="inline-flex h-7 items-center gap-1 rounded-md border border-border bg-surface px-2 text-xs text-muted-foreground hover:text-foreground transition disabled:opacity-40"
-                      >
-                        <ArrowUpDown className="h-3 w-3" /> {t("inventory.adjust")}
-                      </button>
+                      <div className="flex items-center justify-end gap-1.5">
+                        <button
+                          onClick={() => setDirectIn({ product: r })}
+                          disabled={!warehouseId}
+                          title={
+                            !warehouseId
+                              ? t("inventory.select_warehouse")
+                              : (lang === "ar" ? "إدخال وتوريد بضاعة جديدة" : "Direct Stock In")
+                          }
+                          className="inline-flex h-7 items-center gap-1 rounded-md border border-emerald-500/30 bg-emerald-500/10 px-2 text-xs font-semibold text-emerald-600 dark:text-emerald-300 hover:bg-emerald-500/20 transition disabled:opacity-40"
+                        >
+                          <PackagePlus className="h-3 w-3" /> {lang === "ar" ? "توريد" : "Stock In"}
+                        </button>
+                        <button
+                          onClick={() => setAdjust({ product: r })}
+                          disabled={!warehouseId}
+                          title={
+                            !warehouseId
+                              ? t("inventory.select_warehouse")
+                              : (lang === "ar" ? "تسوية جردية مع الرصيد الفعلي" : "Stock Adjustment")
+                          }
+                          className="inline-flex h-7 items-center gap-1 rounded-md border border-sky-500/30 bg-sky-500/10 px-2 text-xs font-semibold text-sky-600 dark:text-sky-300 hover:bg-sky-500/20 transition disabled:opacity-40"
+                        >
+                          <Scale className="h-3 w-3" /> {lang === "ar" ? "تسوية" : "Adjust"}
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 );
@@ -196,6 +222,19 @@ function InventoryPage() {
           onClose={() => setAdjust(null)}
           onSaved={() => {
             setAdjust(null);
+            qc.invalidateQueries({ queryKey: ["inventory"] });
+            qc.invalidateQueries({ queryKey: ["settlements"] });
+          }}
+        />
+      )}
+
+      {directIn && (
+        <DirectStockInDialog
+          initialProductId={directIn.product?.id}
+          initialWarehouseId={warehouseId || undefined}
+          onClose={() => setDirectIn(null)}
+          onSaved={() => {
+            setDirectIn(null);
             qc.invalidateQueries({ queryKey: ["inventory"] });
             qc.invalidateQueries({ queryKey: ["settlements"] });
           }}
