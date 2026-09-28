@@ -441,10 +441,16 @@ function CatalogTable({ tab }: { tab: Tab }) {
           tab={tab}
           initial={editing}
           onClose={() => setOpen(false)}
-          onSaved={async () => {
+          onSaved={async (savedItem) => {
             setOpen(false);
+            qc.setQueryData<Item[]>(["catalog", tab], (current = []) => {
+              const existingIndex = current.findIndex((item) => item.id === savedItem.id);
+              if (existingIndex === -1) return [...current, savedItem];
+              const next = [...current];
+              next[existingIndex] = savedItem;
+              return next;
+            });
             await qc.invalidateQueries({ queryKey: ["catalog", tab], exact: true });
-            await qc.refetchQueries({ queryKey: ["catalog", tab], exact: true, type: "active" });
             await qc.invalidateQueries({ queryKey: ["products-meta"] });
             await qc.invalidateQueries({ queryKey: ["products"] });
             await qc.invalidateQueries({ queryKey: ["pos-live-meta"] });
@@ -468,8 +474,8 @@ function CatalogDialog({
   tab: Tab;
   initial: Item | null;
   onClose: () => void;
-  onSaved: () => void;
-}) {
+    onSaved: (savedItem: Item) => void | Promise<void>;
+  }) {
   const { t, lang } = useI18n();
   const [form, setForm] = useState({
     name: initial?.name ?? "",
@@ -580,16 +586,16 @@ function CatalogDialog({
               : base;
 
     const q: any = supabase.from(table as "categories");
-    const { error } = initial
-      ? await q.update(payload).eq("id", initial.id)
-      : await q.insert(payload);
+    const result = initial
+      ? await q.update(payload).eq("id", initial.id).select("*").single()
+      : await q.insert(payload).select("*").single();
     setSaving(false);
-    if (error) {
-      toast.error(error.message);
+    if (result.error) {
+      toast.error(result.error.message);
       return;
     }
     toast.success(lang === "ar" ? "تم الحفظ بنجاح" : t("common.saved") || "Saved");
-    onSaved();
+    await onSaved(result.data as Item);
   }
 
   return (
