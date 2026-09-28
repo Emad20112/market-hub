@@ -51,6 +51,12 @@ const en: Dict = {
   "nav.section.relations": "Relations",
   "nav.section.accounting": "Accounting",
   "nav.section.admin": "Administration",
+  "nav.section.command_center": "Command Center",
+  "nav.section.master_data": "Master Data",
+  "nav.section.procurement": "Purchasing & Supply",
+  "nav.section.inventory": "Inventory & Warehouses",
+  "nav.section.sales": "Sales & Collection",
+  "nav.section.finance": "Accounting & Finance",
 
   // Common
   "common.search": "Search anything...",
@@ -634,6 +640,12 @@ const ar: Dict = {
   "nav.section.relations": "العلاقات",
   "nav.section.accounting": "المحاسبة",
   "nav.section.admin": "الإدارة",
+  "nav.section.command_center": "لوحة القيادة",
+  "nav.section.master_data": "البيانات الأساسية",
+  "nav.section.procurement": "الشراء والتوريد",
+  "nav.section.inventory": "المخزون والمستودعات",
+  "nav.section.sales": "البيع والتحصيل",
+  "nav.section.finance": "المحاسبة والمالية",
 
   // عام
   "common.search": "ابحث عن أي شيء...",
