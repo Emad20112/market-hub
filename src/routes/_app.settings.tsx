@@ -1,6 +1,7 @@
 import { getDigitPreference, setDigitPreference, type DigitStyle } from "@/lib/format-preferences";
 import { Hash } from "lucide-react";
 import { SubscriptionSettingsCard } from "@/components/subscription-settings-card";
+import { BackupSettingsCard } from "@/components/backup-settings-card";
 import { PrintSettingsCard } from "@/components/print-settings-card";
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
@@ -146,6 +147,7 @@ function SettingsPage() {
       />
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <SubscriptionSettingsCard />
+        <BackupSettingsCard />
         {/* Industry & Catalog Modules Card */}
         <Card className="lg:col-span-2 border-primary/30 bg-gradient-to-r from-primary/5 via-surface to-surface">
           <CardHeader>
