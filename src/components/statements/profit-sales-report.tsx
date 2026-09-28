@@ -60,7 +60,7 @@ export function ProfitSalesReport({
         .not("status", "in", "(draft,cancelled)");
       let itemsRequest = supabase
         .from("sales_invoice_items")
-        .select("quantity,products(cost_price),sales_invoices!inner(created_at,status)")
+        .select("quantity,product_id,invoice_id,sales_invoices!inner(created_at,status)")
         .not("sales_invoices.status", "in", "(draft,cancelled)");
       let returnsRequest = supabase.from("sales_returns").select("total");
       let expensesRequest = supabase.from("expenses").select("amount");
@@ -104,17 +104,47 @@ export function ProfitSalesReport({
         0,
       );
       const netSales = salesTotal - discounts - returnsTotal;
+
+      /*
+       * Cost comes from the cost actually recorded on each stock issue, not
+       * from `products.cost_price`. The catalogue value is a reference the user
+       * typed once; presenting it as the cost of everything sold invents a
+       * margin. Service lines carry no inventory cost at all.
+       *
+       * Lines whose real cost cannot be established are counted in
+       * `missingCostItems` and left out of the cost total, so the report shows
+       * that it is incomplete instead of guessing.
+       */
+      const soldLines = (items.data ?? []) as unknown as Array<{
+        quantity: number | null;
+        product_id: string | null;
+        invoice_id: string;
+      }>;
+
+      const lineCosts = await Promise.all(
+        soldLines.map(async (line) => {
+          const { data } = await supabase.rpc(
+            "sales_line_cost" as never,
+            {
+              p_item_id: line.product_id,
+              p_invoice_id: line.invoice_id,
+              p_quantity: Number(line.quantity ?? 0),
+              p_line_type: null,
+            } as never,
+          );
+          return data as number | null;
+        }),
+      );
+
       let missingCostItems = 0;
-      const cost = (items.data ?? []).reduce((sum, row) => {
-        const item = row as unknown as {
-          quantity: number | null;
-          products: { cost_price: number | null } | null;
-        };
-        const quantity = Number(item.quantity ?? 0);
-        const unitCost = Number(item.products?.cost_price ?? 0);
-        if (quantity > 0 && unitCost <= 0) missingCostItems += 1;
-        return sum + quantity * unitCost;
-      }, 0);
+      let cost = 0;
+      for (const lineCost of lineCosts) {
+        if (lineCost === null || lineCost === undefined) {
+          missingCostItems += 1;
+        } else {
+          cost += Number(lineCost);
+        }
+      }
       const expenseTotal = (expenses.data ?? []).reduce(
         (sum, row) => sum + Number((row as { amount?: number }).amount ?? 0),
         0,

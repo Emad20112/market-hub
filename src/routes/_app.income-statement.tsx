@@ -40,6 +40,11 @@ function IncomeStatementPage() {
     grossProfit: 0,
     operatingExpenses: 0,
     netProfit: 0,
+    /*
+     * Lines whose real cost could not be established. Reported explicitly so a
+     * reader knows the margin excludes them rather than assuming it is exact.
+     */
+    missingCostLines: 0,
   });
 
   useEffect(() => {
@@ -60,7 +65,7 @@ function IncomeStatementPage() {
         .lte("created_at", toTs),
       supabase
         .from("sales_invoice_items")
-        .select("quantity,unit_price,products(cost_price),sales_invoices!inner(created_at)")
+        .select("quantity,unit_price,product_id,invoice_id,sales_invoices!inner(created_at)")
         .gte("sales_invoices.created_at", fromTs)
         .lte("sales_invoices.created_at", toTs),
       supabase.from("expenses").select("amount").gte("created_at", fromTs).lte("created_at", toTs),
@@ -71,10 +76,46 @@ function IncomeStatementPage() {
     const salesDiscounts = sales.reduce((a, r) => a + Number(r.discount), 0);
     const netRevenue = salesTotal - salesDiscounts;
 
-    const cogs = (itemsRes.data ?? []).reduce((a, it: any) => {
-      const cost = Number(it.products?.cost_price || 0);
-      return a + Number(it.quantity) * cost;
-    }, 0);
+    /*
+     * Cost of goods sold is taken from the real cost recorded on each stock
+     * issue, not from the catalogue's reference cost. Using `cost_price` here
+     * would present an estimate the user typed once as if it were the actual
+     * cost of everything sold — and it would charge a cost to service lines,
+     * which have none.
+     *
+     * Lines whose true cost cannot be established are counted separately as
+     * `missingCostLines`, so the margin is never silently overstated.
+     */
+    const soldLines = (itemsRes.data ?? []) as unknown as Array<{
+      quantity: number | null;
+      product_id: string | null;
+      invoice_id: string;
+    }>;
+
+    const costs = await Promise.all(
+      soldLines.map(async (line) => {
+        const { data } = await supabase.rpc(
+          "sales_line_cost" as never,
+          {
+            p_item_id: line.product_id,
+            p_invoice_id: line.invoice_id,
+            p_quantity: Number(line.quantity ?? 0),
+            p_line_type: null,
+          } as never,
+        );
+        return data as number | null;
+      }),
+    );
+
+    let cogs = 0;
+    let missingCostLines = 0;
+    for (const cost of costs) {
+      if (cost === null || cost === undefined) {
+        missingCostLines += 1;
+      } else {
+        cogs += Number(cost);
+      }
+    }
 
     const grossProfit = netRevenue - cogs;
     const operatingExpenses = (expRes.data ?? []).reduce((a, r) => a + Number(r.amount), 0);
@@ -88,6 +129,7 @@ function IncomeStatementPage() {
       grossProfit,
       operatingExpenses,
       netProfit,
+      missingCostLines,
     });
     setLoading(false);
   }

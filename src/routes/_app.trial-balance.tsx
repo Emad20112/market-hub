@@ -48,7 +48,12 @@ function TrialBalancePage() {
       supabase.from("expenses").select("amount"),
       supabase.from("customers").select("balance"),
       supabase.from("suppliers").select("balance"),
-      supabase.from("inventory").select("quantity,products(cost_price)"),
+      /*
+       * Inventory valuation comes from the owner-aware view, so it counts
+       * company-owned TRACKED goods only — never customer-owned material, an
+       * untracked good, or a service.
+       */
+      supabase.from("inventory_valuation" as never).select("quantity,reference_valuation"),
     ]);
 
     const salesTotal = (sales.data ?? []).reduce((a, r) => a + Number(r.total), 0);
@@ -67,7 +72,7 @@ function TrialBalancePage() {
       0,
     );
     const inventoryValuation = (inv.data ?? []).reduce(
-      (a, i: any) => a + Number(i.quantity) * Number(i.products?.cost_price || 0),
+      (a, row: { reference_valuation?: number | null }) => a + Number(row.reference_valuation ?? 0),
       0,
     );
     const netCashOnHand = Math.max(0, salesPaidCash - purchasePaidCash - expensesTotal);
