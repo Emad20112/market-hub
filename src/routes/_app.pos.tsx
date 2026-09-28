@@ -855,8 +855,10 @@ function POSPage() {
       const num = Number(val);
       if (!isNaN(num)) {
         if (num < total) {
-          // Paid less than total (partial or 0) -> auto switch to credit (آجل)
-          setPaymentMethod("credit");
+          // Paid less than total (partial or 0) -> auto switch to credit only if was cash
+          if (paymentMethod === "cash") {
+            setPaymentMethod("credit");
+          }
         } else if (num >= total && paymentMethod === "credit") {
           // Paid in full or more -> auto switch back to cash (نقدًا)
           setPaymentMethod("cash");

@@ -1,4 +1,4 @@
-import { PrintSettings } from "./types";
+import { InvoiceTemplateId, PrintSettings } from "./types";
 
 export const DEFAULT_PRINT_SETTINGS: PrintSettings = {
   defaultCustomerTemplate: "thermal",
@@ -22,30 +22,75 @@ export const DEFAULT_PRINT_SETTINGS: PrintSettings = {
 
 const STORAGE_KEY = "vortex_print_settings";
 
+// Legacy keys kept in sync for backward compatibility with older screens
+const LEGACY_TEMPLATE_KEY = "pos_default_template";
+const LEGACY_MODE_KEY = "pos_print_mode";
+
+const VALID_TEMPLATES: InvoiceTemplateId[] = ["thermal", "standard", "elegant"];
+const VALID_MODES = ["auto", "ask", "off"] as const;
+
+function readLegacyTemplate(): InvoiceTemplateId | null {
+  const raw = localStorage.getItem(LEGACY_TEMPLATE_KEY);
+  return raw && VALID_TEMPLATES.includes(raw) ? raw : null;
+}
+
+function readLegacyMode(): PrintSettings["printMode"] | null {
+  const raw = localStorage.getItem(LEGACY_MODE_KEY);
+  return raw && (VALID_MODES as readonly string[]).includes(raw)
+    ? (raw as PrintSettings["printMode"])
+    : null;
+}
+
+/**
+ * Keep the derived boolean in sync with the print mode so that the
+ * "auto print customer invoice" switch and the print mode never contradict.
+ */
+function reconcileModeAndAutoPrint(settings: PrintSettings): PrintSettings {
+  if (settings.printMode === "off") {
+    return { ...settings, autoPrintCustomerInvoice: false };
+  }
+  if (settings.printMode === "auto" && settings.autoPrintCustomerInvoice === false) {
+    // User explicitly enabled auto printing via the switch while mode was "ask"
+    return settings;
+  }
+  return settings;
+}
+
 export function getPrintSettings(): PrintSettings {
   if (typeof window === "undefined") {
     return DEFAULT_PRINT_SETTINGS;
   }
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
+    const legacyTemplate = readLegacyTemplate();
+    const legacyMode = readLegacyMode();
+
     if (!raw) {
-      // Fallback to legacy keys if present
-      const legacyTemplate = localStorage.getItem("pos_default_template") || "thermal";
-      const legacyMode = (localStorage.getItem("pos_print_mode") as any) || "ask";
-      return {
+      // No unified settings yet — hydrate from legacy keys if present
+      const hydrated: PrintSettings = {
         ...DEFAULT_PRINT_SETTINGS,
-        defaultCustomerTemplate: legacyTemplate,
-        printMode:
-          legacyMode === "auto" || legacyMode === "ask" || legacyMode === "off"
-            ? legacyMode
-            : "ask",
+        defaultCustomerTemplate: legacyTemplate ?? DEFAULT_PRINT_SETTINGS.defaultCustomerTemplate,
+        printMode: legacyMode ?? DEFAULT_PRINT_SETTINGS.printMode,
       };
+      return reconcileModeAndAutoPrint(hydrated);
     }
-    const parsed = JSON.parse(raw);
-    return {
+
+    const parsed = JSON.parse(raw) as Partial<PrintSettings>;
+    const merged: PrintSettings = {
       ...DEFAULT_PRINT_SETTINGS,
       ...parsed,
     };
+
+    // If the unified store is stale but legacy keys changed elsewhere,
+    // the legacy value wins (it is what older screens write on save).
+    if (legacyTemplate && legacyTemplate !== merged.defaultCustomerTemplate) {
+      merged.defaultCustomerTemplate = legacyTemplate;
+    }
+    if (legacyMode && legacyMode !== merged.printMode) {
+      merged.printMode = legacyMode;
+    }
+
+    return reconcileModeAndAutoPrint(merged);
   } catch (err) {
     console.error("Failed to parse print settings from localStorage:", err);
     return DEFAULT_PRINT_SETTINGS;
@@ -54,17 +99,25 @@ export function getPrintSettings(): PrintSettings {
 
 export function savePrintSettings(settings: Partial<PrintSettings>): PrintSettings {
   const current = getPrintSettings();
-  const updated: PrintSettings = {
+  const merged: PrintSettings = {
     ...current,
     ...settings,
   };
 
+  // Turning the auto-print switch off means the user wants to be asked;
+  // turning print mode to "off" disables auto printing entirely.
+  if (settings.autoPrintCustomerInvoice !== undefined && !("printMode" in settings)) {
+    merged.printMode = settings.autoPrintCustomerInvoice ? "auto" : "ask";
+  }
+
+  const updated = reconcileModeAndAutoPrint(merged);
+
   if (typeof window !== "undefined") {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
-      // Sync legacy keys for backward compatibility
-      localStorage.setItem("pos_default_template", updated.defaultCustomerTemplate);
-      localStorage.setItem("pos_print_mode", updated.printMode);
+      // Sync legacy keys so older screens (settings page, POS) stay consistent
+      localStorage.setItem(LEGACY_TEMPLATE_KEY, updated.defaultCustomerTemplate);
+      localStorage.setItem(LEGACY_MODE_KEY, updated.printMode);
     } catch (err) {
       console.error("Failed to save print settings to localStorage:", err);
     }

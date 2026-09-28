@@ -1848,7 +1848,7 @@ function ProductDialog({
                   value={form.cost_price === "" ? 0 : Number(form.cost_price)}
                   onValueChange={(num) => setForm({ ...form, cost_price: String(num) })}
                   min={0}
-                  currency="﷼"
+                  currencySymbol="﷼"
                   placeholder="0.00"
                 />
               </FormField>
@@ -1862,7 +1862,7 @@ function ProductDialog({
                   value={form.sale_price === "" ? 0 : Number(form.sale_price)}
                   onValueChange={(num) => setForm({ ...form, sale_price: String(num) })}
                   min={0}
-                  currency="﷼"
+                  currencySymbol="﷼"
                   placeholder="0.00"
                 />
               )}

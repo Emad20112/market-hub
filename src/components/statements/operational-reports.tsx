@@ -169,12 +169,10 @@ export function OperationalReports({
     return searchableRows
       .filter(({ row, searchText }) => {
         const matchesQuery = !value || searchText.includes(value);
-        const matchesStatus =
-          statusFilter === "all" ||
-          String(row.status ?? "") === statusFilter ||
-          String(row.return_kind ?? "") === statusFilter;
-        const matchesMethod =
-          methodFilter === "all" || String(row.payment_method ?? "") === methodFilter;
+        const rowStatus = String(row.status ?? row.return_kind ?? "").toLowerCase();
+        const matchesStatus = statusFilter === "all" || rowStatus === statusFilter.toLowerCase();
+        const rowMethod = String(row.payment_method ?? "").toLowerCase();
+        const matchesMethod = methodFilter === "all" || rowMethod === methodFilter.toLowerCase();
         return matchesQuery && matchesStatus && matchesMethod;
       })
       .map(({ row }) => row);
@@ -209,7 +207,9 @@ export function OperationalReports({
   const outputHeaders = columnDefinitions
     .filter((column) => visibleColumns[column.key])
     .map((column) => column.label);
-  const outputRows = filtered.map((row) => reportOutputRow(row, type, ar, visibleColumns));
+  const outputRows = filtered.map((row) =>
+    reportOutputRow(row, type, ar, visibleColumns, columnDefinitions),
+  );
   const outputTitle = title;
 
   return (
@@ -240,6 +240,9 @@ export function OperationalReports({
                 <>
                   <option value="paid">{ar ? "مدفوعة" : "Paid"}</option>
                   <option value="pending">{ar ? "معلقة" : "Pending"}</option>
+                  <option value="partial">{ar ? "مدفوعة جزئياً" : "Partially paid"}</option>
+                  <option value="unpaid">{ar ? "غير مدفوعة" : "Unpaid"}</option>
+                  <option value="cancelled">{ar ? "ملغاة" : "Cancelled"}</option>
                 </>
               )}
             </select>
@@ -254,6 +257,7 @@ export function OperationalReports({
               <option value="cash">{ar ? "نقدي" : "Cash"}</option>
               <option value="card">{ar ? "بطاقة" : "Card"}</option>
               <option value="bank_transfer">{ar ? "تحويل بنكي" : "Bank transfer"}</option>
+              {type === "sales-invoices" && <option value="credit">{ar ? "آجل" : "Credit"}</option>}
             </select>
           )}
           <ReportFilterMenu
@@ -419,6 +423,7 @@ function reportColumns(type: OperationalReportsProps["type"], ar: boolean): Repo
       { key: "reference", label: ar ? "رقم الفاتورة" : "Invoice" },
       { key: "date", label: ar ? "التاريخ" : "Date" },
       { key: "description", label: ar ? "العميل" : "Customer" },
+      { key: "paymentMethod", label: ar ? "طريقة الدفع" : "Method" },
       { key: "debit", label: ar ? "الإجمالي" : "Total" },
       { key: "credit", label: ar ? "المدفوع" : "Paid" },
       { key: "balance", label: ar ? "المتبقي" : "Remaining" },
@@ -456,6 +461,32 @@ function visibleColumnCount(columns: ReportColumn[], visible: Record<string, boo
   return Math.max(columns.filter((column) => visible[column.key] !== false).length, 1);
 }
 
+function formatPaymentMethod(value: unknown, ar: boolean): string {
+  const m = String(value ?? "")
+    .trim()
+    .toLowerCase();
+  if (!m || m === "—") return "—";
+  if (m === "cash") return ar ? "نقدي" : "Cash";
+  if (m === "card") return ar ? "بطاقة" : "Card";
+  if (m === "bank_transfer" || m === "bank") return ar ? "تحويل بنكي" : "Bank transfer";
+  if (m === "credit") return ar ? "آجل" : "Credit";
+  if (m === "split") return ar ? "دفع مجزأ" : "Split payment";
+  return m;
+}
+
+function formatStatus(value: unknown, ar: boolean): string {
+  const s = String(value ?? "")
+    .trim()
+    .toLowerCase();
+  if (!s || s === "—") return "—";
+  if (s === "paid") return ar ? "مدفوعة" : "Paid";
+  if (s === "pending") return ar ? "معلقة" : "Pending";
+  if (s === "partial") return ar ? "مدفوعة جزئياً" : "Partial";
+  if (s === "unpaid") return ar ? "غير مدفوعة" : "Unpaid";
+  if (s === "cancelled") return ar ? "ملغاة" : "Cancelled";
+  return s;
+}
+
 function ReportRow({
   row,
   type,
@@ -488,6 +519,13 @@ function ReportRow({
         {show("reference") && <Cell mono>{String(row.invoice_number ?? "—")}</Cell>}
         {show("date") && <Cell>{formatDate(row.created_at, ar)}</Cell>}
         {show("description") && <Cell>{relation(row.customers)}</Cell>}
+        {show("paymentMethod") && (
+          <Cell>
+            <span className="inline-flex rounded bg-primary/10 px-1.5 py-0.5 text-[11px] font-medium text-primary">
+              {formatPaymentMethod(row.payment_method, ar)}
+            </span>
+          </Cell>
+        )}
         {show("debit") && (
           <Cell end mono>
             {money(total)}
@@ -503,7 +541,7 @@ function ReportRow({
             {money(total - paid)}
           </Cell>
         )}
-        {show("kind") && <Cell>{String(row.status ?? "—")}</Cell>}
+        {show("kind") && <Cell>{formatStatus(row.status, ar)}</Cell>}
       </tr>
     );
   }
@@ -522,7 +560,7 @@ function ReportRow({
             {money(Number(row.amount ?? 0))}
           </Cell>
         )}
-        {show("paymentMethod") && <Cell>{String(row.payment_method ?? "—")}</Cell>}
+        {show("paymentMethod") && <Cell>{formatPaymentMethod(row.payment_method, ar)}</Cell>}
       </tr>
     );
   if (type === "returns")
@@ -591,10 +629,11 @@ function detailValues(
         [ar ? "رقم الفاتورة" : "Invoice", String(row.invoice_number ?? "—")],
         [ar ? "التاريخ" : "Date", formatDate(row.created_at, ar)],
         [ar ? "العميل" : "Customer", relation(row.customers, ar)],
+        [ar ? "طريقة الدفع" : "Payment Method", formatPaymentMethod(row.payment_method, ar)],
         [ar ? "الإجمالي" : "Total", money(Number(row.total ?? 0))],
         [ar ? "المدفوع" : "Paid", money(Number(row.paid ?? 0))],
         [ar ? "المتبقي" : "Remaining", money(Number(row.total ?? 0) - Number(row.paid ?? 0))],
-        [ar ? "الحالة" : "Status", String(row.status ?? "—")],
+        [ar ? "الحالة" : "Status", formatStatus(row.status, ar)],
       ]
     : type === "expenses"
       ? [
@@ -602,7 +641,7 @@ function detailValues(
           [ar ? "التصنيف" : "Category", relation(row.expense_categories, ar)],
           [ar ? "البيان" : "Note", String(row.note ?? "—")],
           [ar ? "المبلغ" : "Amount", money(Number(row.amount ?? 0))],
-          [ar ? "طريقة الدفع" : "Method", String(row.payment_method ?? "—")],
+          [ar ? "طريقة الدفع" : "Method", formatPaymentMethod(row.payment_method, ar)],
         ]
       : [
           [ar ? "التاريخ" : "Date", formatDate(row.created_at, ar)],
@@ -619,8 +658,8 @@ function reportOutputRow(
   type: OperationalReportsProps["type"],
   ar: boolean,
   visible: Record<string, boolean>,
+  columns: ReportColumn[],
 ): string[] {
-  const show = (key: StatementFieldKey) => visible[key] !== false;
   const relation = (value: unknown, arabic = false) => {
     const item = value as AnyRow | null;
     return arabic
@@ -645,12 +684,16 @@ function reportOutputRow(
     debit: money(Number(row.total ?? row.amount ?? row.quantity ?? 0)),
     credit: money(Number(row.paid ?? row.unit_cost ?? 0)),
     balance: money(Number(row.total ?? 0) - Number(row.paid ?? 0)),
-    kind: String(row.status ?? row.movement_type ?? row.return_kind ?? "—"),
-    paymentMethod: String(row.payment_method ?? row.reference ?? "—"),
+    kind:
+      type === "sales-invoices"
+        ? formatStatus(row.status, ar)
+        : String(row.status ?? row.movement_type ?? row.return_kind ?? "—"),
+    paymentMethod:
+      type === "sales-invoices" || type === "expenses"
+        ? formatPaymentMethod(row.payment_method, ar)
+        : String(row.payment_method ?? row.reference ?? "—"),
   };
-  return ["reference", "date", "description", "debit", "credit", "balance", "kind", "paymentMethod"]
-    .filter((key) => show(key as StatementFieldKey))
-    .map((key) => values[key]);
+  return columns.filter((col) => visible[col.key] !== false).map((col) => values[col.key] ?? "—");
 }
 
 function Cell({
