@@ -7,3 +7,4 @@
 export * from "./policy";
 export * from "./safety";
 export * from "./stock-operations";
+export * from "./user-policy-preferences";
