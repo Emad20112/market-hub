@@ -13,6 +13,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useI18n } from "@/lib/i18n";
 import { useCatalogModules } from "@/lib/catalog-modules";
 import { CatalogModulesDialog } from "@/components/catalog-modules-dialog";
+import { GuidedItemDialog } from "@/components/products/guided-item-dialog";
 import { BarcodeScanner } from "@/components/barcode-scanner";
 import { useKeyboardWedge } from "@/hooks/use-keyboard-wedge";
 import {
@@ -1262,36 +1263,63 @@ function ProductsPage() {
       )}
 
       {open && (
-        <ProductDialog
-          initial={editing}
-          initialBarcode={prefillBarcode}
-          canViewCost={canViewCost}
-          meta={
-            meta ?? {
-              categories: [],
-              brands: [],
-              units: [],
-              origins: [],
-              qualities: [],
-              makes: [],
-              models: [],
-            }
-          }
-          onClose={() => {
-            setOpen(false);
-            setPrefillBarcode(undefined);
-          }}
-          onSaved={() => {
-            setOpen(false);
-            setPrefillBarcode(undefined);
-            // Mark cached pages stale without tearing down the visible list.
-            // Realtime applies the row-level event immediately, and navigation
-            // performs the eventual background refresh.
-            qc.invalidateQueries({ queryKey: QUERY_KEYS.products, refetchType: "none" });
-            qc.invalidateQueries({ queryKey: ["products", "count"] });
-            qc.invalidateQueries({ queryKey: ["products-meta"] });
-          }}
-        />
+        <>
+          {editing ? (
+            <ProductDialog
+              initial={editing}
+              initialBarcode={prefillBarcode}
+              canViewCost={canViewCost}
+              meta={
+                meta ?? {
+                  categories: [],
+                  brands: [],
+                  units: [],
+                  origins: [],
+                  qualities: [],
+                  makes: [],
+                  models: [],
+                }
+              }
+              onClose={() => {
+                setOpen(false);
+                setPrefillBarcode(undefined);
+              }}
+              onSaved={() => {
+                setOpen(false);
+                setPrefillBarcode(undefined);
+                // Mark cached pages stale without tearing down the visible list.
+                // Realtime applies the row-level event immediately, and navigation
+                // performs the eventual background refresh.
+                qc.invalidateQueries({ queryKey: QUERY_KEYS.products, refetchType: "none" });
+                qc.invalidateQueries({ queryKey: ["products", "count"] });
+                qc.invalidateQueries({ queryKey: ["products-meta"] });
+              }}
+            />
+          ) : (
+            /*
+             * Creating a NEW item goes through the guided flow: three plain
+             * questions instead of the full editor, so the user is never asked
+             * for a warehouse or an opening balance on an item that will not
+             * have one. Editing an existing item keeps the full editor, because
+             * at that point the item already has a shape to inspect.
+             */
+            <GuidedItemDialog
+              units={meta?.units ?? []}
+              categories={meta?.categories ?? []}
+              onClose={() => {
+                setOpen(false);
+                setPrefillBarcode(undefined);
+              }}
+              onCreated={() => {
+                setOpen(false);
+                setPrefillBarcode(undefined);
+                qc.invalidateQueries({ queryKey: QUERY_KEYS.products, refetchType: "none" });
+                qc.invalidateQueries({ queryKey: ["products", "count"] });
+                qc.invalidateQueries({ queryKey: ["products-meta"] });
+              }}
+            />
+          )}
+        </>
       )}
 
       <ConfirmDialog
