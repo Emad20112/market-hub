@@ -23,6 +23,7 @@ import {
   Banknote,
   Building2,
   Clock,
+  Wallet,
   Printer,
   Receipt,
   FileText,
@@ -235,9 +236,9 @@ function POSPage() {
   const [cart, setCart] = useState<CartLine[]>([]);
   const [paid, setPaid] = useState<string>("");
   const [discount, setDiscount] = useState<string>("");
-  const [paymentMethod, setPaymentMethod] = useState<"cash" | "card" | "bank_transfer" | "credit">(
-    "cash",
-  );
+  const [paymentMethod, setPaymentMethod] = useState<
+    "cash" | "card" | "bank_transfer" | "credit" | "mobile_money"
+  >("cash");
   const [note, setNote] = useState("");
   const [saleDate, setSaleDate] = useState(() => new Date().toISOString().slice(0, 10));
 
@@ -790,6 +791,11 @@ function POSPage() {
   const splitCardN = Math.max(0, Number(splitCard || 0));
   const splitBankN = Math.max(0, Number(splitBank || 0));
   const splitPaidTotal = Math.round((splitCashN + splitCardN + splitBankN) * 100) / 100;
+  // عدد وسائل الدفع غير الصفرية في الدفع المجزأ:
+  //  0 -> لم يدفع شيء،  1 -> وسيلة واحدة (تُسجل بوسيلتها الحقيقية)،  2+ -> دفع مجزأ حقيقي
+  const splitMethodCount =
+    (splitCashN > 0 ? 1 : 0) + (splitCardN > 0 ? 1 : 0) + (splitBankN > 0 ? 1 : 0);
+  const isMultiMethodSplit = isSplitPayment && splitMethodCount > 1;
 
   // Auto-Paid & Smart Payment Logic
   const isPaidEmpty = paid.trim() === "";
@@ -798,42 +804,38 @@ function POSPage() {
   const isOverpaid = isSplitPayment ? splitPaidTotal > total : !isPaidEmpty && Number(paid) > total;
   const remainingDebt = Math.max(0, Math.round((total - effectivePaid) * 100) / 100);
 
+  //
+  // وسيلة الدفع يختارها الكاشير ولا تُستبدل تلقائيًا:
+  //  * لا تُحوَّل "بطاقة" أو "تحويل بنكي" أو "محفظة" إلى "نقدي" إطلاقًا.
+  //  * التبديل التلقائي يقتصر على الحالتين المنطقيتين:
+  //      - أصبح المدفوع أقل من الإجمالي بينما الوسيلة "نقدي"  -> "آجل"
+  //      - أصبح المدفوع مساويًا للإجمالي بينما الوسيلة "آجل" -> "نقدي"
+  function syncMethodWithPaid(num: number) {
+    setPaymentMethod((current) => {
+      if (current === "cash" && num < total) return "credit";
+      if (current === "credit" && num >= total) return "cash";
+      return current;
+    });
+  }
+
   // Handle smart payment method switching on paid input change
   function handlePaidChange(val: string) {
     setPaid(val);
     if (val.trim() === "") {
-      // Empty -> auto full payment -> switch to cash if was credit
-      if (paymentMethod === "credit") {
-        setPaymentMethod("cash");
-      }
-    } else {
-      const num = Number(val);
-      if (!isNaN(num)) {
-        if (num < total) {
-          // Paid less than total (partial or 0) -> auto switch to credit only if was cash
-          if (paymentMethod === "cash") {
-            setPaymentMethod("credit");
-          }
-        } else if (num >= total && paymentMethod === "credit") {
-          // Paid in full or more -> auto switch back to cash (نقدًا)
-          setPaymentMethod("cash");
-        }
-      }
+      // فارغ = دفع كامل بالمبلغ الافتراضي -> تعود "آجل" إلى "نقدي"
+      setPaymentMethod((current) => (current === "credit" ? "cash" : current));
+      return;
     }
+    const num = Number(val);
+    if (!Number.isNaN(num)) syncMethodWithPaid(num);
   }
 
   // When total changes and user has entered an explicit amount in paid:
   useEffect(() => {
-    if (paid.trim() !== "") {
-      const num = Number(paid);
-      if (!isNaN(num)) {
-        if (num < total && paymentMethod === "cash") {
-          setPaymentMethod("credit");
-        } else if (num >= total && paymentMethod === "credit") {
-          setPaymentMethod("cash");
-        }
-      }
-    }
+    if (paid.trim() === "") return;
+    const num = Number(paid);
+    if (Number.isNaN(num)) return;
+    syncMethodWithPaid(num);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- مقصود: يستجيب فقط لتغيّر total حتى لا يعاد ضبط وسيلة الدفع التي يختارها المستخدم
   }, [total]);
 
@@ -899,16 +901,42 @@ function POSPage() {
           : "Select a customer so the unpaid balance can be recorded as debt",
       );
     }
+    if (isSplitPayment && splitMethodCount === 0) {
+      return toast.error(
+        lang === "ar"
+          ? "يرجى توزيع مبلغ الدفع على وسيلة واحدة على الأقل"
+          : "Please allocate the payment to at least one method",
+      );
+    }
 
     setLoading(true);
     try {
-      const finalMethod = isSplitPayment
-        ? splitCardN > 0 && splitCashN === 0 && splitBankN === 0
-          ? "card"
-          : splitBankN > 0 && splitCashN === 0 && splitCardN === 0
-            ? "bank_transfer"
-            : "cash"
+      // وسيلة الدفع المحفوظة على الفاتورة:
+      //  * وسيلة واحدة -> تُسجل باسمها الحقيقي (نقد/بطاقة/بنك/آجل)
+      //  * أكثر من وسيلة -> 'split' كي تبقى قابلة للفلترة والتقارير
+      const singleSplitMethod =
+        splitMethodCount === 1
+          ? splitCashN > 0
+            ? "cash"
+            : splitCardN > 0
+              ? "card"
+              : "bank_transfer"
+          : null;
+      const finalMethod: string = isSplitPayment
+        ? isMultiMethodSplit
+          ? "split"
+          : (singleSplitMethod ?? "cash")
         : paymentMethod;
+
+      // التوزيع المالي للدفع المجزأ يُرسل إلى قاعدة البيانات عبر customer_payment_splits
+      // ليُسجّل كمدفوعات فعلية موثقة بدل النص الحر في الملاحظات.
+      const paymentSplits: Array<{ method: string; amount: number }> = isSplitPayment
+        ? [
+            splitCashN > 0 ? { method: "cash", amount: splitCashN } : null,
+            splitCardN > 0 ? { method: "card", amount: splitCardN } : null,
+            splitBankN > 0 ? { method: "bank_transfer", amount: splitBankN } : null,
+          ].filter((part): part is { method: string; amount: number } => part !== null)
+        : [];
 
       let splitNote = "";
       if (isSplitPayment) {
@@ -931,11 +959,12 @@ function POSPage() {
       const { data, error } = await supabase.rpc("create_sale", {
         _warehouse_id: warehouseId,
         _customer_id: (customerId || null) as any,
-        _payment_method: finalMethod,
+        _payment_method: finalMethod as any,
         _paid: Math.min(Math.max(effectivePaid, 0), total),
         _discount: discountN,
         _note: finalNote as any,
         _sale_date: saleDate,
+        _payment_splits: paymentSplits as any,
         _items: cart.map((l) => ({
           product_id: l.product_id,
           quantity: l.quantity,
@@ -977,7 +1006,9 @@ function POSPage() {
                 card: "بطاقة",
                 bank_transfer: "تحويل بنكي",
                 credit: "آجل",
-              }[finalMethod]
+                split: "دفع مجزأ",
+                mobile_money: "محفظة إلكترونية",
+              }[finalMethod] ?? finalMethod
             : finalMethod.replace("_", " "),
         status:
           remainingDebt > 0
@@ -1755,8 +1786,8 @@ function POSPage() {
 
             {/* Payment Method Switcher: Cash | Card | Bank | Credit | Split */}
             <div className="space-y-1.5">
-              <div className="grid grid-cols-5 gap-1">
-                {(["cash", "card", "bank_transfer", "credit"] as const).map((m) => (
+              <div className="grid grid-cols-6 gap-1">
+                {(["cash", "card", "bank_transfer", "mobile_money", "credit"] as const).map((m) => (
                   <button
                     key={m}
                     type="button"
@@ -1773,6 +1804,7 @@ function POSPage() {
                     {m === "cash" && <Banknote className="h-3 w-3" />}
                     {m === "card" && <CreditCard className="h-3 w-3" />}
                     {m === "bank_transfer" && <Building2 className="h-3 w-3" />}
+                    {m === "mobile_money" && <Wallet className="h-3 w-3" />}
                     {m === "credit" && <Clock className="h-3 w-3" />}
                     <span className="truncate">{t(`pos.pm.${m}`)}</span>
                   </button>

@@ -127,6 +127,7 @@ export function StatementEntryDetails({ entry, entityType, onClose }: StatementE
   const items = metaItems.length > 0 ? metaItems : fallbackItems;
   const note = (entry?.meta?.note as string) || null;
   const paymentMethod = (entry?.meta?.paymentMethod as string) || null;
+  const paymentBreakdown = (entry?.meta?.paymentBreakdown as string) || null;
   const status = (entry?.meta?.status as string) || null;
 
   return (
@@ -181,6 +182,12 @@ export function StatementEntryDetails({ entry, entityType, onClose }: StatementE
                 />
                 {paymentMethod && (
                   <Row label={ar ? "طريقة الدفع" : "Payment method"} value={paymentMethod} />
+                )}
+                {paymentBreakdown && (
+                  <Row
+                    label={ar ? "تفاصيل الدفع المجزأ" : "Split breakdown"}
+                    value={paymentBreakdown}
+                  />
                 )}
                 {status && <Row label={ar ? "حالة المستند" : "Document status"} value={status} />}
                 {(entry.description || note) && (

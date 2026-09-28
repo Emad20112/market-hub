@@ -223,6 +223,9 @@ function AdjustDialog({
   const [qty, setQty] = useState("1");
   const [unitCost, setUnitCost] = useState("0");
   const [note, setNote] = useState("");
+  // سبب التسوية إلزامي — يُخزّن في عمود adjustment_reason المخصص للتدقيق
+  const [reason, setReason] = useState("");
+  const [reasonError, setReasonError] = useState(false);
   const [saving, setSaving] = useState(false);
 
   async function submit(e: React.FormEvent) {
@@ -230,6 +233,11 @@ function AdjustDialog({
     const q = Number(qty);
     if (!q || q <= 0) {
       toast.error(t("inventory.qty_required"));
+      return;
+    }
+    if (!reason) {
+      setReasonError(true);
+      toast.error(t("inventory.reason_required"));
       return;
     }
     setSaving(true);
@@ -262,8 +270,9 @@ function AdjustDialog({
       quantity: signed,
       unit_cost: Number(unitCost) || 0,
       note: note || null,
+      adjustment_reason: reason,
       created_by: user?.id ?? null,
-    });
+    } as any);
     if (mvErr) {
       toast.error(mvErr.message);
       setSaving(false);
@@ -354,6 +363,34 @@ function AdjustDialog({
 
           <label className="flex flex-col gap-1.5">
             <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+              {t("inventory.reason_label")}
+            </span>
+            <select
+              value={reason}
+              onChange={(e) => {
+                setReason(e.target.value);
+                if (e.target.value) setReasonError(false);
+              }}
+              aria-invalid={reasonError}
+              className={`h-9 rounded-md border bg-surface px-3 text-sm outline-none ${reasonError ? "border-destructive text-destructive" : "border-border"}`}
+            >
+              <option value="">{t("inventory.reason_select")}</option>
+              <option value="damaged">{t("inventory.reason.damaged")}</option>
+              <option value="expiry">{t("inventory.reason.expiry")}</option>
+              <option value="shortfall">{t("inventory.reason.shortfall")}</option>
+              <option value="surplus">{t("inventory.reason.surplus")}</option>
+              <option value="stocktake">{t("inventory.reason.stocktake")}</option>
+              <option value="other">{t("inventory.reason.other")}</option>
+            </select>
+            {reasonError && (
+              <span className="text-[11px] font-medium text-destructive">
+                {t("inventory.reason_required")}
+              </span>
+            )}
+          </label>
+
+          <label className="flex flex-col gap-1.5">
+            <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
               {t("common.note")}
             </span>
             <textarea
@@ -385,7 +422,7 @@ function AdjustDialog({
           </button>
           <button
             type="submit"
-            disabled={saving}
+            disabled={saving || !reason}
             className="flex h-9 items-center rounded-md bg-primary px-4 text-xs font-medium text-primary-foreground hover:opacity-90 transition disabled:opacity-50"
           >
             {saving ? t("common.saving") : t("inventory.apply")}

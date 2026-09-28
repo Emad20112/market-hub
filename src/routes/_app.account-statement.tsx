@@ -728,33 +728,28 @@ function AccountStatementPage() {
                               break;
                             case "paymentMethod": {
                               const rawPm = String(row.meta?.paymentMethod ?? "").trim().toLowerCase();
-                              const pmLabel =
-                                rawPm === "cash"
-                                  ? ar
-                                    ? "نقدي"
-                                    : "Cash"
-                                  : rawPm === "card"
-                                    ? ar
-                                      ? "بطاقة"
-                                      : "Card"
-                                    : rawPm === "bank_transfer" || rawPm === "bank"
-                                      ? ar
-                                        ? "تحويل بنكي"
-                                        : "Bank transfer"
-                                      : rawPm === "credit"
-                                        ? ar
-                                          ? "آجل"
-                                          : "Credit"
-                                        : rawPm === "split"
-                                          ? ar
-                                            ? "دفع مجزأ"
-                                            : "Split payment"
-                                          : rawPm || "—";
+                              const breakdown = String(row.meta?.paymentBreakdown ?? "").trim();
+                              const labels: Record<string, string> = {
+                                cash: ar ? "نقدي" : "Cash",
+                                card: ar ? "بطاقة" : "Card",
+                                bank_transfer: ar ? "تحويل بنكي" : "Bank transfer",
+                                bank: ar ? "تحويل بنكي" : "Bank transfer",
+                                mobile_money: ar ? "محفظة إلكترونية" : "Mobile money",
+                                credit: ar ? "آجل" : "Credit",
+                                split: ar ? "دفع مجزأ" : "Split payment",
+                              };
+                              const pmLabel = labels[rawPm] ?? (rawPm || "—");
                               content = (
                                 <span
                                   className={`text-xs ${rawPm ? "font-medium text-foreground" : "text-muted-foreground"}`}
+                                  title={breakdown || undefined}
                                 >
                                   {pmLabel}
+                                  {breakdown && (
+                                    <span className="block text-[10px] font-normal text-muted-foreground">
+                                      {breakdown}
+                                    </span>
+                                  )}
                                 </span>
                               );
                               break;

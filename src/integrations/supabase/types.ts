@@ -142,6 +142,42 @@ export type Database = {
         };
         Relationships: [];
       };
+      customer_payment_splits: {
+        Row: {
+          amount: number;
+          created_at: string;
+          created_by: string | null;
+          customer_id: string | null;
+          id: string;
+          invoice_id: string | null;
+          method: Database["public"]["Enums"]["payment_method"];
+          occurred_at: string;
+          payment_id: string | null;
+        };
+        Insert: {
+          amount: number;
+          created_at?: string;
+          created_by?: string | null;
+          customer_id?: string | null;
+          id?: string;
+          invoice_id?: string | null;
+          method: Database["public"]["Enums"]["payment_method"];
+          occurred_at?: string;
+          payment_id?: string | null;
+        };
+        Update: {
+          amount?: number;
+          created_at?: string;
+          created_by?: string | null;
+          customer_id?: string | null;
+          id?: string;
+          invoice_id?: string | null;
+          method?: Database["public"]["Enums"]["payment_method"];
+          occurred_at?: string;
+          payment_id?: string | null;
+        };
+        Relationships: [];
+      };
       customer_payments: {
         Row: {
           amount: number;
@@ -1024,6 +1060,7 @@ export type Database = {
       };
       stock_movements: {
         Row: {
+          adjustment_reason: string | null;
           created_at: string;
           created_by: string | null;
           id: string;
@@ -1038,6 +1075,7 @@ export type Database = {
           warehouse_id: string;
         };
         Insert: {
+          adjustment_reason?: string | null;
           created_at?: string;
           created_by?: string | null;
           id?: string;
@@ -1052,6 +1090,7 @@ export type Database = {
           warehouse_id: string;
         };
         Update: {
+          adjustment_reason?: string | null;
           created_at?: string;
           created_by?: string | null;
           id?: string;
@@ -1395,7 +1434,7 @@ export type Database = {
         | "opening"
         | "purchase_return"
         | "sale_return";
-      payment_method: "cash" | "card" | "bank_transfer" | "credit" | "mobile_money";
+      payment_method: "cash" | "card" | "bank_transfer" | "credit" | "mobile_money" | "split";
     };
     CompositeTypes: {
       [_ in never]: never;
@@ -1541,7 +1580,7 @@ export const Constants = {
         "purchase_return",
         "sale_return",
       ],
-      payment_method: ["cash", "card", "bank_transfer", "credit", "mobile_money"],
+      payment_method: ["cash", "card", "bank_transfer", "credit", "mobile_money", "split"],
     },
   },
 } as const;
