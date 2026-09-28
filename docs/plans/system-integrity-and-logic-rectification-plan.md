@@ -106,40 +106,44 @@
 ## 4. خطة العمل التنفيذية المرحلية (Action Plan)
 
 ### المرحلة الأولى: الحل الفوري لخلل وسائل الدفع وفلاتر الكشوفات (Data Integrity & Visibility)
-- [ ] **1.1 تحديث [operational-reports.tsx](file:///H:/em/market-hub/src/components/statements/operational-reports.tsx):**
-  - إضافة عمود `paymentMethod` إلى `reportColumns` المخصصة لـ `sales-invoices`.
-  - ترجمة قيم طرق الدفع للعربية (`cash` -> نقدي، `card` -> بطاقة، `bank_transfer` -> تحويل بنكي، `credit` -> آجل).
-  - إضافة طريقة الدفع إلى نافذة التفاصيل `detailValues` وقائمة التصدير `reportOutputRow`.
-- [ ] **1.2 تحديث [customer.ts](file:///H:/em/market-hub/src/lib/statements/adapters/customer.ts):**
-  - جلب `payment_method` ضمن استعلام `sales_invoices` في `enrichReferences`.
-  - تعيين وسيلة الدفع في حقل `meta.paymentMethod` لقيود فواتير المبيعات.
-- [ ] **1.3 تحديث [pos.tsx](file:///H:/em/market-hub/src/routes/_app.pos.tsx):**
-  - تصحيح منطق `handlePaidChange` حتى لا يلغي اختيار `card` أو `bank_transfer` عند كتابة المبلغ.
+- [x] **1.1 تحديث [operational-reports.tsx](file:///H:/em/market-hub/src/components/statements/operational-reports.tsx):**
+  - إضافة عمود `paymentMethod` إلى `reportColumns` المخصصة لـ `sales-invoices`. *(تم — كان مبنيًا سابقًا)*
+  - ترجمة قيم طرق الدفع للعربية (`cash` -> نقدي، `card` -> بطاقة، `bank_transfer` -> تحويل بنكي، `credit` -> آجل، `mobile_money` -> محفظة إلكترونية، `split` -> دفع مجزأ). *(تم)*
+  - إضافة طريقة الدفع إلى نافذة التفاصيل `detailValues` وقائمة التصدير `reportOutputRow`. *(تم — وتُعرض الآن تفاصيل الدفع المجزأ الفعلية من `customer_payment_splits` بدل نص الملاحظات)*
+  - فلترة "دفع مجزأ" تعتمد الآن على بنود الدفع الحقيقية، كما تُركت قراءة نص الملاحظة كتوافق خلفي للفواتير القديمة.
+- [x] **1.2 تحديث [customer.ts](file:///H:/em/market-hub/src/lib/statements/adapters/customer.ts):**
+  - جلب `payment_method` ضمن استعلام `sales_invoices` في `enrichReferences`. *(تم — كان مبنيًا سابقًا)*
+  - تعيين وسيلة الدفع في حقل `meta.paymentMethod` لقيود فواتير المبيعات. *(تم)*
+  - **إضافة:** جلب `customer_payment_splits(method, amount)` وتعيين التفصيل في `meta.paymentBreakdown`، وعرضه في كشف الحساب وفي لوحة تفاصيل القيد.
+- [x] **1.3 تحديث [pos.tsx](file:///H:/em/market-hub/src/routes/_app.pos.tsx):**
+  - تصحيح منطق `handlePaidChange` حتى لا يلغي اختيار `card` أو `bank_transfer` عند كتابة المبلغ. *(تم)*
+  - **إضافة:** السماح بـ `mobile_money` كوسيلة دفع، والتوحيد عبر دالة `syncMethodWithPaid` التي تُبدّل فقط بين `cash` و `credit`.
 
 ---
 
 ### المرحلة الثانية: تصحيح وتوحيد الدفع المجزأ (Split Payment Processing)
-- [ ] **2.1** دعم تمييز الدفع المجزأ: إذا سدد العميل بأكثر من وسيلة، تسجل الفاتورة إما بقيمة `split`، أو يتم توليد سجلات مدفوعات فرعية مفصلة في `customer_payments`.
-- [ ] **2.2** تحديث فلاتر التقارير لتدعم فلترة فواتير "الدفع المجزأ" أو إظهار توزيع المدفوعات في نافذة تفاصيل الفاتورة.
+- [x] **2.1** دعم تمييز الدفع المجزأ: أُضيفت قيمة `split` إلى `public.payment_method`، وأُنشئ جدول `public.customer_payment_splits` لتسجيل بند لكل وسيلة دفع، وأُضيفت نسخة `create_sale` ذات 9 وسائط تستقبل `_payment_splits` وتكتب البنود داخل نفس المعاملة. *(تم — الهجرة `20260928000000_split_payment_and_payment_method_integrity.sql`)*
+  - ضمان صدق البيانات: وسيلة واحدة -> تُسجل باسمها الحقيقي؛ أكثر من وسيلة -> `split`؛ ويُرفض الحفظ إذا لم يساوِ مجموع البنود المبلغ المدفوع.
+- [x] **2.2** تحديث فلاتر التقارير لتدعم فلترة فواتير "الدفع المجزأ"، وإظهار توزيع المدفوعات في نافذة تفاصيل الفاتورة. *(تم)*
 
 ---
 
 ### المرحلة الثالثة: ضبط منطق المخزون والتحويلات والتسويات
-- [ ] **3.1 تحديث [transfers.tsx](file:///H:/em/market-hub/src/routes/_app.transfers.tsx):**
-  - جلب الرصيد المتوفر في المستودع المصدر عند اختيار الصنف.
-  - تعطيل زر الإضافة وتنبيه المستخدم إذا تجاوزت الكمية المدخلة رصيد المستودع.
-- [ ] **3.2 تحديث [inventory.tsx](file:///H:/em/market-hub/src/routes/_app.inventory.tsx):**
-  - اشتراط اختيار سبب التسوية في `AdjustDialog` (تالف / عجز / فائض / جرد دوري).
-  - تمرير السبب إلى `stock_movements.note` وملاحظات التسوية.
+- [x] **3.1 تحديث [transfers.tsx](file:///H:/em/market-hub/src/routes/_app.transfers.tsx):**
+  - جلب الرصيد المتوفر في المستودع المصدر عند اختيار الصنف. *(تم — عمود "المتاح بالمصدر" لكل سطر)*
+  - تعطيل زر الإضافة (الحفظ) وتنبيه المستخدم إذا تجاوزت الكمية المدخلة رصيد المستودع. *(تم — مع تميز السطر المخالف ورسالة "الرصيد المتوفر N فقط")*
+- [x] **3.2 تحديث [inventory.tsx](file:///H:/em/market-hub/src/routes/_app.inventory.tsx):**
+  - اشتراط اختيار سبب التسوية في `AdjustDialog` (تالف / انتهاء صلاحية / عجز جرد / فائض جرد / جرد دوري / أخرى). *(تم)*
+  - تمرير السبب إلى `stock_movements.adjustment_reason` — عمود جديد مع قيد `CHECK` على قاعدة البيانات يمنع أي تسوية بلا سبب. *(تم)*
 
 ---
 
 ### المرحلة الرابعة: تطهير شاشات الكشوفات من الفلاتر والميزات الوهمية
-- [ ] **4.1 ضبط الفلاتر الديناميكية في [operational-reports.tsx](file:///H:/em/market-hub/src/components/statements/operational-reports.tsx):**
-  - إخفاء فلتر وسائل الدفع تماماً في تقارير: حركة المخزون، وكشف الصنف.
-  - قصر فلتر الحالات على الحالات الفعلية المخزنة في كل جدول دون قيم ميتة.
-- [ ] **4.2 مطابقة المخرجات:**
-  - مراجعة محاذاة الطباعة الفاخرة وتصدير الإكسل لجميع الأعمدة المستحدثة.
+- [x] **4.1 ضبط الفلاتر الديناميكية في [operational-reports.tsx](file:///H:/em/market-hub/src/components/statements/operational-reports.tsx):**
+  - إخفاء فلتر وسائل الدفع تمامًا في تقارير: حركة المخزون، وكشف الصنف. *(تم — كان مبنيًا سابقًا)*
+  - قصر فلتر الحالات على الحالات الفعلية المخزنة في كل جدول دون قيم ميتة. *(تم — أُضيفت `completed` و `returned` وحُذفت الحالات غير القابلة للتحقق)*
+- [x] **4.2 مطابقة المخرجات:**
+  - مراجعة محاذاة الطباعة الفاخرة وتصدير الإكسل لجميع الأعمدة المستحدثة. *(تم — مصفوفة `reportOutputRow` موحّدة مع الأعمدة الظاهرة)*
 
 ---
 

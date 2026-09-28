@@ -127,6 +127,9 @@ function NewTransfer({ onSaved }: { onSaved: () => void }) {
   const [note, setNote] = useState("");
   const [search, setSearch] = useState("");
   const [lines, setLines] = useState<{ product_id: string; name: string; quantity: number }[]>([]);
+  // رصيد المستودع المصدر لكل منتج: product_id -> الكمية المتاحة
+  const [stockByProduct, setStockByProduct] = useState<Record<string, number>>({});
+  const [stockLoading, setStockLoading] = useState(false);
 
   useEffect(() => {
     if (!open) return;
@@ -143,6 +146,46 @@ function NewTransfer({ onSaved }: { onSaved: () => void }) {
       setProducts(p.data ?? []);
     });
   }, [open]);
+
+  // جلب الرصيد الفعلي للمستودع المصدر حتى نمنع تحويل كمية تتجاوز المتوفر.
+  useEffect(() => {
+    if (!open || !from) {
+      setStockByProduct({});
+      return;
+    }
+    let cancelled = false;
+    setStockLoading(true);
+    supabase
+      .from("inventory")
+      .select("product_id,quantity")
+      .eq("warehouse_id", from)
+      .then(({ data, error }) => {
+        if (cancelled) return;
+        if (error) {
+          toast.error(error.message);
+          setStockByProduct({});
+        } else {
+          const map: Record<string, number> = {};
+          for (const row of (data ?? []) as { product_id: string; quantity: number | null }[]) {
+            map[row.product_id] = Number(row.quantity ?? 0);
+          }
+          setStockByProduct(map);
+        }
+        setStockLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [open, from]);
+
+  const availableFor = (productId: string) => stockByProduct[productId] ?? 0;
+
+  /** الأسطر التي تتجاوز الرصيد المتوفر لحظيًا في المستودع المصدر */
+  const oversoldLines = useMemo(
+    () => lines.filter((line) => line.quantity > availableFor(line.product_id)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- availableFor يقرأ stockByProduct مباشرة
+    [lines, stockByProduct],
+  );
 
   const filtered = useMemo(
     () =>
@@ -166,9 +209,31 @@ function NewTransfer({ onSaved }: { onSaved: () => void }) {
     setSearch("");
   }
 
+  /** تُستخدم عند تغيير المستودع المصدر: تُنقّي الأسطر التي لم يعد لها رصيد كافٍ */
+  function handleFromChange(next: string) {
+    setFrom(next);
+    setTo((current) => (current === next ? "" : current));
+  }
+
   async function save() {
     if (!from || !to || from === to || lines.length === 0) {
       toast.error(t("transfers.check_form"));
+      return;
+    }
+    if (stockLoading) {
+      toast.error(
+        lang === "ar"
+          ? "جارٍ تحميل أرصدة المستودع، حاول بعد لحظة"
+          : "Loading warehouse stock, try again",
+      );
+      return;
+    }
+    if (oversoldLines.length > 0) {
+      toast.error(
+        lang === "ar"
+          ? `الكمية المطلوبة تتجاوز الرصيد المتوفر: ${oversoldLines.map((l) => l.name).join("، ")}`
+          : `Quantity exceeds available stock for: ${oversoldLines.map((l) => l.name).join(", ")}`,
+      );
       return;
     }
     const { error } = await supabase.rpc("create_stock_transfer" as any, {
@@ -204,7 +269,7 @@ function NewTransfer({ onSaved }: { onSaved: () => void }) {
           <div className="grid grid-cols-2 gap-3">
             <div className="grid gap-1.5">
               <Label>{lang === "ar" ? "من مستودع" : "From warehouse"}</Label>
-              <Select value={from} onValueChange={setFrom}>
+              <Select value={from} onValueChange={handleFromChange}>
                 <SelectTrigger>
                   <SelectValue placeholder="—" />
                 </SelectTrigger>
@@ -261,6 +326,7 @@ function NewTransfer({ onSaved }: { onSaved: () => void }) {
               <TableHeader>
                 <TableRow>
                   <TableHead>{lang === "ar" ? "المنتج" : "Product"}</TableHead>
+                  <TableHead>{lang === "ar" ? "المتاح بالمصدر" : "Available at source"}</TableHead>
                   <TableHead>{lang === "ar" ? "الكمية" : "Quantity"}</TableHead>
                   <TableHead></TableHead>
                 </TableRow>
@@ -268,39 +334,58 @@ function NewTransfer({ onSaved }: { onSaved: () => void }) {
               <TableBody>
                 {lines.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={3} className="text-center text-muted-foreground py-6">
+                    <TableCell colSpan={4} className="text-center text-muted-foreground py-6">
                       {lang === "ar" ? "أضف منتجات" : "Add products"}
                     </TableCell>
                   </TableRow>
                 ) : (
-                  lines.map((l, i) => (
-                    <TableRow key={l.product_id}>
-                      <TableCell className="text-sm">{l.name}</TableCell>
-                      <TableCell>
-                        <Input
-                          type="number"
-                          className="h-8 w-24"
-                          value={l.quantity}
-                          onChange={(e) =>
-                            setLines((ls) =>
-                              ls.map((x, j) =>
-                                j === i ? { ...x, quantity: Number(e.target.value) } : x,
-                              ),
-                            )
-                          }
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          onClick={() => setLines((ls) => ls.filter((_, j) => j !== i))}
+                  lines.map((l, i) => {
+                    const available = availableFor(l.product_id);
+                    const exceeds = l.quantity > available;
+                    return (
+                      <TableRow key={l.product_id}>
+                        <TableCell className="text-sm">{l.name}</TableCell>
+                        <TableCell
+                          className={`font-mono text-sm ${exceeds ? "text-destructive font-semibold" : "text-muted-foreground"}`}
                         >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))
+                          {stockLoading && !from
+                            ? "—"
+                            : available.toLocaleString("en-US", { maximumFractionDigits: 2 })}
+                        </TableCell>
+                        <TableCell>
+                          <Input
+                            type="number"
+                            min="0"
+                            className={`h-8 w-24 ${exceeds ? "border-destructive text-destructive" : ""}`}
+                            value={l.quantity}
+                            onChange={(e) =>
+                              setLines((ls) =>
+                                ls.map((x, j) =>
+                                  j === i ? { ...x, quantity: Number(e.target.value) } : x,
+                                ),
+                              )
+                            }
+                          />
+                          {exceeds && (
+                            <p className="mt-1 text-[10px] font-medium text-destructive">
+                              {lang === "ar"
+                                ? `الرصيد المتوفر ${available} فقط`
+                                : `Only ${available} available`}
+                            </p>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            onClick={() => setLines((ls) => ls.filter((_, j) => j !== i))}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })
                 )}
               </TableBody>
             </Table>
@@ -316,7 +401,12 @@ function NewTransfer({ onSaved }: { onSaved: () => void }) {
           <Button variant="ghost" onClick={() => setOpen(false)}>
             {t("common.cancel")}
           </Button>
-          <Button onClick={save} disabled={lines.length === 0}>
+          <Button
+            onClick={save}
+            disabled={
+              lines.length === 0 || stockLoading || oversoldLines.length > 0 || !from || !to
+            }
+          >
             {t("common.save")}
           </Button>
         </DialogFooter>

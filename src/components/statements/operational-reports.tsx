@@ -94,7 +94,9 @@ export function OperationalReports({
       if (type === "sales-invoices") {
         let request = supabase
           .from("sales_invoices")
-          .select("*, customers(name), warehouses(name,name_ar)")
+          .select(
+            "*, customers(name), warehouses(name,name_ar), customer_payment_splits(method,amount)",
+          )
           .order("created_at", { ascending: false });
         if (from) request = request.gte("created_at", `${from}T00:00:00`);
         if (to) request = request.lte("created_at", `${to}T23:59:59`);
@@ -171,12 +173,15 @@ export function OperationalReports({
         const matchesQuery = !value || searchText.includes(value);
         const rowStatus = String(row.status ?? row.return_kind ?? "").toLowerCase();
         const matchesStatus = statusFilter === "all" || rowStatus === statusFilter.toLowerCase();
-        const rowMethod = String(row.payment_method ?? "").toLowerCase();
-        const matchesMethod = methodFilter === "all" || rowMethod === methodFilter.toLowerCase();
+        const effMethod =
+          type === "sales-invoices"
+            ? getInvoiceEffectiveMethod(row)
+            : String(row.payment_method ?? "").toLowerCase();
+        const matchesMethod = methodFilter === "all" || effMethod === methodFilter.toLowerCase();
         return matchesQuery && matchesStatus && matchesMethod;
       })
       .map(({ row }) => row);
-  }, [methodFilter, query, searchableRows, statusFilter]);
+  }, [methodFilter, query, searchableRows, statusFilter, type]);
 
   const title =
     type === "sales-invoices"
@@ -238,16 +243,18 @@ export function OperationalReports({
                 </>
               ) : (
                 <>
+                  <option value="completed">{ar ? "مكتملة" : "Completed"}</option>
                   <option value="paid">{ar ? "مدفوعة" : "Paid"}</option>
                   <option value="pending">{ar ? "معلقة" : "Pending"}</option>
                   <option value="partial">{ar ? "مدفوعة جزئياً" : "Partially paid"}</option>
                   <option value="unpaid">{ar ? "غير مدفوعة" : "Unpaid"}</option>
+                  <option value="returned">{ar ? "مرتجعة" : "Returned"}</option>
                   <option value="cancelled">{ar ? "ملغاة" : "Cancelled"}</option>
                 </>
               )}
             </select>
           )}
-          {(type === "sales-invoices" || type === "expenses" || type === "returns") && (
+          {(type === "sales-invoices" || type === "expenses") && (
             <select
               value={methodFilter}
               onChange={(event) => setMethodFilter(event.target.value)}
@@ -257,7 +264,11 @@ export function OperationalReports({
               <option value="cash">{ar ? "نقدي" : "Cash"}</option>
               <option value="card">{ar ? "بطاقة" : "Card"}</option>
               <option value="bank_transfer">{ar ? "تحويل بنكي" : "Bank transfer"}</option>
+              <option value="mobile_money">{ar ? "محفظة إلكترونية" : "Mobile money"}</option>
               {type === "sales-invoices" && <option value="credit">{ar ? "آجل" : "Credit"}</option>}
+              {type === "sales-invoices" && (
+                <option value="split">{ar ? "دفع مجزأ" : "Split payment"}</option>
+              )}
             </select>
           )}
           <ReportFilterMenu
@@ -461,17 +472,85 @@ function visibleColumnCount(columns: ReportColumn[], visible: Record<string, boo
   return Math.max(columns.filter((column) => visible[column.key] !== false).length, 1);
 }
 
-function formatPaymentMethod(value: unknown, ar: boolean): string {
-  const m = String(value ?? "")
+function getInvoiceEffectiveMethod(row: AnyRow): string {
+  if (
+    String(row.payment_method ?? "")
+      .trim()
+      .toLowerCase() === "split"
+  ) {
+    return "split";
+  }
+  // مصدر الحقيقة: بنود الدفع المجزأ المسجّلة فعلياً في قاعدة البيانات.
+  const splits = row.customer_payment_splits;
+  if (Array.isArray(splits)) {
+    const methods = new Set(
+      (splits as AnyRow[]).map((part) =>
+        String(part.method ?? "")
+          .trim()
+          .toLowerCase(),
+      ),
+    );
+    methods.delete("");
+    if (methods.size > 1) return "split";
+  }
+  const note = String(row.note ?? "");
+  if (note.includes("[دفع مجزأ:") || note.includes("[Split:")) {
+    return "split";
+  }
+  return String(row.payment_method ?? "")
     .trim()
     .toLowerCase();
-  if (!m || m === "—") return "—";
-  if (m === "cash") return ar ? "نقدي" : "Cash";
-  if (m === "card") return ar ? "بطاقة" : "Card";
-  if (m === "bank_transfer" || m === "bank") return ar ? "تحويل بنكي" : "Bank transfer";
-  if (m === "credit") return ar ? "آجل" : "Credit";
-  if (m === "split") return ar ? "دفع مجزأ" : "Split payment";
-  return m;
+}
+
+function extractSplitDetails(note: unknown): string | null {
+  const str = String(note ?? "");
+  const match = str.match(/\[(?:دفع مجزأ|Split):\s*([^\]]+)\]/);
+  return match ? match[1] : null;
+}
+
+/**
+ * تفاصيل الدفع المجزأ:
+ *  1) المصدر الموثوق هو جدول customer_payment_splits (بند لكل وسيلة).
+ *  2) وإلا نعود لنص الملاحظة القديم للفواتير المسجلة قبل الترحيل.
+ */
+function splitBreakdownFor(row: AnyRow, ar: boolean): string | null {
+  const splits = row.customer_payment_splits;
+  if (Array.isArray(splits) && splits.length > 0) {
+    const parts = (splits as AnyRow[])
+      .map((part) => {
+        const method = formatPaymentMethod(part.method, ar);
+        const amount = Number(part.amount ?? 0);
+        return amount > 0 ? `${method}: ${money(amount)}` : null;
+      })
+      .filter((part): part is string => part !== null);
+    if (parts.length > 0) return parts.join(" | ");
+  }
+  return extractSplitDetails(row.note);
+}
+
+/**
+ * طريقة الدفع المعروضة:
+ *  * للدفع المجزأ نُظهر التفصيل الفعلي من customer_payment_splits (أو نص الملاحظة القديم).
+ *  * مع ملاحظة أن وسيلة واحدة مسجّلة بـ 'split' بالخطأ تُعرض بوسيلتها الحقيقية.
+ */
+function formatPaymentMethod(value: unknown, ar: boolean, note?: unknown): string {
+  const splitsMatch = String(note ?? "").match(/\[(?:دفع مجزأ|Split):\s*([^\]]+)\]/);
+  const raw = String(value ?? "")
+    .trim()
+    .toLowerCase();
+  if (raw === "split") {
+    if (splitsMatch) {
+      return `${ar ? "دفع مجزأ" : "Split"} — ${splitsMatch[1]}`;
+    }
+    return ar ? "دفع مجزأ" : "Split payment";
+  }
+  if (!raw || raw === "—") return "—";
+  if (raw === "cash") return ar ? "نقدي" : "Cash";
+  if (raw === "card") return ar ? "بطاقة" : "Card";
+  if (raw === "bank_transfer" || raw === "bank") return ar ? "تحويل بنكي" : "Bank transfer";
+  if (raw === "credit") return ar ? "آجل" : "Credit";
+  if (raw === "mobile_money") return ar ? "محفظة إلكترونية" : "Mobile money";
+  return raw;
 }
 
 function formatStatus(value: unknown, ar: boolean): string {
@@ -484,6 +563,11 @@ function formatStatus(value: unknown, ar: boolean): string {
   if (s === "partial") return ar ? "مدفوعة جزئياً" : "Partial";
   if (s === "unpaid") return ar ? "غير مدفوعة" : "Unpaid";
   if (s === "cancelled") return ar ? "ملغاة" : "Cancelled";
+  if (s === "returned") return ar ? "مرتجعة" : "Returned";
+  if (s === "completed") return ar ? "مكتملة" : "Completed";
+  if (s === "draft") return ar ? "مسودة" : "Draft";
+  if (s === "confirmed") return ar ? "مؤكدة" : "Confirmed";
+  if (s === "received") return ar ? "مستلمة" : "Received";
   return s;
 }
 
@@ -522,7 +606,7 @@ function ReportRow({
         {show("paymentMethod") && (
           <Cell>
             <span className="inline-flex rounded bg-primary/10 px-1.5 py-0.5 text-[11px] font-medium text-primary">
-              {formatPaymentMethod(row.payment_method, ar)}
+              {formatPaymentMethod(row.payment_method, ar, row.note)}
             </span>
           </Cell>
         )}
@@ -624,12 +708,19 @@ function detailValues(
       ? String(item?.name_ar ?? item?.name ?? "—")
       : String(item?.name ?? item?.name_ar ?? "—");
   };
+  const splitInfo = splitBreakdownFor(row, ar);
   return type === "sales-invoices"
     ? [
         [ar ? "رقم الفاتورة" : "Invoice", String(row.invoice_number ?? "—")],
         [ar ? "التاريخ" : "Date", formatDate(row.created_at, ar)],
         [ar ? "العميل" : "Customer", relation(row.customers, ar)],
-        [ar ? "طريقة الدفع" : "Payment Method", formatPaymentMethod(row.payment_method, ar)],
+        [
+          ar ? "طريقة الدفع" : "Payment Method",
+          formatPaymentMethod(row.payment_method, ar, row.note),
+        ],
+        ...(splitInfo
+          ? [[ar ? "تفاصيل الدفع المجزأ" : "Split Breakdown", splitInfo] as [string, string]]
+          : []),
         [ar ? "الإجمالي" : "Total", money(Number(row.total ?? 0))],
         [ar ? "المدفوع" : "Paid", money(Number(row.paid ?? 0))],
         [ar ? "المتبقي" : "Remaining", money(Number(row.total ?? 0) - Number(row.paid ?? 0))],
@@ -689,9 +780,11 @@ function reportOutputRow(
         ? formatStatus(row.status, ar)
         : String(row.status ?? row.movement_type ?? row.return_kind ?? "—"),
     paymentMethod:
-      type === "sales-invoices" || type === "expenses"
-        ? formatPaymentMethod(row.payment_method, ar)
-        : String(row.payment_method ?? row.reference ?? "—"),
+      type === "sales-invoices"
+        ? formatPaymentMethod(row.payment_method, ar, row.note)
+        : type === "expenses"
+          ? formatPaymentMethod(row.payment_method, ar)
+          : String(row.payment_method ?? row.reference ?? "—"),
   };
   return columns.filter((col) => visible[col.key] !== false).map((col) => values[col.key] ?? "—");
 }

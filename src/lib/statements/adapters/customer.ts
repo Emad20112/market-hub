@@ -85,19 +85,23 @@ async function enrichReferences(
 
   const invoiceNumberById = new Map<string, string>();
   const invoiceMethodById = new Map<string, string>();
+  const invoiceTenderById = new Map<string, string>();
   const methodByPaymentId = new Map<string, string>();
   const invoiceNumberByPaymentId = new Map<string, string>();
 
   if (invoiceIds.length > 0) {
     const { data } = await supabase
       .from("sales_invoices")
-      .select("id, invoice_number, payment_method")
+      .select("id, invoice_number, payment_method, customer_payment_splits(method,amount)")
       .in("id", invoiceIds);
-    for (const row of data ?? []) {
+    for (const row of (data ?? []) as any[]) {
       invoiceNumberById.set(row.id, row.invoice_number);
       if (row.payment_method) {
         invoiceMethodById.set(row.id, row.payment_method);
       }
+      // تفصيل الدفع المجزأ الفعلي (بند لكل وسيلة) إن وُجد.
+      const tender = formatTenderBreakdown(row.customer_payment_splits);
+      if (tender) invoiceTenderById.set(row.id, tender);
     }
   }
 
@@ -116,10 +120,12 @@ async function enrichReferences(
   return entries.map((entry) => {
     let reference = entry.reference;
     let paymentMethod = entry.meta?.paymentMethod as string | undefined;
+    let paymentBreakdown = entry.meta?.paymentBreakdown as string | undefined;
 
     if (entry.referenceType === "sales_invoice" && entry.referenceId) {
       reference = invoiceNumberById.get(entry.referenceId) ?? null;
       paymentMethod = invoiceMethodById.get(entry.referenceId) ?? paymentMethod;
+      paymentBreakdown = invoiceTenderById.get(entry.referenceId) ?? paymentBreakdown;
     } else if (entry.referenceType === "customer_payment" && entry.referenceId) {
       reference = invoiceNumberByPaymentId.get(entry.referenceId) ?? fallbackLabel.receipt;
       paymentMethod = methodByPaymentId.get(entry.referenceId) ?? paymentMethod;
@@ -128,9 +134,34 @@ async function enrichReferences(
     return {
       ...entry,
       reference,
-      meta: { ...(entry.meta ?? {}), paymentMethod },
+      meta: { ...(entry.meta ?? {}), paymentMethod, paymentBreakdown },
     };
   });
+}
+
+/**
+ * يبني نص تفصيل الدفع المجزأ من صفوف customer_payment_splits.
+ * مثال: "نقدي 5,000 | بطاقة 3,000".
+ * يعيد `null` إن لم توجد بنود فعلية (فاتورة بوسيلة واحدة).
+ */
+function formatTenderBreakdown(splits: unknown): string | null {
+  if (!Array.isArray(splits) || splits.length === 0) return null;
+  const labels: Record<string, string> = {
+    cash: "نقدي",
+    card: "بطاقة",
+    bank_transfer: "تحويل بنكي",
+    mobile_money: "محفظة إلكترونية",
+    credit: "آجل",
+  };
+  const parts = (splits as Array<{ method?: string; amount?: number }>)
+    .map((part) => {
+      const method = String(part.method ?? "").trim();
+      const amount = Number(part.amount ?? 0);
+      if (!method || amount <= 0) return null;
+      return `${labels[method] ?? method} ${amount.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
+    })
+    .filter((part): part is string => part !== null);
+  return parts.length > 0 ? parts.join(" | ") : null;
 }
 
 export interface CustomerStatementData {

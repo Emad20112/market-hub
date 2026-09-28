@@ -24,6 +24,7 @@ interface Invoice {
   total: number;
   paid: number;
   payment_method: string;
+  note: string | null;
   created_at: string;
   customers: { name: string } | null;
   warehouses: { name: string; name_ar: string | null } | null;
@@ -127,7 +128,7 @@ function SalesPage() {
     const { data } = await supabase
       .from("sales_invoices")
       .select(
-        "id,invoice_number,status,subtotal,discount,tax,total,paid,payment_method,created_at,customers(name),warehouses(name,name_ar)",
+        "id,invoice_number,status,subtotal,discount,tax,total,paid,payment_method,note,created_at,customers(name),warehouses(name,name_ar)",
       )
       .order("created_at", { ascending: false })
       .limit(200);
@@ -154,7 +155,11 @@ function SalesPage() {
       (r.customers?.name ?? "").toLowerCase().includes(search.toLowerCase()),
   );
 
-  const pmLabel = (m: string) => {
+  const pmLabel = (m: string, note?: string | null) => {
+    const isSplit = Boolean(note && (note.includes("[دفع مجزأ:") || note.includes("[Split:")));
+    if (isSplit || m === "split") {
+      return lang === "ar" ? "دفع مجزأ" : "Split";
+    }
     const map: Record<string, string> = {
       cash: t("pos.pm.cash"),
       card: t("pos.pm.card"),
@@ -246,7 +251,7 @@ function SalesPage() {
                       </td>
                     )}
                     <td className="px-3 py-2.5 text-muted-foreground">
-                      {pmLabel(r.payment_method)}
+                      {pmLabel(r.payment_method, r.note)}
                     </td>
                     <td className="px-3 py-2.5">
                       <span
@@ -296,9 +301,20 @@ function SalesPage() {
               {hasMultiWarehouse && (
                 <Field label={t("common.warehouse")} value={whName(selected.warehouses) ?? "—"} />
               )}
-              <Field label={t("sales.payment")} value={pmLabel(selected.payment_method)} />
+              <Field
+                label={t("sales.payment")}
+                value={pmLabel(selected.payment_method, selected.note)}
+              />
               <Field label={t("common.status")} value={statusLabel(selected.status)} />
             </div>
+            {selected.note && (
+              <div className="mb-4 rounded-md border border-border/80 bg-surface-2/40 p-2.5 text-xs text-muted-foreground">
+                <span className="font-semibold text-foreground me-1">
+                  {lang === "ar" ? "الملاحظات / تفاصيل السداد:" : "Note / Payment Details:"}
+                </span>
+                {selected.note}
+              </div>
+            )}
             <div className="overflow-hidden rounded-md border border-border">
               <table className="w-full text-sm">
                 <thead className="bg-surface text-xs text-muted-foreground">
