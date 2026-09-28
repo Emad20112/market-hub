@@ -441,13 +441,14 @@ function CatalogTable({ tab }: { tab: Tab }) {
           tab={tab}
           initial={editing}
           onClose={() => setOpen(false)}
-          onSaved={() => {
+          onSaved={async () => {
             setOpen(false);
-            qc.invalidateQueries({ queryKey: ["catalog", tab] });
-            qc.invalidateQueries({ queryKey: ["products-meta"] });
-            qc.invalidateQueries({ queryKey: ["products"] });
-            qc.invalidateQueries({ queryKey: ["pos-live-meta"] });
-            qc.invalidateQueries({ queryKey: ["vehicle-makes-filter"] });
+            await qc.invalidateQueries({ queryKey: ["catalog", tab], exact: true });
+            await qc.refetchQueries({ queryKey: ["catalog", tab], exact: true, type: "active" });
+            await qc.invalidateQueries({ queryKey: ["products-meta"] });
+            await qc.invalidateQueries({ queryKey: ["products"] });
+            await qc.invalidateQueries({ queryKey: ["pos-live-meta"] });
+            await qc.invalidateQueries({ queryKey: ["vehicle-makes-filter"] });
           }}
         />
       )}
