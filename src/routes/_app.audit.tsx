@@ -17,6 +17,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { useRealtimeTable } from "@/lib/realtime";
+import { ChevronDown } from "lucide-react";
 
 export const Route = createFileRoute("/_app/audit")({
   head: () => ({ meta: [{ title: "Audit Logs — Vortex ERP" }] }),
@@ -38,12 +40,25 @@ interface Log {
 }
 
 function AuditPage() {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const { hasRole } = useAuth();
   const allowed = hasRole("owner") || hasRole("manager");
   const [rows, setRows] = useState<Log[]>([]);
   const [search, setSearch] = useState("");
   const [profiles, setProfiles] = useState<Record<string, string>>({});
+
+  const refreshActorNames = async (logs: Log[]) => {
+    const ids = Array.from(new Set(logs.map((r) => r.actor_id).filter(Boolean))) as string[];
+    if (!ids.length) return;
+    const { data: ps } = await supabase.from("profiles").select("id,full_name").in("id", ids);
+    setProfiles((current) => ({
+      ...current,
+      ...(ps ?? []).reduce<Record<string, string>>((map, profile: any) => {
+        map[profile.id] = profile.full_name ?? "—";
+        return map;
+      }, {}),
+    }));
+  };
 
   useEffect(() => {
     if (!allowed) return;
@@ -53,21 +68,42 @@ function AuditPage() {
         .select("*")
         .order("created_at", { ascending: false })
         .limit(500);
-      setRows((data ?? []) as any);
-      const ids = Array.from(new Set((data ?? []).map((r: any) => r.actor_id).filter(Boolean)));
-      if (ids.length) {
-        const { data: ps } = await supabase
-          .from("profiles")
-          .select("id,full_name")
-          .in("id", ids as string[]);
-        const m: Record<string, string> = {};
-        (ps ?? []).forEach((p: any) => {
-          m[p.id] = p.full_name ?? "—";
-        });
-        setProfiles(m);
-      }
+      const logs = (data ?? []) as Log[];
+      setRows(logs);
+      await refreshActorNames(logs);
     })();
   }, [allowed]);
+
+  useRealtimeTable<Log>({
+    table: "audit_logs",
+    onInsert: (newLog) => {
+      setRows((current) => [newLog, ...current.filter((row) => row.id !== newLog.id)].slice(0, 500));
+      void refreshActorNames([newLog]);
+    },
+    onUpdate: (updatedLog) => {
+      setRows((current) => current.map((row) => row.id === updatedLog.id ? { ...row, ...updatedLog } : row));
+      void refreshActorNames([updatedLog]);
+    },
+    onDelete: (oldLog) => setRows((current) => current.filter((row) => row.id !== oldLog.id)),
+  });
+
+  const describeAction = (action: string) => {
+    const key = action.toLowerCase();
+    if (key.includes("create") || key.includes("insert") || key.includes("add")) return lang === "ar" ? "إضافة سجل جديد" : "Created a new record";
+    if (key.includes("update") || key.includes("edit")) return lang === "ar" ? "تعديل سجل" : "Updated a record";
+    if (key.includes("delete") || key.includes("remove")) return lang === "ar" ? "حذف سجل" : "Deleted a record";
+    if (key.includes("login")) return lang === "ar" ? "تسجيل الدخول" : "Signed in";
+    return action.replaceAll("_", " ");
+  };
+
+  const describeEntity = (entity: string) => {
+    const names: Record<string, string> = {
+      product: "المنتج", products: "المنتجات", customer: "العميل", customers: "العملاء",
+      invoice: "الفاتورة", invoices: "الفواتير", supplier: "المورد", suppliers: "الموردون",
+      warehouse: "المستودع", warehouses: "المستودعات", sale: "المبيعات", purchase: "المشتريات",
+    };
+    return lang === "ar" ? (names[entity.toLowerCase()] ?? entity) : entity;
+  };
 
   const filtered = useMemo(
     () =>
@@ -129,15 +165,18 @@ function AuditPage() {
                 filtered.map((r) => (
                   <TableRow key={r.id}>
                     <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
-                      {new Date(r.created_at).toLocaleString()}
+                      {new Date(r.created_at).toLocaleString(lang === "ar" ? "ar-YE" : "en-US")}
                     </TableCell>
                     <TableCell className="text-sm">
                       {r.actor_id ? (profiles[r.actor_id] ?? r.actor_id.slice(0, 8)) : "—"}
                     </TableCell>
                     <TableCell>
-                      <Badge variant="outline">{r.action}</Badge>
+                      <div className="flex flex-col gap-1">
+                        <Badge variant="outline" className="w-fit">{describeAction(r.action)}</Badge>
+                        <span className="text-[11px] text-muted-foreground">{r.action}</span>
+                      </div>
                     </TableCell>
-                    <TableCell className="text-sm">{r.entity_type}</TableCell>
+                    <TableCell className="text-sm">{describeEntity(r.entity_type)}</TableCell>
                     <TableCell className="font-mono text-xs text-muted-foreground">
                       {r.entity_id?.slice(0, 8) ?? "—"}
                     </TableCell>
