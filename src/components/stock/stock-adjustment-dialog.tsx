@@ -280,8 +280,7 @@ export function StockAdjustmentDialog({
               <option value="">{isAr ? "اختر المستودع..." : "Select Warehouse..."}</option>
               {warehouses.map((w) => (
                 <option key={w.id} value={w.id}>
-                  {isAr ? w.name_ar || w.name : w.name || w.name_ar}{" "}
-                  {w.code ? `(${w.code})` : ""}
+                  {isAr ? w.name_ar || w.name : w.name || w.name_ar} {w.code ? `(${w.code})` : ""}
                 </option>
               ))}
             </select>
@@ -312,7 +311,9 @@ export function StockAdjustmentDialog({
                     type="text"
                     value={productSearch}
                     onChange={(e) => setProductSearch(e.target.value)}
-                    placeholder={isAr ? "بحث بالاسم أو SKU أو الباركود..." : "Search name, SKU or barcode..."}
+                    placeholder={
+                      isAr ? "بحث بالاسم أو SKU أو الباركود..." : "Search name, SKU or barcode..."
+                    }
                     className="h-10 w-full rounded-xl border border-border bg-surface px-9 text-sm outline-none focus:border-primary"
                   />
                 </div>
@@ -441,10 +442,16 @@ export function StockAdjustmentDialog({
                         <option value="">{isAr ? "حدد سبب التسوية..." : "Select reason..."}</option>
                         <option value="shortfall">{isAr ? "عجز جردي" : "Stock Shortfall"}</option>
                         <option value="surplus">{isAr ? "فائض جردي" : "Stock Surplus"}</option>
-                        <option value="damaged">{isAr ? "تلف سوء تخزين / كسر" : "Damaged / Broken"}</option>
+                        <option value="damaged">
+                          {isAr ? "تلف سوء تخزين / كسر" : "Damaged / Broken"}
+                        </option>
                         <option value="expiry">{isAr ? "انتهاء صلاحية" : "Expired Product"}</option>
-                        <option value="stocktake">{isAr ? "تسوية جرد دوري" : "Periodic Stocktake"}</option>
-                        <option value="other">{isAr ? "سبب آخر (اذكره في الملاحظات)" : "Other Reason"}</option>
+                        <option value="stocktake">
+                          {isAr ? "تسوية جرد دوري" : "Periodic Stocktake"}
+                        </option>
+                        <option value="other">
+                          {isAr ? "سبب آخر (اذكره في الملاحظات)" : "Other Reason"}
+                        </option>
                       </select>
                       {reasonError && (
                         <span className="text-[11px] text-rose-500 block">
@@ -477,7 +484,11 @@ export function StockAdjustmentDialog({
                       rows={2}
                       value={note}
                       onChange={(e) => setNote(e.target.value)}
-                      placeholder={isAr ? "اكتب أي تفاصيل أو مبررات إضافية للتسوية..." : "Write additional details or justification..."}
+                      placeholder={
+                        isAr
+                          ? "اكتب أي تفاصيل أو مبررات إضافية للتسوية..."
+                          : "Write additional details or justification..."
+                      }
                       className="w-full rounded-xl border border-border bg-surface p-3 text-xs outline-none resize-none"
                     />
                   </div>
@@ -499,7 +510,9 @@ export function StockAdjustmentDialog({
 
           <button
             type="submit"
-            disabled={saving || !selectedProductId || !selectedWarehouseId || !isActualValid || isMatching}
+            disabled={
+              saving || !selectedProductId || !selectedWarehouseId || !isActualValid || isMatching
+            }
             className="flex h-9 items-center gap-2 rounded-xl bg-primary px-5 text-xs font-bold text-primary-foreground shadow-sm hover:opacity-90 transition disabled:opacity-40"
           >
             {saving ? (

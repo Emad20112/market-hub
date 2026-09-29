@@ -45,7 +45,16 @@ function BalanceSheetPage() {
       supabase.from("expenses").select("amount"),
       supabase.from("customers").select("balance"),
       supabase.from("suppliers").select("balance"),
-      supabase.from("inventory").select("quantity,products(cost_price)"),
+      /*
+       * Inventory is read from public.inventory_valuation, which is built on the
+       * owner-aware stock positions. That means the figure covers company-owned
+       * TRACKED goods only: services, untracked goods and customer-owned
+       * material are excluded, which is what makes it a balance-sheet number
+       * rather than a sum of everything on the shelves.
+       */
+      supabase
+        .from("inventory_valuation" as never)
+        .select("quantity,reference_valuation,valuation_is_reference_based"),
     ]);
 
     const salesPaidCash = (sales.data ?? []).reduce((a, r) => a + Number(r.paid), 0);
@@ -58,7 +67,7 @@ function BalanceSheetPage() {
       0,
     );
     const inventoryValue = (inv.data ?? []).reduce(
-      (a, i: any) => a + Number(i.quantity) * Number(i.products?.cost_price || 0),
+      (a, row: { reference_valuation?: number | null }) => a + Number(row.reference_valuation ?? 0),
       0,
     );
     const totalAssets = cashOnHand + receivables + inventoryValue;

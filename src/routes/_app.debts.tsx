@@ -3,7 +3,7 @@ import {
   VortexCollectionSheet,
   VortexFilterSheet,
   VortexFilterSection,
-  type PaymentMethod
+  type PaymentMethod,
 } from "@/components/vortex-ui";
 import { SlidersHorizontal, HandCoins, AlertTriangle, UserCheck } from "lucide-react";
 /**
@@ -90,6 +90,44 @@ function DebtsPage() {
   const [selected, setSelected] = useState<Customer | null>(null);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [payments, setPayments] = useState<Payment[]>([]);
+
+  const handleSaveCollection = async (data: {
+    customerId: string;
+    amount: number;
+    method: PaymentMethod;
+    notes?: string;
+  }) => {
+    const dbMethodMap: Record<PaymentMethod, "cash" | "card" | "bank_transfer"> = {
+      cash: "cash",
+      card: "card",
+      transfer: "bank_transfer",
+      cheque: "bank_transfer",
+    };
+    const dbMethod = dbMethodMap[data.method] || "cash";
+    const receiptNumber = String(Date.now()).slice(-6);
+
+    const { error: pError } = await (supabase as any).from("customer_payments").insert({
+      customer_id: data.customerId,
+      amount: data.amount,
+      payment_method: dbMethod,
+      note: data.notes || null,
+      payment_date: new Date().toISOString(),
+    });
+    if (pError) throw pError;
+
+    const currentCust = rows.find((r) => r.id === data.customerId) || collectionCustomer;
+    if (currentCust) {
+      const newBal = (Number(currentCust.balance) || 0) - data.amount;
+      await (supabase as any)
+        .from("customers")
+        .update({ balance: newBal })
+        .eq("id", data.customerId);
+    }
+
+    toast.success(lang === "ar" ? "تم تسجيل التحصيل بنجاح" : "Payment recorded successfully");
+    await load();
+    return { receiptNumber };
+  };
 
   // أرصدة مؤكَّدة من الدفتر — مصدر واحد لكل الشاشات
   const { index: ledgerIndex } = useDebtIndex("customer");
@@ -376,16 +414,38 @@ function DebtsPage() {
                       <td className="px-3 py-2.5 text-end">
                         <div className="flex items-center justify-end gap-1.5">
                           {bal > 0 && (
-                            <WhatsAppButton
-                              phone={r.phone}
-                              message={debtReminderMessage({
-                                name: r.name,
-                                balance: money(bal),
-                                lang,
-                              })}
-                            />
+                            <>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setCollectionCustomer({
+                                    id: r.id,
+                                    name: r.name,
+                                    phone: r.phone,
+                                    balance: bal,
+                                  });
+                                  setCollectionOpen(true);
+                                }}
+                                title={lang === "ar" ? "تحصيل فوري" : "Quick Collect"}
+                                className="flex h-7 items-center gap-1 rounded-full bg-primary/10 hover:bg-primary hover:text-primary-foreground border border-primary/20 px-2.5 text-[11px] font-bold text-primary transition active:scale-95"
+                              >
+                                <HandCoins className="size-3" />
+                                <span>{lang === "ar" ? "تحصيل" : "Collect"}</span>
+                              </button>
+                              <WhatsAppButton
+                                phone={r.phone}
+                                message={debtReminderMessage({
+                                  name: r.name,
+                                  balance: money(bal),
+                                  lang,
+                                })}
+                              />
+                            </>
                           )}
-                          <button className="rounded-full border border-border bg-surface px-3 py-1 text-xs text-muted-foreground hover:bg-surface-2">
+                          <button
+                            onClick={() => openDetail(r)}
+                            className="rounded-full border border-border bg-surface px-3 py-1 text-xs text-muted-foreground hover:bg-surface-2"
+                          >
                             {t("debts.view")}
                           </button>
                         </div>
@@ -398,6 +458,16 @@ function DebtsPage() {
           </table>
         </div>
       </div>
+
+      <VortexCollectionSheet
+        open={collectionOpen}
+        onOpenChange={setCollectionOpen}
+        customer={collectionCustomer}
+        onSavePayment={handleSaveCollection}
+        onSuccess={() => {
+          load();
+        }}
+      />
 
       {selected && (
         <div className="fixed inset-0 z-50 grid place-items-center bg-background/80 backdrop-blur-sm p-4">
@@ -544,12 +614,21 @@ function DebtsPage() {
                 <FileText className="h-4 w-4" />
                 {lang === "ar" ? "كشف حساب / PDF" : "Statement / PDF"}
               </button>
-              <Link
-                to="/payments"
-                className="flex h-9 items-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:opacity-90"
+              <button
+                type="button"
+                onClick={() => {
+                  setCollectionCustomer({
+                    id: selected.id,
+                    name: selected.name,
+                    phone: selected.phone,
+                    balance: selectedLedgerBalance,
+                  });
+                  setCollectionOpen(true);
+                }}
+                className="flex h-9 items-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:opacity-90 active:scale-95 transition"
               >
-                {lang === "ar" ? "تحصيل دفعة" : "Record payment"}
-              </Link>
+                {lang === "ar" ? "تحصيل دفعة فوري" : "Record payment"}
+              </button>
             </div>
           </div>
         </div>

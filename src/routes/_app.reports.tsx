@@ -67,8 +67,16 @@ function ReportsPage() {
         .select("product_id,quantity,total,invoice_id,sales_invoices!inner(created_at)")
         .gte("sales_invoices.created_at", fromTs)
         .lte("sales_invoices.created_at", toTs),
-      supabase.from("products").select("id,name,name_ar,min_stock,sale_price"),
-      supabase.from("inventory").select("product_id,quantity"),
+      supabase
+        .from("products")
+        .select("id,name,name_ar,min_stock,sale_price")
+        .eq("inventory_policy" as never, "TRACKED" as never),
+      /*
+       * Low-stock analysis is about company-owned tracked goods. Reading the
+       * raw inventory table would count customer-owned material and untracked
+       * balances as if they were the shop's own stock.
+       */
+      supabase.from("company_stock_positions" as never).select("item_id,quantity"),
     ]);
 
     setSales(salesRes.data ?? []);
@@ -96,10 +104,11 @@ function ReportsPage() {
     });
     setByMethod(methods);
 
-    // Low stock: aggregate inventory per product, compare to min_stock
+    // Low stock: aggregate company-owned tracked stock per item and compare to
+    // the item's own minimum.
     const stockMap = new Map<string, number>();
-    (invRes.data ?? []).forEach((i: any) => {
-      stockMap.set(i.product_id, (stockMap.get(i.product_id) ?? 0) + Number(i.quantity));
+    (invRes.data ?? []).forEach((i: { item_id: string; quantity: number }) => {
+      stockMap.set(i.item_id, (stockMap.get(i.item_id) ?? 0) + Number(i.quantity));
     });
     const low = (prodRes.data ?? [])
       .map((p: any) => ({ ...p, stock: stockMap.get(p.id) ?? 0 }))
@@ -115,7 +124,14 @@ function ReportsPage() {
   const salesTotal = sales.reduce((a, r) => a + Number(r.total), 0);
   const salesPaid = sales.reduce((a, r) => a + Number(r.paid), 0);
   const purchasesTotal = purchases.reduce((a, r) => a + Number(r.total), 0);
-  const grossProfit = salesTotal - purchasesTotal;
+  /*
+   * This is cash-basis collection minus purchasing, a working figure for the
+   * shopkeeper. It is deliberately NOT called gross profit: real gross margin
+   * needs the cost of the units actually sold, which the income statement
+   * derives from the stock movements. Naming it honestly stops this number
+   * from being read as an accounting margin.
+   */
+  const netPurchasing = salesTotal - purchasesTotal;
 
   function exportCSV(name: string, rows: any[], headers: string[]) {
     if (rows.length === 0) return;
@@ -177,10 +193,10 @@ function ReportsPage() {
           sub={`${purchases.length} PO`}
         />
         <Kpi
-          label={lang === "ar" ? "إجمالي الربح" : "Gross profit"}
-          value={money(grossProfit)}
-          sub={grossProfit >= 0 ? "✓" : "−"}
-          tone={grossProfit >= 0 ? "pos" : "neg"}
+          label={lang === "ar" ? "المبيعات ناقص المشتريات" : "Sales less purchases"}
+          value={money(netPurchasing)}
+          sub={netPurchasing >= 0 ? "✓" : "−"}
+          tone={netPurchasing >= 0 ? "pos" : "neg"}
         />
       </div>
 

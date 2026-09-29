@@ -169,7 +169,9 @@ export function DirectStockInDialog({
       return;
     }
     if (!isValidQty) {
-      toast.error(isAr ? "يرجى إدخال كمية واردة أكبر من صفر" : "Please enter a valid incoming quantity > 0");
+      toast.error(
+        isAr ? "يرجى إدخال كمية واردة أكبر من صفر" : "Please enter a valid incoming quantity > 0",
+      );
       return;
     }
 
@@ -217,7 +219,9 @@ export function DirectStockInDialog({
       onSaved();
     } catch (err: any) {
       console.error("Direct stock in failed:", err);
-      toast.error(err.message || (isAr ? "فشل عملية التوريد المخزني" : "Failed to record stock in"));
+      toast.error(
+        err.message || (isAr ? "فشل عملية التوريد المخزني" : "Failed to record stock in"),
+      );
     } finally {
       setSaving(false);
     }
@@ -276,8 +280,7 @@ export function DirectStockInDialog({
               <option value="">{isAr ? "اختر المستودع..." : "Select Warehouse..."}</option>
               {warehouses.map((w) => (
                 <option key={w.id} value={w.id}>
-                  {isAr ? w.name_ar || w.name : w.name || w.name_ar}{" "}
-                  {w.code ? `(${w.code})` : ""}
+                  {isAr ? w.name_ar || w.name : w.name || w.name_ar} {w.code ? `(${w.code})` : ""}
                 </option>
               ))}
             </select>
@@ -308,7 +311,9 @@ export function DirectStockInDialog({
                     type="text"
                     value={productSearch}
                     onChange={(e) => setProductSearch(e.target.value)}
-                    placeholder={isAr ? "بحث بالاسم أو SKU أو الباركود..." : "Search name, SKU or barcode..."}
+                    placeholder={
+                      isAr ? "بحث بالاسم أو SKU أو الباركود..." : "Search name, SKU or barcode..."
+                    }
                     className="h-10 w-full rounded-xl border border-border bg-surface px-9 text-sm outline-none focus:border-emerald-500"
                   />
                 </div>
@@ -403,7 +408,9 @@ export function DirectStockInDialog({
                     onChange={(e) => setSupplierId(e.target.value)}
                     className="h-10 w-full rounded-xl border border-border bg-surface px-3 text-xs outline-none focus:border-emerald-500"
                   >
-                    <option value="">{isAr ? "بدون تحديد مورد (توريد مباشر)" : "No Supplier (Direct In)"}</option>
+                    <option value="">
+                      {isAr ? "بدون تحديد مورد (توريد مباشر)" : "No Supplier (Direct In)"}
+                    </option>
                     {suppliers.map((s) => (
                       <option key={s.id} value={s.id}>
                         {s.name} {s.phone ? `(${s.phone})` : ""}
@@ -437,7 +444,9 @@ export function DirectStockInDialog({
                     type="text"
                     value={note}
                     onChange={(e) => setNote(e.target.value)}
-                    placeholder={isAr ? "مثال: بضاعة جديدة مسلّمة للمخزن" : "e.g. Received new stock shipment"}
+                    placeholder={
+                      isAr ? "مثال: بضاعة جديدة مسلّمة للمخزن" : "e.g. Received new stock shipment"
+                    }
                     className="h-10 w-full rounded-xl border border-border bg-surface px-3 text-xs outline-none focus:border-emerald-500"
                   />
                 </div>

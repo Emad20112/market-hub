@@ -327,7 +327,7 @@ function SettlementsPage() {
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[980px] text-sm">
+          <table className="w-full min-w-[1080px] text-sm">
             <thead>
               <tr className="border-b border-border text-[11px] uppercase tracking-wider text-muted-foreground">
                 <th className="px-4 py-2.5 text-start font-medium">
@@ -338,6 +338,9 @@ function SettlementsPage() {
                 </th>
                 <th className="px-4 py-2.5 text-start font-medium">
                   {lang === "ar" ? "النوع" : "Type"}
+                </th>
+                <th className="px-4 py-2.5 text-start font-medium">
+                  {lang === "ar" ? "المستند المصدر" : "Source document"}
                 </th>
                 <th className="px-4 py-2.5 text-end font-medium">
                   {lang === "ar" ? "الكمية" : "Qty"}
@@ -356,14 +359,14 @@ function SettlementsPage() {
             <tbody>
               {isLoading && (
                 <tr>
-                  <td colSpan={7} className="px-4 py-10 text-center text-muted-foreground">
+                  <td colSpan={8} className="px-4 py-10 text-center text-muted-foreground">
                     {t("common.loading")}
                   </td>
                 </tr>
               )}
               {!isLoading && filtered.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="px-4 py-16 text-center text-muted-foreground">
+                  <td colSpan={8} className="px-4 py-16 text-center text-muted-foreground">
                     <ClipboardList className="mx-auto mb-3 h-8 w-8 opacity-60" />
                     {lang === "ar" ? "لا توجد حركات تسوية بعد" : "No settlement movements yet"}
                   </td>
@@ -378,12 +381,44 @@ function SettlementsPage() {
                   lang === "ar"
                     ? row.warehouses?.name_ar || row.warehouses?.name || "—"
                     : row.warehouses?.name || row.warehouses?.name_ar || "—";
+                /*
+                 * Each movement names its own source document. That is what
+                 * makes it possible to see at a glance that an "opening"
+                 * movement came from an opening-stock document and not from a
+                 * purchase invoice — the distinction the design insists on.
+                 */
                 const movementLabel =
                   row.movement_type === "adjustment"
                     ? lang === "ar"
                       ? "تسوية"
                       : "Adjustment"
-                    : row.movement_type;
+                    : row.movement_type === "opening"
+                      ? lang === "ar"
+                        ? "رصيد أول المدة"
+                        : "Opening stock"
+                      : row.movement_type;
+                const sourceLabel =
+                  row.reference_type === "purchase"
+                    ? lang === "ar"
+                      ? "فاتورة شراء"
+                      : "Purchase invoice"
+                    : row.reference_type === "stock_opening"
+                      ? lang === "ar"
+                        ? "مستند رصيد أول المدة"
+                        : "Opening-stock document"
+                      : row.reference_type === "stock_adjustment"
+                        ? lang === "ar"
+                          ? "مستند تسوية مخزون"
+                          : "Stock-adjustment document"
+                        : row.reference_type === "sales_invoice"
+                          ? lang === "ar"
+                            ? "فاتورة بيع"
+                            : "Sales invoice"
+                          : row.reference_type === "stock_transfer"
+                            ? lang === "ar"
+                              ? "تحويل مخزون"
+                              : "Stock transfer"
+                            : (row.reference_type ?? "—");
                 const isPositive = Number(row.quantity) >= 0;
                 return (
                   <tr
@@ -409,6 +444,7 @@ function SettlementsPage() {
                         {movementLabel}
                       </span>
                     </td>
+                    <td className="px-4 py-2.5 text-[11px] text-muted-foreground">{sourceLabel}</td>
                     <td className="px-4 py-2.5 text-end font-mono text-foreground">
                       {Number(row.quantity).toFixed(2)}
                     </td>
