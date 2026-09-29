@@ -22,6 +22,8 @@ import {
   Layers,
   FileText,
   SlidersHorizontal,
+  ShieldCheck,
+  ArrowDownRight,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/page-header";
