@@ -32,10 +32,12 @@ export const Route = createFileRoute("/_app/audit")({
 interface Log {
   id: string;
   actor_id: string | null;
-  action: string;
+  action: "INSERT" | "UPDATE" | "DELETE";
   entity_type: string;
   entity_id: string | null;
-  payload: any;
+  old_data: Record<string, unknown> | null;
+  new_data: Record<string, unknown> | null;
+  details: { message_key?: string; table?: string; record_id?: string } | null;
   created_at: string;
 }
 
@@ -64,7 +66,7 @@ function AuditPage() {
     if (!allowed) return;
     (async () => {
       const { data } = await supabase
-        .from("audit_logs")
+        .from("system_activity_logs" as any)
         .select("*")
         .order("created_at", { ascending: false })
         .limit(500);
@@ -87,13 +89,14 @@ function AuditPage() {
     onDelete: (oldLog) => setRows((current) => current.filter((row) => row.id !== oldLog.id)),
   });
 
-  const describeAction = (action: string) => {
-    const key = action.toLowerCase();
-    if (key.includes("create") || key.includes("insert") || key.includes("add")) return lang === "ar" ? "إضافة سجل جديد" : "Created a new record";
-    if (key.includes("update") || key.includes("edit")) return lang === "ar" ? "تعديل سجل" : "Updated a record";
-    if (key.includes("delete") || key.includes("remove")) return lang === "ar" ? "حذف سجل" : "Deleted a record";
-    if (key.includes("login")) return lang === "ar" ? "تسجيل الدخول" : "Signed in";
-    return action.replaceAll("_", " ");
+  const describeAction = (action: string, entity: string) => {
+    const names: Record<string, string> = {
+      INSERT: lang === "ar" ? "إضافة" : "Created",
+      UPDATE: lang === "ar" ? "تعديل" : "Updated",
+      DELETE: lang === "ar" ? "حذف" : "Deleted",
+    };
+    const entityName = describeEntity(entity);
+    return lang === "ar" ? `${names[action] ?? action} ${entityName}` : `${names[action] ?? action} ${entityName}`;
   };
 
   const describeEntity = (entity: string) => {
@@ -172,8 +175,8 @@ function AuditPage() {
                     </TableCell>
                     <TableCell>
                       <div className="flex flex-col gap-1">
-                        <Badge variant="outline" className="w-fit">{describeAction(r.action)}</Badge>
-                        <span className="text-[11px] text-muted-foreground">{r.action}</span>
+                        <Badge variant="outline" className="w-fit">{describeAction(r.action, r.entity_type)}</Badge>
+                        <span className="text-[11px] text-muted-foreground">{lang === "ar" ? "عملية تلقائية مسجلة من النظام" : "Automatically recorded system operation"}</span>
                       </div>
                     </TableCell>
                     <TableCell className="text-sm">{describeEntity(r.entity_type)}</TableCell>
