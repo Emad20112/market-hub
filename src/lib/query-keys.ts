@@ -14,4 +14,5 @@ export const QUERY_KEYS = {
   dashboard: ["dashboard"] as const,
   analytics: (range?: string) => ["analytics", range] as const,
   settlements: ["settlements"] as const,
+  batches: ["batches"] as const,
 };
