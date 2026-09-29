@@ -68,6 +68,7 @@ interface Log {
 }
 
 // Entity names translation dictionary
+// Entity names comprehensive translation dictionary
 const ENTITY_TRANSLATIONS: Record<string, { label: string; icon?: any }> = {
   customer: { label: "العملاء" },
   customers: { label: "العملاء" },
@@ -75,52 +76,258 @@ const ENTITY_TRANSLATIONS: Record<string, { label: string; icon?: any }> = {
   suppliers: { label: "الموردين" },
   sale: { label: "المبيعات" },
   sales: { label: "المبيعات" },
+  pos: { label: "نقاط البيع" },
+  order: { label: "الطلبات" },
+  orders: { label: "الطلبات" },
+  invoice: { label: "الفواتير" },
+  invoices: { label: "الفواتير" },
   purchase: { label: "المشتريات" },
   purchases: { label: "المشتريات" },
-  product: { label: "المنتجات" },
-  products: { label: "المنتجات" },
-  inventory: { label: "المخزون" },
-  batch: { label: "الدفعات" },
-  batches: { label: "الدفعات" },
-  warehouse: { label: "المستودعات" },
-  warehouses: { label: "المستودعات" },
-  payment: { label: "السندات والدفعات" },
-  payments: { label: "السندات والدفعات" },
-  user: { label: "المستخدمين" },
-  users: { label: "المستخدمين" },
+  purchase_return: { label: "مرتجعات المشتريات" },
+  purchase_returns: { label: "مرتجعات المشتريات" },
+  sales_return: { label: "مرتجعات المبيعات" },
+  sales_returns: { label: "مرتجعات المبيعات" },
+  product: { label: "المنتجات والأصناف" },
+  products: { label: "المنتجات والأصناف" },
+  item: { label: "الأصناف" },
+  items: { label: "الأصناف" },
+  category: { label: "التصنيفات" },
+  categories: { label: "التصنيفات" },
+  brand: { label: "العلامات التجارية" },
+  brands: { label: "العلامات التجارية" },
+  unit: { label: "وحدات القياس" },
+  units: { label: "وحدات القياس" },
+  inventory: { label: "المخزون والجرد" },
+  inventory_adjustment: { label: "تسويات المخزون" },
+  adjustment: { label: "تسويات الجرد" },
+  batch: { label: "الدفعات وتواريخ الصلاحية" },
+  batches: { label: "الدفعات وتواريخ الصلاحية" },
+  warehouse: { label: "المستودعات والفروع" },
+  warehouses: { label: "المستودعات والفروع" },
+  payment: { label: "السندات والتحصيلات" },
+  payments: { label: "السندات والتحصيلات" },
+  customer_payments: { label: "تحصيلات العملاء" },
+  supplier_payments: { label: "مدفوعات الموردين" },
+  settlement: { label: "التسويات المالية" },
+  settlements: { label: "التسويات المالية" },
+  user: { label: "المستخدمين والموظفين" },
+  users: { label: "المستخدمين والموظفين" },
   profile: { label: "الملف الشخصي" },
   profiles: { label: "الملفات الشخصية" },
-  setting: { label: "الإعدادات" },
-  settings: { label: "الإعدادات" },
+  role: { label: "الصلاحيات والأدوار" },
+  roles: { label: "الصلاحيات والأدوار" },
+  permission: { label: "أذونات النظام" },
+  permissions: { label: "أذونات النظام" },
+  setting: { label: "إعدادات النظام" },
+  settings: { label: "إعدادات النظام" },
   company: { label: "بيانات المنشأة" },
-  role: { label: "الصلاحيات" },
+  organization: { label: "المنشأة" },
   session: { label: "جلسات العمل" },
-  auth: { label: "الأمان والدخول" },
+  sessions: { label: "جلسات العمل" },
+  auth: { label: "الأمان وتسجيل الدخول" },
+  loyalty: { label: "برنامج الولاء والنقاط" },
+  barcode: { label: "الباركود والملصقات" },
+  barcodes: { label: "الباركود والملصقات" },
+  account: { label: "دليل الحسابات المالية" },
+  accounts: { label: "دليل الحسابات المالية" },
+  journal_entry: { label: "القيود اليومية" },
+  journal_entries: { label: "القيود اليومية" },
+  debt: { label: "الديون والمستحقات" },
+  debts: { label: "الديون والمستحقات" },
+  audit_log: { label: "سجل التدقيق" },
+  audit: { label: "سجل التدقيق" },
 };
+
+// Comprehensive Dictionary for Payload Field Keys
+const FIELD_TRANSLATIONS: Record<string, string> = {
+  id: "معرف السجل",
+  name: "الاسم",
+  full_name: "الاسم الكامل",
+  display_name: "الاسم المعروض",
+  email: "البريد الإلكتروني",
+  phone: "رقم الهاتف",
+  mobile: "رقم الجوال",
+  status: "الحالة",
+  role: "الصلاحية / الدور",
+  roles: "الأدوار والصلاحيات",
+  balance: "الرصيد المالي",
+  amount: "المبلغ",
+  total: "الإجمالي",
+  total_amount: "المبلغ الإجمالي",
+  subtotal: "المجموع الفرعي",
+  tax: "مبلغ الضريبة",
+  tax_amount: "مبلغ الضريبة",
+  tax_rate: "نسبة الضريبة",
+  discount: "الخصم",
+  discount_amount: "قيمة الخصم",
+  price: "سعر البيع",
+  selling_price: "سعر البيع",
+  cost: "سعر التكلفة",
+  cost_price: "سعر التكلفة",
+  quantity: "الكمية",
+  qty: "الكمية",
+  stock: "الرصيد المخزني",
+  min_stock: "الحد الأدنى للطلب",
+  barcode: "رمز الباركود",
+  sku: "رمز الصنف (SKU)",
+  unit: "الوحدة",
+  unit_name: "اسم الوحدة",
+  category: "التصنيف",
+  category_id: "معرف التصنيف",
+  brand: "العلامة التجارية",
+  brand_id: "معرف العلامة",
+  warehouse: "المستودع",
+  warehouse_id: "معرف المستودع",
+  customer: "العميل",
+  customer_id: "معرف العميل",
+  supplier: "المورد",
+  supplier_id: "معرف المورد",
+  invoice: "الفاتورة",
+  invoice_id: "معرف الفاتورة",
+  invoice_number: "رقم الفاتورة",
+  reference_number: "رقم المرجع / الإيصال",
+  receipt_number: "رقم السند",
+  payment_method: "طريقة الدفع",
+  notes: "ملاحظات",
+  note: "ملاحظة",
+  description: "الوصف والتفاصيل",
+  address: "العنوان",
+  city: "المدينة",
+  country: "الدولة",
+  created_at: "تاريخ الإنشاء",
+  updated_at: "تاريخ آخر تعديل",
+  deleted_at: "تاريخ الحذف",
+  date: "التاريخ",
+  payment_date: "تاريخ السداد",
+  due_date: "تاريخ الاستحقاق",
+  expiry_date: "تاريخ الانتهاء",
+  production_date: "تاريخ الإنتاج",
+  batch_number: "رقم الدفعة (التشغيلة)",
+  is_active: "الحالة التشغيلية",
+  enabled: "التفعيل",
+  disabled: "التعطيل",
+  ip_address: "عنوان IP",
+  user_agent: "المتصفح والجهاز",
+  actor_id: "معرف المستخدم المنفذ",
+  entity_type: "نوع الكيان",
+  entity_id: "معرف الكيان",
+  action: "نوع الإجراء",
+  old_values: "القيم السابقة قبل التعديل",
+  new_values: "القيم الجديدة بعد التعديل",
+  changes: "الحقول المعدلة",
+  items_count: "عدد الأصناف",
+  currency: "العملة",
+  credit_limit: "سقف المديونية (الائتمان)",
+};
+
+// Common Value Translations
+const VALUE_TRANSLATIONS: Record<string, string> = {
+  active: "نشط",
+  inactive: "غير نشط",
+  enabled: "مفعل",
+  disabled: "معطل",
+  pending: "قيد المعالجة / معلق",
+  completed: "مكتمل بنجاح",
+  paid: "مدفوع بالكامل",
+  unpaid: "غير مدفوع",
+  partially_paid: "مدفوع جزئياً",
+  cancelled: "ملغي",
+  draft: "مسودة غير معتمدة",
+  posted: "مرحل ومعتمد",
+  cash: "نقداً (كاش)",
+  card: "بطاقة مدى / شبكة",
+  bank_transfer: "حوالة بنكية",
+  credit: "آجل / ذمم",
+  mobile_money: "محفظة إلكترونية",
+  cheque: "شيك مصرفي",
+  admin: "مدير النظام",
+  manager: "مشرف عام",
+  cashier: "كاشير / بائع",
+  user: "مستخدم",
+  true: "نعم (مفعل)",
+  false: "لا (معطل)",
+  null: "غير محدد",
+  undefined: "غير متوفر",
+};
+
+export function translateFieldKey(key: string): string {
+  const cleanKey = key.trim().toLowerCase();
+  if (FIELD_TRANSLATIONS[cleanKey]) {
+    return FIELD_TRANSLATIONS[cleanKey];
+  }
+  // If formatted like snake_case or camelCase, give a readable attempt
+  return cleanKey.replace(/_/g, " ");
+}
+
+export function translateValue(val: any): string {
+  if (val === null || val === undefined) return "غير محدد";
+  if (typeof val === "boolean") return val ? "نعم (مفعل)" : "لا (معطل)";
+  const str = String(val).trim().toLowerCase();
+  if (VALUE_TRANSLATIONS[str]) {
+    return VALUE_TRANSLATIONS[str];
+  }
+  return String(val);
+}
 
 // Action categories & styling
 function getActionMeta(action: string) {
-  const act = action.toLowerCase();
-  if (act.includes("create") || act.includes("insert") || act.includes("add")) {
+  const act = action.toLowerCase().trim();
+
+  // Explicit mappings first
+  const explicitActions: Record<string, { label: string; type: "create" | "update" | "delete" | "auth" | "other"; badgeClass: string; icon: any }> = {
+    login: { label: "تسجيل دخول", type: "auth", badgeClass: "bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20", icon: LogIn },
+    signin: { label: "تسجيل دخول", type: "auth", badgeClass: "bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20", icon: LogIn },
+    logout: { label: "تسجيل خروج", type: "auth", badgeClass: "bg-muted text-muted-foreground border-border", icon: History },
+    password_reset: { label: "إعادة ضبط كلمة المرور", type: "auth", badgeClass: "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20", icon: ShieldCheck },
+    reset_password: { label: "إعادة ضبط كلمة المرور", type: "auth", badgeClass: "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20", icon: ShieldCheck },
+    role_change: { label: "تعديل الصلاحيات", type: "update", badgeClass: "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20", icon: ShieldCheck },
+    create: { label: "إضافة جديدة", type: "create", badgeClass: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20", icon: PlusCircle },
+    insert: { label: "إدراج سجل", type: "create", badgeClass: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20", icon: PlusCircle },
+    add: { label: "إضافة", type: "create", badgeClass: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20", icon: PlusCircle },
+    update: { label: "تعديل بيانات", type: "update", badgeClass: "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20", icon: Edit3 },
+    edit: { label: "تعديل", type: "update", badgeClass: "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20", icon: Edit3 },
+    modify: { label: "تحديث", type: "update", badgeClass: "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20", icon: Edit3 },
+    delete: { label: "حذف نهائي", type: "delete", badgeClass: "bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20", icon: Trash2 },
+    remove: { label: "إزالة", type: "delete", badgeClass: "bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20", icon: Trash2 },
+    cancel: { label: "إلغاء العملية", type: "delete", badgeClass: "bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20", icon: Trash2 },
+    void: { label: "إبطال الفاتورة", type: "delete", badgeClass: "bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20", icon: Trash2 },
+    export: { label: "تصدير بيانات", type: "other", badgeClass: "bg-sky-500/10 text-sky-600 dark:text-sky-400 border-sky-500/20", icon: ArrowDownRight },
+    export_csv: { label: "تصدير CSV", type: "other", badgeClass: "bg-sky-500/10 text-sky-600 dark:text-sky-400 border-sky-500/20", icon: ArrowDownRight },
+    print: { label: "طباعة مستند", type: "other", badgeClass: "bg-muted text-foreground border-border", icon: FileText },
+    payment: { label: "تسجيل دفعة", type: "create", badgeClass: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20", icon: PlusCircle },
+    collect: { label: "تحصيل مالي", type: "create", badgeClass: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20", icon: PlusCircle },
+    refund: { label: "استرداد مالي", type: "delete", badgeClass: "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20", icon: Trash2 },
+    status_change: { label: "تغيير الحالة", type: "update", badgeClass: "bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border-indigo-500/20", icon: Edit3 },
+    transfer: { label: "نقل وتحويل", type: "other", badgeClass: "bg-teal-500/10 text-teal-600 dark:text-teal-400 border-teal-500/20", icon: History },
+    adjustment: { label: "تسوية جرد", type: "update", badgeClass: "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20", icon: Edit3 },
+    sync: { label: "مزامنة سحابية", type: "other", badgeClass: "bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border-cyan-500/20", icon: RefreshCw },
+  };
+
+  if (explicitActions[act]) {
+    return explicitActions[act];
+  }
+
+  // Substring checks
+  if (act.includes("create") || act.includes("insert") || act.includes("add") || act.includes("new")) {
     return {
       type: "create" as const,
-      label: "إنشاء جديد",
+      label: "إضافة / إنشاء",
       badgeClass: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20",
       icon: PlusCircle,
     };
   }
-  if (act.includes("update") || act.includes("edit") || act.includes("modify")) {
+  if (act.includes("update") || act.includes("edit") || act.includes("modify") || act.includes("patch") || act.includes("change")) {
     return {
       type: "update" as const,
-      label: "تعديل بيانات",
+      label: "تعديل وتحديث",
       badgeClass: "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20",
       icon: Edit3,
     };
   }
-  if (act.includes("delete") || act.includes("remove") || act.includes("destroy") || act.includes("cancel")) {
+  if (act.includes("delete") || act.includes("remove") || act.includes("destroy") || act.includes("cancel") || act.includes("void")) {
     return {
       type: "delete" as const,
-      label: "حذف / إلغاء",
+      label: "حذف أو إلغاء",
       badgeClass: "bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20",
       icon: Trash2,
     };
@@ -133,9 +340,18 @@ function getActionMeta(action: string) {
       icon: LogIn,
     };
   }
+  if (act.includes("export") || act.includes("download")) {
+    return {
+      type: "other" as const,
+      label: "تصدير بيانات",
+      badgeClass: "bg-sky-500/10 text-sky-600 dark:text-sky-400 border-sky-500/20",
+      icon: ArrowDownRight,
+    };
+  }
+
   return {
     type: "other" as const,
-    label: action,
+    label: act.replace(/_/g, " "),
     badgeClass: "bg-muted text-muted-foreground border-border",
     icon: History,
   };
@@ -897,25 +1113,54 @@ function AuditPage() {
 
                   {selectedLog.payload ? (
                     typeof selectedLog.payload === "object" && Object.keys(selectedLog.payload).length > 0 ? (
-                      <div className="space-y-2">
-                        {/* Elegant Key-Value pairs */}
-                        <div className="rounded-2xl border border-border/70 overflow-hidden divide-y divide-border/40 bg-card text-xs">
-                          {Object.entries(selectedLog.payload).map(([k, v]) => (
-                            <div key={k} className="p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
-                              <span className="font-bold text-muted-foreground font-mono text-[11px]">
-                                {k}
-                              </span>
-                              <span className="font-mono text-[12px] text-foreground font-medium break-all text-left sm:text-right dir-ltr">
-                                {typeof v === "object" ? JSON.stringify(v) : String(v)}
-                              </span>
-                            </div>
-                          ))}
+                      <div className="space-y-3">
+                        {/* Fully Translated Field Table */}
+                        <div className="rounded-2xl border border-border/70 overflow-hidden bg-card text-xs shadow-xs">
+                          <div className="bg-muted/50 px-3.5 py-2 border-b border-border/60 flex items-center justify-between text-[11px] font-bold text-muted-foreground">
+                            <span>الحقل / البيان</span>
+                            <span>القيمة المسجلة</span>
+                          </div>
+                          <div className="divide-y divide-border/40">
+                            {Object.entries(selectedLog.payload).map(([k, v]) => {
+                              const arabicField = translateFieldKey(k);
+                              const isComplex = typeof v === "object" && v !== null;
+                              const translatedVal = isComplex ? JSON.stringify(v) : translateValue(v);
+
+                              return (
+                                <div
+                                  key={k}
+                                  className="p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 hover:bg-muted/30 transition"
+                                >
+                                  <div className="flex flex-col">
+                                    <span className="font-bold text-foreground text-[12px]">
+                                      {arabicField}
+                                    </span>
+                                    <span className="font-mono text-[10px] text-muted-foreground dir-ltr text-right">
+                                      {k}
+                                    </span>
+                                  </div>
+                                  <div className="sm:text-end">
+                                    {isComplex ? (
+                                      <pre className="inline-block max-w-full p-2 rounded-lg bg-muted text-[11px] font-mono text-foreground/90 overflow-x-auto dir-ltr text-left">
+                                        {translatedVal}
+                                      </pre>
+                                    ) : (
+                                      <span className="inline-flex items-center gap-1 font-semibold text-foreground text-[12px] bg-muted/50 px-2.5 py-1 rounded-lg">
+                                        {translatedVal}
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
                         </div>
 
                         {/* Raw JSON viewer toggle / block */}
-                        <details className="text-xs rounded-2xl border border-border/50 p-3 bg-muted/30">
-                          <summary className="font-bold cursor-pointer text-muted-foreground select-none">
-                            عرض كود JSON الخام
+                        <details className="text-xs rounded-2xl border border-border/50 p-3 bg-muted/20 group">
+                          <summary className="font-bold cursor-pointer text-muted-foreground select-none flex items-center justify-between hover:text-foreground">
+                            <span>عرض البيانات التقنية الخام (JSON)</span>
+                            <span className="text-[10px] text-muted-foreground font-mono">Payload Code</span>
                           </summary>
                           <pre className="mt-3 p-3 rounded-xl bg-background border border-border/40 font-mono text-[11px] overflow-x-auto text-foreground/90 dir-ltr text-left">
                             {JSON.stringify(selectedLog.payload, null, 2)}
