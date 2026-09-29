@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { PageHeader } from "@/components/page-header";
+import { formatLuxuryDate, toSystemDigits } from "@/lib/format-preferences";
 import { supabase } from "@/integrations/supabase/client";
 import { useI18n } from "@/lib/i18n";
 import { useModules } from "@/lib/modules";
@@ -328,143 +329,134 @@ function DashboardPage() {
         }
       />
 
-      {/* Smart Hero Header Container */}
-      <div className="relative mb-6 overflow-hidden rounded-3xl border border-border/80 bg-gradient-to-br from-card via-card/95 to-primary/5 p-5 sm:p-7 shadow-lg shadow-black/5 transition-all">
-        {/* Ambient background decoration */}
-        <div className="pointer-events-none absolute -end-16 -top-16 size-72 rounded-full bg-primary/10 blur-3xl opacity-70" />
-        <div className="pointer-events-none absolute -bottom-16 -start-16 size-60 rounded-full bg-chart-4/10 blur-3xl opacity-50" />
-
-        <div className="relative flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
-          {/* Left: Greeting, User & Financial Pulse */}
-          <div className="space-y-4">
-            {/* Top row: Live Time Badge & Role & Date */}
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-primary/25 bg-primary/10 px-3 py-1 text-xs font-bold text-primary shadow-sm">
-                <GreetingIcon className={`size-3.5 ${greeting.color} animate-pulse`} />
-                <span>{greeting.badge}</span>
-              </span>
-
-              <span
-                className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[11px] font-bold shadow-sm ${roleMeta.badgeCls}`}
-              >
-                <span>{roleMeta.label}</span>
-              </span>
-
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-border/70 bg-surface-2/80 px-3 py-0.5 text-xs font-medium text-muted-foreground shadow-sm">
-                <CalendarIcon className="size-3 text-muted-foreground/80" />
-                <span>{formattedDate}</span>
+      {/* Executive Luxury Greeting & Calendar Masterpiece */}
+      <div className="relative mb-6 overflow-hidden rounded-3xl border border-border/80 bg-gradient-to-br from-card/90 via-card to-surface-2/40 p-4 sm:p-6 shadow-sm backdrop-blur-xl">
+        <div className="pointer-events-none absolute -end-16 -top-16 size-60 rounded-full bg-primary/10 blur-3xl opacity-60" />
+        
+        <div className="relative flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          {/* Left / Start: Smart Greeting with Avatar & Role */}
+          <div className="flex items-center gap-3.5">
+            <div className="relative shrink-0">
+              {profile?.avatar_url ? (
+                <img
+                  src={profile.avatar_url}
+                  alt={userName}
+                  className="size-12 sm:size-14 rounded-2xl object-cover border-2 border-primary/20 shadow-md"
+                />
+              ) : (
+                <div className="grid size-12 sm:size-14 place-items-center rounded-2xl bg-gradient-to-tr from-primary to-primary/80 text-primary-foreground font-black text-xl sm:text-2xl shadow-md shadow-primary/20 border border-primary/30">
+                  {userName ? userName.charAt(0).toUpperCase() : "م"}
+                </div>
+              )}
+              {/* Online pulse dot */}
+              <span className="absolute -bottom-0.5 -end-0.5 flex size-3.5 items-center justify-center">
+                <span className="absolute inline-flex size-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+                <span className="relative inline-flex size-2.5 rounded-full bg-emerald-500 border-2 border-card" />
               </span>
             </div>
 
-            {/* Smart Greeting & User Name */}
-            <div>
-              <h2 className="text-2xl sm:text-3xl font-black tracking-tight text-foreground flex items-center gap-2">
+            <div className="space-y-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-primary/25 bg-primary/10 px-2.5 py-0.5 text-xs font-bold text-primary">
+                  <GreetingIcon className={`size-3.5 ${greeting.color}`} />
+                  <span>{greeting.badge}</span>
+                </span>
+                <span className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[11px] font-bold shadow-xs ${roleMeta.badgeCls}`}>
+                  <span>{roleMeta.label}</span>
+                </span>
+              </div>
+
+              <h2 className="text-xl sm:text-2xl font-black tracking-tight text-foreground flex items-center gap-1.5">
                 <span>{greeting.title}،</span>
                 <span className="bg-gradient-to-l from-primary via-primary/90 to-foreground bg-clip-text text-transparent">
                   {userName}
                 </span>
-                <span className="text-xl sm:text-2xl select-none">👋</span>
+                <span className="text-lg select-none">✨</span>
               </h2>
-              <p className="mt-1 text-xs sm:text-sm text-muted-foreground">
-                {isAr
-                  ? "إليك ملخص الأداء المالي والتشغيلي لنظام فورتكس لآخر 30 يوماً"
-                  : "Here is your 30-day financial and operational snapshot for Vortex ERP"}
+
+              <p className="text-xs text-muted-foreground flex items-center gap-1.5">
+                <span className="inline-block size-1.5 rounded-full bg-emerald-500" />
+                <span>{isAr ? "نظام فورتكس يعمل بكفاءة ومباشر" : "Vortex ERP connected & live"}</span>
               </p>
             </div>
-
-            {/* Financial Highlights */}
-            <div className="flex flex-wrap items-center gap-2 pt-1">
-              <MiniBadge
-                label={lang === "ar" ? "إجمالي الإيرادات" : "Gross Revenue"}
-                value={money(data?.revenue ?? 0)}
-                tone="neutral"
-              />
-              <MiniBadge
-                label={lang === "ar" ? "المحصّل نقدًا وبنكًا" : "Collected Cash"}
-                value={money(data?.collected ?? 0)}
-                tone="pos"
-              />
-              <MiniBadge
-                label={lang === "ar" ? "الذمم والديون" : "Receivables"}
-                value={money(data?.receivables ?? 0)}
-                tone={data?.receivables && data.receivables > 0 ? "warn" : "pos"}
-              />
-              <MiniBadge
-                label={lang === "ar" ? "صافي التدفق" : "Net Cash"}
-                value={money(data?.netCash ?? 0)}
-                tone={data?.netCash && data.netCash >= 0 ? "pos" : "neg"}
-              />
-            </div>
           </div>
 
-          {/* Right: Quick Action Buttons & Sparkline */}
-          <div className="flex flex-col sm:flex-row lg:flex-col items-stretch sm:items-center lg:items-end justify-between gap-4 border-t lg:border-t-0 lg:border-s border-border/70 pt-4 lg:pt-0 lg:ps-6">
-            <div className="flex flex-wrap items-center gap-2">
-              <Link
-                to="/pos"
-                className="flex-1 sm:flex-none inline-flex h-9 items-center justify-center gap-2 rounded-2xl bg-primary px-4 text-xs font-bold text-primary-foreground shadow-md shadow-primary/20 hover:bg-primary/90 transition-all active:scale-95"
-              >
-                <ShoppingCart className="size-3.5" />
-                <span>{lang === "ar" ? "نقطة البيع (POS)" : "Open POS"}</span>
-              </Link>
-              <Link
-                to="/sales"
-                className="flex-1 sm:flex-none inline-flex h-9 items-center justify-center gap-1.5 rounded-2xl border border-border/80 bg-surface/80 px-3.5 text-xs font-semibold text-foreground hover:bg-surface-2 transition-all active:scale-95"
-              >
-                <Receipt className="size-3.5 text-muted-foreground" />
-                <span>{lang === "ar" ? "فواتير المبيعات" : "Invoices"}</span>
-              </Link>
-              {isModuleEnabled("analytics") && (
-                <Link
-                  to="/analytics"
-                  className="flex-1 sm:flex-none inline-flex h-9 items-center justify-center gap-1.5 rounded-2xl border border-primary/30 bg-primary/10 px-3.5 text-xs font-semibold text-primary hover:bg-primary/20 transition-all active:scale-95"
-                >
-                  <Sparkles className="size-3.5" />
-                  <span>{lang === "ar" ? "التحليلات" : "Analytics"}</span>
-                </Link>
-              )}
-            </div>
+          {/* Right / End: The Calendar Masterpiece Card (تحفة تقويمية فاخرة) */}
+          <div className="self-end sm:self-auto shrink-0">
+            {(() => {
+              const luxuryDate = formatLuxuryDate(now, { showDayName: true, showYear: true });
+              return (
+                <div className="group relative overflow-hidden rounded-2xl border border-border/80 bg-card shadow-sm transition-all hover:border-primary/40 hover:shadow-md">
+                  {/* Calendar Top Accent Header Bar */}
+                  <div className="flex items-center justify-between gap-3 bg-gradient-to-r from-primary via-primary/95 to-primary/90 px-3.5 py-1 text-primary-foreground">
+                    <span className="text-[11px] font-black tracking-wider uppercase">
+                      {luxuryDate.month}
+                    </span>
+                    <span className="text-[10px] font-bold opacity-90 font-mono">
+                      {luxuryDate.year}
+                    </span>
+                  </div>
 
-            {/* Sparkline mini-chart */}
-            <div className="w-full sm:w-64 h-20 rounded-2xl bg-surface-2/50 border border-border/50 p-2 shadow-inner">
-              <div className="flex items-center justify-between px-1 pb-1 text-[10px] text-muted-foreground">
-                <span>{isAr ? "مؤشر 14 يوماً" : "14-Day trend"}</span>
-                <span className="font-mono font-bold text-foreground">
-                  {num(data?.orders ?? 0)} {isAr ? "فاتورة" : "orders"}
-                </span>
-              </div>
-              <div className="h-12">
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={data?.daily ?? []}>
-                    <defs>
-                      <linearGradient id="heroG" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="var(--primary, #3b82f6)" stopOpacity={0.4} />
-                        <stop offset="100%" stopColor="var(--primary, #3b82f6)" stopOpacity={0.0} />
-                      </linearGradient>
-                    </defs>
-                    <Tooltip
-                      contentStyle={TOOLTIP_STYLE}
-                      itemStyle={TOOLTIP_ITEM_STYLE}
-                      labelStyle={TOOLTIP_LABEL_STYLE}
-                      formatter={(val: any) => [money(Number(val)), isAr ? "الإيراد" : "Revenue"]}
-                    />
-                    <Area
-                      type="monotone"
-                      dataKey="revenue"
-                      stroke="var(--primary, #3b82f6)"
-                      strokeWidth={2}
-                      fill="url(#heroG)"
-                    />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
+                  {/* Calendar Body */}
+                  <div className="flex items-center gap-3 px-3.5 py-2 bg-gradient-to-b from-card via-card to-surface-2/30">
+                    <div className="text-center min-w-[2.2rem]">
+                      <span className="block text-2xl sm:text-3xl font-black text-foreground font-mono leading-none tracking-tight">
+                        {luxuryDate.day}
+                      </span>
+                    </div>
+                    <div className="h-7 w-px bg-border/60" />
+                    <div className="space-y-0.5">
+                      <span className="block text-xs font-bold text-foreground">
+                        {luxuryDate.weekday}
+                      </span>
+                      <span className="block text-[10px] text-muted-foreground">
+                        {isAr ? "اليوم الحالي" : "Today"}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
           </div>
+        </div>
+
+        {/* Sleek Quick Action Dock */}
+        <div className="mt-4 flex flex-wrap items-center gap-2 pt-3 border-t border-border/60">
+          <Link
+            to="/pos"
+            className="inline-flex h-8 sm:h-9 items-center gap-1.5 rounded-xl bg-primary px-3 text-xs font-bold text-primary-foreground shadow-sm hover:bg-primary/90 transition-all active:scale-95"
+          >
+            <ShoppingCart className="size-3.5" />
+            <span>{lang === "ar" ? "نقطة البيع (POS)" : "Open POS"}</span>
+          </Link>
+          <Link
+            to="/sales"
+            className="inline-flex h-8 sm:h-9 items-center gap-1.5 rounded-xl border border-border/80 bg-surface/80 px-3 text-xs font-semibold text-foreground hover:bg-surface-2 transition-all active:scale-95"
+          >
+            <Receipt className="size-3.5 text-muted-foreground" />
+            <span>{lang === "ar" ? "فواتير المبيعات" : "Invoices"}</span>
+          </Link>
+          <Link
+            to="/debts"
+            className="inline-flex h-8 sm:h-9 items-center gap-1.5 rounded-xl border border-border/80 bg-surface/80 px-3 text-xs font-semibold text-foreground hover:bg-surface-2 transition-all active:scale-95"
+          >
+            <Wallet className="size-3.5 text-muted-foreground" />
+            <span>{lang === "ar" ? "الديون والتحصيل" : "Debts & Collection"}</span>
+          </Link>
+          {isModuleEnabled("analytics") && (
+            <Link
+              to="/analytics"
+              className="inline-flex h-8 sm:h-9 items-center gap-1.5 rounded-xl border border-primary/30 bg-primary/10 px-3 text-xs font-semibold text-primary hover:bg-primary/20 transition-all active:scale-95"
+            >
+              <Sparkles className="size-3.5" />
+              <span>{lang === "ar" ? "التحليلات المتقدمة" : "Analytics"}</span>
+            </Link>
+          )}
         </div>
       </div>
 
-      {/* Modern Vortex Metric Cards Grid */}
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      {/* Modern Vortex Metric Cards Grid - 2 cards per row on mobile */}
+      <div className="grid grid-cols-2 gap-2.5 sm:gap-4 lg:grid-cols-4 mb-6">
         <Link to="/sales" className="block focus:outline-none">
           <VortexMetricCard
             title={t("dash.sales")}
