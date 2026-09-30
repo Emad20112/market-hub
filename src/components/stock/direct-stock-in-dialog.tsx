@@ -2,17 +2,16 @@ import { useState, useEffect, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useI18n } from "@/lib/i18n";
-import { useAuth } from "@/lib/auth";
 import { toast } from "sonner";
 import {
   X,
-  PackagePlus,
-  Warehouse,
   Package,
+  Warehouse,
   Search,
+  PackagePlus,
+  DollarSign,
   Truck,
   FileText,
-  DollarSign,
   ArrowUpRight,
 } from "lucide-react";
 
@@ -46,6 +45,19 @@ interface DirectStockInDialogProps {
   onSaved: () => void;
 }
 
+/**
+ * Direct stock in — a physical receipt of goods.
+ *
+ * This is a PURCHASE, and the design is explicit that a purchase is recorded
+ * through the procurement RPC: it is the only entry point that keeps the
+ * position, the ledger movement and the owning document in step, and the only
+ * one that shows up in the purchase report. Writing `inventory` and
+ * `stock_movements` by hand here would produce stock the engine cannot account
+ * for — exactly what this dialog must not do.
+ *
+ * The balance is read from `stock_positions`, the same source-of-truth the
+ * inventory page reports from.
+ */
 export function DirectStockInDialog({
   initialProductId,
   initialWarehouseId,
@@ -53,9 +65,7 @@ export function DirectStockInDialog({
   onSaved,
 }: DirectStockInDialogProps) {
   const { lang } = useI18n();
-  const { user } = useAuth();
   const isAr = lang === "ar";
-
   const [selectedWarehouseId, setSelectedWarehouseId] = useState<string>(initialWarehouseId || "");
   const [selectedProductId, setSelectedProductId] = useState<string>(initialProductId || "");
   const [productSearch, setProductSearch] = useState("");
@@ -136,19 +146,22 @@ export function DirectStockInDialog({
     }
   }, [selectedProduct]);
 
-  // 4. Fetch Current System Balance for selected Product + Warehouse
+  // 4. Fetch Current System Balance for selected Product + Warehouse.
+  // Read from stock_positions — the engine's source of truth — so the figure
+  // shown here matches what the inventory list displays.
+  const positionsTable = () => supabase.from("stock_positions" as never) as any;
   const { data: systemQty = 0, isLoading: isLoadingStock } = useQuery<number>({
     queryKey: ["inventory_direct_in_balance", selectedProductId, selectedWarehouseId],
     queryFn: async () => {
       if (!selectedProductId || !selectedWarehouseId) return 0;
-      const { data, error } = await supabase
-        .from("inventory")
+      const { data, error } = await positionsTable()
         .select("quantity")
-        .eq("product_id", selectedProductId)
+        .eq("item_id", selectedProductId)
         .eq("warehouse_id", selectedWarehouseId)
+        .eq("owner_type", "COMPANY")
         .maybeSingle();
       if (error) throw error;
-      return Number(data?.quantity ?? 0);
+      return Number((data as { quantity?: number } | null)?.quantity ?? 0);
     },
     enabled: Boolean(selectedProductId && selectedWarehouseId),
   });
@@ -159,7 +172,6 @@ export function DirectStockInDialog({
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-
     if (!selectedWarehouseId) {
       toast.error(isAr ? "يرجى تحديد المستودع" : "Please select a warehouse");
       return;
@@ -177,45 +189,49 @@ export function DirectStockInDialog({
 
     setSaving(true);
     try {
-      // 1. Update/Upsert the inventory table with the NEW Total Quantity (current + incoming)
-      const { error: invErr } = await supabase.from("inventory").upsert(
-        {
-          product_id: selectedProductId,
-          warehouse_id: selectedWarehouseId,
-          quantity: newTotalQty,
-          updated_at: new Date().toISOString(),
-        },
-        { onConflict: "product_id,warehouse_id" },
-      );
+      /*
+       * The receipt is posted as a purchase document through `create_purchase`
+       * — the procurement entry point the engine documents as the only route
+       * that records stock in and keeps the purchase report honest.
+       *
+       * A direct receipt has no supplier on the document, but the RPC requires
+       * one, so a stable placeholder supplier is resolved (or created once).
+       * Only the document's supplier reference is affected; the position and
+       * the ledger movement come from the RPC itself.
+       */
+      const resolvedSupplierId = supplierId || (await resolveDirectSupplierId());
+      if (!resolvedSupplierId) {
+        toast.error(
+          isAr
+            ? "تعذر تجهيز جهة التوريد المباشر. يرجى اختيار مورد."
+            : "Could not prepare the direct-receipt supplier. Please pick a supplier.",
+        );
+        return;
+      }
 
-      if (invErr) throw invErr;
-
-      // 2. Log the stock movement as 'purchase' (incoming stock receipt)
-      const noteText = note.trim()
-        ? note.trim()
-        : isAr
-          ? "توريد مخزني مباشر (إدخال كمية)"
-          : "Direct stock receipt";
-
-      const { error: mvErr } = await supabase.from("stock_movements").insert({
-        product_id: selectedProductId,
-        warehouse_id: selectedWarehouseId,
-        movement_type: "purchase",
-        quantity: incomingQty,
-        unit_cost: Number(unitCostStr) || 0,
-        reference: reference.trim() || null,
-        note: noteText,
-        created_by: user?.id ?? null,
+      const { error } = await supabase.rpc("create_purchase", {
+        _warehouse_id: selectedWarehouseId,
+        _supplier_id: resolvedSupplierId,
+        _payment_method: "cash",
+        _paid: 0,
+        _discount: 0,
+        _note: (note.trim() || reference.trim() || null) as any,
+        _items: [
+          {
+            product_id: selectedProductId,
+            quantity: incomingQty,
+            unit_cost: Number(unitCostStr) || 0,
+            tax_rate: 0,
+          },
+        ],
       } as any);
-
-      if (mvErr) throw mvErr;
+      if (error) throw error;
 
       toast.success(
         isAr
           ? `تم توريد الكمية الجديدة بنجاح (+${incomingQty.toFixed(2)}) أصبح الرصيد (${newTotalQty.toFixed(2)})`
           : `Direct stock in recorded (+${incomingQty.toFixed(2)}), new balance (${newTotalQty.toFixed(2)})`,
       );
-
       onSaved();
     } catch (err: any) {
       console.error("Direct stock in failed:", err);
@@ -225,6 +241,26 @@ export function DirectStockInDialog({
     } finally {
       setSaving(false);
     }
+  }
+
+  /** Finds (or creates once) the placeholder supplier used by direct receipts. */
+  async function resolveDirectSupplierId(): Promise<string | null> {
+    const marker = isAr ? "توريد مخزني مباشر" : "Direct Stock In";
+    const { data: existing } = await supabase
+      .from("suppliers")
+      .select("id")
+      .eq("name", marker)
+      .limit(1)
+      .maybeSingle();
+    if (existing?.id) return existing.id;
+
+    const { data: created, error: createError } = await supabase
+      .from("suppliers")
+      .insert({ name: marker } as any)
+      .select("id")
+      .single();
+    if (createError) return null;
+    return created?.id ?? null;
   }
 
   return (
@@ -397,7 +433,6 @@ export function DirectStockInDialog({
                     className="h-10 w-full rounded-xl border border-border bg-surface px-3 font-mono text-xs outline-none focus:border-emerald-500"
                   />
                 </div>
-
                 <div className="space-y-1.5">
                   <label className="text-xs font-semibold text-foreground flex items-center gap-1">
                     <Truck className="h-3.5 w-3.5 text-muted-foreground" />
@@ -435,7 +470,6 @@ export function DirectStockInDialog({
                     className="h-10 w-full rounded-xl border border-border bg-surface px-3 text-xs outline-none focus:border-emerald-500"
                   />
                 </div>
-
                 <div className="space-y-1.5">
                   <label className="text-xs font-semibold text-foreground">
                     {isAr ? "ملاحظات وتفاصيل التوريد" : "Notes & Details"}
@@ -464,7 +498,6 @@ export function DirectStockInDialog({
           >
             {isAr ? "إلغاء" : "Cancel"}
           </button>
-
           <button
             type="submit"
             disabled={saving || !selectedProductId || !selectedWarehouseId || !isValidQty}

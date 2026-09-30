@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Market-Hub ERP — Stock operations API.
  *
  * Every function here calls an atomic RPC. None of them writes a table

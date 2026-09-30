@@ -131,7 +131,21 @@ type ProductRow = {
   costing_method?: CostingMethod;
   is_sellable?: boolean;
   is_purchasable?: boolean;
+  compatibilities?: { vehicle_model_id: string }[];
 };
+
+type ProductBaseRow = Omit<
+  ProductRow,
+  | "shelf_location"
+  | "origin_id"
+  | "quality_grade_id"
+  | "category"
+  | "brand"
+  | "unit"
+  | "origin"
+  | "quality"
+  | "compatibilities"
+>;
 
 /** Neutral reference counts — used before the guard has answered. */
 const EMPTY_COUNTS: ReferenceCounts = {
@@ -199,16 +213,70 @@ function ProductsPage() {
     queryFn: async ({ pageParam }) => {
       const from = pageParam * PRODUCTS_PAGE_SIZE;
       const to = from + PRODUCTS_PAGE_SIZE - 1;
+      // Keep the catalogue read deliberately small and independent from optional
+      // presentation metadata. A failed embed must never make valid products
+      // disappear from the grid.
       const { data: page, error: productError } = await (supabase.from("products") as any)
         .select(
-          "id, name, name_ar, sku, barcode, sale_price, cost_price, tax_rate, min_stock, shelf_location, origin_id, quality_grade_id, is_active, category_id, brand_id, unit_id, category:categories(name, name_ar), brand:brands(name, name_ar), unit:units(short_name, name_ar), origin:countries_of_origin(id, name, name_ar, code), quality:quality_grades(id, name, name_ar, code, sort_order)",
+          "id, name, name_ar, sku, barcode, sale_price, cost_price, tax_rate, min_stock, is_active, category_id, brand_id, unit_id, item_nature, inventory_policy, tracking, costing_method, is_sellable, is_purchasable",
         )
         .order("created_at", { ascending: false })
         .range(from, to);
 
       if (productError) throw productError;
 
-      const rows = (page ?? []) as ProductRow[];
+      const baseRows = ((page as ProductBaseRow[] | null) ?? []).map((product) => ({
+        ...product,
+        shelf_location: null,
+        origin_id: null,
+        quality_grade_id: null,
+        category: null,
+        brand: null,
+        unit: null,
+        origin: null,
+        quality: null,
+        compatibilities: [],
+      })) as ProductRow[];
+      const productIds = baseRows.map((product) => product.id);
+
+      // These fields enrich cards and forms, but are not allowed to block the
+      // base catalogue. If an optional relation is unavailable, the defaults
+      // above keep the product safe to render.
+      const { data: enrichmentRows, error: enrichmentError } = productIds.length
+        ? await (supabase.from("products") as any)
+            .select(
+              "id, shelf_location, origin_id, quality_grade_id, category:categories(name, name_ar), brand:brands(name, name_ar), unit:units(short_name, name_ar), origin:countries_of_origin(id, name, name_ar, code), quality:quality_grades(id, name, name_ar, code, sort_order)",
+            )
+            .in("id", productIds)
+        : { data: [], error: null };
+
+      const { data: compatibilityRows, error: compatibilityError } = productIds.length
+        ? await (supabase as any)
+            .from("product_compatibilities")
+            .select("product_id, vehicle_model_id")
+            .in("product_id", productIds)
+        : { data: [], error: null };
+
+      const enrichmentByProduct = new Map<string, Partial<ProductRow>>(
+        enrichmentError
+          ? []
+          : (enrichmentRows ?? []).map((product: ProductRow) => [product.id, product]),
+      );
+
+      const compatibilityByProduct: Record<string, { vehicle_model_id: string }[]> = {};
+      if (!compatibilityError) {
+        for (const compatibility of compatibilityRows ?? []) {
+          (compatibilityByProduct[compatibility.product_id] ??= []).push({
+            vehicle_model_id: compatibility.vehicle_model_id,
+          });
+        }
+      }
+
+      const rows = baseRows.map((product) => ({
+        ...product,
+        ...enrichmentByProduct.get(product.id),
+        compatibilities: compatibilityByProduct[product.id] ?? [],
+      }));
       return { rows, hasMore: rows.length === PRODUCTS_PAGE_SIZE };
     },
     getNextPageParam: (lastPage, pages) => (lastPage.hasMore ? pages.length : undefined),
@@ -444,6 +512,25 @@ function ProductsPage() {
 
   const label = (en?: string | null, ar?: string | null) =>
     (lang === "ar" ? ar || en : en || ar) ?? "—";
+
+  const productLoadError = (
+    <div className="card-mullak flex flex-col items-center justify-center space-y-3 p-12 text-center">
+      <div className="grid size-14 place-items-center rounded-2xl bg-destructive/10 text-destructive">
+        <AlertTriangle className="size-8" />
+      </div>
+      <h4 className="text-base font-bold text-foreground">
+        {lang === "ar" ? "تعذر تحميل المنتجات" : "Unable to load products"}
+      </h4>
+      <p className="max-w-sm text-xs text-muted-foreground">
+        {lang === "ar"
+          ? "حدث خطأ أثناء تحميل المنتجات. حاول مرة أخرى."
+          : "An error occurred while loading products. Please try again."}
+      </p>
+      <Button size="sm" variant="outline" onClick={() => void refetch()}>
+        {lang === "ar" ? "إعادة المحاولة" : "Retry"}
+      </Button>
+    </div>
+  );
 
   /* ---------------- columns ---------------- */
   const columns = useMemo<DataTableColumn<ProductRow>[]>(() => {
@@ -822,6 +909,8 @@ function ProductsPage() {
                 />
               ))}
             </div>
+          ) : error && products.length === 0 ? (
+            productLoadError
           ) : displayRows.length === 0 ? (
             <div className="card-mullak p-12 text-center flex flex-col items-center justify-center space-y-3">
               <div className="grid size-14 place-items-center rounded-2xl bg-muted/30 text-muted-foreground">
@@ -1023,6 +1112,8 @@ function ProductsPage() {
                 />
               ))}
             </div>
+          ) : error && products.length === 0 ? (
+            productLoadError
           ) : displayRows.length === 0 ? (
             <div className="card-mullak p-12 text-center flex flex-col items-center justify-center space-y-3">
               <div className="grid size-14 place-items-center rounded-2xl bg-muted/30 text-muted-foreground">
