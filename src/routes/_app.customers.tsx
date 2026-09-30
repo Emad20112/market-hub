@@ -274,7 +274,7 @@ function CustomersPage() {
     // Update customer balance directly
     const currentCust = rows.find((r) => r.id === data.customerId) || collectionCustomer;
     if (currentCust) {
-      const newBal = (Number(currentCust.balance) || 0) - data.amount;
+      const newBal = Math.round(((Number(currentCust.balance) || 0) - data.amount) * 100) / 100;
       await (supabase as any)
         .from("customers")
         .update({ balance: newBal })

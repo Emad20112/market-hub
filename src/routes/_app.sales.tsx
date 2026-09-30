@@ -347,11 +347,15 @@ export function SalesPage() {
       if (pError) throw pError;
     }
 
-    // 2. Update the sales invoice paid amount and status
+    // 2. Update the sales invoice paid amount and status with 2-decimal precision & cap
     const inv = rows.find((r) => r.id === collectionTarget.invoiceId);
     if (inv) {
-      const newPaid = Number(inv.paid) + Number(payment.amount);
-      const newStatus = newPaid >= Number(inv.total) ? "paid" : "partial";
+      const invTotal = Number(inv.total) || 0;
+      const currentPaid = Number(inv.paid) || 0;
+      const remaining = Math.max(0, Math.round((invTotal - currentPaid) * 100) / 100);
+      const payAmt = Math.min(Number(payment.amount) || 0, remaining > 0 ? remaining : Number(payment.amount) || 0);
+      const newPaid = Math.min(invTotal, Math.round((currentPaid + payAmt) * 100) / 100);
+      const newStatus = newPaid >= invTotal ? "paid" : newPaid > 0 ? "partial" : "unpaid";
 
       const { error: invErr } = await (supabase as any)
         .from("sales_invoices")
@@ -363,6 +367,26 @@ export function SalesPage() {
 
       if (invErr) {
         console.error("Failed to update invoice:", invErr);
+        toast.error(isRtl ? "تعذر تحديث حالة الفاتورة" : "Failed to update invoice status");
+        return;
+      }
+    }
+
+    // 3. Keep customer balance consistent in customers table
+    if (collectionTarget.customerId) {
+      const { data: custData } = await supabase
+        .from("customers")
+        .select("balance")
+        .eq("id", collectionTarget.customerId)
+        .maybeSingle();
+
+      if (custData) {
+        const curBal = Number(custData.balance) || 0;
+        const newBal = Math.round((curBal - Number(payment.amount)) * 100) / 100;
+        await (supabase as any)
+          .from("customers")
+          .update({ balance: newBal })
+          .eq("id", collectionTarget.customerId);
       }
     }
 

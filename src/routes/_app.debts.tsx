@@ -117,7 +117,7 @@ function DebtsPage() {
 
     const currentCust = rows.find((r) => r.id === data.customerId) || collectionCustomer;
     if (currentCust) {
-      const newBal = (Number(currentCust.balance) || 0) - data.amount;
+      const newBal = Math.round(((Number(currentCust.balance) || 0) - data.amount) * 100) / 100;
       await (supabase as any)
         .from("customers")
         .update({ balance: newBal })
@@ -213,7 +213,7 @@ function DebtsPage() {
       const ledgerRow = ledgerIndex.get(r.id);
       const balance = ledgerRow ? ledgerRow.ledgerBalance : Number(r.balance);
       if (balance > 0) {
-        totalDebt += balance;
+        totalDebt = Math.round((totalDebt + balance) * 100) / 100;
         debtors += 1;
         if (Number(r.credit_limit) > 0 && balance > Number(r.credit_limit)) overLimit += 1;
       }
