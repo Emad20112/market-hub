@@ -90,9 +90,46 @@ export function describeQueryError(error: unknown): {
   description: string;
   canRetry: boolean;
 } {
-  const message = error instanceof Error ? error.message : String(error ?? "");
+  /*
+   * Extracting a message from an unknown error is genuinely fiddly, and getting
+   * it wrong is what printed "[object Object]" on the expense screen.
+   *
+   * A Supabase/PostgREST failure is a plain object — `{ message, details, hint,
+   * code }` — not an Error instance, so `error.message` misses it and
+   * `String(error)` renders the object's tag. It is read explicitly here.
+   */
+  const raw =
+    error instanceof Error
+      ? error.message
+      : typeof error === "string"
+        ? error
+        : ((error as { message?: unknown } | null)?.message ?? "");
+  const message = typeof raw === "string" ? raw : "";
+
   const status = (error as { status?: number } | null)?.status;
+  const code = (error as { code?: string } | null)?.code;
   const offline = typeof navigator !== "undefined" && navigator.onLine === false;
+
+  /*
+   * A technical message is never shown to an operator. "relation
+   * public.expense_entries does not exist" is accurate and completely useless
+   * to a cashier — and on an installation where the expense-module migration
+   * has not been applied yet, it is the first thing they would see.
+   */
+  const looksTechnical =
+    /relation|column|constraint|syntax error|pg_|postgrest|permission denied for|violates/i.test(
+      message,
+    );
+
+  if (message && !looksTechnical) {
+    // Already a sentence the reader can act on — a RAISE EXCEPTION message, or
+    // a network phrase.
+    // fall through to the checks below
+  } else if (message) {
+    // Keep the real text in the console for whoever is debugging, and give the
+    // operator something they can do about it.
+    console.error("Query failed", error);
+  }
 
   if (offline || /failed to fetch|networkerror|load failed/i.test(message)) {
     return {
@@ -134,6 +171,23 @@ export function describeQueryError(error: unknown): {
     };
   }
 
+  // A missing function or table is the signature of an incomplete deployment,
+  // and it deserves its own sentence rather than "unexpected error".
+  if (
+    code === "42883" ||
+    code === "42P01" ||
+    /function .* does not exist|relation .* does not exist|could not find the function/i.test(
+      message,
+    )
+  ) {
+    return {
+      title: "الوحدة غير مهيّأة بعد",
+      description:
+        "يبدو أن تحديث قاعدة البيانات الخاص بهذه الشاشة لم يُطبَّق على هذا النظام بعد. تواصل مع مدير النظام.",
+      canRetry: false,
+    };
+  }
+
   if (typeof status === "number" && status >= 500) {
     return {
       title: "خطأ في الخادم",
@@ -142,9 +196,15 @@ export function describeQueryError(error: unknown): {
     };
   }
 
+  /*
+   * Fallback. Note there is no `message ||` here: a raw driver string must not
+   * reach the operator, and the empty case is the one that used to render
+   * "[object Object]".
+   */
   return {
     title: "تعذّر تحميل البيانات",
-    description: message || "حدث خطأ غير متوقع.",
+    description:
+      "حدث خطأ غير متوقع أثناء جلب البيانات. أعد المحاولة، وإن تكرر الخطأ تواصل مع مدير النظام.",
     canRetry: true,
   };
 }

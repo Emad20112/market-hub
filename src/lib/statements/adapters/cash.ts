@@ -52,6 +52,31 @@ interface ExpenseRow {
   expense_categories: { name: string; name_ar: string | null } | null;
 }
 
+/**
+ * A payment recorded by the new expense module.
+ *
+ * This is the row that actually moved money. `public.expenses.amount` only ever
+ * knew what was SPENT, never what was PAID — a distinction that did not exist
+ * while every expense was assumed to be settled on the spot.
+ */
+interface ExpensePaymentRow {
+  id: string;
+  entry_id: string;
+  amount: number | null;
+  payment_method: string | null;
+  payment_date: string;
+  account_label: string | null;
+  note: string | null;
+  created_at: string;
+  reversal_of: string | null;
+  reversed_by: string | null;
+  expense_entries: {
+    reference: string;
+    status: string;
+    expense_date: string;
+  } | null;
+}
+
 /** تحويل سداد عميل إلى وارد صندوق */
 export function customerPaymentToCashEntry(
   row: CustomerPaymentRow,
@@ -131,6 +156,55 @@ export function expenseToCashEntry(row: ExpenseRow, lang: "ar" | "en" = "ar"): L
   };
 }
 
+/**
+ * Converts a recorded expense payment into a cash movement.
+ *
+ * Two rules are enforced here, and both are the reason this function exists
+ * rather than reusing `expenseToCashEntry`:
+ *
+ *  1. **A reversal nets to zero.** A reversed payment and its reversal row both
+ *     stay in the table as evidence, but neither moves money any more, so both
+ *     are dropped from the cash register. Including either one alone would show
+ *     cash leaving twice or not at all.
+ *
+ *  2. **Only settled money leaves the drawer.** An accrued expense with no
+ *     payment produces no entry at all — which is exactly what the old adapter
+ *     got wrong when it treated every expense amount as a cash outflow.
+ */
+export function expensePaymentToCashEntry(
+  row: ExpensePaymentRow,
+  lang: "ar" | "en" = "ar",
+): LedgerEntry | null {
+  if (row.reversed_by || row.reversal_of) return null;
+
+  const amount = Number(row.amount ?? 0);
+  if (amount <= 0) return null;
+
+  const reference = row.expense_entries?.reference ?? null;
+  const label = lang === "ar" ? "سداد مصروف" : "Expense payment";
+
+  return {
+    id: `exppay:${row.id}`,
+    // `created_at` carries the real time of the transaction; `payment_date` is
+    // a date only and would sort every payment of a day at midnight.
+    occurredAt: row.created_at,
+    kind: "expense",
+    debit: 0,
+    credit: amount,
+    reference,
+    description: row.note || (reference ? `${label} ${reference}` : label),
+    referenceId: row.id,
+    referenceType: "expense_payment",
+    meta: {
+      entitySource: "expense_payments",
+      paymentMethod: row.payment_method,
+      account: row.account_label,
+      expenseEntryId: row.entry_id,
+      entityId: CASH_ENTITY_ID,
+    },
+  };
+}
+
 export interface CashStatementData {
   entity: StatementEntity;
   entries: LedgerEntry[];
@@ -147,7 +221,7 @@ export interface CashStatementData {
  * ملاحظة: تُدرج فقط حركات لها تاريخ صالح.
  */
 export async function loadCashStatement(lang: "ar" | "en" = "ar"): Promise<CashStatementData> {
-  const [paymentsRes, purchasesRes, expensesRes] = await Promise.all([
+  const [paymentsRes, purchasesRes, expensesRes, expensePaymentsRes] = await Promise.all([
     supabase
       .from("customer_payments")
       .select(
@@ -161,13 +235,63 @@ export async function loadCashStatement(lang: "ar" | "en" = "ar"): Promise<CashS
       )
       .gt("paid", 0)
       .order("created_at", { ascending: true }),
+    // Legacy rows only. An expense migrated into the new module gets a mirrored
+    // row whose `legacy_expense_id` points back here, and counting both would
+    // charge the cash drawer twice for the same money.
     supabase
       .from("expenses")
       .select(
         "id, amount, payment_method, expense_date, note, created_at, expense_categories(name,name_ar)",
       )
       .order("expense_date", { ascending: true }),
+    /**
+     * Payments recorded by the new module.
+     *
+     * Failure is tolerated rather than fatal: on an installation where the
+     * expense-module migration has not been applied yet, `expense_payments`
+     * does not exist and the cash statement must keep working unchanged rather
+     * than showing an error page.
+     *
+     * `as any` is confined to this one call because `database.ts` is generated
+     * from the deployed schema; it is regenerated once the migration ships and
+     * this cast can be removed.
+     */
+    (supabase as any)
+      .from("expense_payments")
+      .select(
+        "id, entry_id, amount, payment_method, payment_date, account_label, note, created_at, reversal_of, reversed_by, expense_entries(reference,status,expense_date)",
+      )
+      .order("created_at", { ascending: true }),
   ]);
+
+  /*
+   * Rows that have been bridged into the new module are excluded from the
+   * legacy pass. The bridge is one-way and additive, so without this filter a
+   * migrated expense would appear once as its old self and once as its new
+   * document's payment.
+   */
+  let bridgedLegacyIds = new Set<string>();
+  const legacyRows = (expensesRes.data ?? []) as unknown as ExpenseRow[];
+
+  if (legacyRows.length) {
+    // Cast through `unknown`: `database.ts` is generated from the DEPLOYED
+    // schema, so it cannot know about `expense_entries` until the migration is
+    // applied and the types are regenerated. Casting only here — rather than
+    // weakening the client type for the whole app — keeps every other query in
+    // this file fully checked.
+    const { data: bridged } = (await (supabase as any)
+      .from("expense_entries")
+      .select("legacy_expense_id")
+      .not("legacy_expense_id", "is", null)) as {
+      data: { legacy_expense_id: string | null }[] | null;
+    };
+
+    bridgedLegacyIds = new Set(
+      (bridged ?? [])
+        .map((row) => row.legacy_expense_id)
+        .filter((id): id is string => Boolean(id)),
+    );
+  }
 
   const entries: LedgerEntry[] = [];
   let collections = 0;
@@ -185,9 +309,16 @@ export async function loadCashStatement(lang: "ar" | "en" = "ar"): Promise<CashS
     supplierPayments += entry.credit;
     entries.push(entry);
   }
-  for (const row of (expensesRes.data ?? []) as unknown as ExpenseRow[]) {
+  for (const row of legacyRows) {
+    if (bridgedLegacyIds.has(row.id)) continue;
     const entry = expenseToCashEntry(row, lang);
     if (entry.credit > 0) expenses += entry.credit;
+    entries.push(entry);
+  }
+  for (const row of (expensePaymentsRes.data ?? []) as unknown as ExpensePaymentRow[]) {
+    const entry = expensePaymentToCashEntry(row, lang);
+    if (!entry) continue;
+    expenses += entry.credit;
     entries.push(entry);
   }
 

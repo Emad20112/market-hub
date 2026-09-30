@@ -317,6 +317,18 @@ const sections: Section[] = [
     titleKey: "nav.section.finance",
     items: [
       {
+        // The dedicated register. Roles here match the entry point's audience:
+        // an owner, manager or accountant works the queue, while a cashier
+        // reaches the module through the dashboard action instead.
+        to: "/expenses",
+        icon: Receipt,
+        key: "nav.expenses",
+        moduleId: "expenses",
+        allowedRoles: ["owner", "manager", "accountant"],
+        color: "text-rose-500",
+        bg: "bg-rose-500/15",
+      },
+      {
         to: "/finance",
         icon: Wallet,
         key: "nav.finance",
