@@ -116,6 +116,8 @@ export function useRealtimeTable<T extends { id: string | number }>(
   queryClient?: QueryClient,
 ) {
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const configRef = useRef(config);
+  configRef.current = config;
 
   useEffect(() => {
     const channelName = `realtime-${config.table}-${Math.random().toString(36).substring(2, 7)}`;
@@ -130,22 +132,30 @@ export function useRealtimeTable<T extends { id: string | number }>(
       },
       (payload: RealtimePostgresChangesPayload<T>) => {
         const handleEvent = () => {
-          if (config.queryKey && queryClient) {
-            updateQueryListCache(queryClient, config.queryKey, payload);
+          const currentConfig = configRef.current;
+          if (currentConfig.queryKey && queryClient) {
+            // Optimistically reflect the event for immediate feedback, then
+            // refetch active observers so joins, filters and infinite pages
+            // receive the authoritative shape from their original query.
+            updateQueryListCache(queryClient, currentConfig.queryKey, payload);
+            void queryClient.invalidateQueries({
+              queryKey: currentConfig.queryKey,
+              refetchType: "active",
+            });
           }
 
-          if (payload.eventType === "INSERT" && config.onInsert) {
-            config.onInsert(payload.new as T, queryClient);
-          } else if (payload.eventType === "UPDATE" && config.onUpdate) {
-            config.onUpdate(payload.new as T, queryClient);
-          } else if (payload.eventType === "DELETE" && config.onDelete) {
-            config.onDelete(payload.old as Partial<T>, queryClient);
+          if (payload.eventType === "INSERT" && currentConfig.onInsert) {
+            currentConfig.onInsert(payload.new as T, queryClient);
+          } else if (payload.eventType === "UPDATE" && currentConfig.onUpdate) {
+            currentConfig.onUpdate(payload.new as T, queryClient);
+          } else if (payload.eventType === "DELETE" && currentConfig.onDelete) {
+            currentConfig.onDelete(payload.old as Partial<T>, queryClient);
           }
         };
 
-        if (config.debounceMs && config.debounceMs > 0) {
+        if (configRef.current.debounceMs && configRef.current.debounceMs > 0) {
           if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
-          debounceTimerRef.current = setTimeout(handleEvent, config.debounceMs);
+          debounceTimerRef.current = setTimeout(handleEvent, configRef.current.debounceMs);
         } else {
           handleEvent();
         }

@@ -1369,7 +1369,7 @@ function ProductsPage() {
           onSaved={() => {
             setOpen(false);
             setPrefillBarcode(undefined);
-            qc.invalidateQueries({ queryKey: QUERY_KEYS.products, refetchType: "none" });
+            void qc.invalidateQueries({ queryKey: QUERY_KEYS.products, refetchType: "active" });
             qc.invalidateQueries({ queryKey: ["products", "count"] });
             qc.invalidateQueries({ queryKey: ["products-meta"] });
           }}
