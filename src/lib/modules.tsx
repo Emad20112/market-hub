@@ -121,8 +121,11 @@ export const SYSTEM_MODULES: PlatformModule[] = [
     },
     category: "module",
     dependencies: ["core"],
-    navItems: ["/finance"],
-    routes: ["/_app/finance"],
+    // `/finance` is kept in the list rather than replaced: the expenses module
+    // still owns that screen's register tab during the transition, and removing
+    // a route from a module definition silently disables access to it.
+    navItems: ["/expenses", "/finance"],
+    routes: ["/_app/expenses", "/_app/finance"],
   },
   {
     id: "multi_warehouse",
