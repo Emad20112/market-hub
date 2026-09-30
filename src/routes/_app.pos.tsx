@@ -1048,7 +1048,7 @@ function POSPage() {
           })),
           subtotal,
           discount: discountN,
-          tax: taxN,
+          tax,
           total,
           paid: Math.min(Math.max(effectivePaid, 0), total),
           payment_method: finalMethod as any,
@@ -1109,7 +1109,7 @@ function POSPage() {
             })),
             subtotal,
             discount: discountN,
-            tax: taxN,
+            tax,
             total,
             paid: Math.min(Math.max(effectivePaid, 0), total),
             payment_method: finalMethod as any,
@@ -1132,7 +1132,7 @@ function POSPage() {
       const cur = companySettings?.currency_symbol ?? companySettings?.currency ?? "";
       const invoiceDoc: InvoiceDoc = {
         title: lang === "ar" ? "فاتورة بيع" : "Sales Invoice",
-        number: inv?.invoice_number ?? invoiceId.slice(0, 8),
+        number: invoiceNumber,
         date: saleDate,
         partyLabel: lang === "ar" ? "العميل" : "Bill To",
         partyName: customer?.name ?? (lang === "ar" ? "عميل نقدي" : "Walk-in Customer"),
