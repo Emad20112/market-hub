@@ -6,6 +6,9 @@ import { PageHeader } from "@/components/page-header";
 import { supabase } from "@/integrations/supabase/client";
 import { useI18n } from "@/lib/i18n";
 import { useAuth } from "@/lib/auth";
+import { StockAdjustmentDialog } from "@/components/stock/stock-adjustment-dialog";
+import { DirectStockInDialog } from "@/components/stock/direct-stock-in-dialog";
+import { OpeningStockDialog } from "@/components/stock/opening-stock-dialog";
 import {
   Warehouse,
   Search,
@@ -27,6 +30,7 @@ import {
   Sparkles,
   TrendingDown,
   Wallet,
+  PackagePlus,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -61,23 +65,61 @@ const INVENTORY_PAGE_SIZE = 50;
  */
 type StockState = "out" | "low" | "near" | "healthy" | "untracked";
 
+/**
+ * A stock row as this page needs it.
+ *
+ * Quantities come from public.stock_positions — the Item + Location + Owner
+ * model — not from the legacy per-product `inventory` array. Catalogue rows only
+ * supply presentation metadata (category, brand, barcode, shelf, min stock),
+ * so the stock engine and the UI stay decoupled.
+ */
 type Row = {
   id: string;
   name: string;
   name_ar: string | null;
   sku: string | null;
   barcode: string | null;
-  min_stock: number;
   cost_price: number;
-  category_id: string | null;
-  brand_id: string | null;
-  unit_id: string | null;
+  min_stock: number;
   shelf_location: string | null;
   category?: { name: string; name_ar: string | null } | null;
   brand?: { name: string; name_ar: string | null } | null;
   unit?: { short_name: string; name_ar: string | null } | null;
-  inventory: { warehouse_id: string; quantity: number }[];
+  byWarehouse: Record<string, number>;
 };
+
+/** The shape public.stock_positions returns for one item/warehouse/owner. */
+type StockPosition = {
+  item_id: string;
+  item_name: string;
+  item_name_ar: string | null;
+  sku: string | null;
+  quantity: number;
+  warehouse_id: string;
+};
+
+/**
+ * Minimal typed view of the Supabase client for the stock_positions view.
+ * The generated types do not know about it yet, and widening the global client
+ * type would hide real type errors elsewhere.
+ */
+type PositionQuery = {
+  data: unknown;
+  error: unknown;
+};
+/** A resolved builder: chainable filters end in a thenable. */
+type PositionBuilder = {
+  eq: (column: string, value: unknown) => PositionBuilder;
+  order: (column: string) => PositionBuilder;
+  in: (column: string, values: string[]) => PositionBuilder;
+  range: (from: number, to: number) => PositionBuilder;
+  maybeSingle: () => Promise<PositionQuery>;
+  then: <TResult>(onFulfilled: (value: PositionQuery) => TResult) => Promise<TResult>;
+};
+type PositionsTable = { select: (columns: string) => PositionBuilder };
+
+/** Builds a typed handle on the stock_positions view (not in the generated types). */
+const positionsTable = () => supabase.from("stock_positions" as never) as unknown as PositionsTable;
 
 function InventoryPage() {
   const { t, lang } = useI18n();
@@ -101,6 +143,9 @@ function InventoryPage() {
   const [viewMode, setViewMode] = useState<"grid" | "list" | "table">("grid");
   const [warehouseId, setWarehouseId] = useState<string>("");
   const [adjust, setAdjust] = useState<{ product: Row } | null>(null);
+  /* Engine-side documents: a physical receipt and a standing balance. */
+  const [directIn, setDirectIn] = useState<{ product?: Row } | null>(null);
+  const [openingOpen, setOpeningOpen] = useState(false);
 
   const { data: warehouses } = useQuery({
     queryKey: QUERY_KEYS.warehouses,
@@ -121,13 +166,43 @@ function InventoryPage() {
   }, [warehouses, warehouseId]);
 
   /*
-   * Read-only streaming query.
+   * Origin/main's stock engine, streamed.
    *
-   * Previously this page fetched the ENTIRE active catalogue on every visit.
-   * It now requests 50 rows at a time with `.range()`, exactly like the
-   * products page, so the payload stays flat as the catalogue grows. No schema,
-   * RLS or RPC was touched — this only narrows an existing SELECT.
+   * Stock is read from public.stock_positions — the Item + Location + Owner
+   * model — filtered to company-owned TRACKED goods. One position row is one
+   * item in one warehouse, so the page is paginated over DISTINCT ITEMS, not
+   * over raw position rows: the item ids for the page are selected first with
+   * a real `.range()` window, then only that item's positions are fetched.
+   *
+   * Paginating the raw rows instead would split one item across two pages and
+   * make the per-warehouse aggregation silently wrong, which is exactly what
+   * this ordering avoids.
+   *
+   * `item_name` is not unique, so `item_id` is appended as a tie-breaker: the
+   * order must be stable or a page can repeat or skip rows.
    */
+  const { data: allWarehouses } = useQuery({
+    queryKey: ["inventory", "item-ids"],
+    queryFn: async () => {
+      const { data, error: idsError } = await positionsTable()
+        .select("item_id")
+        .eq("owner_type", "COMPANY")
+        .eq("inventory_policy", "TRACKED")
+        .order("item_name")
+        .order("item_id");
+      if (idsError) throw idsError;
+      const ordered: string[] = [];
+      const seen = new Set<string>();
+      for (const position of (data ?? []) as { item_id: string }[]) {
+        if (seen.has(position.item_id)) continue;
+        seen.add(position.item_id);
+        ordered.push(position.item_id);
+      }
+      return ordered;
+    },
+    staleTime: 30_000,
+  });
+
   const {
     data: rowPages,
     isLoading,
@@ -142,40 +217,104 @@ function InventoryPage() {
     initialPageParam: 0,
     queryFn: async ({ pageParam }) => {
       const from = pageParam * INVENTORY_PAGE_SIZE;
-      const to = from + INVENTORY_PAGE_SIZE - 1;
-      const { data, error: rowsError } = await (supabase.from("products") as any)
-        .select(
-          "id, name, name_ar, sku, barcode, min_stock, cost_price, category_id, brand_id, unit_id, shelf_location, category:categories(name, name_ar), brand:brands(name, name_ar), unit:units(short_name, name_ar), inventory(warehouse_id, quantity)",
-        )
-        .eq("is_active", true)
-        .order("created_at", { ascending: false })
-        .range(from, to);
+      const orderedIds = allWarehouses ?? [];
+      const pageIds = orderedIds.slice(from, from + INVENTORY_PAGE_SIZE);
+      if (pageIds.length === 0) return { rows: [] as Row[], hasMore: false };
+
+      // Only this page's positions cross the wire, filtered server-side.
+      const { data, error: rowsError } = await positionsTable()
+        .select("item_id, item_name, item_name_ar, sku, quantity, warehouse_id")
+        .eq("owner_type", "COMPANY")
+        .eq("inventory_policy", "TRACKED")
+        .in("item_id", pageIds);
       if (rowsError) throw rowsError;
-      const rows = (data ?? []) as unknown as Row[];
-      return { rows, hasMore: rows.length === INVENTORY_PAGE_SIZE };
+
+      const byItem = new Map<string, Row>();
+      for (const position of (data ?? []) as StockPosition[]) {
+        const existing = byItem.get(position.item_id);
+        if (existing) {
+          existing.byWarehouse[position.warehouse_id] =
+            (existing.byWarehouse[position.warehouse_id] ?? 0) + Number(position.quantity ?? 0);
+        } else {
+          byItem.set(position.item_id, {
+            id: position.item_id,
+            name: position.item_name,
+            name_ar: position.item_name_ar,
+            sku: position.sku,
+            barcode: null,
+            cost_price: 0,
+            min_stock: 0,
+            shelf_location: null,
+            byWarehouse: { [position.warehouse_id]: Number(position.quantity ?? 0) },
+          });
+        }
+      }
+
+      // Presentation metadata for the slice of items currently in view. The
+      // stock engine above never depends on it, so an item without a catalogue
+      // row is still shown instead of silently vanishing.
+      const sliced = pageIds.map((id) => byItem.get(id)).filter((row): row is Row => Boolean(row));
+      const ids = sliced.map((r) => r.id);
+      let details: any[] = [];
+      if (ids.length) {
+        const { data: detailRows } = await (supabase.from("products") as any)
+          .select(
+            "id, barcode, min_stock, cost_price, shelf_location, category:categories(name, name_ar), brand:brands(name, name_ar), unit:units(short_name, name_ar)",
+          )
+          .in("id", ids);
+        details = (detailRows ?? []) as any[];
+      }
+      const metaById = new Map<string, any>((details ?? []).map((d: any) => [d.id, d]));
+      const rows = sliced.map((r) => {
+        const meta = metaById.get(r.id);
+        if (!meta) return r;
+        return {
+          ...r,
+          barcode: meta.barcode ?? null,
+          min_stock: Number(meta.min_stock ?? 0),
+          cost_price: Number(meta.cost_price ?? 0),
+          shelf_location: meta.shelf_location ?? null,
+          category: meta.category ?? null,
+          brand: meta.brand ?? null,
+          unit: meta.unit ?? null,
+        };
+      });
+      return { rows, hasMore: from + INVENTORY_PAGE_SIZE < orderedIds.length };
     },
     getNextPageParam: (lastPage, pages) => (lastPage.hasMore ? pages.length : undefined),
-    enabled: true,
+    enabled: allWarehouses !== undefined,
   });
 
-  // The stream never knows the catalogue size, so the total comes from a
-  // dedicated count query that returns no rows at all.
-  const { data: totalCount } = useQuery({
-    queryKey: ["inventory", "count"],
+  // The stream never knows the catalogue size, so the total comes from the
+  // id list already held in the cache — no second aggregate query, and no
+  // full positions payload beyond the ids the pagination needs anyway.
+  const totalCount = allWarehouses?.length ?? 0;
+
+  // Stock value is a separate aggregate: stock_positions carries quantities, an
+  // item's cost lives on the catalogue row, so the two are summed on the client
+  // over the rows already loaded. No schema, RLS or RPC was touched.
+  type ValueRow = { id: string; cost_price: number | null };
+  const { data: valueRows } = useQuery<ValueRow[]>({
+    queryKey: ["inventory", "value"],
     queryFn: async () => {
-      const { count, error: countError } = await (supabase.from("products") as any)
-        .select("id", {
-          count: "exact",
-          head: true,
-        })
+      const { data, error: valueError } = await (supabase.from("products") as any)
+        .select("id, cost_price")
         .eq("is_active", true);
-      if (countError) throw countError;
-      return count ?? 0;
+      if (valueError) throw valueError;
+      return (data ?? []) as ValueRow[];
     },
-    staleTime: 30_000,
+    staleTime: 60_000,
   });
 
   const rows = useMemo(() => rowPages?.pages.flatMap((page) => page.rows) ?? [], [rowPages]);
+
+  // Cost lookup for the valuation KPI: positions give the quantity, this map
+  // gives the per-item cost, and both are joined in-memory for display only.
+  const costById = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const row of valueRows ?? []) map.set(row.id, Number(row.cost_price ?? 0));
+    return map;
+  }, [valueRows]);
 
   useRealtimeTable<Row>(
     { table: "inventory", queryKey: QUERY_KEYS.inventory(warehouseId), debounceMs: 150 },
@@ -187,8 +326,8 @@ function InventoryPage() {
 
   /** Quantity for the selected warehouse (or the sum across all of them). */
   const qtyFor = (r: Row) => {
-    if (!warehouseId) return r.inventory.reduce((a, i) => a + Number(i.quantity), 0);
-    return Number(r.inventory.find((i) => i.warehouse_id === warehouseId)?.quantity ?? 0);
+    if (!warehouseId) return Object.values(r.byWarehouse).reduce((sum, value) => sum + value, 0);
+    return r.byWarehouse[warehouseId] ?? 0;
   };
 
   /**
@@ -297,11 +436,11 @@ function InventoryPage() {
       const s = stateFor(r);
       if (s === "out") out++;
       else if (s === "low" || s === "near") low++;
-      if (canViewCost) value += qtyFor(r) * (Number(r.cost_price) || 0);
+      if (canViewCost) value += qtyFor(r) * (costById.get(r.id) ?? (Number(r.cost_price) || 0));
     }
     return { low, out, value };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rows, canViewCost, warehouseId]);
+  }, [rows, canViewCost, warehouseId, costById]);
 
   /* ---------------- sort options ---------------- */
   const sortOptions = useMemo<SortOption[]>(() => {
@@ -349,6 +488,12 @@ function InventoryPage() {
     }
     setAdjust({ product: r });
   };
+
+  /**
+   * The adjust dialog needs both ids; warehouseId is guaranteed here because
+   * openAdjust refuses to open without a warehouse.
+   */
+  const adjustTarget = adjust ? { productId: adjust.product.id, warehouseId } : null;
 
   /* ---------------- classic table columns ---------------- */
   const columns = useMemo<DataTableColumn<Row>[]>(() => {
@@ -593,30 +738,43 @@ function InventoryPage() {
             label: lang === "ar" ? "ترتيب" : "Sort",
           }}
           viewToggle={
-            <ToolbarAction
-              label={
-                viewMode === "grid"
-                  ? t("inventory.view_grid")
-                  : viewMode === "list"
-                    ? t("inventory.view_list")
-                    : t("inventory.view_classic")
-              }
-              icon={
-                viewMode === "grid" ? (
-                  <LayoutGrid />
-                ) : viewMode === "list" ? (
-                  <List />
-                ) : (
-                  <TableProperties />
-                )
-              }
-              onClick={() =>
-                setViewMode((prev) =>
-                  prev === "grid" ? "list" : prev === "list" ? "table" : "grid",
-                )
-              }
-              tone="ghost"
-            />
+            <div className="flex items-center gap-1.5">
+              <ToolbarAction
+                label={lang === "ar" ? "إدخال مخزني مباشر" : "Direct Stock In"}
+                icon={<PackagePlus />}
+                onClick={() => setDirectIn({})}
+                tone="primary"
+              />
+              <ToolbarAction
+                label={lang === "ar" ? "رصيد أول المدة" : "Opening stock"}
+                icon={<Sparkles />}
+                onClick={() => setOpeningOpen(true)}
+              />
+              <ToolbarAction
+                label={
+                  viewMode === "grid"
+                    ? t("inventory.view_grid")
+                    : viewMode === "list"
+                      ? t("inventory.view_list")
+                      : t("inventory.view_classic")
+                }
+                icon={
+                  viewMode === "grid" ? (
+                    <LayoutGrid />
+                  ) : viewMode === "list" ? (
+                    <List />
+                  ) : (
+                    <TableProperties />
+                  )
+                }
+                onClick={() =>
+                  setViewMode((prev) =>
+                    prev === "grid" ? "list" : prev === "list" ? "table" : "grid",
+                  )
+                }
+                tone="ghost"
+              />
+            </div>
           }
         >
           {viewMode !== "table" && (
@@ -1031,229 +1189,48 @@ function InventoryPage() {
 
       <p className="px-1 text-[11px] text-muted-foreground/70">{t("inventory.scope_hint")}</p>
 
-      {adjust && warehouseId && (
-        <AdjustDialog
-          product={adjust.product}
-          warehouseId={warehouseId}
-          currentQty={qtyFor(adjust.product)}
+      {adjustTarget && (
+        <StockAdjustmentDialog
+          initialProductId={adjustTarget.productId}
+          initialWarehouseId={adjustTarget.warehouseId}
           onClose={() => setAdjust(null)}
           onSaved={() => {
             setAdjust(null);
-            qc.invalidateQueries({ queryKey: QUERY_KEYS.inventory(warehouseId) });
-            qc.invalidateQueries({ queryKey: ["inventory", "count"] });
+            qc.invalidateQueries({ queryKey: ["inventory"] });
+            qc.invalidateQueries({ queryKey: ["settlements"] });
+          }}
+        />
+      )}
+
+      {/*
+       * A physical receipt is a purchase, so it is posted through the engine's
+       * procurement RPC; an opening balance is its own document. Both refresh
+       * the list and the settlements ledger, because both show up there.
+       */}
+      {directIn && (
+        <DirectStockInDialog
+          initialProductId={directIn.product?.id}
+          initialWarehouseId={warehouseId || undefined}
+          onClose={() => setDirectIn(null)}
+          onSaved={() => {
+            setDirectIn(null);
+            qc.invalidateQueries({ queryKey: ["inventory"] });
+            qc.invalidateQueries({ queryKey: ["settlements"] });
+          }}
+        />
+      )}
+
+      {openingOpen && warehouseId && (
+        <OpeningStockDialog
+          warehouseId={warehouseId}
+          onClose={() => setOpeningOpen(false)}
+          onSaved={() => {
+            setOpeningOpen(false);
+            qc.invalidateQueries({ queryKey: ["inventory"] });
+            qc.invalidateQueries({ queryKey: ["settlements"] });
           }}
         />
       )}
     </div>
-  );
-}
-
-function AdjustDialog({
-  product,
-  warehouseId,
-  currentQty,
-  onClose,
-  onSaved,
-}: {
-  product: Row;
-  warehouseId: string;
-  currentQty: number;
-  onClose: () => void;
-  onSaved: () => void;
-}) {
-  const { t } = useI18n();
-  const { user } = useAuth();
-  const [mode, setMode] = useState<"in" | "out">("in");
-  const [qty, setQty] = useState("1");
-  const [unitCost, setUnitCost] = useState("0");
-  const [note, setNote] = useState("");
-  // سبب التسوية إلزامي — يُخزّن في عمود adjustment_reason المخصص للتدقيق
-  const [reason, setReason] = useState("");
-  const [reasonError, setReasonError] = useState(false);
-  const [saving, setSaving] = useState(false);
-
-  async function submit(e: React.FormEvent) {
-    e.preventDefault();
-    const q = Number(qty);
-    if (!q || q <= 0) {
-      toast.error(t("inventory.qty_required"));
-      return;
-    }
-    if (!reason) {
-      setReasonError(true);
-      toast.error(t("inventory.reason_required"));
-      return;
-    }
-    setSaving(true);
-    const signed = mode === "in" ? q : -q;
-    const newQty = currentQty + signed;
-    if (newQty < 0) {
-      toast.error(t("inventory.negative"));
-      setSaving(false);
-      return;
-    }
-
-    // 1) upsert inventory row
-    const { error: invErr } = await supabase
-      .from("inventory")
-      .upsert(
-        { product_id: product.id, warehouse_id: warehouseId, quantity: newQty },
-        { onConflict: "product_id,warehouse_id" },
-      );
-    if (invErr) {
-      toast.error(invErr.message);
-      setSaving(false);
-      return;
-    }
-
-    // 2) log stock movement
-    const { error: mvErr } = await supabase.from("stock_movements").insert({
-      product_id: product.id,
-      warehouse_id: warehouseId,
-      movement_type: "adjustment",
-      quantity: signed,
-      unit_cost: Number(unitCost) || 0,
-      note: note || null,
-      adjustment_reason: reason,
-      created_by: user?.id ?? null,
-    } as any);
-    if (mvErr) {
-      toast.error(mvErr.message);
-      setSaving(false);
-      return;
-    }
-
-    toast.success(t("inventory.adjusted"));
-    setSaving(false);
-    onSaved();
-  }
-
-  return (
-    <Modal
-      open
-      onClose={onClose}
-      size="sm"
-      mobile="sheet"
-      title={t("inventory.adjust_stock")}
-      description={`${product.name} · ${t("inventory.on_hand")}: ${currentQty.toFixed(2)}`}
-      footer={
-        <div className="flex w-full items-center justify-end gap-2">
-          <Button type="button" variant="outline" block={false} onClick={onClose}>
-            {t("common.cancel")}
-          </Button>
-          <Button
-            type="submit"
-            form="inventory-adjust-form"
-            variant="primary"
-            block={false}
-            disabled={saving || !reason}
-            icon={saving ? <Loader2 className="animate-spin" /> : undefined}
-          >
-            {saving ? t("common.saving") : t("inventory.apply")}
-          </Button>
-        </div>
-      }
-    >
-      <form id="inventory-adjust-form" onSubmit={submit} className="space-y-3">
-        <div className="grid grid-cols-2 gap-2">
-          <button
-            type="button"
-            onClick={() => setMode("in")}
-            className={`flex h-10 items-center justify-center gap-1.5 rounded-md border text-sm font-medium transition ${mode === "in" ? "border-success/50 bg-success/10 text-success" : "border-border bg-surface text-muted-foreground"}`}
-          >
-            <Plus className="h-4 w-4" /> {t("inventory.stock_in")}
-          </button>
-          <button
-            type="button"
-            onClick={() => setMode("out")}
-            className={`flex h-10 items-center justify-center gap-1.5 rounded-md border text-sm font-medium transition ${mode === "out" ? "border-destructive/50 bg-destructive/10 text-destructive" : "border-border bg-surface text-muted-foreground"}`}
-          >
-            <Minus className="h-4 w-4" /> {t("inventory.stock_out")}
-          </button>
-        </div>
-
-        <label className="flex flex-col gap-1.5">
-          <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
-            {t("common.quantity")}
-          </span>
-          <input
-            type="number"
-            step="0.01"
-            min="0"
-            value={qty}
-            onChange={(e) => setQty(e.target.value)}
-            className="h-9 rounded-md border border-border bg-surface px-3 text-sm outline-none"
-            required
-            autoFocus
-          />
-        </label>
-
-        {mode === "in" && (
-          <label className="flex flex-col gap-1.5">
-            <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
-              {t("inventory.unit_cost")}
-            </span>
-            <input
-              type="number"
-              step="0.01"
-              min="0"
-              value={unitCost}
-              onChange={(e) => setUnitCost(e.target.value)}
-              className="h-9 rounded-md border border-border bg-surface px-3 text-sm outline-none"
-            />
-          </label>
-        )}
-
-        <label className="flex flex-col gap-1.5">
-          <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
-            {t("inventory.reason_label")}
-          </span>
-          <select
-            value={reason}
-            onChange={(e) => {
-              setReason(e.target.value);
-              if (e.target.value) setReasonError(false);
-            }}
-            aria-invalid={reasonError}
-            className={`h-9 rounded-md border bg-surface px-3 text-sm outline-none ${reasonError ? "border-destructive text-destructive" : "border-border"}`}
-          >
-            <option value="">{t("inventory.reason_select")}</option>
-            <option value="damaged">{t("inventory.reason.damaged")}</option>
-            <option value="expiry">{t("inventory.reason.expiry")}</option>
-            <option value="shortfall">{t("inventory.reason.shortfall")}</option>
-            <option value="surplus">{t("inventory.reason.surplus")}</option>
-            <option value="stocktake">{t("inventory.reason.stocktake")}</option>
-            <option value="other">{t("inventory.reason.other")}</option>
-          </select>
-          {reasonError && (
-            <span className="text-[11px] font-medium text-destructive">
-              {t("inventory.reason_required")}
-            </span>
-          )}
-        </label>
-
-        <label className="flex flex-col gap-1.5">
-          <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
-            {t("common.note")}
-          </span>
-          <textarea
-            value={note}
-            onChange={(e) => setNote(e.target.value)}
-            rows={2}
-            className="resize-none rounded-md border border-border bg-surface p-3 text-sm outline-none"
-            placeholder={t("inventory.reason")}
-          />
-        </label>
-
-        <div className="rounded-md border border-border bg-surface/60 p-3 text-xs">
-          <div className="flex items-center justify-between text-muted-foreground">
-            <span>{t("inventory.new_on_hand")}</span>
-            <span className="font-mono text-foreground">
-              {(currentQty + (mode === "in" ? Number(qty) : -Number(qty || 0))).toFixed(2)}
-            </span>
-          </div>
-        </div>
-      </form>
-    </Modal>
   );
 }

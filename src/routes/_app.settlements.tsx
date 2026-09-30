@@ -1,10 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
+import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { PageHeader } from "@/components/page-header";
 import { useAuth } from "@/lib/auth";
 import { useI18n } from "@/lib/i18n";
 import { supabase } from "@/integrations/supabase/client";
+import { StockAdjustmentDialog } from "@/components/stock/stock-adjustment-dialog";
 import {
   AlertTriangle,
   ClipboardList,
@@ -22,6 +23,7 @@ import {
   Sparkles,
   ArrowDownLeft,
   ArrowUpRight,
+  Plus,
 } from "lucide-react";
 import { type PageGuideConfig } from "@/components/page-guide";
 import { StatusBadge } from "@/components/ui/status-badge";
@@ -243,6 +245,7 @@ const settlementGuideConfig: PageGuideConfig = {
 function SettlementsPage() {
   const { t, lang } = useI18n();
   const { hasRole, user } = useAuth();
+  const qc = useQueryClient();
   const canManageSettlement =
     hasRole("owner") || hasRole("manager") || hasRole("warehouse") || hasRole("accountant");
   const breakpoint = useBreakpoint();
@@ -254,6 +257,12 @@ function SettlementsPage() {
   const [sort, setSort] = useState<DataTableSort | null>(null);
   const [quickFilter, setQuickFilter] = useState<"all" | "adjustment" | "in" | "out">("all");
   const [viewMode, setViewMode] = useState<"grid" | "list" | "table">("grid");
+
+  /*
+   * Origin/main's stock engine entry point: the same adjustment dialog the
+   * inventory page uses, so a settlement is posted through one code path.
+   */
+  const [isAdjustmentOpen, setIsAdjustmentOpen] = useState(false);
 
   const label = (en?: string | null, ar?: string | null) =>
     (lang === "ar" ? ar || en : en || ar) ?? "—";
@@ -749,30 +758,40 @@ function SettlementsPage() {
             label: lang === "ar" ? "ترتيب" : "Sort",
           }}
           viewToggle={
-            <ToolbarAction
-              label={
-                viewMode === "grid"
-                  ? t("settlements.view_grid")
-                  : viewMode === "list"
-                    ? t("settlements.view_list")
-                    : t("settlements.view_classic")
-              }
-              icon={
-                viewMode === "grid" ? (
-                  <LayoutGrid />
-                ) : viewMode === "list" ? (
-                  <List />
-                ) : (
-                  <TableProperties />
-                )
-              }
-              onClick={() =>
-                setViewMode((prev) =>
-                  prev === "grid" ? "list" : prev === "list" ? "table" : "grid",
-                )
-              }
-              tone="ghost"
-            />
+            <div className="flex items-center gap-1.5">
+              {canManageSettlement && (
+                <ToolbarAction
+                  label={lang === "ar" ? "تسوية جردية جديدة" : "New Stock Adjustment"}
+                  icon={<Plus />}
+                  onClick={() => setIsAdjustmentOpen(true)}
+                  tone="primary"
+                />
+              )}
+              <ToolbarAction
+                label={
+                  viewMode === "grid"
+                    ? t("settlements.view_grid")
+                    : viewMode === "list"
+                      ? t("settlements.view_list")
+                      : t("settlements.view_classic")
+                }
+                icon={
+                  viewMode === "grid" ? (
+                    <LayoutGrid />
+                  ) : viewMode === "list" ? (
+                    <List />
+                  ) : (
+                    <TableProperties />
+                  )
+                }
+                onClick={() =>
+                  setViewMode((prev) =>
+                    prev === "grid" ? "list" : prev === "list" ? "table" : "grid",
+                  )
+                }
+                tone="ghost"
+              />
+            </div>
           }
         >
           {viewMode !== "table" && (
@@ -1084,6 +1103,21 @@ function SettlementsPage() {
       )}
 
       <p className="px-1 text-[11px] text-muted-foreground/70">{t("settlements.scope_hint")}</p>
+
+      {/*
+       * Origin/main's stock engine: the adjustment is posted through the same
+       * dialog the inventory page uses, then both ledgers are refreshed.
+       */}
+      {isAdjustmentOpen && (
+        <StockAdjustmentDialog
+          onClose={() => setIsAdjustmentOpen(false)}
+          onSaved={() => {
+            setIsAdjustmentOpen(false);
+            qc.invalidateQueries({ queryKey: ["settlements"] });
+            qc.invalidateQueries({ queryKey: ["inventory"] });
+          }}
+        />
+      )}
     </div>
   );
 }
