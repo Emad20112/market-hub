@@ -4,10 +4,6 @@ import {
   VortexCurrencyInput,
   VortexNumberInput,
   VortexMetricCard,
-  VortexFilterSheet,
-  VortexFilterSection,
-  VortexSearchInput,
-  VortexDateBadge,
 } from "@/components/vortex-ui";
 import { toSystemDigits } from "@/lib/format-preferences";
 import { useModules } from "@/lib/modules";
@@ -26,7 +22,6 @@ import {
   Package,
   Pencil,
   Trash2,
-  SlidersHorizontal,
   Settings,
   ExternalLink,
   Power,
@@ -44,9 +39,6 @@ import {
   MapPin,
   Sparkles,
   Loader2,
-  Filter,
-  RotateCcw,
-  Copy,
   Check,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -199,8 +191,6 @@ function ProductsPage() {
     "all",
   );
   const [viewMode, setViewMode] = useState<"grid" | "list" | "table">("grid");
-  const [showFilters, setShowFilters] = useState(false);
-  const [filterSheetOpen, setFilterSheetOpen] = useState(false);
   const [copiedBarcode, setCopiedBarcode] = useState<string | null>(null);
 
   const toggleProductActiveMutation = useMutation({
@@ -221,17 +211,6 @@ function ProductsPage() {
       toast.error(err.message || (lang === "ar" ? "تعذر تغيير حالة المنتج" : "Failed to toggle status"));
     },
   });
-
-  const activeFiltersCount = useMemo(() => {
-    let count = 0;
-    if (filters.category) count++;
-    if (filters.brand) count++;
-    if (filters.unit) count++;
-    if (filters.origin) count++;
-    if (filters.status) count++;
-    if (quickFilter !== "all") count++;
-    return count;
-  }, [filters, quickFilter]);
 
   const [confirmDelete, setConfirmDelete] = useState<ProductRow | null>(null);
   /** Set when a delete was refused because the product has history. */
@@ -422,6 +401,40 @@ function ProductsPage() {
     });
   }, [filtered, quickFilter]);
 
+  const sortedRows = useMemo(() => {
+    if (!sort?.key) return displayRows;
+
+    const direction = sort.direction === "desc" ? -1 : 1;
+    const value = (product: ProductRow): string | number => {
+      switch (sort.key) {
+        case "sale_price":
+          return Number(product.sale_price) || 0;
+        case "cost_price":
+          return Number(product.cost_price) || 0;
+        case "min_stock":
+          return Number(product.min_stock) || 0;
+        case "sku":
+          return product.sku ?? "";
+        case "name":
+        default:
+          return (
+            (lang === "ar" ? product.name_ar || product.name : product.name || product.name_ar) ?? ""
+          );
+      }
+    };
+
+    return [...displayRows].sort((a, b) => {
+      const aValue = value(a);
+      const bValue = value(b);
+      if (typeof aValue === "number" && typeof bValue === "number") {
+        return (aValue - bValue) * direction;
+      }
+      return (
+        String(aValue).localeCompare(String(bValue), lang === "ar" ? "ar" : "en") * direction
+      );
+    });
+  }, [displayRows, sort, lang]);
+
   // Luxury KPI calculations
   const { totalProducts, activeCount, inactiveCount, lowStockCount, categoriesCount, brandsCount } =
     useMemo(() => {
@@ -445,7 +458,7 @@ function ProductsPage() {
 
   /* ---------------- filter + sort definitions (localized) ---------------- */
   const productFilterDefinitions = useMemo<FilterDefinition[]>(() => {
-    const defs: FilterDefinition[] = [
+    const definitions: FilterDefinition[] = [
       {
         key: "status",
         label: lang === "ar" ? "الحالة" : "Status",
@@ -458,53 +471,53 @@ function ProductsPage() {
     ];
 
     if (meta?.categories?.length) {
-      defs.push({
+      definitions.push({
         key: "category",
         label: t("products.category"),
         type: "select",
-        options: meta.categories.map((c) => ({
-          value: c.id,
-          label: (lang === "ar" ? c.name_ar || c.name : c.name || c.name_ar) ?? c.name,
+        options: meta.categories.map((category) => ({
+          value: category.id,
+          label:
+            (lang === "ar" ? category.name_ar || category.name : category.name || category.name_ar) ??
+            category.name,
         })),
       });
     }
     if (config.enableBrands && meta?.brands?.length) {
-      defs.push({
+      definitions.push({
         key: "brand",
         label: t("products.brand"),
         type: "select",
-        options: meta.brands.map((b) => ({
-          value: b.id,
-          label: (lang === "ar" ? b.name_ar || b.name : b.name || b.name_ar) ?? b.name,
+        options: meta.brands.map((brand) => ({
+          value: brand.id,
+          label: (lang === "ar" ? brand.name_ar || brand.name : brand.name || brand.name_ar) ?? brand.name,
         })),
       });
     }
     if (config.enableUnits && meta?.units?.length) {
-      defs.push({
+      definitions.push({
         key: "unit",
         label: t("products.unit"),
         type: "select",
-        options: meta.units.map((u) => ({
-          value: u.id,
-          label: (lang === "ar" ? u.name_ar || u.name : u.name || u.name_ar) ?? u.name,
+        options: meta.units.map((unit) => ({
+          value: unit.id,
+          label: (lang === "ar" ? unit.name_ar || unit.name : unit.name || unit.name_ar) ?? unit.name,
         })),
       });
     }
     if (config.enableOrigins && meta?.origins?.length) {
-      defs.push({
+      definitions.push({
         key: "origin",
         label: lang === "ar" ? "بلد المنشأ" : "Origin",
         type: "select",
-        options: meta.origins.map(
-          (o: { id: string; name: string; name_ar: string | null; code: string }) => ({
-            value: o.id,
-            label: `${o.name_ar || o.name} (${o.code})`,
-          }),
-        ),
+        options: meta.origins.map((origin: { id: string; name: string; name_ar: string | null; code: string }) => ({
+          value: origin.id,
+          label: `${origin.name_ar || origin.name} (${origin.code})`,
+        })),
       });
     }
 
-    return defs;
+    return definitions;
   }, [meta, config, lang, t]);
 
   const productSortOptions = useMemo<SortOption[]>(
@@ -826,145 +839,100 @@ function ProductsPage() {
         />
       </div>
 
-      {/* ─── Luxury Sticky Toolbar: Search + Quick Filter Pills + Filter Drawer + View Toggle ─── */}
-      <div className="space-y-3 pt-1 sm:pt-2">
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5">
-          {/* Vortex Search Input with instant debounce & count */}
-          <div className="flex-1 relative">
-            <VortexSearchInput
-              value={query}
-              onValueChange={setQuery}
-              placeholder={lang === "ar" ? "ابحث بالاسم، الباركود، الكود (SKU)، أو الرف..." : "Search name, barcode, SKU, or shelf..."}
-              resultCount={displayRows.length}
-              size="md"
+      {/* ─── Original shared toolbar: search + filters + sort + view mode ─── */}
+      <div className="pt-2 sm:pt-3.5">
+        <TableToolbar
+          sticky
+          search={{
+            value: query,
+            onValueChange: setQuery,
+            placeholder: "ابحث في المنتجات",
+            resultCount: productCount ?? sortedRows.length,
+          }}
+          filters={{
+            definitions: productFilterDefinitions,
+            values: filters,
+            onValueChange: setFilters,
+          }}
+          sort={{
+            options: productSortOptions,
+            value: sort?.key ?? "",
+            onValueChange: (value) =>
+              setSort(value ? { key: value, direction: sort?.direction ?? "asc" } : null),
+            label: lang === "ar" ? "ترتيب" : "Sort",
+          }}
+          viewToggle={
+            <ToolbarAction
+              label={
+                viewMode === "grid"
+                  ? lang === "ar"
+                    ? "شبكة"
+                    : "Grid"
+                  : viewMode === "list"
+                    ? lang === "ar"
+                      ? "قائمة"
+                      : "List"
+                    : lang === "ar"
+                      ? "كلاسيكي"
+                      : "Classic"
+              }
+              icon={
+                viewMode === "grid" ? (
+                  <LayoutGrid />
+                ) : viewMode === "list" ? (
+                  <List />
+                ) : (
+                  <TableProperties />
+                )
+              }
+              onClick={() =>
+                setViewMode((previous) =>
+                  previous === "grid" ? "list" : previous === "list" ? "table" : "grid",
+                )
+              }
+              tone="ghost"
             />
-          </div>
-
-          {/* Action Tools */}
-          <div className="flex items-center gap-2 justify-end">
-            {/* Filter Drawer Button */}
-            <button
-              type="button"
-              onClick={() => setFilterSheetOpen(true)}
-              className={`relative inline-flex items-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-bold transition shadow-xs ${
-                activeFiltersCount > 0
-                  ? "border-primary bg-primary/10 text-primary hover:bg-primary/15"
-                  : "border-border/80 bg-surface text-muted-foreground hover:text-foreground hover:bg-surface-2"
-              }`}
-            >
-              <SlidersHorizontal className="size-3.5" />
-              <span>{lang === "ar" ? "تصفية مخصصة" : "Filters"}</span>
-              {activeFiltersCount > 0 && (
-                <span className="flex size-4.5 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">
-                  {toSystemDigits(activeFiltersCount)}
-                </span>
-              )}
-            </button>
-
-            {/* View Mode Switcher */}
-            <div className="inline-flex items-center rounded-xl border border-border/80 bg-surface p-1 shadow-xs">
-              <button
-                type="button"
-                onClick={() => setViewMode("grid")}
-                className={`grid size-7 place-items-center rounded-lg transition ${
-                  viewMode === "grid"
-                    ? "bg-primary text-primary-foreground shadow-xs"
-                    : "text-muted-foreground hover:text-foreground hover:bg-surface-2"
-                }`}
-                title={lang === "ar" ? "عرض البطاقات (شبكة)" : "Grid View"}
-              >
-                <LayoutGrid className="size-3.5" />
-              </button>
-              <button
-                type="button"
-                onClick={() => setViewMode("list")}
-                className={`grid size-7 place-items-center rounded-lg transition ${
-                  viewMode === "list"
-                    ? "bg-primary text-primary-foreground shadow-xs"
-                    : "text-muted-foreground hover:text-foreground hover:bg-surface-2"
-                }`}
-                title={lang === "ar" ? "عرض القائمة الفاخرة" : "List View"}
-              >
-                <List className="size-3.5" />
-              </button>
-              <button
-                type="button"
-                onClick={() => setViewMode("table")}
-                className={`grid size-7 place-items-center rounded-lg transition ${
-                  viewMode === "table"
-                    ? "bg-primary text-primary-foreground shadow-xs"
-                    : "text-muted-foreground hover:text-foreground hover:bg-surface-2"
-                }`}
-                title={lang === "ar" ? "عرض الجدول الكلاسيكي" : "Table View"}
-              >
-                <TableProperties className="size-3.5" />
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* Quick Filter Pills */}
-        <div className="flex items-center justify-between gap-2 overflow-x-auto pb-1 scrollbar-x-none">
-          <div className="flex items-center gap-1.5 shrink-0">
-            {[
-              {
-                id: "all",
-                label: lang === "ar" ? "الكل" : "All",
-                count: productCount ?? products.length,
-              },
-              { id: "active", label: lang === "ar" ? "النشطة فقط" : "Active", count: activeCount },
-              {
-                id: "inactive",
-                label: lang === "ar" ? "غير النشطة" : "Inactive",
-                count: inactiveCount,
-              },
-              {
-                id: "low_stock",
-                label: lang === "ar" ? "تنبيه المخزون" : "Stock Alert",
-                count: lowStockCount,
-              },
-            ].map((f) => (
-              <button
-                key={f.id}
-                type="button"
-                onClick={() => setQuickFilter(f.id as any)}
-                className={`flex items-center gap-1.5 shrink-0 rounded-full px-3 py-1 text-xs font-bold transition border ${
-                  quickFilter === f.id
-                    ? "border-primary bg-primary text-primary-foreground shadow-xs shadow-primary/20"
-                    : "border-border/70 bg-surface/70 text-muted-foreground hover:text-foreground hover:bg-surface-2"
-                }`}
-              >
-                <span>{f.label}</span>
-                {f.count !== undefined && (
+          }
+          action={
+            <ToolbarAction
+              label={t("common.new")}
+              icon={<Plus />}
+              tone="primary"
+              onClick={openNew}
+            />
+          }
+        >
+          {viewMode === "grid" && (
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 scrollbar-x-none">
+              {[
+                { id: "all", label: lang === "ar" ? "الكل" : "All", count: productCount ?? products.length },
+                { id: "active", label: lang === "ar" ? "النشطة" : "Active", count: activeCount },
+                { id: "inactive", label: lang === "ar" ? "غير النشطة" : "Inactive", count: inactiveCount },
+                { id: "low_stock", label: lang === "ar" ? "تنبيه المخزون" : "Stock Alert", count: lowStockCount },
+              ].map((filter) => (
+                <button
+                  key={filter.id}
+                  type="button"
+                  onClick={() => setQuickFilter(filter.id as typeof quickFilter)}
+                  className={`flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-bold transition ${
+                    quickFilter === filter.id
+                      ? "border-primary bg-primary text-primary-foreground shadow-xs shadow-primary/20"
+                      : "border-border/70 bg-surface/70 text-muted-foreground hover:bg-surface-2 hover:text-foreground"
+                  }`}
+                >
+                  <span>{filter.label}</span>
                   <span
                     className={`rounded-full px-1.5 py-0.2 text-[10px] font-mono ${
-                      quickFilter === f.id
-                        ? "bg-white/20 text-white"
-                        : "bg-muted text-muted-foreground"
+                      quickFilter === filter.id ? "bg-white/20 text-white" : "bg-muted text-muted-foreground"
                     }`}
                   >
-                    {toSystemDigits(f.count)}
+                    {filter.count}
                   </span>
-                )}
-              </button>
-            ))}
-          </div>
-
-          {activeFiltersCount > 0 && (
-            <button
-              type="button"
-              onClick={() => {
-                setFilters({});
-                setQuickFilter("all");
-                setQuery("");
-              }}
-              className="inline-flex items-center gap-1 shrink-0 text-[11px] font-medium text-muted-foreground hover:text-destructive transition px-2 py-0.5"
-            >
-              <RotateCcw className="size-3" />
-              <span>{lang === "ar" ? "إعادة تعيين" : "Reset"}</span>
-            </button>
+                </button>
+              ))}
+            </div>
           )}
-        </div>
+        </TableToolbar>
       </div>
 
       {/* ─── Main Records View: Grid (2 cols mobile!) vs List vs Classic Table ─── */}
@@ -981,7 +949,7 @@ function ProductsPage() {
             </div>
           ) : error && products.length === 0 ? (
             productLoadError
-          ) : displayRows.length === 0 ? (
+          ) : sortedRows.length === 0 ? (
             <div className="card-mullak p-12 text-center flex flex-col items-center justify-center space-y-3">
               <div className="grid size-14 place-items-center rounded-2xl bg-muted/30 text-muted-foreground">
                 <Package className="size-8" />
@@ -996,7 +964,7 @@ function ProductsPage() {
             <>
               {/* 2 columns on mobile, 3 on tablet, 4 on desktop */}
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5 sm:gap-4">
-                {displayRows.map((p) => {
+                {sortedRows.map((p) => {
                   const primary = lang === "ar" ? p.name_ar || p.name : p.name || p.name_ar || "—";
                   const other = lang === "ar" ? p.name : p.name_ar;
                   const secondary =
@@ -1216,7 +1184,7 @@ function ProductsPage() {
             </div>
           ) : error && products.length === 0 ? (
             productLoadError
-          ) : displayRows.length === 0 ? (
+          ) : sortedRows.length === 0 ? (
             <div className="card-mullak p-12 text-center flex flex-col items-center justify-center space-y-3">
               <div className="grid size-14 place-items-center rounded-2xl bg-muted/30 text-muted-foreground">
                 <Package className="size-8" />
@@ -1230,7 +1198,7 @@ function ProductsPage() {
           ) : (
             <>
               <div className="space-y-2.5">
-                {displayRows.map((p) => {
+                {sortedRows.map((p) => {
                   const primary = lang === "ar" ? p.name_ar || p.name : p.name || p.name_ar || "—";
                   const other = lang === "ar" ? p.name : p.name_ar;
                   const secondary =
@@ -1421,7 +1389,7 @@ function ProductsPage() {
           <DataTable
             className="px-0"
             columns={columns}
-            rows={displayRows}
+            rows={sortedRows}
             rowKey={(p) => p.id}
             loading={isLoading}
             initialLoading={isLoading}
@@ -1460,132 +1428,7 @@ function ProductsPage() {
         </div>
       )}
 
-      {/* ─── Vortex Filter Sheet Drawer ─── */}
-      <VortexFilterSheet
-        open={filterSheetOpen}
-        onOpenChange={setFilterSheetOpen}
-        title={lang === "ar" ? "تصفية المنتجات" : "Filter Products"}
-        subtitle={lang === "ar" ? "تحديد شروط البحث والعرض" : "Specify display criteria"}
-        activeCount={activeFiltersCount}
-        onReset={() => {
-          setFilters({});
-          setQuickFilter("all");
-        }}
-      >
-        <div className="space-y-4">
-          <VortexFilterSection
-            title={lang === "ar" ? "حالة المنتج" : "Product Status"}
-            icon={<Power className="size-4" />}
-          >
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={() => setFilters((prev) => ({ ...prev, status: prev.status === "active" ? undefined : "active" }))}
-                className={`flex items-center justify-center gap-1.5 rounded-xl border p-2.5 text-xs font-bold transition ${
-                  filters.status === "active"
-                    ? "border-emerald-500 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
-                    : "border-border/80 bg-surface text-muted-foreground hover:bg-surface-2"
-                }`}
-              >
-                <CheckCircle2 className="size-3.5" />
-                <span>{lang === "ar" ? "نشط فقط" : "Active only"}</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setFilters((prev) => ({ ...prev, status: prev.status === "inactive" ? undefined : "inactive" }))}
-                className={`flex items-center justify-center gap-1.5 rounded-xl border p-2.5 text-xs font-bold transition ${
-                  filters.status === "inactive"
-                    ? "border-primary bg-primary/10 text-primary"
-                    : "border-border/80 bg-surface text-muted-foreground hover:bg-surface-2"
-                }`}
-              >
-                <span>{lang === "ar" ? "غير نشط" : "Inactive"}</span>
-              </button>
-            </div>
-          </VortexFilterSection>
-
-          {meta?.categories && meta.categories.length > 0 && (
-            <VortexFilterSection
-              title={lang === "ar" ? "التصنيف" : "Category"}
-              icon={<Tag className="size-4" />}
-            >
-              <select
-                value={filters.category ?? ""}
-                onChange={(e) => setFilters((prev) => ({ ...prev, category: e.target.value || undefined }))}
-                className={fieldSurfaceClass}
-              >
-                <option value="">{lang === "ar" ? "كل التصنيفات" : "All Categories"}</option>
-                {meta.categories.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {label(c.name, c.name_ar)}
-                  </option>
-                ))}
-              </select>
-            </VortexFilterSection>
-          )}
-
-          {config.enableBrands && meta?.brands && meta.brands.length > 0 && (
-            <VortexFilterSection
-              title={lang === "ar" ? "العلامة التجارية (الماركة)" : "Brand"}
-              icon={<Layers className="size-4" />}
-            >
-              <select
-                value={filters.brand ?? ""}
-                onChange={(e) => setFilters((prev) => ({ ...prev, brand: e.target.value || undefined }))}
-                className={fieldSurfaceClass}
-              >
-                <option value="">{lang === "ar" ? "كل الماركات" : "All Brands"}</option>
-                {meta.brands.map((b) => (
-                  <option key={b.id} value={b.id}>
-                    {label(b.name, b.name_ar)}
-                  </option>
-                ))}
-              </select>
-            </VortexFilterSection>
-          )}
-
-          {config.enableOrigins && meta?.origins && meta.origins.length > 0 && (
-            <VortexFilterSection
-              title={lang === "ar" ? "بلد المنشأ" : "Country of Origin"}
-              icon={<MapPin className="size-4" />}
-            >
-              <select
-                value={filters.origin ?? ""}
-                onChange={(e) => setFilters((prev) => ({ ...prev, origin: e.target.value || undefined }))}
-                className={fieldSurfaceClass}
-              >
-                <option value="">{lang === "ar" ? "كل البلدان" : "All Origins"}</option>
-                {meta.origins.map((o: any) => (
-                  <option key={o.id} value={o.id}>
-                    {lang === "ar" ? o.name_ar || o.name : o.name} ({o.code})
-                  </option>
-                ))}
-              </select>
-            </VortexFilterSection>
-          )}
-
-          {config.enableUnits && meta?.units && meta.units.length > 0 && (
-            <VortexFilterSection
-              title={lang === "ar" ? "وحدة القياس" : "Unit of Measure"}
-              icon={<Boxes className="size-4" />}
-            >
-              <select
-                value={filters.unit ?? ""}
-                onChange={(e) => setFilters((prev) => ({ ...prev, unit: e.target.value || undefined }))}
-                className={fieldSurfaceClass}
-              >
-                <option value="">{lang === "ar" ? "كل الوحدات" : "All Units"}</option>
-                {meta.units.map((u) => (
-                  <option key={u.id} value={u.id}>
-                    {label(u.name, u.name_ar)} ({u.short_name})
-                  </option>
-                ))}
-              </select>
-            </VortexFilterSection>
-          )}
-        </div>
-      </VortexFilterSheet>
-{open && (
+      {open && (
         <ProductDialog
           initial={editing}
           initialBarcode={prefillBarcode}
