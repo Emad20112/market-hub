@@ -18,11 +18,10 @@ import { useKeyboardWedge } from "@/hooks/use-keyboard-wedge";
 import {
   Plus,
   Package,
-  Search,
   Pencil,
   Trash2,
-  X,
   SlidersHorizontal,
+  Settings,
   ExternalLink,
   Power,
   Camera,
@@ -71,6 +70,22 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { useBreakpoint } from "@/design/breakpoints";
 import { useRealtimeTable } from "@/lib/realtime";
 import { QUERY_KEYS } from "@/lib/query-keys";
+import {
+  DEFAULT_USER_ITEM_POLICY_PREFERENCES,
+  readUserItemPolicyPreferences,
+  saveUserItemPolicyPreferences,
+  type UserItemPolicyPreferences,
+} from "@/lib/items/user-policy-preferences";
+import {
+  COSTING_METHOD_LABELS,
+  INVENTORY_POLICY_LABELS,
+  ITEM_NATURE_LABELS,
+  TRACKING_LABELS,
+  type CostingMethod,
+  type InventoryPolicy,
+  type ItemNature,
+  type ItemTracking,
+} from "@/lib/items";
 
 export const Route = createFileRoute("/_app/products")({
   head: () => ({ meta: [{ title: "المنتجات — فورتيكس ERP" }] }),
@@ -110,6 +125,12 @@ type ProductRow = {
     code: string;
     sort_order?: number;
   } | null;
+  item_nature?: ItemNature;
+  inventory_policy?: InventoryPolicy;
+  tracking?: ItemTracking;
+  costing_method?: CostingMethod;
+  is_sellable?: boolean;
+  is_purchasable?: boolean;
   compatibilities?: { vehicle_model_id: string }[];
 };
 
@@ -146,7 +167,7 @@ function ProductsPage() {
   const { t, lang } = useI18n();
   const { config } = useCatalogModules();
   const { isModuleEnabled } = useModules();
-  const { hasRole, isPlatformAdmin, isPlatformSuperadmin } = useAuth();
+  const { user, hasRole, isPlatformAdmin, isPlatformSuperadmin } = useAuth();
   const canViewCost =
     isPlatformAdmin ||
     isPlatformSuperadmin ||
@@ -197,7 +218,7 @@ function ProductsPage() {
       // disappear from the grid.
       const { data: page, error: productError } = await (supabase.from("products") as any)
         .select(
-          "id, name, name_ar, sku, barcode, sale_price, cost_price, tax_rate, min_stock, is_active, category_id, brand_id, unit_id",
+          "id, name, name_ar, sku, barcode, sale_price, cost_price, tax_rate, min_stock, is_active, category_id, brand_id, unit_id, item_nature, inventory_policy, tracking, costing_method, is_sellable, is_purchasable",
         )
         .order("created_at", { ascending: false })
         .range(from, to);
@@ -256,7 +277,6 @@ function ProductsPage() {
         ...enrichmentByProduct.get(product.id),
         compatibilities: compatibilityByProduct[product.id] ?? [],
       }));
-
       return { rows, hasMore: rows.length === PRODUCTS_PAGE_SIZE };
     },
     getNextPageParam: (lastPage, pages) => (lastPage.hasMore ? pages.length : undefined),
@@ -302,7 +322,7 @@ function ProductsPage() {
   const { data: meta } = useQuery({
     queryKey: ["products-meta"],
     queryFn: async () => {
-      const [c, b, u, origins, qualities, vMakes, vModels] = await Promise.all([
+      const [c, b, u, origins, qualities] = await Promise.all([
         supabase.from("categories").select("id, name, name_ar").order("name"),
         supabase.from("brands").select("id, name, name_ar").order("name"),
         supabase.from("units").select("id, name, name_ar, short_name").order("name"),
@@ -314,8 +334,6 @@ function ProductsPage() {
           .from("quality_grades")
           .select("id, code, name, name_ar, sort_order")
           .order("sort_order"),
-        (supabase as any).from("vehicle_makes").select("id, name, name_ar").order("name"),
-        (supabase as any).from("vehicle_models").select("id, name, name_ar, make_id").order("name"),
       ]);
       return {
         categories: c.data ?? [],
@@ -323,8 +341,6 @@ function ProductsPage() {
         units: u.data ?? [],
         origins: origins.data ?? [],
         qualities: qualities.data ?? [],
-        makes: vMakes.data ?? [],
-        models: vModels.data ?? [],
       };
     },
   });
@@ -665,7 +681,7 @@ function ProductsPage() {
 
     return cols;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [config, canViewCost, lang, t, meta?.models, meta?.makes]);
+  }, [config, canViewCost, lang, t]);
 
   const openNew = () => {
     const qCheck = checkQuota("products", productCount ?? products.length);
@@ -1335,6 +1351,7 @@ function ProductsPage() {
         <ProductDialog
           initial={editing}
           initialBarcode={prefillBarcode}
+          userId={user?.id ?? null}
           canViewCost={canViewCost}
           meta={
             meta ?? {
@@ -1343,8 +1360,6 @@ function ProductsPage() {
               units: [],
               origins: [],
               qualities: [],
-              makes: [],
-              models: [],
             }
           }
           onClose={() => {
@@ -1354,9 +1369,6 @@ function ProductsPage() {
           onSaved={() => {
             setOpen(false);
             setPrefillBarcode(undefined);
-            // Mark cached pages stale without tearing down the visible list.
-            // Realtime applies the row-level event immediately, and navigation
-            // performs the eventual background refresh.
             qc.invalidateQueries({ queryKey: QUERY_KEYS.products, refetchType: "none" });
             qc.invalidateQueries({ queryKey: ["products", "count"] });
             qc.invalidateQueries({ queryKey: ["products-meta"] });
@@ -1488,6 +1500,7 @@ function ProductsPage() {
 function ProductDialog({
   initial,
   initialBarcode,
+  userId,
   canViewCost = true,
   meta,
   onClose,
@@ -1495,6 +1508,7 @@ function ProductDialog({
 }: {
   initial: ProductRow | null;
   initialBarcode?: string;
+  userId: string | null;
   canViewCost?: boolean;
   meta: {
     categories: { id: string; name: string; name_ar: string | null }[];
@@ -1502,8 +1516,6 @@ function ProductDialog({
     units: { id: string; name: string; name_ar: string | null; short_name: string }[];
     origins: { id: string; code: string; name: string; name_ar: string }[];
     qualities: { id: string; name: string; name_ar: string; code?: string; sort_order?: number }[];
-    makes: { id: string; name: string; name_ar: string | null }[];
-    models: { id: string; name: string; name_ar: string | null; make_id: string }[];
   };
   onClose: () => void;
   onSaved: () => void;
@@ -1512,6 +1524,10 @@ function ProductDialog({
   const { config } = useCatalogModules();
   const { isModuleEnabled } = useModules();
   const [scannerOpen, setScannerOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [policy, setPolicy] = useState<UserItemPolicyPreferences>(() =>
+    userId ? readUserItemPolicyPreferences(userId) : DEFAULT_USER_ITEM_POLICY_PREFERENCES,
+  );
   const [form, setForm] = useState({
     name: initial?.name ?? "",
     name_ar: initial?.name_ar ?? "",
@@ -1530,12 +1546,12 @@ function ProductDialog({
     is_active: initial?.is_active ?? true,
   });
   const [saving, setSaving] = useState(false);
-  // The row already carries its compatibility ids. Reusing them avoids a second
-  // asynchronous request that could finish late and accidentally clear links on
-  // save — especially important for the shared production database.
-  const [compatibleModels, setCompatibleModels] = useState<string[]>(
-    () => initial?.compatibilities?.map((compatibility) => compatibility.vehicle_model_id) ?? [],
-  );
+
+  useEffect(() => {
+    if (!initial && userId) {
+      setPolicy(readUserItemPolicyPreferences(userId));
+    }
+  }, [initial, userId]);
 
   useKeyboardWedge({
     onScan: (barcode) => {
@@ -1550,6 +1566,15 @@ function ProductDialog({
     if (saving) return;
     if (!form.name_ar.trim() && !form.name.trim()) {
       toast.error(lang === "ar" ? "اسم المنتج مطلوب" : t("products.name_required"));
+      return;
+    }
+    if (!policy.is_sellable && !policy.is_purchasable) {
+      toast.error(
+        lang === "ar"
+          ? "يجب أن يكون المنتج متاحًا للبيع أو الشراء على الأقل."
+          : "The product must be available for sales or purchases.",
+      );
+      setSettingsOpen(true);
       return;
     }
     setSaving(true);
@@ -1577,36 +1602,7 @@ function ProductDialog({
           .select("id")
           .single()
       : (supabase.from("products") as any).insert(payload).select("id").single();
-    const { data, error } = await request;
-    let writeError = error;
-    if (!writeError && config.enableMakesAndModels) {
-      const savedProductId = data.id;
-      const previouslySelected = new Set(
-        initial?.compatibilities?.map((compatibility) => compatibility.vehicle_model_id) ?? [],
-      );
-      const nextSelected = new Set(compatibleModels);
-      const toAdd = [...nextSelected].filter((id) => !previouslySelected.has(id));
-      const toRemove = [...previouslySelected].filter((id) => !nextSelected.has(id));
-
-      // Insert before removing. A failed request can therefore leave an extra
-      // compatibility at worst, never erase an existing production record.
-      if (toAdd.length) {
-        const { error: insertError } = await (supabase as any)
-          .from("product_compatibilities")
-          .insert(
-            toAdd.map((vehicle_model_id) => ({ product_id: savedProductId, vehicle_model_id })),
-          );
-        writeError = insertError;
-      }
-      if (!writeError && toRemove.length) {
-        const { error: deleteError } = await (supabase as any)
-          .from("product_compatibilities")
-          .delete()
-          .eq("product_id", savedProductId)
-          .in("vehicle_model_id", toRemove);
-        writeError = deleteError;
-      }
-    }
+    const { error: writeError } = await request;
     setSaving(false);
     if (writeError) {
       const databaseError = writeError as { code?: string; message?: string };
@@ -1624,14 +1620,15 @@ function ProductDialog({
       toast.error(databaseError.message ?? "Unable to save the product.");
       return;
     }
+    if (userId) saveUserItemPolicyPreferences(userId, policy);
     toast.success(
       lang === "ar"
         ? initial
-          ? "تم تحديث المنتج بنجاح"
-          : "تم إنشاء المنتج بنجاح"
+          ? "تم تحديث المنتج وحفظ إعداداتك لهذا المستخدم"
+          : "تم إنشاء المنتج وحفظ إعداداتك لهذا المستخدم"
         : initial
-          ? t("products.updated")
-          : t("products.created"),
+          ? "Product updated; your settings were saved for this user"
+          : "Product created; your settings were saved for this user",
     );
     onSaved();
   }
@@ -1677,7 +1674,20 @@ function ProductDialog({
       }
     >
       <form id="product-form" onSubmit={submit} className="flex flex-col gap-6">
-        <FormSection title={lang === "ar" ? "بيانات المنتج" : "Product details"}>
+        <FormSection
+          title={lang === "ar" ? "بيانات المنتج" : "Product details"}
+          actions={
+            <IconButton
+              type="button"
+              size="md"
+              variant="outline"
+              tooltip
+              ariaLabel={lang === "ar" ? "إعدادات المنتج" : "Product settings"}
+              icon={<Settings className="size-4" />}
+              onClick={() => setSettingsOpen(true)}
+            />
+          }
+        >
           <FormGrid cols={3}>
             <FormField label={t("products.name_ar")} required>
               {(p) => (
@@ -1791,8 +1801,7 @@ function ProductDialog({
         {(config.enableBrands ||
           config.enableOrigins ||
           config.enableQualityGrades ||
-          config.enableUnits ||
-          config.enableMakesAndModels) && (
+          config.enableUnits) && (
           <FormSection title={lang === "ar" ? "خصائص الفهرس" : "Catalog attributes"}>
             <FormGrid cols={3}>
               {config.enableBrands && (
@@ -1876,30 +1885,6 @@ function ProductDialog({
                       ))}
                     </select>
                   )}
-                </FormField>
-              )}
-
-              {config.enableMakesAndModels && (
-                <FormField
-                  span="full"
-                  label={
-                    lang === "ar"
-                      ? "توافق المركبات والدراجات (من جدول الفهرس)"
-                      : "Vehicle compatibility (from catalog)"
-                  }
-                  hint={
-                    lang === "ar"
-                      ? "اختر الطرازات المتوافقة مع هذا المنتج"
-                      : "Select the vehicle models this product fits"
-                  }
-                >
-                  <VehicleCompatibilityPicker
-                    makes={meta.makes}
-                    models={meta.models}
-                    selectedModelIds={compatibleModels}
-                    onChange={setCompatibleModels}
-                    lang={lang}
-                  />
                 </FormField>
               )}
             </FormGrid>
@@ -1989,6 +1974,124 @@ function ProductDialog({
         </FormSection>
       </form>
 
+      <Modal
+        open={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+        size="md"
+        mobile="sheet"
+        title={lang === "ar" ? "إعدادات المنتج" : "Product settings"}
+        eyebrow={lang === "ar" ? "تخصيص" : "Customize"}
+        description={
+          lang === "ar"
+            ? "حدد طبيعة المنتج وسياسة المخزون وطريقة استخدامه."
+            : "Define the product nature, inventory policy, and how it is used."
+        }
+        footer={
+          <Button type="button" onClick={() => setSettingsOpen(false)} block>
+            {lang === "ar" ? "تم" : "Done"}
+          </Button>
+        }
+      >
+        <div className="space-y-5">
+          <SettingsChoice
+            label={lang === "ar" ? "طبيعة المنتج" : "Product nature"}
+            value={policy.item_nature}
+            options={[
+              { value: "GOOD", label: ITEM_NATURE_LABELS.GOOD[lang === "ar" ? "ar" : "en"] },
+              { value: "SERVICE", label: ITEM_NATURE_LABELS.SERVICE[lang === "ar" ? "ar" : "en"] },
+            ]}
+            onChange={(value) =>
+              setPolicy((current) => ({
+                ...current,
+                item_nature: value as ItemNature,
+                inventory_policy: value === "SERVICE" ? "UNTRACKED" : current.inventory_policy,
+                tracking: value === "SERVICE" ? "NONE" : current.tracking,
+                costing_method: value === "SERVICE" ? "NONE" : current.costing_method,
+              }))
+            }
+          />
+          {policy.item_nature === "GOOD" && (
+            <SettingsChoice
+              label={lang === "ar" ? "سياسة المخزون" : "Inventory policy"}
+              value={policy.inventory_policy}
+              options={(["TRACKED", "UNTRACKED", "CUSTOMER_OWNED"] as InventoryPolicy[]).map(
+                (value) => ({
+                  value,
+                  label: INVENTORY_POLICY_LABELS[value][lang === "ar" ? "ar" : "en"],
+                }),
+              )}
+              onChange={(value) =>
+                setPolicy((current) => ({
+                  ...current,
+                  inventory_policy: value as InventoryPolicy,
+                  tracking: value === "TRACKED" ? current.tracking : "NONE",
+                  costing_method: value === "TRACKED" ? current.costing_method : "NONE",
+                }))
+              }
+            />
+          )}
+          {policy.item_nature === "GOOD" && policy.inventory_policy === "TRACKED" && (
+            <div className="grid gap-4 sm:grid-cols-2">
+              <SettingsChoice
+                label={lang === "ar" ? "التتبع الدقيق" : "Detailed tracking"}
+                value={policy.tracking}
+                options={(["NONE", "BATCH", "SERIAL"] as ItemTracking[]).map((value) => ({
+                  value,
+                  label: TRACKING_LABELS[value][lang === "ar" ? "ar" : "en"],
+                }))}
+                onChange={(value) =>
+                  setPolicy((current) => ({ ...current, tracking: value as ItemTracking }))
+                }
+              />
+              <SettingsChoice
+                label={lang === "ar" ? "طريقة التكلفة" : "Costing method"}
+                value={policy.costing_method}
+                options={(["MOVING_AVERAGE", "FIFO", "STANDARD"] as CostingMethod[]).map(
+                  (value) => ({
+                    value,
+                    label: COSTING_METHOD_LABELS[value][lang === "ar" ? "ar" : "en"],
+                  }),
+                )}
+                onChange={(value) =>
+                  setPolicy((current) => ({ ...current, costing_method: value as CostingMethod }))
+                }
+              />
+            </div>
+          )}
+          <div className="grid gap-3 sm:grid-cols-2">
+            <SettingsToggle
+              label={lang === "ar" ? "يظهر في المبيعات" : "Available for sales"}
+              checked={policy.is_sellable}
+              onChange={(checked) => setPolicy((current) => ({ ...current, is_sellable: checked }))}
+            />
+            <SettingsToggle
+              label={lang === "ar" ? "يظهر في المشتريات" : "Available for purchases"}
+              checked={policy.is_purchasable}
+              onChange={(checked) =>
+                setPolicy((current) => ({ ...current, is_purchasable: checked }))
+              }
+            />
+          </div>
+          <p className="rounded-xl border-primary/20 bg-primary/5 p-3 text-xs leading-6 text-muted-foreground">
+            {policy.item_nature === "SERVICE"
+              ? lang === "ar"
+                ? "الخدمة تظهر كسطر خدمة ولا تنشئ حركة مخزون."
+                : "A service appears as a service line and never creates stock movements."
+              : policy.inventory_policy === "TRACKED"
+                ? lang === "ar"
+                  ? "السلعة المتتبعة تُخصم عند البيع وتزداد عند الشراء."
+                  : "A tracked good is issued on sale and received on purchase."
+                : policy.inventory_policy === "CUSTOMER_OWNED"
+                  ? lang === "ar"
+                    ? "مادة مملوكة للعميل: تحفظ في موقعك ولا تدخل قيمة مخزون الشركة."
+                    : "Customer-owned material is held at your site but excluded from company stock valuation."
+                  : lang === "ar"
+                    ? "السلعة غير المتتبعة تظهر في الفواتير بلا رصيد مخزني."
+                    : "An untracked good appears on invoices without a managed stock balance."}
+          </p>
+        </div>
+      </Modal>
+
       <div
         className="flex items-center gap-1.5 text-caption text-muted-foreground"
         aria-live="polite"
@@ -2010,21 +2113,58 @@ function ProductDialog({
   );
 }
 
-interface VehicleCompatibilityPickerProps {
-  makes: { id: string; name: string; name_ar: string | null }[];
-  models: { id: string; name: string; name_ar: string | null; make_id: string }[];
-  selectedModelIds: string[];
-  onChange: (ids: string[]) => void;
-  lang: string;
+function SettingsChoice({
+  label,
+  value,
+  options,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  options: { value: string; label: string }[];
+  onChange: (value: string) => void;
+}) {
+  return (
+    <label className="flex flex-col gap-2">
+      <span className="text-xs font-semibold text-foreground">{label}</span>
+      <select
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        className={fieldSurfaceClass}
+      >
+        {options.map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
 }
 
-function VehicleCompatibilityPicker({
-  makes,
-  models,
-  selectedModelIds,
+function SettingsToggle({
+  label,
+  checked,
   onChange,
-  lang,
-}: VehicleCompatibilityPickerProps) {
+}: {
+  label: string;
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+}) {
+  return (
+    <label className="flex cursor-pointer items-center gap-3 rounded-xl border-border bg-surface p-3 text-sm">
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={(event) => onChange(event.target.checked)}
+        className="size-4 accent-[var(--primary)]"
+      />
+      <span>{label}</span>
+    </label>
+  );
+}
+
+/* Vehicle compatibility was intentionally removed from the product form.
   const [activeMakeId, setActiveMakeId] = useState<string>("all");
   const [search, setSearch] = useState<string>("");
 
@@ -2091,7 +2231,7 @@ function VehicleCompatibilityPicker({
 
   return (
     <div className="rounded-2xl border border-border/80 bg-surface/80 p-3 shadow-xs">
-      {/* Header controls: Search & Quick actions */}
+      { / * Header controls: Search & Quick actions * /}
       <div className="mb-2.5 flex flex-wrap items-center justify-between gap-2 border-b border-border/60 pb-2.5">
         <div className="relative flex-1 min-w-[160px]">
           <Search className="pointer-events-none absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground rtl:right-3 rtl:left-auto ltr:left-3 ltr:right-auto" />
@@ -2148,7 +2288,7 @@ function VehicleCompatibilityPicker({
         </div>
       </div>
 
-      {/* Makes Horizontal Filter Strip */}
+      { / * Makes Horizontal Filter Strip * /}
       <div className="mb-2.5 flex items-center gap-1.5 overflow-x-auto pb-1.5 custom-scrollbar">
         <button
           type="button"
@@ -2197,7 +2337,7 @@ function VehicleCompatibilityPicker({
         })}
       </div>
 
-      {/* Models Grid */}
+      { / * Models Grid * /}
       <div className="grid max-h-44 grid-cols-2 gap-1.5 overflow-y-auto rounded-xl border border-border/70 bg-background/50 p-2 sm:grid-cols-3 custom-scrollbar">
         {filteredModels.length === 0 ? (
           <div className="col-span-full py-6 text-center text-xs text-muted-foreground">
@@ -2256,7 +2396,7 @@ function VehicleCompatibilityPicker({
         )}
       </div>
 
-      {/* Selected Items Summary Tags (if any) */}
+      { / * Selected Items Summary Tags (if any) * /}
       {selectedModelIds.length > 0 && (
         <div className="mt-2.5 flex flex-wrap items-center gap-1 border-t border-border/60 pt-2 text-[10px]">
           <span className="text-muted-foreground font-medium me-1">
@@ -2293,3 +2433,4 @@ function VehicleCompatibilityPicker({
     </div>
   );
 }
+*/
