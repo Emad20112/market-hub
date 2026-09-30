@@ -205,6 +205,7 @@ function DashboardPage() {
 
   const { data } = useQuery({
     queryKey: ["dashboard-v2"],
+    staleTime: 60_000,
     queryFn: async () => {
       const since = new Date(Date.now() - 30 * 86400_000).toISOString();
       const since14 = new Date(Date.now() - 14 * 86400_000).toISOString();
@@ -224,7 +225,8 @@ function DashboardPage() {
           .select(
             "product_id,quantity,total,invoice_id,sales_invoices!inner(created_at,customer_id)",
           )
-          .gte("sales_invoices.created_at", since),
+          .gte("sales_invoices.created_at", since)
+          .limit(2000),
         supabase
           .from("sales_invoices")
           .select("id,invoice_number,total,status,created_at,customers(name)")

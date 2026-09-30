@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Html5Qrcode, Html5QrcodeSupportedFormats } from "html5-qrcode";
 import { X, Camera, RotateCw, ScanBarcode } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 
@@ -10,37 +9,18 @@ interface Props {
   continuous?: boolean;
 }
 
-const BARCODE_FORMATS = [
-  Html5QrcodeSupportedFormats.QR_CODE,
-  Html5QrcodeSupportedFormats.AZTEC,
-  Html5QrcodeSupportedFormats.CODE_128,
-  Html5QrcodeSupportedFormats.DATA_MATRIX,
-  Html5QrcodeSupportedFormats.MAXICODE,
-  Html5QrcodeSupportedFormats.CODE_39,
-  Html5QrcodeSupportedFormats.CODE_93,
-  Html5QrcodeSupportedFormats.CODABAR,
-  Html5QrcodeSupportedFormats.EAN_13,
-  Html5QrcodeSupportedFormats.EAN_8,
-  Html5QrcodeSupportedFormats.ITF,
-  Html5QrcodeSupportedFormats.PDF_417,
-  Html5QrcodeSupportedFormats.RSS_14,
-  Html5QrcodeSupportedFormats.RSS_EXPANDED,
-  Html5QrcodeSupportedFormats.UPC_A,
-  Html5QrcodeSupportedFormats.UPC_E,
-  Html5QrcodeSupportedFormats.UPC_EAN_EXTENSION,
-];
-
 export function BarcodeScanner({ open, onClose, onDetected, continuous = false }: Props) {
   const { lang } = useI18n();
   const containerId = "barcode-camera-preview";
-  const scannerRef = useRef<Html5Qrcode | null>(null);
+  const scannerRef = useRef<any>(null);
   const lastDetectionRef = useRef({ code: "", at: 0 });
   const [cameras, setCameras] = useState<{ id: string; label: string }[]>([]);
   const [cameraId, setCameraId] = useState("");
   const [error, setError] = useState("");
   const [lastCode, setLastCode] = useState("");
+  const [isLoadingLibrary, setIsLoadingLibrary] = useState(false);
 
-  const stopScanner = useCallback(async (scanner: Html5Qrcode | null = scannerRef.current) => {
+  const stopScanner = useCallback(async (scanner = scannerRef.current) => {
     if (!scanner) return;
     if (scannerRef.current === scanner) scannerRef.current = null;
     try {
@@ -66,28 +46,35 @@ export function BarcodeScanner({ open, onClose, onDetected, continuous = false }
     setError("");
     setLastCode("");
     setCameraId("");
+    setIsLoadingLibrary(true);
 
-    Html5Qrcode.getCameras()
-      .then((list) => {
+    import("html5-qrcode")
+      .then(({ Html5Qrcode }) => {
         if (cancelled) return;
-        setCameras(list);
-        const back =
-          list.find((c) => /back|rear|environment|خلف/i.test(c.label)) ??
-          list[list.length - 1] ??
-          list[0];
-        if (!back) {
-          setError(lang === "ar" ? "لم يتم العثور على كاميرا متاحة." : "No camera is available.");
-          return;
-        }
-        setCameraId(back.id);
+        setIsLoadingLibrary(false);
+        return Html5Qrcode.getCameras().then((list) => {
+          if (cancelled) return;
+          setCameras(list);
+          const back =
+            list.find((c) => /back|rear|environment|خلف/i.test(c.label)) ??
+            list[list.length - 1] ??
+            list[0];
+          if (!back) {
+            setError(lang === "ar" ? "لم يتم العثور على كاميرا متاحة." : "No camera is available.");
+            return;
+          }
+          setCameraId(back.id);
+        });
       })
       .catch(() => {
-        if (!cancelled)
+        if (!cancelled) {
+          setIsLoadingLibrary(false);
           setError(
             lang === "ar"
               ? "تعذر الوصول إلى الكاميرا. اسمح بإذن الكاميرا واستخدم اتصال HTTPS."
               : "Camera access failed. Allow camera permission and use HTTPS.",
           );
+        }
       });
 
     return () => {
@@ -99,46 +86,74 @@ export function BarcodeScanner({ open, onClose, onDetected, continuous = false }
   useEffect(() => {
     if (!open || !cameraId) return;
     let cancelled = false;
-    const scanner = new Html5Qrcode(containerId, {
-      formatsToSupport: BARCODE_FORMATS,
-      verbose: false,
-    });
-    scannerRef.current = scanner;
+    let activeScanner: any = null;
 
-    scanner
-      .start(
-        cameraId,
-        {
-          fps: 12,
-          qrbox: (viewWidth, viewHeight) => ({
-            width: Math.min(viewWidth * 0.96, 420),
-            height: Math.min(viewHeight * 0.68, 230),
-          }),
-          disableFlip: true,
-        },
-        (decoded) => {
-          const now = Date.now();
-          const previous = lastDetectionRef.current;
-          if (decoded === previous.code && now - previous.at < 1200) return;
-          lastDetectionRef.current = { code: decoded, at: now };
-          setLastCode(decoded);
-          onDetected(decoded);
-          if (!continuous) close();
-        },
-        () => undefined,
-      )
+    import("html5-qrcode")
+      .then(({ Html5Qrcode, Html5QrcodeSupportedFormats }) => {
+        if (cancelled) return;
+
+        const formats = [
+          Html5QrcodeSupportedFormats.QR_CODE,
+          Html5QrcodeSupportedFormats.AZTEC,
+          Html5QrcodeSupportedFormats.CODE_128,
+          Html5QrcodeSupportedFormats.DATA_MATRIX,
+          Html5QrcodeSupportedFormats.MAXICODE,
+          Html5QrcodeSupportedFormats.CODE_39,
+          Html5QrcodeSupportedFormats.CODE_93,
+          Html5QrcodeSupportedFormats.CODABAR,
+          Html5QrcodeSupportedFormats.EAN_13,
+          Html5QrcodeSupportedFormats.EAN_8,
+          Html5QrcodeSupportedFormats.ITF,
+          Html5QrcodeSupportedFormats.PDF_417,
+          Html5QrcodeSupportedFormats.RSS_14,
+          Html5QrcodeSupportedFormats.RSS_EXPANDED,
+          Html5QrcodeSupportedFormats.UPC_A,
+          Html5QrcodeSupportedFormats.UPC_E,
+          Html5QrcodeSupportedFormats.UPC_EAN_EXTENSION,
+        ];
+
+        const scanner = new Html5Qrcode(containerId, {
+          formatsToSupport: formats,
+          verbose: false,
+        });
+        activeScanner = scanner;
+        scannerRef.current = scanner;
+
+        return scanner.start(
+          cameraId,
+          {
+            fps: 12,
+            qrbox: (viewWidth: number, viewHeight: number) => ({
+              width: Math.min(viewWidth * 0.96, 420),
+              height: Math.min(viewHeight * 0.68, 230),
+            }),
+            disableFlip: true,
+          },
+          (decoded: string) => {
+            const now = Date.now();
+            const previous = lastDetectionRef.current;
+            if (decoded === previous.code && now - previous.at < 1200) return;
+            lastDetectionRef.current = { code: decoded, at: now };
+            setLastCode(decoded);
+            onDetected(decoded);
+            if (!continuous) close();
+          },
+          () => undefined,
+        );
+      })
       .catch(() => {
-        if (!cancelled)
+        if (!cancelled) {
           setError(
             lang === "ar"
               ? "تعذر بدء الكاميرا. جرّب اختيار كاميرا أخرى أو تحقق من الإذن."
               : "Could not start the camera. Try another camera or check its permission.",
           );
+        }
       });
 
     return () => {
       cancelled = true;
-      void stopScanner(scanner);
+      if (activeScanner) void stopScanner(activeScanner);
     };
   }, [cameraId, close, continuous, lang, onDetected, open, stopScanner]);
 
@@ -165,9 +180,9 @@ export function BarcodeScanner({ open, onClose, onDetected, continuous = false }
                 {lang === "ar" ? "قراءة باركود المنتج" : "Scan product barcode"}
               </div>
               <div className="text-[11px] text-muted-foreground">
-                {lang === "ar"
-                  ? "وجّه الخطوط داخل الإطار وانتظر لحظة"
-                  : "Place the bars inside the frame and hold still"}
+                {isLoadingLibrary
+                  ? (lang === "ar" ? "جاري تهيئة قارئ الكاميرا..." : "Initializing camera engine...")
+                  : (lang === "ar" ? "وجّه الخطوط داخل الإطار وانتظر لحظة" : "Place the bars inside the frame and hold still")}
               </div>
             </div>
           </div>
