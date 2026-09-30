@@ -637,6 +637,11 @@ const ar: Dict = {
   "nav.vortex_ui": "معرض المكونات (Vortex UI)",
   "nav.plans": "باقات واشتراكات النظام",
   "nav.platform_admin": "إدارة المنصة والباقات",
+  "nav.milling": "لوحة المطحنة",
+  "nav.milling_intake": "قبان الميزان والاستلام",
+  "nav.milling_jobs": "صالة التشغيل وأوامر الطحن",
+  "nav.milling_delivery": "بوابة التسليم وإذن الخروج",
+  "nav.milling_statement": "كشف حساب الأمانات",
   "nav.section.overview": "نظرة عامة",
   "nav.section.operations": "العمليات",
   "nav.section.relations": "العلاقات",
@@ -648,6 +653,7 @@ const ar: Dict = {
   "nav.section.inventory": "المخزون والمستودعات",
   "nav.section.sales": "البيع والتحصيل",
   "nav.section.finance": "المحاسبة والمالية",
+  "nav.section.milling": "المطحنة والأمانات",
 
   // عام
   "common.search": "ابحث عن أي شيء...",

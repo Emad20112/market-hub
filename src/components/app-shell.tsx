@@ -42,6 +42,8 @@ import {
   PanelLeftOpen,
   Crown,
   ClipboardList,
+  Cog,
+  PackagePlus,
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { useAuth } from "@/lib/auth";
@@ -374,7 +376,61 @@ const sections: Section[] = [
   },
 
   // ─────────────────────────────
-  // 7) الإدارة والنظام — الصلاحيات والتهيئة والاشتراك
+  // 7) المطحنة والأمانات — يظهر فقط لمن اشترى وحدة المطحنة
+  // ─────────────────────────────
+  {
+    titleKey: "nav.section.milling",
+    items: [
+      {
+        to: "/milling",
+        icon: Scale,
+        key: "nav.milling",
+        moduleId: "milling_operations",
+        allowedRoles: ["owner", "manager", "accountant", "warehouse"],
+        color: "text-amber-500",
+        bg: "bg-amber-500/15",
+      },
+      {
+        to: "/milling/intake",
+        icon: PackagePlus,
+        key: "nav.milling_intake",
+        moduleId: "milling_operations",
+        allowedRoles: ["owner", "manager", "warehouse"],
+        color: "text-amber-400",
+        bg: "bg-amber-500/15",
+      },
+      {
+        to: "/milling/jobs",
+        icon: Cog,
+        key: "nav.milling_jobs",
+        moduleId: "milling_operations",
+        allowedRoles: ["owner", "manager", "warehouse"],
+        color: "text-orange-500",
+        bg: "bg-orange-500/15",
+      },
+      {
+        to: "/milling/delivery",
+        icon: Truck,
+        key: "nav.milling_delivery",
+        moduleId: "milling_operations",
+        allowedRoles: ["owner", "manager", "warehouse"],
+        color: "text-lime-500",
+        bg: "bg-lime-500/15",
+      },
+      {
+        to: "/milling/customer-statement",
+        icon: FileText,
+        key: "nav.milling_statement",
+        moduleId: "milling_operations",
+        allowedRoles: ["owner", "manager", "accountant"],
+        color: "text-yellow-500",
+        bg: "bg-yellow-500/15",
+      },
+    ],
+  },
+
+  // ─────────────────────────────
+  // 8) الإدارة والنظام — الصلاحيات والتهيئة والاشتراك
   // ─────────────────────────────
   {
     titleKey: "nav.section.admin",

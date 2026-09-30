@@ -42,19 +42,10 @@ foreach ($l in $lines) {
 }
 if ($cur) { $dumped[$cur] = $n }
 
-Write-Output "=== DUMP row counts (public tables) ==="
-$tables | ForEach-Object {
-  $c = if ($dumped.ContainsKey($_)) { $dumped[$_] } else { "MISSING" }
-  Write-Output ("  {0,-24} {1}" -f $_, $c)
+Write-Output "=== ALL DUMPED TABLES ==="
+$dumped.GetEnumerator() | Sort-Object Name | ForEach-Object {
+  Write-Output ("  {0,-30} {1}" -f $_.Key, $_.Value)
 }
-
-# Live counts
-$sel = ($tables | ForEach-Object { "(SELECT count(*) FROM public.$_) AS $_" }) -join ", "
-$sql = "SELECT $sel;"
-Write-Output ""
-Write-Output "=== LIVE row counts ==="
-$live = npx supabase db query --linked $sql 2>&1 | Out-String
-Write-Output $live
 
 Write-Output "=== dump totals ==="
 Write-Output ("  total public tables dumped: " + $dumped.Count)

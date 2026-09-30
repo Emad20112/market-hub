@@ -190,6 +190,30 @@ export const SYSTEM_MODULES: PlatformModule[] = [
     ],
   },
   {
+    id: "milling_operations",
+    name: { ar: "إدارة المطاحن والأمانات", en: "Flour Mill & Toll Processing" },
+    description: {
+      ar: "استلام حبوب العملاء كأمانات، أوامر الطحن، توزيع النواتج على الأكياس، فواتير أجور الطحن، وإذونات تسليم النواتج — بفصل تام عن المخزون التجاري",
+      en: "Customer grain custody, milling jobs, bag-based output distribution, toll service invoices and delivery notes — fully separated from commercial stock",
+    },
+    category: "enterprise",
+    dependencies: ["core"],
+    navItems: [
+      "/milling",
+      "/milling/intake",
+      "/milling/jobs",
+      "/milling/delivery",
+      "/milling/customer-statement",
+    ],
+    routes: [
+      "/_app/milling",
+      "/_app/milling/intake",
+      "/_app/milling/jobs",
+      "/_app/milling/delivery",
+      "/_app/milling/customer-statement",
+    ],
+  },
+  {
     id: "analytics",
     name: { ar: "التحليلات المتقدمة والتقارير", en: "Advanced Analytics" },
     description: {
@@ -265,6 +289,7 @@ export const SYSTEM_PLANS: PlatformPlan[] = [
       "advanced_accounting",
       "analytics",
       "audit",
+      "milling_operations",
     ],
     maxUsers: 50,
     maxWarehouses: 20,
