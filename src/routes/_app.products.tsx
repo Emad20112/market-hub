@@ -978,9 +978,7 @@ function ProductsPage() {
                     <div
                       key={p.id}
                       onClick={() => {
-                        setEditing(p);
-                        setPrefillBarcode(undefined);
-                        setOpen(true);
+                        setSelectedProductDetail(p);
                       }}
                       className={`card-mullak group relative overflow-hidden rounded-2xl p-3 sm:p-4.5 flex flex-col justify-between cursor-pointer border transition-all duration-200 hover:shadow-md ${
                         !p.is_active
@@ -1218,9 +1216,7 @@ function ProductsPage() {
                     <div
                       key={p.id}
                       onClick={() => {
-                        setEditing(p);
-                        setPrefillBarcode(undefined);
-                        setOpen(true);
+                        setSelectedProductDetail(p);
                       }}
                       className="card-mullak group relative flex flex-col md:flex-row md:items-center justify-between gap-3 p-3.5 sm:p-4 rounded-2xl cursor-pointer border transition-all duration-200 hover:border-primary/50 hover:shadow-md"
                     >
@@ -1424,9 +1420,7 @@ function ProductsPage() {
             horizontalScroll={tableUsesHorizontalScroll}
             stickyHeader
             onRowClick={(product) => {
-              setEditing(product);
-              setPrefillBarcode(undefined);
-              setOpen(true);
+              setSelectedProductDetail(product);
             }}
             empty={{
               icon: <Package />,

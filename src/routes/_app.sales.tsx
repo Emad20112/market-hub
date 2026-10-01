@@ -1618,7 +1618,7 @@ export function SalesPage() {
       {/* Bottom Floating/Docked View Switcher & Record Counter */}
       <div className="sticky bottom-4 z-20 mx-auto mt-6 flex max-w-fit items-center gap-3 rounded-2xl border border-border/80 bg-background/90 px-4 py-2 shadow-lg backdrop-blur-md">
         <span className="text-xs font-medium text-muted-foreground">
-          {isRtl ? `إجمالي الفواتير: ${filteredInvoices.length}` : `Total Invoices: ${filteredInvoices.length}`}
+          {isRtl ? `إجمالي الفواتير: ${filteredRows.length}` : `Total Invoices: ${filteredRows.length}`}
         </span>
         <div className="h-4 w-px bg-border" />
         <div className="flex items-center rounded-xl border border-border bg-muted/40 p-0.5">
