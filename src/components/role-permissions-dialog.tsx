@@ -294,8 +294,8 @@ export const CAPABILITY_MATRIX: CapabilityGroup[] = [
         cashier: "none",
         warehouse: "none",
         notes: {
-          ar: "السوبر أدمن يمتلك التحكم بالمنصة والمالك يمتلك ترقية اشتراكه",
-          en: "Superadmin manages SaaS tier; Owner manages tenant upgrade",
+          ar: "السوبر أدمن يعدّل الباقات؛ المالك يطّلع على باقته ويطلب الترقية فقط (صفحة الباقات)",
+          en: "Superadmin edits plans; Owner only views and requests upgrades (Plans page)",
         },
       },
       {
@@ -313,8 +313,8 @@ export const CAPABILITY_MATRIX: CapabilityGroup[] = [
       {
         name: { ar: "سجل التدقيق الشامل للمنصة (Platform Audit)", en: "Platform Audit Logs" },
         superadmin: "full",
-        owner: "full",
-        manager: "partial",
+        owner: "none",
+        manager: "none",
         accountant: "none",
         cashier: "none",
         warehouse: "none",
@@ -500,6 +500,33 @@ export const CAPABILITY_MATRIX: CapabilityGroup[] = [
         accountant: "full",
         cashier: "none",
         warehouse: "none",
+      },
+      {
+        name: { ar: "المالية العامة (الحسابات والصناديق)", en: "Finance (Accounts & Cash)" },
+        superadmin: "full",
+        owner: "full",
+        manager: "full",
+        accountant: "full",
+        cashier: "none",
+        warehouse: "none",
+      },
+      {
+        name: { ar: "مرتجعات المبيعات", en: "Sales Returns" },
+        superadmin: "full",
+        owner: "full",
+        manager: "full",
+        accountant: "full",
+        cashier: "full",
+        warehouse: "none",
+      },
+      {
+        name: { ar: "مرتجعات المشتريات", en: "Purchase Returns" },
+        superadmin: "full",
+        owner: "full",
+        manager: "full",
+        accountant: "full",
+        cashier: "none",
+        warehouse: "full",
       },
       {
         name: {
