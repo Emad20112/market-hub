@@ -153,6 +153,7 @@ function CatalogPage() {
         <VortexMetricCard
           label={lang === "ar" ? "أقسام التصنيفات" : "Categories"}
           value={stats?.categories ?? 0}
+          currency=""
           icon={FolderTree}
           tone="default"
           subtitle={lang === "ar" ? "تصنيف شجري للمنتجات" : "Product categories"}
@@ -160,6 +161,7 @@ function CatalogPage() {
         <VortexMetricCard
           label={lang === "ar" ? "العلامات والماركات" : "Brands"}
           value={stats?.brands ?? 0}
+          currency=""
           icon={Tag}
           tone="info"
           subtitle={lang === "ar" ? "الماركات التجارية المعتمدة" : "Registered brands"}
@@ -167,6 +169,7 @@ function CatalogPage() {
         <VortexMetricCard
           label={lang === "ar" ? "وحدات القياس" : "Measurement Units"}
           value={stats?.units ?? 0}
+          currency=""
           icon={Scale}
           tone="success"
           subtitle={lang === "ar" ? "حبة، كرتون، لتر، متر..." : "Units of measure"}
@@ -174,6 +177,7 @@ function CatalogPage() {
         <VortexMetricCard
           label={lang === "ar" ? "الأقسام المفعّلة" : "Active Dimensions"}
           value={availableTabs.length}
+          currency=""
           icon={Boxes}
           tone="warning"
           subtitle={lang === "ar" ? `نشاط: ${profileLabel}` : `Profile: ${profileLabel}`}

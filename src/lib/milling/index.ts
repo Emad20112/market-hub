@@ -363,6 +363,17 @@ export async function completeJob(
   return { ok: true, data: data as JobCompletionSummary };
 }
 
+/** Cancels only an untouched job; completed or posted work requires a reversal. */
+export async function cancelJob(jobId: string, reason: string): Promise<OpResult> {
+  if (!reason.trim()) return { ok: false, message: "سبب الإلغاء إلزامي." };
+  const { error } = await db.rpc("cancel_milling_job", {
+    _job_id: jobId,
+    _reason: reason.trim(),
+  });
+  if (error) return { ok: false, message: error.message };
+  return { ok: true };
+}
+
 /* ---------------------------------------------------------- 3. invoicing */
 
 export interface InvoiceJobInput {

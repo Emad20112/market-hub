@@ -272,7 +272,6 @@ function DebtsPage() {
         <VortexMetricCard
           title={t("debts.total_debt")}
           value={totals.totalDebt}
-          currency="ر.س"
           highlight
           icon={<HandCoins className="size-5 text-amber-600 dark:text-amber-400" />}
           iconClassName="bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20"

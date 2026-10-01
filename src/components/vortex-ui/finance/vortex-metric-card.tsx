@@ -3,6 +3,7 @@
 import * as React from "react";
 import { cn } from "@/lib/utils";
 import { TrendingUp, TrendingDown, Minus } from "lucide-react";
+import { useCompanyCurrency } from "@/hooks/use-company-currency";
 
 export interface VortexMetricCardProps {
   title?: string;
@@ -47,11 +48,12 @@ export function VortexMetricCard({
   variant,
   trend,
   highlight = false,
-  currency = "ر.س",
+  currency,
   badge,
   className,
   onClick,
 }: VortexMetricCardProps) {
+  const { currencySymbol } = useCompanyCurrency();
   const isClickable = Boolean(onClick);
   const displayTitle = title ?? label ?? "";
   const displaySubtitle = subtitle ?? description;
@@ -87,11 +89,11 @@ export function VortexMetricCard({
           </div>
           <div className="flex items-baseline gap-1 pt-0.5">
             <span className="text-base sm:text-2xl font-black tracking-tight text-foreground font-mono truncate">
-              {typeof value === "number" ? value.toLocaleString("ar-SA") : value}
+              {typeof value === "number" ? value.toLocaleString("ar-YE") : value}
             </span>
-            {currency && (
+            {(currency ?? currencySymbol) && (
               <span className="text-[10px] sm:text-xs font-bold text-muted-foreground shrink-0">
-                {currency}
+                {currency ?? currencySymbol}
               </span>
             )}
           </div>

@@ -20,6 +20,7 @@ import {
   createJob,
   addOutput,
   completeJob,
+  cancelJob,
   invoiceJob,
   fetchJobs,
   fetchOutputs,
@@ -265,6 +266,17 @@ function MillingJobsPage() {
     },
   });
 
+  const cancelMutation = useMutation({
+    mutationFn: ({ jobId, reason }: { jobId: string; reason: string }) => cancelJob(jobId, reason),
+    onSuccess: (res) => {
+      if (!res.ok) return toast.error(res.message ?? "تعذّر إلغاء أمر الطحن");
+      toast.success("تم إلغاء أمر الطحن وإعادة الكمية لسند الاستلام");
+      setSelectedJobId("");
+      setCompletion(null);
+      void refresh();
+    },
+  });
+
   const invoiceMutation = useMutation({
     mutationFn: invoiceJob,
     onSuccess: (res) => {
@@ -405,6 +417,20 @@ function MillingJobsPage() {
                       >
                         <Receipt className="h-3.5 w-3.5" />
                         إصدار فاتورة أجور
+                      </button>
+                    )}
+                    {isOpen && (outputs ?? []).length === 0 && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const reason = window.prompt("سبب إلغاء أمر الطحن:");
+                          if (reason) cancelMutation.mutate({ jobId: selectedJob.id, reason });
+                        }}
+                        disabled={cancelMutation.isPending}
+                        className="flex h-8 items-center gap-1.5 rounded-lg border border-rose-500/40 bg-rose-500/10 px-3 text-[11px] font-bold text-rose-600 dark:text-rose-400 disabled:opacity-50"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                        إلغاء الأمر
                       </button>
                     )}
                   </div>
@@ -633,7 +659,7 @@ function NewJobForm({
   const [bags, setBags] = useState(0);
   const [bagSize, setBagSize] = useState(50);
   const [weight, setWeight] = useState(0);
-  const [feeBag, setFeeBag] = useState(8);
+  const [feeBag, setFeeBag] = useState(0);
   const [feeTon, setFeeTon] = useState(0);
   const [extraction, setExtraction] = useState(80);
   const [loss, setLoss] = useState(2);

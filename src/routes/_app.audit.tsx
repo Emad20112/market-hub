@@ -1251,7 +1251,7 @@ function AuditPage() {
                     <span className="text-xs font-bold text-foreground">
                       {formatLuxuryDate(selectedLog.created_at, { showDayName: true }).full}
                       {" - "}
-                      {new Date(selectedLog.created_at).toLocaleTimeString("ar-SA")}
+                      {new Date(selectedLog.created_at).toLocaleTimeString("ar-YE")}
                     </span>
                   </div>
                 </div>

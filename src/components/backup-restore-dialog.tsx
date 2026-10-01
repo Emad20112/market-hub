@@ -199,7 +199,7 @@ export function BackupRestoreDialog({ open, onClose }: BackupRestoreDialogProps)
               <div>
                 <span className="text-muted-foreground">تاريخ ووقت التصدير:</span>
                 <span className="block font-medium text-foreground">
-                  {new Date(validationResult.metadata.created_at).toLocaleString("ar-SA")}
+                  {new Date(validationResult.metadata.created_at).toLocaleString("ar-YE")}
                 </span>
               </div>
               <div>

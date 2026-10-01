@@ -278,7 +278,7 @@ export function BackupSettingsCard() {
                   </span>
                   <span className="font-semibold text-foreground">
                     {settings.last_backup_at
-                      ? new Date(settings.last_backup_at).toLocaleString("ar-SA")
+                      ? new Date(settings.last_backup_at).toLocaleString("ar-YE")
                       : "—"}
                   </span>
                 </div>
@@ -368,7 +368,7 @@ export function BackupSettingsCard() {
                     logs.slice(0, 5).map((log) => (
                       <TableRow key={log.id} className="text-xs">
                         <TableCell className="font-mono text-muted-foreground">
-                          {new Date(log.created_at).toLocaleString("ar-SA")}
+                          {new Date(log.created_at).toLocaleString("ar-YE")}
                         </TableCell>
                         <TableCell className="font-medium text-foreground">
                           {log.actor_name}
