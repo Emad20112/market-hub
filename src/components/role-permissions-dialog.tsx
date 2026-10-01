@@ -521,7 +521,14 @@ export const CAPABILITY_MATRIX: CapabilityGroup[] = [
   },
 ];
 
-export function RolePermissionsDialog({ trigger }: { trigger?: React.ReactNode }) {
+export function RolePermissionsDialog({
+  trigger,
+  showPlatformRole = false,
+}: {
+  trigger?: React.ReactNode;
+  /** يُعرض عمود/بطاقة السوبر أدمن فقط لمدراء المنصة */
+  showPlatformRole?: boolean;
+}) {
   const { lang } = useI18n();
   const isAr = lang === "ar";
   const [activeTab, setActiveTab] = useState<"matrix" | "cards" | "rules">("matrix");
@@ -667,9 +674,11 @@ export function RolePermissionsDialog({ trigger }: { trigger?: React.ReactNode }
                     <th className="px-4 py-3 text-start font-bold min-w-[220px]">
                       {isAr ? "الوظيفة / الصلاحية" : "Module / Capability"}
                     </th>
-                    <th className="px-3 py-3 text-center font-bold text-amber-500">
-                      {isAr ? "السوبر أدمن" : "Superadmin"}
-                    </th>
+                    {showPlatformRole && (
+                      <th className="px-3 py-3 text-center font-bold text-amber-500">
+                        {isAr ? "السوبر أدمن" : "Superadmin"}
+                      </th>
+                    )}
                     <th className="px-3 py-3 text-center font-bold text-primary">
                       {isAr ? "المالك" : "Owner"}
                     </th>
@@ -694,7 +703,7 @@ export function RolePermissionsDialog({ trigger }: { trigger?: React.ReactNode }
                         key={`group-${gIdx}`}
                         className="bg-surface/90 font-bold text-foreground/90"
                       >
-                        <td colSpan={7} className="px-4 py-2 text-[11px] text-primary">
+                        <td colSpan={showPlatformRole ? 7 : 6} className="px-4 py-2 text-[11px] text-primary">
                           {isAr ? group.category.ar : group.category.en}
                         </td>
                       </tr>
@@ -711,7 +720,9 @@ export function RolePermissionsDialog({ trigger }: { trigger?: React.ReactNode }
                               </div>
                             )}
                           </td>
-                          <td className="px-3 py-2.5 text-center">{renderBadge(f.superadmin)}</td>
+                          {showPlatformRole && (
+                            <td className="px-3 py-2.5 text-center">{renderBadge(f.superadmin)}</td>
+                          )}
                           <td className="px-3 py-2.5 text-center">{renderBadge(f.owner)}</td>
                           <td className="px-3 py-2.5 text-center">{renderBadge(f.manager)}</td>
                           <td className="px-3 py-2.5 text-center">{renderBadge(f.accountant)}</td>
@@ -730,7 +741,7 @@ export function RolePermissionsDialog({ trigger }: { trigger?: React.ReactNode }
         {/* Tab 2: Role Profiles Cards */}
         {activeTab === "cards" && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4">
-            {ROLE_DEFINITIONS.map((r) => {
+            {ROLE_DEFINITIONS.filter((r) => showPlatformRole || r.id !== "superadmin").map((r) => {
               const Icon = r.icon;
               return (
                 <div
@@ -808,6 +819,7 @@ export function RolePermissionsDialog({ trigger }: { trigger?: React.ReactNode }
         {/* Tab 3: Security & Governance Rules */}
         {activeTab === "rules" && (
           <div className="space-y-4 pt-4 text-xs leading-relaxed text-foreground">
+            {showPlatformRole && (
             <div className="p-4 rounded-2xl border border-amber-500/30 bg-amber-500/5 space-y-2">
               <div className="flex items-center gap-2 font-bold text-amber-600 dark:text-amber-400 text-sm">
                 <ShieldAlert className="h-4 w-4" />
@@ -823,6 +835,7 @@ export function RolePermissionsDialog({ trigger }: { trigger?: React.ReactNode }
                   : "Superadmin manages SaaS infrastructure and licensing via platform_admins table, isolated from store staff. The Owner governs store operations."}
               </p>
             </div>
+            )}
 
             <div className="p-4 rounded-2xl border border-destructive/30 bg-destructive/5 space-y-2">
               <div className="flex items-center gap-2 font-bold text-destructive text-sm">
