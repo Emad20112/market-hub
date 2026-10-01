@@ -624,27 +624,7 @@ export function SalesPage() {
             <span className="hidden sm:inline">{isRtl ? "تحديث" : "Refresh"}</span>
           </button>
 
-          {/* View mode toggle */}
-          <div className="flex items-center rounded-lg border border-border bg-surface p-0.5">
-            <button
-              onClick={() => setViewMode("table")}
-              className={`rounded-md p-1.5 transition ${
-                viewMode === "table" ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
-              }`}
-              title={isRtl ? "عرض الجدول" : "Table View"}
-            >
-              <List className="h-4 w-4" />
-            </button>
-            <button
-              onClick={() => setViewMode("grid")}
-              className={`rounded-md p-1.5 transition ${
-                viewMode === "grid" ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
-              }`}
-              title={isRtl ? "عرض البطاقات" : "Grid Cards View"}
-            >
-              <LayoutGrid className="h-4 w-4" />
-            </button>
-          </div>
+
 
           <Link
             to="/pos"
@@ -1625,6 +1605,40 @@ export function SalesPage() {
           void load();
         }}
       />
+
+      {/* Bottom Floating/Docked View Switcher & Record Counter */}
+      <div className="sticky bottom-4 z-20 mx-auto mt-6 flex max-w-fit items-center gap-3 rounded-2xl border border-border/80 bg-background/90 px-4 py-2 shadow-lg backdrop-blur-md">
+        <span className="text-xs font-medium text-muted-foreground">
+          {isRtl ? `إجمالي الفواتير: ${filteredInvoices.length}` : `Total Invoices: ${filteredInvoices.length}`}
+        </span>
+        <div className="h-4 w-px bg-border" />
+        <div className="flex items-center rounded-xl border border-border bg-muted/40 p-0.5">
+          <button
+            type="button"
+            onClick={() => setViewMode("table")}
+            className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-semibold transition ${
+              viewMode === "table"
+                ? "bg-primary text-primary-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <List className="h-3.5 w-3.5" />
+            <span>{isRtl ? "جدول" : "Table"}</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setViewMode("grid")}
+            className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-semibold transition ${
+              viewMode === "grid"
+                ? "bg-primary text-primary-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <LayoutGrid className="h-3.5 w-3.5" />
+            <span>{isRtl ? "بطاقات" : "Grid"}</span>
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

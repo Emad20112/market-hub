@@ -1617,10 +1617,10 @@ function ProductDialog({
     category_id: initial?.category_id ?? "",
     brand_id: initial?.brand_id ?? "",
     unit_id: initial?.unit_id ?? "",
-    cost_price: initial?.cost_price?.toString() ?? "0",
-    sale_price: initial?.sale_price?.toString() ?? "0",
-    tax_rate: initial?.tax_rate?.toString() ?? "0",
-    min_stock: initial?.min_stock?.toString() ?? "1",
+    cost_price: initial?.cost_price != null ? String(initial.cost_price) : "",
+    sale_price: initial?.sale_price != null ? String(initial.sale_price) : "",
+    tax_rate: initial?.tax_rate != null ? String(initial.tax_rate) : "",
+    min_stock: initial?.min_stock != null ? String(initial.min_stock) : "",
     shelf_location: initial?.shelf_location ?? "",
     origin_id: initial?.origin_id ?? "",
     quality_grade_id: initial?.quality_grade_id ?? "",
@@ -1722,7 +1722,7 @@ function ProductDialog({
       onOpenChange={(isOpen) => {
         if (!isOpen) onClose();
       }}
-      size="lg"
+      size="xl"
       title={initial ? t("products.edit_product") : t("products.new_product")}
       description={
         initial
@@ -1809,7 +1809,7 @@ function ProductDialog({
                   onChange={(e) => setForm({ ...form, category_id: e.target.value })}
                   className={fieldSurfaceClass}
                 >
-                  <option value="">—</option>
+                  <option value="">{lang === "ar" ? "اختر التصنيف..." : "Select category..."}</option>
                   {meta.categories.map((c) => (
                     <option key={c.id} value={c.id}>
                       {labelOf(c.name, c.name_ar)}
@@ -1895,7 +1895,7 @@ function ProductDialog({
                       onChange={(e) => setForm({ ...form, brand_id: e.target.value })}
                       className={fieldSurfaceClass}
                     >
-                      <option value="">—</option>
+                      <option value="">{lang === "ar" ? "اختر العلامة التجارية..." : "Select brand..."}</option>
                       {meta.brands.map((b) => (
                         <option key={b.id} value={b.id}>
                           {labelOf(b.name, b.name_ar)}
@@ -1916,7 +1916,7 @@ function ProductDialog({
                       onChange={(e) => setForm({ ...form, origin_id: e.target.value })}
                       className={fieldSurfaceClass}
                     >
-                      <option value="">—</option>
+                      <option value="">{lang === "ar" ? "اختر بلد المنشأ..." : "Select origin..."}</option>
                       {meta.origins.map((o) => (
                         <option key={o.id} value={o.id}>
                           {lang === "ar" ? o.name_ar : o.name} ({o.code})
@@ -1937,7 +1937,7 @@ function ProductDialog({
                       onChange={(e) => setForm({ ...form, quality_grade_id: e.target.value })}
                       className={fieldSurfaceClass}
                     >
-                      <option value="">—</option>
+                      <option value="">{lang === "ar" ? "اختر درجة الجودة..." : "Select quality grade..."}</option>
                       {meta.qualities.map((q) => (
                         <option key={q.id} value={q.id}>
                           {lang === "ar" ? q.name_ar : q.name}
@@ -1958,7 +1958,7 @@ function ProductDialog({
                       onChange={(e) => setForm({ ...form, unit_id: e.target.value })}
                       className={fieldSurfaceClass}
                     >
-                      <option value="">—</option>
+                      <option value="">{lang === "ar" ? "اختر وحدة القياس..." : "Select unit..."}</option>
                       {meta.units.map((u) => (
                         <option key={u.id} value={u.id}>
                           {labelOf(u.name, u.name_ar)} ({u.short_name})
@@ -1981,8 +1981,8 @@ function ProductDialog({
                 hint={lang === "ar" ? "سعر الشراء" : "Purchase price"}
               >
                 <VortexCurrencyInput
-                  value={form.cost_price === "" ? 0 : Number(form.cost_price)}
-                  onValueChange={(num) => setForm({ ...form, cost_price: String(num) })}
+                  value={form.cost_price === "" ? null : Number(form.cost_price)}
+                  onValueChange={(num) => setForm({ ...form, cost_price: num == null ? "" : String(num) })}
                   min={0}
                   currencySymbol="﷼"
                   placeholder="0.00"
@@ -1995,8 +1995,8 @@ function ProductDialog({
                 <VortexCurrencyInput
                   id={p.id}
                   aria-describedby={p["aria-describedby"]}
-                  value={form.sale_price === "" ? 0 : Number(form.sale_price)}
-                  onValueChange={(num) => setForm({ ...form, sale_price: String(num) })}
+                  value={form.sale_price === "" ? null : Number(form.sale_price)}
+                  onValueChange={(num) => setForm({ ...form, sale_price: num == null ? "" : String(num) })}
                   min={0}
                   currencySymbol="﷼"
                   placeholder="0.00"
