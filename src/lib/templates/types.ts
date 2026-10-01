@@ -159,7 +159,7 @@ export interface PrintJobItem {
   templateId?: InvoiceTemplateId;
 }
 
-export const DEFAULT_BRANDING = "العمل بواسطة إنما سوفت - 772217218";
+export const DEFAULT_BRANDING = "إنما سوفت - 772217218";
 export const DEFAULT_COMPANY_LOGO = "/inama-soft-logo.ico";
 
 export function getCompanyLogo(doc: UnifiedDocumentData): string {

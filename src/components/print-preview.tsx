@@ -57,12 +57,11 @@ const SAMPLE_CUSTOMER_INVOICE: UnifiedDocumentData = {
   balance: 0,
   currency: "USD",
   company: {
-    name: "مؤسسة فورتكس للتجارة والمحركات",
-    address: "صنعاء - شارع الستين - جوار الغرفة التجارية",
-    phone: "01-234567 / 772217218",
-    vat: "100987654",
+    name: "طاحونتي",
+    phone: "772217218",
+    logo: "/inama-soft-logo.ico",
   },
-  brandingText: "العمل بواسطة إنما سوفت - 772217218",
+  brandingText: "إنما سوفت - 772217218",
 };
 
 const SAMPLE_INVENTORY_DOC: UnifiedDocumentData = {
@@ -87,10 +86,11 @@ const SAMPLE_INVENTORY_DOC: UnifiedDocumentData = {
     },
   ],
   company: {
-    name: "مؤسسة فورتكس للتجارة والمحركات",
-    address: "صنعاء - شارع الستين",
+    name: "طاحونتي",
+    phone: "772217218",
+    logo: "/inama-soft-logo.ico",
   },
-  brandingText: "العمل بواسطة إنما سوفت - 772217218",
+  brandingText: "إنما سوفت - 772217218",
 };
 
 interface PrintPreviewModalProps {
