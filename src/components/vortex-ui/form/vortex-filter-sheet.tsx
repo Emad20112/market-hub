@@ -12,12 +12,7 @@ export interface FilterSectionProps {
   children: React.ReactNode;
 }
 
-export function VortexFilterSection({
-  title,
-  icon,
-  description,
-  children,
-}: FilterSectionProps) {
+export function VortexFilterSection({ title, icon, description, children }: FilterSectionProps) {
   return (
     <div className="space-y-2.5 pb-4 border-b border-border/60 last:border-b-0 last:pb-0">
       <div className="flex items-center justify-between">
@@ -25,9 +20,7 @@ export function VortexFilterSection({
           {icon && <span className="text-primary">{icon}</span>}
           <span>{title}</span>
         </label>
-        {description && (
-          <span className="text-[11px] text-muted-foreground">{description}</span>
-        )}
+        {description && <span className="text-[11px] text-muted-foreground">{description}</span>}
       </div>
       <div>{children}</div>
     </div>

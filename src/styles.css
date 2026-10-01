@@ -152,7 +152,7 @@
   /* Rich Midnight Slate — comfortable, premium, deep depth */
   --background: oklch(0.165 0.018 258);
   --foreground: oklch(0.95 0.008 258);
-  --surface: oklch(0.20 0.022 258);
+  --surface: oklch(0.2 0.022 258);
   --surface-elevated: oklch(0.23 0.024 258);
   --surface-2: oklch(0.25 0.026 258);
   --surface-3: oklch(0.29 0.028 258);
@@ -162,14 +162,14 @@
   --popover: oklch(0.22 0.024 258);
   --popover-foreground: oklch(0.95 0.008 258);
 
-  --primary: oklch(0.65 0.20 258); /* Vibrant Royal Sapphire */
+  --primary: oklch(0.65 0.2 258); /* Vibrant Royal Sapphire */
   --primary-foreground: oklch(1 0 0);
 
   --secondary: oklch(0.24 0.022 258);
   --secondary-foreground: oklch(0.95 0.008 258);
 
-  --muted: oklch(0.23 0.020 258);
-  --muted-foreground: oklch(0.70 0.015 258);
+  --muted: oklch(0.23 0.02 258);
+  --muted-foreground: oklch(0.7 0.015 258);
 
   --accent: oklch(0.25 0.024 258);
   --accent-foreground: oklch(0.96 0.008 258);
@@ -181,38 +181,38 @@
   --warning: oklch(0.78 0.15 80);
   --warning-foreground: oklch(0.15 0 0);
 
-  --border: oklch(1 0 0 / 0.10);
+  --border: oklch(1 0 0 / 0.1);
   --input: oklch(1 0 0 / 0.09);
-  --ring: oklch(0.65 0.20 258 / 0.5);
+  --ring: oklch(0.65 0.2 258 / 0.5);
 
-  --chart-1: oklch(0.65 0.20 258);
-  --chart-2: oklch(0.70 0.18 180);
+  --chart-1: oklch(0.65 0.2 258);
+  --chart-2: oklch(0.7 0.18 180);
   --chart-3: oklch(0.72 0.17 80);
   --chart-4: oklch(0.66 0.22 320);
   --chart-5: oklch(0.66 0.17 155);
 
   --sidebar: oklch(0.145 0.018 258);
   --sidebar-foreground: oklch(0.82 0.012 258);
-  --sidebar-primary: oklch(0.65 0.20 258);
+  --sidebar-primary: oklch(0.65 0.2 258);
   --sidebar-primary-foreground: oklch(1 0 0);
   --sidebar-accent: oklch(0.22 0.022 258);
   --sidebar-accent-foreground: oklch(0.96 0.008 258);
   --sidebar-border: oklch(1 0 0 / 0.08);
-  --sidebar-ring: oklch(0.65 0.20 258 / 0.5);
+  --sidebar-ring: oklch(0.65 0.2 258 / 0.5);
 
   /* Status tones (dark) */
   --tone-neutral: oklch(0.28 0.015 258);
   --tone-neutral-fg: oklch(0.75 0.012 258);
   --tone-info: oklch(0.65 0.18 255 / 0.18);
-  --tone-info-fg: oklch(0.80 0.14 255);
+  --tone-info-fg: oklch(0.8 0.14 255);
   --tone-success: oklch(0.66 0.17 155 / 0.18);
   --tone-success-fg: oklch(0.82 0.14 158);
   --tone-warning: oklch(0.78 0.15 80 / 0.18);
   --tone-warning-fg: oklch(0.86 0.12 82);
   --tone-danger: oklch(0.62 0.22 25 / 0.18);
-  --tone-danger-fg: oklch(0.80 0.15 25);
-  --tone-primary: oklch(0.65 0.20 258 / 0.18);
-  --tone-primary-fg: oklch(0.80 0.14 258);
+  --tone-danger-fg: oklch(0.8 0.15 25);
+  --tone-primary: oklch(0.65 0.2 258 / 0.18);
+  --tone-primary-fg: oklch(0.8 0.14 258);
 }
 
 .light {
@@ -225,45 +225,45 @@
   --card-foreground: oklch(0.18 0.035 258);
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.18 0.035 258);
-  --primary: oklch(0.56 0.20 258);
+  --primary: oklch(0.56 0.2 258);
   --primary-foreground: oklch(1 0 0);
-  --secondary: oklch(0.935 0.010 250);
-  --secondary-foreground: oklch(0.20 0.030 258);
-  --muted: oklch(0.935 0.010 250);
-  --muted-foreground: oklch(0.50 0.020 258);
+  --secondary: oklch(0.935 0.01 250);
+  --secondary-foreground: oklch(0.2 0.03 258);
+  --muted: oklch(0.935 0.01 250);
+  --muted-foreground: oklch(0.5 0.02 258);
   --accent: oklch(0.935 0.012 250);
   --accent-foreground: oklch(0.18 0.035 258);
   --destructive: oklch(0.58 0.23 25);
   --destructive-foreground: oklch(1 0 0);
   --success: oklch(0.55 0.17 155);
   --success-foreground: oklch(1 0 0);
-  --warning: oklch(0.70 0.16 80);
+  --warning: oklch(0.7 0.16 80);
   --warning-foreground: oklch(0.15 0 0);
-  --border: oklch(0.20 0.03 258 / 0.10);
-  --input: oklch(0.20 0.03 258 / 0.09);
-  --ring: oklch(0.56 0.20 258 / 0.5);
+  --border: oklch(0.2 0.03 258 / 0.1);
+  --input: oklch(0.2 0.03 258 / 0.09);
+  --ring: oklch(0.56 0.2 258 / 0.5);
   --sidebar: oklch(0.982 0.005 250);
-  --sidebar-foreground: oklch(0.25 0.030 258);
-  --sidebar-accent: oklch(0.935 0.010 250);
+  --sidebar-foreground: oklch(0.25 0.03 258);
+  --sidebar-accent: oklch(0.935 0.01 250);
   --sidebar-accent-foreground: oklch(0.18 0.035 258);
-  --sidebar-border: oklch(0.20 0.03 258 / 0.08);
+  --sidebar-border: oklch(0.2 0.03 258 / 0.08);
 
-  --surface-2: oklch(0.94 0.010 250);
-  --surface-3: oklch(0.90 0.012 250);
+  --surface-2: oklch(0.94 0.01 250);
+  --surface-3: oklch(0.9 0.012 250);
 
   /* Status tones (light) */
   --tone-neutral: oklch(0.92 0.008 250);
-  --tone-neutral-fg: oklch(0.40 0.018 258);
+  --tone-neutral-fg: oklch(0.4 0.018 258);
   --tone-info: oklch(0.56 0.18 255 / 0.12);
-  --tone-info-fg: oklch(0.40 0.17 255);
+  --tone-info-fg: oklch(0.4 0.17 255);
   --tone-success: oklch(0.58 0.17 155 / 0.14);
   --tone-success-fg: oklch(0.36 0.15 155);
   --tone-warning: oklch(0.74 0.16 80 / 0.18);
   --tone-warning-fg: oklch(0.42 0.14 75);
   --tone-danger: oklch(0.58 0.23 25 / 0.12);
   --tone-danger-fg: oklch(0.45 0.19 25);
-  --tone-primary: oklch(0.56 0.20 258 / 0.12);
-  --tone-primary-fg: oklch(0.40 0.17 258);
+  --tone-primary: oklch(0.56 0.2 258 / 0.12);
+  --tone-primary-fg: oklch(0.4 0.17 258);
 }
 
 @layer base {
@@ -315,8 +315,8 @@
 
   html.light body::before {
     background:
-      radial-gradient(60rem 40rem at 80% -10%, oklch(0.56 0.20 258 / 0.035), transparent 60%),
-      radial-gradient(50rem 30rem at -10% 100%, oklch(0.70 0.18 180 / 0.025), transparent 60%);
+      radial-gradient(60rem 40rem at 80% -10%, oklch(0.56 0.2 258 / 0.035), transparent 60%),
+      radial-gradient(50rem 30rem at -10% 100%, oklch(0.7 0.18 180 / 0.025), transparent 60%);
   }
 
   ::selection {
@@ -586,7 +586,9 @@
 }
 
 /* Universal sleek minimalist scrollbar: track completely transparent everywhere */
-*, *::before, *::after {
+*,
+*::before,
+*::after {
   scrollbar-width: thin;
   scrollbar-color: hsl(var(--muted-foreground) / 0.25) transparent;
 }
@@ -621,7 +623,9 @@
   border-radius: 1.25rem;
   border: 1px solid var(--border);
   background: var(--card);
-  box-shadow: 0 1px 3px 0 oklch(0 0 0 / 0.04), 0 4px 16px -4px oklch(0 0 0 / 0.06);
+  box-shadow:
+    0 1px 3px 0 oklch(0 0 0 / 0.04),
+    0 4px 16px -4px oklch(0 0 0 / 0.06);
   transition: all 0.2s cubic-bezier(0.32, 0.72, 0, 1);
 }
 
@@ -634,7 +638,7 @@
 
 .card-mullak:hover {
   border-color: color-mix(in oklab, var(--primary) 35%, transparent);
-  box-shadow: 0 8px 24px -4px oklch(0 0 0 / 0.10);
+  box-shadow: 0 8px 24px -4px oklch(0 0 0 / 0.1);
   transform: translateY(-1px);
 }
 

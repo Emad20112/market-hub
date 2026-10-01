@@ -669,7 +669,10 @@ function DashboardPage() {
                     contentStyle={TOOLTIP_STYLE}
                     itemStyle={TOOLTIP_ITEM_STYLE}
                     labelStyle={TOOLTIP_LABEL_STYLE}
-                    formatter={(val: any) => [money(Number(val)), name]}
+                    formatter={(val: any, itemName: any) => [
+                      money(Number(val)),
+                      String(itemName ?? ""),
+                    ]}
                   />
                 </PieChart>
               </ResponsiveContainer>

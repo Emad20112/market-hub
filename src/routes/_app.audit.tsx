@@ -807,7 +807,7 @@ function AuditPage() {
         <div className="w-full sm:flex-1">
           <VortexSearchInput
             value={search}
-            onChange={setSearch}
+            onValueChange={setSearch}
             placeholder="ابحث باسم المستخدم، الكيان، الإجراء، أو المعرف..."
             className="w-full"
           />

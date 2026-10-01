@@ -10,7 +10,7 @@ import {
   SlidersHorizontal,
   Calendar,
   Layers,
-  ArrowRight
+  ArrowRight,
 } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import {
@@ -63,7 +63,9 @@ function VortexUiShowcasePage() {
       <section className="space-y-3">
         <div className="flex items-center gap-2">
           <Layers className="size-5 text-primary" />
-          <h2 className="text-base font-bold text-foreground">1. بطاقات الإحصاءات والمالية (Vortex Metric Cards)</h2>
+          <h2 className="text-base font-bold text-foreground">
+            1. بطاقات الإحصاءات والمالية (Vortex Metric Cards)
+          </h2>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <VortexMetricCard
@@ -71,7 +73,7 @@ function VortexUiShowcasePage() {
             value={24850}
             currency="ر.س"
             trend={{ value: 14.2, isPositive: true }}
-            icon={TrendingUp}
+            icon={<TrendingUp />}
             variant="default"
             description="مقارنة بالمتوسط للأسبوع الماضي"
           />
@@ -80,21 +82,21 @@ function VortexUiShowcasePage() {
             value={186200}
             currency="ر.س"
             trend={{ value: 5.8, isPositive: false }}
-            icon={DollarSign}
+            icon={<DollarSign />}
             variant="warning"
             description="تشمل العملاء المتجاوزين للحد"
           />
           <VortexMetricCard
             title="فواتير مسددة بالكامل"
             value={342}
-            icon={Receipt}
+            icon={<Receipt />}
             variant="success"
             description="نسبة التغطية النقدية 92%"
           />
           <VortexMetricCard
             title="عملاء بحاجة للمتابعة"
             value={18}
-            icon={Users}
+            icon={<Users />}
             variant="danger"
             description="تجاوزوا مهلة السداد المقررة"
           />
@@ -105,11 +107,15 @@ function VortexUiShowcasePage() {
       <section className="space-y-3">
         <div className="flex items-center gap-2">
           <Calendar className="size-5 text-primary" />
-          <h2 className="text-base font-bold text-foreground">2. شارات التواريخ العربية الفاخرة (Vortex Date Badge)</h2>
+          <h2 className="text-base font-bold text-foreground">
+            2. شارات التواريخ العربية الفاخرة (Vortex Date Badge)
+          </h2>
         </div>
         <Card className="rounded-3xl border-border/80">
           <CardHeader>
-            <CardTitle className="text-sm">معاينة أحجام شارة التاريخ وتنسيقها المستوحى من مُلاك</CardTitle>
+            <CardTitle className="text-sm">
+              معاينة أحجام شارة التاريخ وتنسيقها المستوحى من مُلاك
+            </CardTitle>
           </CardHeader>
           <CardContent className="flex flex-wrap items-center gap-6">
             <div>
@@ -121,11 +127,15 @@ function VortexUiShowcasePage() {
               <VortexDateBadge date={new Date().toISOString()} size="md" />
             </div>
             <div>
-              <span className="text-xs text-muted-foreground block mb-1.5">الحجم الكبير مع اسم اليوم (lg):</span>
+              <span className="text-xs text-muted-foreground block mb-1.5">
+                الحجم الكبير مع اسم اليوم (lg):
+              </span>
               <VortexDateBadge date={new Date().toISOString()} size="lg" showWeekday />
             </div>
             <div>
-              <span className="text-xs text-muted-foreground block mb-1.5">تاريخ سابق (فاتورة قديمة):</span>
+              <span className="text-xs text-muted-foreground block mb-1.5">
+                تاريخ سابق (فاتورة قديمة):
+              </span>
               <VortexDateBadge date="2026-04-15" size="md" showWeekday />
             </div>
           </CardContent>
@@ -136,32 +146,40 @@ function VortexUiShowcasePage() {
       <section className="space-y-3">
         <div className="flex items-center gap-2">
           <Sparkles className="size-5 text-primary" />
-          <h2 className="text-base font-bold text-foreground">3. حقول الإدخال المحسّنة (Vortex Inputs)</h2>
+          <h2 className="text-base font-bold text-foreground">
+            3. حقول الإدخال المحسّنة (Vortex Inputs)
+          </h2>
         </div>
         <Card className="rounded-3xl border-border/80">
           <CardContent className="pt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
-              <label className="text-xs font-bold text-muted-foreground block mb-2">حقل البحث الفوري مع زر المسح:</label>
+              <label className="text-xs font-bold text-muted-foreground block mb-2">
+                حقل البحث الفوري مع زر المسح:
+              </label>
               <VortexSearchInput
                 value={sampleSearch}
-                onChange={(e) => setSampleSearch(e.target.value)}
+                onValueChange={setSampleSearch}
                 placeholder="ابحث عن عميل أو رقم فاتورة..."
               />
             </div>
             <div>
-              <label className="text-xs font-bold text-muted-foreground block mb-2">حقل المبالغ والعملات (Currency Input):</label>
+              <label className="text-xs font-bold text-muted-foreground block mb-2">
+                حقل المبالغ والعملات (Currency Input):
+              </label>
               <VortexCurrencyInput
                 value={sampleAmount}
-                onChange={setSampleAmount}
-                currency="ر.س"
+                onValueChange={setSampleAmount}
+                currencySymbol="ر.س"
                 placeholder="0.00"
               />
             </div>
             <div>
-              <label className="text-xs font-bold text-muted-foreground block mb-2">حقل الأعداد والكميات (Number Input):</label>
+              <label className="text-xs font-bold text-muted-foreground block mb-2">
+                حقل الأعداد والكميات (Number Input):
+              </label>
               <VortexNumberInput
                 value={sampleQty}
-                onChange={setSampleQty}
+                onValueChange={setSampleQty}
                 min={0}
                 max={100}
                 placeholder="أدخل الكمية..."
@@ -175,7 +193,9 @@ function VortexUiShowcasePage() {
       <section className="space-y-3">
         <div className="flex items-center gap-2">
           <SlidersHorizontal className="size-5 text-primary" />
-          <h2 className="text-base font-bold text-foreground">4. الشيتات التفاعلية وسندات القبض (Interactive Sheets)</h2>
+          <h2 className="text-base font-bold text-foreground">
+            4. الشيتات التفاعلية وسندات القبض (Interactive Sheets)
+          </h2>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           {/* Collection Sheet Trigger */}

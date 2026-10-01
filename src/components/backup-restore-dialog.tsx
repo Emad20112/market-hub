@@ -205,7 +205,8 @@ export function BackupRestoreDialog({ open, onClose }: BackupRestoreDialogProps)
               <div>
                 <span className="text-muted-foreground">إصدار السكيما والمفتاح:</span>
                 <span className="block font-medium text-foreground">
-                  {validationResult.metadata.schema_version} ({validationResult.metadata.key_version})
+                  {validationResult.metadata.schema_version} (
+                  {validationResult.metadata.key_version})
                 </span>
               </div>
             </div>

@@ -14,15 +14,15 @@ This makes reconciliation, correction, returns, mixed lots, and silo inventory d
 
 ## Missing domains
 
-| Domain | Gap | Consequence |
-|---|---|---|
-| Locations | Warehouse only; silo is text | No capacity, mixing, or location-level authorisation. |
-| Lots | No general lot lineage/quality relation | Weak traceability and no controlled blending/splitting. |
-| Quality | Moisture/impurity fields only | No acceptance, hold, rejection, release, or quality policy. |
-| Reversal | Cancellation status without full reversal lifecycle | Postings can become hard to correct safely. |
-| Events | No transactional outbox | Reports and downstream modules are tightly coupled or stale. |
-| Projections | Views/client aggregation | Scale and report correctness risks. |
-| Production | No WIP/BOM/cost allocation engine | Internal flour cost and COGS cannot be proven. |
+| Domain      | Gap                                                 | Consequence                                                  |
+| ----------- | --------------------------------------------------- | ------------------------------------------------------------ |
+| Locations   | Warehouse only; silo is text                        | No capacity, mixing, or location-level authorisation.        |
+| Lots        | No general lot lineage/quality relation             | Weak traceability and no controlled blending/splitting.      |
+| Quality     | Moisture/impurity fields only                       | No acceptance, hold, rejection, release, or quality policy.  |
+| Reversal    | Cancellation status without full reversal lifecycle | Postings can become hard to correct safely.                  |
+| Events      | No transactional outbox                             | Reports and downstream modules are tightly coupled or stale. |
+| Projections | Views/client aggregation                            | Scale and report correctness risks.                          |
+| Production  | No WIP/BOM/cost allocation engine                   | Internal flour cost and COGS cannot be proven.               |
 
 ## Current milling-specific risks
 

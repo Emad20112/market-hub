@@ -2,18 +2,18 @@
 
 ## Important current components
 
-| Area | Current assets | Assessment |
-|---|---|---|
-| Products | `products`, item nature, inventory policy, costing method, tracking | Strong reusable master-data base. |
-| Inventory | `inventory`, `stock_movements`, `post_stock_delta` | Useful centralised stock mutation path, but balances are warehouse-level and not location/lot ledger balances. |
-| Ownership | `owner_type`, `owner_id`, company/customer position views | Valuable foundation: non-company material is excluded from company valuation. |
-| Sales | `sales_invoices`, lines, `create_sale`, customer ledger posting | Must remain behaviourally unchanged. |
-| Purchases | purchase invoices and `create_purchase` | Must remain behaviourally unchanged. |
-| Finance | customer ledger, payments, expenses, daily closings | Financial ledger remains independent from physical custody. |
-| Batch tracking | `product_batches` | Reusable compatibility reference, insufficient as a general industrial lot domain. |
-| Milling | `milling_intake_receipts`, jobs, outputs, delivery notes, service invoice RPC | Proof-of-concept custody flow; not a durable material ledger. |
-| Security | `user_roles`, RLS, module/subscription UI guards | Server-side scope and approval policies are incomplete. |
-| Audit | `audit_logs` | Useful audit substrate; lacks unified correlation across posting, reversal, cost, and events. |
+| Area           | Current assets                                                                | Assessment                                                                                                     |
+| -------------- | ----------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| Products       | `products`, item nature, inventory policy, costing method, tracking           | Strong reusable master-data base.                                                                              |
+| Inventory      | `inventory`, `stock_movements`, `post_stock_delta`                            | Useful centralised stock mutation path, but balances are warehouse-level and not location/lot ledger balances. |
+| Ownership      | `owner_type`, `owner_id`, company/customer position views                     | Valuable foundation: non-company material is excluded from company valuation.                                  |
+| Sales          | `sales_invoices`, lines, `create_sale`, customer ledger posting               | Must remain behaviourally unchanged.                                                                           |
+| Purchases      | purchase invoices and `create_purchase`                                       | Must remain behaviourally unchanged.                                                                           |
+| Finance        | customer ledger, payments, expenses, daily closings                           | Financial ledger remains independent from physical custody.                                                    |
+| Batch tracking | `product_batches`                                                             | Reusable compatibility reference, insufficient as a general industrial lot domain.                             |
+| Milling        | `milling_intake_receipts`, jobs, outputs, delivery notes, service invoice RPC | Proof-of-concept custody flow; not a durable material ledger.                                                  |
+| Security       | `user_roles`, RLS, module/subscription UI guards                              | Server-side scope and approval policies are incomplete.                                                        |
+| Audit          | `audit_logs`                                                                  | Useful audit substrate; lacks unified correlation across posting, reversal, cost, and events.                  |
 
 ## Current business logic placement
 

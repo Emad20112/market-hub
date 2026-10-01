@@ -261,8 +261,10 @@ function PaymentsPage() {
           <div className="mb-3">
             <VortexSearchInput
               value={customerSearch}
-              onChange={(e) => setCustomerSearch(e.target.value)}
-              placeholder={lang === "ar" ? "ابحث بالاسم أو رقم الهاتف..." : "Search customer or phone..."}
+              onValueChange={setCustomerSearch}
+              placeholder={
+                lang === "ar" ? "ابحث بالاسم أو رقم الهاتف..." : "Search customer or phone..."
+              }
               className="w-full"
             />
           </div>
@@ -563,7 +565,8 @@ function PaymentsPage() {
                           </td>
                           <td className="px-3 py-2 font-mono text-xs">
                             <span className="rounded-full bg-muted/70 px-2 py-0.5">
-                              {p.sales_invoices?.invoice_number ?? (lang === "ar" ? "على الحساب" : "On account")}
+                              {p.sales_invoices?.invoice_number ??
+                                (lang === "ar" ? "على الحساب" : "On account")}
                             </span>
                           </td>
                           <td className="px-3 py-2 text-muted-foreground font-medium text-xs">

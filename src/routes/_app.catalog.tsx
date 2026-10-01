@@ -96,7 +96,7 @@ function CatalogPage() {
         supabase.from("categories").select("id", { count: "exact", head: true }),
         supabase.from("brands").select("id", { count: "exact", head: true }),
         supabase.from("units").select("id", { count: "exact", head: true }),
-        supabase.from("vehicle_makes").select("id", { count: "exact", head: true }),
+        (supabase as any).from("vehicle_makes").select("id", { count: "exact", head: true }),
       ]);
       return {
         categories: cats.count ?? 0,
@@ -427,7 +427,7 @@ function CatalogTable({ tab }: { tab: Tab }) {
           <div className="w-full sm:w-80">
             <VortexSearchInput
               value={q}
-              onChange={setQ}
+              onValueChange={setQ}
               placeholder={lang === "ar" ? `بحث في ${tabTitle}...` : `Search ${tab}...`}
             />
           </div>

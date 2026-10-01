@@ -10,7 +10,7 @@ import {
   MessageCircle,
   Send,
   Copy,
-  Check
+  Check,
 } from "lucide-react";
 import { VortexDrawerDialog } from "../form/vortex-drawer-dialog";
 import { VortexDateBadge } from "../display/vortex-date-badge";
@@ -90,7 +90,11 @@ ${transaction.remainingBalance !== undefined ? `المتبقي في الحساب
       subtitle={transaction.title}
       icon={
         <div className="grid size-10 place-items-center rounded-2xl bg-foreground text-background shadow-md">
-          {isPayment ? <CheckCircle2 className="size-5 text-emerald-500" /> : <Receipt className="size-5" />}
+          {isPayment ? (
+            <CheckCircle2 className="size-5 text-emerald-500" />
+          ) : (
+            <Receipt className="size-5" />
+          )}
         </div>
       }
     >
@@ -133,7 +137,9 @@ ${transaction.remainingBalance !== undefined ? `المتبقي في الحساب
           {transaction.notes && (
             <div className="text-xs pt-1">
               <span className="text-muted-foreground font-bold block mb-1">ملاحظات:</span>
-              <p className="rounded-xl bg-muted/60 p-2 text-foreground font-medium">{transaction.notes}</p>
+              <p className="rounded-xl bg-muted/60 p-2 text-foreground font-medium">
+                {transaction.notes}
+              </p>
             </div>
           )}
         </div>

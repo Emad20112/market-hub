@@ -19,15 +19,15 @@ Actor -> Tenant -> Operating Entity -> Branch -> Warehouse -> Location
 
 ## Example permissions
 
-| Action | Typical role | Required scope |
-|---|---|---|
-| receive custody | scale clerk / warehouse keeper | receiving location |
-| release quality lot | quality inspector / manager | quality and destination location |
-| consume into WIP | milling operator | WIP and source silo |
-| post delivery | warehouse keeper | dispatch location |
-| approve excess loss | manager/owner | branch plus limit |
-| reverse posting | manager/owner | source locations and reversal limit |
-| view custody | authorised role | customer and warehouse/location scope |
+| Action              | Typical role                   | Required scope                        |
+| ------------------- | ------------------------------ | ------------------------------------- |
+| receive custody     | scale clerk / warehouse keeper | receiving location                    |
+| release quality lot | quality inspector / manager    | quality and destination location      |
+| consume into WIP    | milling operator               | WIP and source silo                   |
+| post delivery       | warehouse keeper               | dispatch location                     |
+| approve excess loss | manager/owner                  | branch plus limit                     |
+| reverse posting     | manager/owner                  | source locations and reversal limit   |
+| view custody        | authorised role                | customer and warehouse/location scope |
 
 ## Enforcement rule
 

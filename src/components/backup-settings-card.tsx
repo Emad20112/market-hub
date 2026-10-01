@@ -77,7 +77,9 @@ export function BackupSettingsCard() {
 
   const handleCreateLocalBackup = async () => {
     if (!canManage) {
-      toast.error(isAr ? "عذراً، حق إنشاء النسخ الاحتياطي محصور بالمالك والمدير" : "Permission denied");
+      toast.error(
+        isAr ? "عذراً، حق إنشاء النسخ الاحتياطي محصور بالمالك والمدير" : "Permission denied",
+      );
       return;
     }
     setCreatingBackup(true);
@@ -86,10 +88,7 @@ export function BackupSettingsCard() {
       const payload = await extractTenantDataReadOnly("default", user?.id);
 
       // 2. Encrypt & Package into .vortexbak
-      const { fileContent, fileName, sizeBytes } = await createBackupPackage(
-        payload,
-        passphrase,
-      );
+      const { fileContent, fileName, sizeBytes } = await createBackupPackage(payload, passphrase);
 
       // 3. Download to user's device
       downloadFileToDevice(fileContent, fileName);
@@ -167,7 +166,9 @@ export function BackupSettingsCard() {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-1">
               <div className="space-y-1.5">
-                <Label className="text-xs font-medium">{isAr ? "مكان التخزين المفضل" : "Storage Destination"}</Label>
+                <Label className="text-xs font-medium">
+                  {isAr ? "مكان التخزين المفضل" : "Storage Destination"}
+                </Label>
                 <Select
                   value={settings.destination}
                   onValueChange={(v: any) => setSettings({ ...settings, destination: v })}
@@ -185,7 +186,9 @@ export function BackupSettingsCard() {
               </div>
 
               <div className="space-y-1.5">
-                <Label className="text-xs font-medium">{isAr ? "تكرار الجدولة" : "Frequency"}</Label>
+                <Label className="text-xs font-medium">
+                  {isAr ? "تكرار الجدولة" : "Frequency"}
+                </Label>
                 <Select
                   value={settings.frequency}
                   onValueChange={(v: any) => setSettings({ ...settings, frequency: v })}
@@ -202,7 +205,9 @@ export function BackupSettingsCard() {
               </div>
 
               <div className="space-y-1.5">
-                <Label className="text-xs font-medium">{isAr ? "وقت التنفيذ المفضّل" : "Execution Time"}</Label>
+                <Label className="text-xs font-medium">
+                  {isAr ? "وقت التنفيذ المفضّل" : "Execution Time"}
+                </Label>
                 <Input
                   type="time"
                   value={settings.execution_time}
@@ -213,7 +218,9 @@ export function BackupSettingsCard() {
               </div>
 
               <div className="space-y-1.5">
-                <Label className="text-xs font-medium">{isAr ? "عدد النسخ المحتفظ بها" : "Retention Policy"}</Label>
+                <Label className="text-xs font-medium">
+                  {isAr ? "عدد النسخ المحتفظ بها" : "Retention Policy"}
+                </Label>
                 <Select
                   value={String(settings.retention_count)}
                   onValueChange={(v) => setSettings({ ...settings, retention_count: Number(v) })}
@@ -266,7 +273,9 @@ export function BackupSettingsCard() {
 
               <div className="grid grid-cols-2 gap-2 text-xs">
                 <div>
-                  <span className="text-muted-foreground block">{isAr ? "تاريخ العملية:" : "Date:"}</span>
+                  <span className="text-muted-foreground block">
+                    {isAr ? "تاريخ العملية:" : "Date:"}
+                  </span>
                   <span className="font-semibold text-foreground">
                     {settings.last_backup_at
                       ? new Date(settings.last_backup_at).toLocaleString("ar-SA")
@@ -274,7 +283,9 @@ export function BackupSettingsCard() {
                   </span>
                 </div>
                 <div>
-                  <span className="text-muted-foreground block">{isAr ? "حجم النسخة:" : "Size:"}</span>
+                  <span className="text-muted-foreground block">
+                    {isAr ? "حجم النسخة:" : "Size:"}
+                  </span>
                   <span className="font-semibold text-foreground">
                     {settings.last_backup_size_bytes
                       ? `${(settings.last_backup_size_bytes / 1024 / 1024).toFixed(2)} MB`
@@ -334,7 +345,9 @@ export function BackupSettingsCard() {
               <Table>
                 <TableHeader>
                   <TableRow className="bg-surface-2/60">
-                    <TableHead className="text-xs">{isAr ? "التاريخ والوقت" : "Date & Time"}</TableHead>
+                    <TableHead className="text-xs">
+                      {isAr ? "التاريخ والوقت" : "Date & Time"}
+                    </TableHead>
                     <TableHead className="text-xs">{isAr ? "المُنفّذ" : "Actor"}</TableHead>
                     <TableHead className="text-xs">{isAr ? "نوع الحركة" : "Type"}</TableHead>
                     <TableHead className="text-xs">{isAr ? "الحجم" : "Size"}</TableHead>
@@ -344,7 +357,10 @@ export function BackupSettingsCard() {
                 <TableBody>
                   {logs.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={5} className="text-center text-xs text-muted-foreground py-6">
+                      <TableCell
+                        colSpan={5}
+                        className="text-center text-xs text-muted-foreground py-6"
+                      >
                         {isAr ? "لا توجد حركات سابقة مسجلة" : "No recorded backup logs yet"}
                       </TableCell>
                     </TableRow>
@@ -354,7 +370,9 @@ export function BackupSettingsCard() {
                         <TableCell className="font-mono text-muted-foreground">
                           {new Date(log.created_at).toLocaleString("ar-SA")}
                         </TableCell>
-                        <TableCell className="font-medium text-foreground">{log.actor_name}</TableCell>
+                        <TableCell className="font-medium text-foreground">
+                          {log.actor_name}
+                        </TableCell>
                         <TableCell>
                           <Badge variant="outline" className="text-[10px] rounded-lg">
                             {log.action_type === "manual_local"

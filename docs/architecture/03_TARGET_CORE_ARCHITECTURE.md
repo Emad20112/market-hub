@@ -15,16 +15,16 @@ Presentation
 
 ## Layer responsibilities
 
-| Layer | Owns | Must not own |
-|---|---|---|
-| Document Layer | drafts, workflow, approvals, document fields | material balances |
-| Validation Engine | reusable business policy checks | UI rendering or balance mutation |
-| Posting Engine | atomic posting orchestration | report queries or presentation rules |
-| Material Ledger Engine | immutable physical transaction entries | tax, selling price, customer receivable |
-| Cost Engine | WIP, costs, allocation, output cost | custody quantity ownership decisions |
-| Read Models | query-optimised projections | business truth or direct writes |
-| Event Bus | publish completed domain facts | critical posting outside the transaction |
-| Audit Layer | actor, reason, correlation, approvals | replace ledger evidence |
+| Layer                  | Owns                                         | Must not own                             |
+| ---------------------- | -------------------------------------------- | ---------------------------------------- |
+| Document Layer         | drafts, workflow, approvals, document fields | material balances                        |
+| Validation Engine      | reusable business policy checks              | UI rendering or balance mutation         |
+| Posting Engine         | atomic posting orchestration                 | report queries or presentation rules     |
+| Material Ledger Engine | immutable physical transaction entries       | tax, selling price, customer receivable  |
+| Cost Engine            | WIP, costs, allocation, output cost          | custody quantity ownership decisions     |
+| Read Models            | query-optimised projections                  | business truth or direct writes          |
+| Event Bus              | publish completed domain facts               | critical posting outside the transaction |
+| Audit Layer            | actor, reason, correlation, approvals        | replace ledger evidence                  |
 
 ## Dependency direction
 
