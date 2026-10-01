@@ -52,7 +52,7 @@ import {
   type ReferenceCounts,
 } from "@/lib/safety";
 import { fuzzySearch, buildSearchIndex } from "@/design/fuzzy";
-import { moneyCell, qtyCell } from "@/lib/format";
+import { getCompanyCurrencySymbol, moneyCell, qtyCell } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import { IconButton } from "@/components/ui/icon-button";
 import { FieldInput, NumberInput, fieldSurfaceClass } from "@/components/ui/input";
@@ -1984,7 +1984,7 @@ function ProductDialog({
                   value={form.cost_price === "" ? 0 : Number(form.cost_price)}
                   onValueChange={(num) => setForm({ ...form, cost_price: String(num) })}
                   min={0}
-                  currencySymbol="﷼"
+                  currencySymbol={getCompanyCurrencySymbol()}
                   placeholder="0.00"
                 />
               </FormField>
@@ -1998,7 +1998,7 @@ function ProductDialog({
                   value={form.sale_price === "" ? 0 : Number(form.sale_price)}
                   onValueChange={(num) => setForm({ ...form, sale_price: String(num) })}
                   min={0}
-                  currencySymbol="﷼"
+                  currencySymbol={getCompanyCurrencySymbol()}
                   placeholder="0.00"
                 />
               )}

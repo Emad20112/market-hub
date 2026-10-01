@@ -55,7 +55,7 @@ export function InvoicingSection({
           <div className="grid gap-1.5">
             <Label className="text-xs font-semibold">{isAr ? "العملة" : "Currency"}</Label>
             <Input
-              value={form.currency ?? "USD"}
+              value={form.currency ?? "YER"}
               onChange={(e) => setForm({ ...form, currency: e.target.value })}
               disabled={!canEdit}
               placeholder="YER / SAR / USD"
@@ -68,7 +68,7 @@ export function InvoicingSection({
               {isAr ? "رمز العملة" : "Currency symbol"}
             </Label>
             <Input
-              value={form.currency_symbol ?? ""}
+              value={form.currency_symbol ?? (form.currency === "YER" ? "ر.ي" : "")}
               onChange={(e) => setForm({ ...form, currency_symbol: e.target.value })}
               disabled={!canEdit}
               placeholder="ر.ي / $"

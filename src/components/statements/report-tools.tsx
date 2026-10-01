@@ -3,6 +3,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { statementPrintStyles } from "@/lib/statements/print-styles";
+import { getCompanyCurrencySymbol } from "@/lib/format";
 import {
   STATEMENT_COMPANY,
   loadStatementCompany,
@@ -84,7 +85,7 @@ export async function printLuxuryReport(options: LuxuryReportOptions): Promise<v
     totalsRow,
     summaryCards,
     notesText,
-    currencySymbol = "﷼",
+    currencySymbol = getCompanyCurrencySymbol(),
     ar,
   } = options;
 

@@ -51,6 +51,8 @@ import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { ConnectionBanner } from "@/components/ui/connection";
 import { cn } from "@/lib/utils";
 import { InamaSoftFooter } from "@/components/inama-soft-footer";
+import { supabase } from "@/integrations/supabase/client";
+import { setCompanySettingsCache } from "@/lib/format";
 
 type Item = {
   to: string;
@@ -765,6 +767,28 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       (typeof window !== "undefined" && (localStorage.getItem("theme") as "dark" | "light")) ||
       "dark",
   );
+
+  useEffect(() => {
+    let active = true;
+    void supabase
+      .from("company_settings")
+      .select("currency, currency_symbol")
+      .order("id")
+      .limit(1)
+      .maybeSingle()
+      .then(({ data, error }) => {
+        if (!active) return;
+        if (error) {
+          console.warn("[AppShell] Could not load company currency settings.", error);
+          return;
+        }
+        if (data) setCompanySettingsCache(data);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
 
   useEffect(() => {
     const root = document.documentElement;

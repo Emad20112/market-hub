@@ -41,7 +41,7 @@ export const VortexCurrencyInput = React.forwardRef<HTMLInputElement, VortexCurr
     {
       value,
       onValueChange,
-      currencySymbol = "﷼",
+      currencySymbol = "ر.ي",
       decimals = 2,
       min = 0,
       max,
