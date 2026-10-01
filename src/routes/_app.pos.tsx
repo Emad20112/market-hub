@@ -98,6 +98,9 @@ interface Warehouse {
 interface Customer {
   id: string;
   name: string;
+  phone?: string | null;
+  balance?: number;
+  credit_limit?: number;
 }
 
 interface MetaOption {
@@ -473,15 +476,14 @@ function POSPage() {
         { data: compats },
       ] = await Promise.all([
         supabase.from("warehouses").select("id,name,name_ar").eq("is_active", true).order("name"),
-        supabase.from("customers").select("id,name").eq("is_active", true).order("name"),
-        supabase
-          .from("products")
+        supabase.from("customers").select("id,name,phone,balance,credit_limit").eq("is_active", true).order("name"),
+        (supabase.from("products") as any)
           .select(
-            "id,sku,barcode,name,name_ar,sale_price,tax_rate,image_url,category_id,brand_id,unit_id,origin_id,quality_grade_id,unit:units(short_name,name,name_ar),category:categories(name,name_ar),brand:brands(name,name_ar),origin:countries_of_origin(name,name_ar,code),quality:quality_grades(name,name_ar,code)",
+            "id,sku,barcode,name,name_ar,sale_price,tax_rate,image_url,category_id,brand_id,unit_id,origin_id,quality_grade_id,is_active",
           )
-          .eq("is_active", true)
+          .neq("is_active", false)
           .order("name")
-          .limit(500),
+          .limit(1000),
         supabase.from("categories").select("id,name,name_ar").order("name"),
         supabase.from("brands").select("id,name,name_ar").order("name"),
         supabase.from("units").select("id,name,name_ar,short_name").order("name"),
@@ -498,7 +500,37 @@ function POSPage() {
       const loadedWarehouses = ws ?? [];
       setWarehouses(loadedWarehouses);
       setCustomers(cs ?? []);
-      setProducts((ps as any) ?? []);
+
+      // Build safe in-memory lookup maps to enrich products without brittle DB joins
+      const catMap = new Map((cats ?? []).map((c: any) => [c.id, c]));
+      const brandMap = new Map((brs ?? []).map((b: any) => [b.id, b]));
+      const unitMap = new Map((uns ?? []).map((u: any) => [u.id, u]));
+      const origMap = new Map((origs ?? []).map((o: any) => [o.id, o]));
+      const qualMap = new Map((quals ?? []).map((q: any) => [q.id, q]));
+
+      let rawProducts = (ps as any) ?? [];
+      // Fallback query if the first returned empty due to column discrepancy
+      if (!rawProducts.length) {
+        try {
+          const { data: fallbackPs } = await (supabase.from("products") as any)
+            .select("id,sku,barcode,name,name_ar,sale_price,tax_rate,image_url,category_id,brand_id,unit_id")
+            .limit(1000);
+          if (fallbackPs && fallbackPs.length) rawProducts = fallbackPs;
+        } catch (e) {
+          console.warn("Fallback products query error:", e);
+        }
+      }
+
+      const enrichedProducts = rawProducts.map((p: any) => ({
+        ...p,
+        category: p.category_id ? catMap.get(p.category_id) || null : null,
+        brand: p.brand_id ? brandMap.get(p.brand_id) || null : null,
+        unit: p.unit_id ? unitMap.get(p.unit_id) || null : null,
+        origin: p.origin_id ? origMap.get(p.origin_id) || null : null,
+        quality: p.quality_grade_id ? qualMap.get(p.quality_grade_id) || null : null,
+      }));
+
+      setProducts(enrichedProducts);
       setCategories(cats ?? []);
       setBrands(brs ?? []);
       setUnits(uns ?? []);
@@ -843,22 +875,23 @@ function POSPage() {
   const isMultiMethodSplit = isSplitPayment && splitMethodCount > 1;
 
   // Auto-Paid & Smart Payment Logic
+  // إذا كانت وسيلة الدفع "آجل" وترك حقل المدفوع فارغاً، فالافتراضي هو 0 (دين بالكامل)
+  // أما في الوسائل الأخرى (نقدي/بطاقة/تحويل/محفظة)، فالفارغ يعني سداد كامل المبلغ تلقائياً
   const isPaidEmpty = paid.trim() === "";
-  const singlePaidNum = isPaidEmpty ? total : Number(paid);
+  const singlePaidNum = isPaidEmpty
+    ? paymentMethod === "credit"
+      ? 0
+      : total
+    : Math.max(0, Number(paid));
   const effectivePaid = isSplitPayment ? splitPaidTotal : singlePaidNum;
   const isOverpaid = isSplitPayment ? splitPaidTotal > total : !isPaidEmpty && Number(paid) > total;
   const remainingDebt = Math.max(0, Math.round((total - effectivePaid) * 100) / 100);
 
-  //
-  // وسيلة الدفع يختارها الكاشير ولا تُستبدل تلقائيًا:
-  //  * لا تُحوَّل "بطاقة" أو "تحويل بنكي" أو "محفظة" إلى "نقدي" إطلاقًا.
-  //  * التبديل التلقائي يقتصر على الحالتين المنطقيتين:
-  //      - أصبح المدفوع أقل من الإجمالي بينما الوسيلة "نقدي"  -> "آجل"
-  //      - أصبح المدفوع مساويًا للإجمالي بينما الوسيلة "آجل" -> "نقدي"
+  // وسيلة الدفع يختارها الكاشير وتتبدل ذكياً حسب المبلغ:
   function syncMethodWithPaid(num: number) {
     setPaymentMethod((current) => {
       if (current === "cash" && num < total) return "credit";
-      if (current === "credit" && num >= total) return "cash";
+      if (current === "credit" && num >= total && total > 0) return "cash";
       return current;
     });
   }
@@ -867,8 +900,7 @@ function POSPage() {
   function handlePaidChange(val: string) {
     setPaid(val);
     if (val.trim() === "") {
-      // فارغ = دفع كامل بالمبلغ الافتراضي -> تعود "آجل" إلى "نقدي"
-      setPaymentMethod((current) => (current === "credit" ? "cash" : current));
+      // ترك الحقل فارغاً لا يغير وسيلة الدفع قسراً إذا كان الكاشير قد اختار "آجل"
       return;
     }
     const num = Number(val);
@@ -967,11 +999,22 @@ function POSPage() {
               ? "card"
               : "bank_transfer"
           : null;
-      const finalMethod: string = isSplitPayment
+      let finalMethod: string = isSplitPayment
         ? isMultiMethodSplit
           ? "split"
           : (singleSplitMethod ?? "cash")
         : paymentMethod;
+
+      // تصحيح منطقي نهائي للوسيلة قبل الإرسال لمنع التناقض:
+      if (!isSplitPayment) {
+        if (effectivePaid >= total && total > 0 && finalMethod === "credit") {
+          // إذا كان المدفوع يغطي الإجمالي بالكامل، لا يمكن أن تكون الفاتورة "آجل"
+          finalMethod = "cash";
+        } else if (effectivePaid === 0 && total > 0 && finalMethod !== "credit") {
+          // إذا لم يُدفع أي مبلغ، فالفاتورة دين آجل بالكامل
+          finalMethod = "credit";
+        }
+      }
 
       // التوزيع المالي للدفع المجزأ يُرسل إلى قاعدة البيانات عبر customer_payment_splits
       // ليُسجّل كمدفوعات فعلية موثقة بدل النص الحر في الملاحظات.
@@ -1057,9 +1100,13 @@ function POSPage() {
             : finalMethod.replace("_", " "),
         status:
           remainingDebt > 0
-            ? lang === "ar"
-              ? "جزئي"
-              : "Partial"
+            ? effectivePaid > 0
+              ? lang === "ar"
+                ? "جزئي"
+                : "Partial"
+              : lang === "ar"
+                ? "آجل / غير مدفوع"
+                : "Unpaid"
             : lang === "ar"
               ? "مكتمل"
               : "Paid",
@@ -1147,7 +1194,7 @@ function POSPage() {
         phone: newCustomerPhone.trim() || null,
         credit_limit: Math.max(0, Number(newCustomerCreditLimit || 0)),
       })
-      .select("id,name")
+      .select("id,name,phone,balance,credit_limit")
       .single();
     if (error) return toast.error(error.message);
     setCustomers((current) => [...current, data].sort((a, b) => a.name.localeCompare(b.name)));
@@ -1693,6 +1740,36 @@ function POSPage() {
             </label>
           </div>
 
+          {/* Selected Customer Balance & Credit Info */}
+          {customerId && (() => {
+            const cust = customers.find((c) => c.id === customerId);
+            if (!cust) return null;
+            const bal = Number(cust.balance || 0);
+            const limit = Number(cust.credit_limit || 0);
+            const remainingCredit = limit > 0 ? limit - bal : null;
+            return (
+              <div className="shrink-0 mb-2 flex items-center justify-between rounded-xl bg-surface-2/60 border border-border/60 px-3 py-1 text-[11px]">
+                <div className="flex items-center gap-1.5 text-muted-foreground">
+                  <span>{lang === "ar" ? "رصيد العميل:" : "Customer Balance:"}</span>
+                  <span className={`font-mono font-bold ${bal > 0 ? "text-amber-500" : "text-emerald-500"}`}>
+                    {money(bal)}
+                  </span>
+                </div>
+                {limit > 0 && (
+                  <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                    <span>{lang === "ar" ? "حد الائتمان:" : "Credit Limit:"}</span>
+                    <span className="font-mono">{money(limit)}</span>
+                    {remainingCredit !== null && (
+                      <span className={`font-mono font-semibold ${remainingCredit < remainingDebt ? "text-rose-500" : "text-emerald-500"}`}>
+                        ({lang === "ar" ? "المتاح:" : "Avail:"} {money(remainingCredit)})
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+
           {/* Dedicated Internal Scroll Area for Cart Items (Single Row Layout) */}
           <div className="flex-1 min-h-0 overflow-y-auto pr-1 space-y-2 my-1 custom-scrollbar">
             {cart.length === 0 ? (
@@ -1839,6 +1916,11 @@ function POSPage() {
                     onClick={() => {
                       setIsSplitPayment(false);
                       setPaymentMethod(m);
+                      if (m === "credit") {
+                        setPaid("0");
+                      } else if (paid === "0") {
+                        setPaid("");
+                      }
                     }}
                     className={`h-8 rounded-xl border text-[11px] font-semibold transition-all duration-150 flex items-center justify-center gap-1 ${
                       !isSplitPayment && paymentMethod === m
@@ -1979,7 +2061,11 @@ function POSPage() {
                       onChange={(e) => handlePaidChange(e.target.value)}
                       placeholder={
                         isPaidEmpty
-                          ? `${lang === "ar" ? "مدفوع بالكامل" : "Full paid"} (${formatWithCommas(total)} ﷼)`
+                          ? paymentMethod === "credit"
+                            ? lang === "ar"
+                              ? "آجل بالكامل (0 ﷼)"
+                              : "Full credit (0)"
+                            : `${lang === "ar" ? "مدفوع بالكامل" : "Full paid"} (${formatWithCommas(total)} ﷼)`
                           : `${t("pos.paid")}`
                       }
                       className={`h-9 w-full rounded-2xl border px-3 text-xs font-mono outline-none transition ${
@@ -1999,21 +2085,34 @@ function POSPage() {
                   <div className="flex items-center gap-1.5 text-[10px]">
                     <button
                       type="button"
-                      onClick={() => handlePaidChange("")}
+                      onClick={() => {
+                        setIsSplitPayment(false);
+                        setPaymentMethod("cash");
+                        setPaid("");
+                      }}
                       className="rounded-full bg-surface-2 px-2.5 py-0.5 text-muted-foreground hover:text-foreground hover:bg-surface-3 transition"
                     >
                       {lang === "ar" ? "الكامل" : "Full"}
                     </button>
                     <button
                       type="button"
-                      onClick={() => handlePaidChange(String(Math.round(total / 2)))}
+                      onClick={() => {
+                        setIsSplitPayment(false);
+                        const half = Math.round((total / 2) * 100) / 100;
+                        setPaid(String(half));
+                        if (half < total) setPaymentMethod("credit");
+                      }}
                       className="rounded-full bg-surface-2 px-2.5 py-0.5 text-muted-foreground hover:text-foreground hover:bg-surface-3 transition"
                     >
                       {lang === "ar" ? "نصف المبلغ" : "Half"}
                     </button>
                     <button
                       type="button"
-                      onClick={() => handlePaidChange("0")}
+                      onClick={() => {
+                        setIsSplitPayment(false);
+                        setPaymentMethod("credit");
+                        setPaid("0");
+                      }}
                       className="rounded-full bg-surface-2 px-2.5 py-0.5 text-muted-foreground hover:text-foreground hover:bg-surface-3 transition"
                     >
                       {lang === "ar" ? "آجل (0)" : "0 (Debt)"}
@@ -2030,7 +2129,7 @@ function POSPage() {
                           : `Paid amount (${money(effectivePaid)}) exceeds total (${money(total)})`}
                       </span>
                     </div>
-                  ) : paymentMethod === "credit" && remainingDebt > 0 ? (
+                  ) : paymentMethod === "credit" || remainingDebt > 0 ? (
                     <div className="flex items-center justify-between rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-1 text-xs font-mono text-amber-600 dark:text-amber-300">
                       <span>
                         {lang === "ar" ? "المتبقي كدين آجل على العميل:" : "Remaining debt:"}

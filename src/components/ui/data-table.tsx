@@ -77,6 +77,14 @@ export interface DataTableProps<T> {
     action?: React.ReactNode;
   };
 
+  /**
+   * Extra props applied to each `<tr>`. Used for hover tracking (row-scoped
+   * keyboard shortcuts read it) without making every caller wire up pointer
+   * state by hand. Applied after `onClick`, so a caller cannot accidentally
+   * replace the row's own click handler.
+   */
+  rowProps?: (row: T) => React.HTMLAttributes<HTMLTableRowElement>;
+
   /* ---- Infinite scroll ---- */
   /** Enables "load more as you scroll" behaviour. */
   infinite?: boolean;
@@ -162,6 +170,7 @@ export function DataTable<T>({
   onSortChange,
   toolbar,
   onRowClick,
+  rowProps,
   empty,
   infinite = false,
   hasMore = false,
@@ -466,6 +475,7 @@ export function DataTable<T>({
                       onRowClick && "cursor-pointer",
                     )}
                     onClick={onRowClick ? () => onRowClick(row) : undefined}
+                    {...(rowProps ? rowProps(row) : {})}
                   >
                     {visibleColumns.map((col) => {
                       const stickyCol = col.sticky ?? (pinFirst && col === visibleColumns[0]);

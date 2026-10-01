@@ -35,6 +35,7 @@ interface CreateUserRequest {
   phone?: unknown;
   role?: unknown;
   language?: unknown;
+  password?: string;
 }
 
 type ErrorCode =
@@ -224,12 +225,19 @@ Deno.serve(async (req: Request): Promise<Response> => {
   const phone = asTrimmedString(payload.phone, 40);
   const rawRole = asTrimmedString(payload.role, 40).toLowerCase();
   const language = asTrimmedString(payload.language, 5) === "en" ? "en" : "ar";
+  const requestedPassword = payload.password ?? "";
 
   if (!email || !EMAIL_RE.test(email)) {
     return fail("invalid_input", "يرجى إدخال بريد إلكتروني صحيح.", 400);
   }
   if (fullName.length < 2) {
     return fail("invalid_input", "يرجى إدخال اسم المستخدم (حرفان على الأقل).", 400);
+  }
+  if (requestedPassword && requestedPassword.length < 8) {
+    return fail("invalid_input", "كلمة المرور يجب أن تحتوي على 8 أحرف على الأقل.", 400);
+  }
+  if (requestedPassword.length > 128) {
+    return fail("invalid_input", "كلمة المرور طويلة جدًا.", 400);
   }
 
   // Reject privileged/unknown roles before the allow-list so the error message
@@ -294,7 +302,8 @@ Deno.serve(async (req: Request): Promise<Response> => {
   }
 
   // ---- 5) Create the Auth user ----
-  const password = generatePassword(16);
+  const isManualPassword = Boolean(requestedPassword);
+  const password = isManualPassword ? requestedPassword : generatePassword(16);
 
   const { data: created, error: createError } = await admin.auth.admin.createUser({
     email,
@@ -376,13 +385,14 @@ Deno.serve(async (req: Request): Promise<Response> => {
     );
   }
 
-  // ---- 8) Success: the password is returned exactly once, never stored ----
+  // ---- 8) Success: generated passwords are returned exactly once; manual
+  // passwords are never returned because the caller already supplied them.
   return json({
     ok: true,
     user_id: newUserId,
     email,
     full_name: fullName,
     role,
-    password,
+    ...(isManualPassword ? {} : { password }),
   });
 });

@@ -72,7 +72,7 @@ type Section = {
 
 const sections: Section[] = [
   // ─────────────────────────────
-  // 1) لوحة القيادة — القراءة والتحليل قبل أي عملية
+  // 1) لوحة القيادة والمؤشرات — متابعة الأداء والتحليلات العامة
   // ─────────────────────────────
   {
     titleKey: "nav.section.command_center",
@@ -107,141 +107,7 @@ const sections: Section[] = [
   },
 
   // ─────────────────────────────
-  // 2) البيانات الأساسية — تُعدّ مرة واحدة قبل التشغيل
-  // ─────────────────────────────
-  {
-    titleKey: "nav.section.master_data",
-    items: [
-      {
-        to: "/products",
-        icon: Package,
-        key: "nav.products",
-        moduleId: "core",
-        color: "text-teal-500",
-        bg: "bg-teal-500/15",
-      },
-      {
-        to: "/catalog",
-        icon: Layers,
-        key: "nav.catalog",
-        moduleId: "core",
-        allowedRoles: ["owner", "manager", "accountant", "warehouse"],
-        color: "text-amber-500",
-        bg: "bg-amber-500/15",
-      },
-      {
-        to: "/barcodes",
-        icon: Barcode,
-        key: "nav.barcodes",
-        moduleId: "barcode",
-        allowedRoles: ["owner", "manager", "warehouse", "cashier"],
-        color: "text-violet-500",
-        bg: "bg-violet-500/15",
-      },
-    ],
-  },
-
-  // ─────────────────────────────
-  // 3) الشراء والتوريد — دخول البضاعة من المورد
-  // ─────────────────────────────
-  {
-    titleKey: "nav.section.procurement",
-    items: [
-      {
-        to: "/suppliers",
-        icon: Building2,
-        key: "nav.suppliers",
-        moduleId: "purchases",
-        allowedRoles: ["owner", "manager", "accountant", "warehouse"],
-        color: "text-blue-500",
-        bg: "bg-blue-500/15",
-      },
-      {
-        to: "/purchases",
-        icon: Truck,
-        key: "nav.purchases",
-        moduleId: "purchases",
-        allowedRoles: ["owner", "manager", "accountant", "warehouse"],
-        color: "text-blue-400",
-        bg: "bg-blue-500/15",
-      },
-      {
-        to: "/purchase-pos",
-        icon: ShoppingBag,
-        key: "nav.purchase_pos",
-        moduleId: "purchases",
-        allowedRoles: ["owner", "manager", "accountant", "warehouse"],
-        color: "text-indigo-400",
-        bg: "bg-indigo-500/15",
-      },
-      {
-        to: "/purchase-returns",
-        icon: RotateCcw,
-        key: "nav.purchase_returns",
-        moduleId: "returns",
-        allowedRoles: ["owner", "manager", "accountant", "warehouse"],
-        color: "text-rose-500",
-        bg: "bg-rose-500/15",
-      },
-    ],
-  },
-
-  // ─────────────────────────────
-  // 4) المخزون والمستودعات — تخزين البضاعة وحركتها
-  // ─────────────────────────────
-  {
-    titleKey: "nav.section.inventory",
-    items: [
-      {
-        to: "/inventory",
-        icon: Warehouse,
-        key: "nav.inventory",
-        moduleId: "core",
-        allowedRoles: ["owner", "manager", "accountant", "warehouse"],
-        color: "text-cyan-500",
-        bg: "bg-cyan-500/15",
-      },
-      {
-        to: "/warehouses",
-        icon: Boxes,
-        key: "nav.warehouses",
-        moduleId: "multi_warehouse",
-        allowedRoles: ["owner", "manager", "warehouse"],
-        color: "text-blue-500",
-        bg: "bg-blue-500/15",
-      },
-      {
-        to: "/transfers",
-        icon: ArrowRightLeft,
-        key: "nav.transfers",
-        moduleId: "multi_warehouse",
-        allowedRoles: ["owner", "manager", "warehouse"],
-        color: "text-purple-400",
-        bg: "bg-purple-500/15",
-      },
-      {
-        to: "/batches",
-        icon: CalendarClock,
-        key: "nav.batches",
-        moduleId: "batches",
-        allowedRoles: ["owner", "manager", "warehouse"],
-        color: "text-orange-500",
-        bg: "bg-orange-500/15",
-      },
-      {
-        to: "/settlements",
-        icon: ClipboardList,
-        key: "nav.settlements",
-        moduleId: "core",
-        allowedRoles: ["owner", "manager", "warehouse", "accountant"],
-        color: "text-amber-500",
-        bg: "bg-amber-500/15",
-      },
-    ],
-  },
-
-  // ─────────────────────────────
-  // 5) البيع والتحصيل — خروج البضاعة وتحصيل قيمتها
+  // 2) المبيعات ونقاط البيع — العمليات اليومية الأكثر استخداماً وتكراراً
   // ─────────────────────────────
   {
     titleKey: "nav.section.sales",
@@ -322,11 +188,148 @@ const sections: Section[] = [
   },
 
   // ─────────────────────────────
-  // 6) المحاسبة والمالية — القيود والتقارير الختامية
+  // 3) المنتجات والمخزون — الأكثر طلباً أولاً بحسب دورة العمل والتجميعات
+  // ─────────────────────────────
+  {
+    titleKey: "nav.section.inventory",
+    items: [
+      {
+        to: "/products",
+        icon: Package,
+        key: "nav.products",
+        moduleId: "core",
+        color: "text-teal-500",
+        bg: "bg-teal-500/15",
+      },
+      {
+        to: "/inventory",
+        icon: Warehouse,
+        key: "nav.inventory",
+        moduleId: "core",
+        allowedRoles: ["owner", "manager", "accountant", "warehouse"],
+        color: "text-cyan-500",
+        bg: "bg-cyan-500/15",
+      },
+      {
+        to: "/catalog",
+        icon: Layers,
+        key: "nav.catalog",
+        moduleId: "core",
+        allowedRoles: ["owner", "manager", "accountant", "warehouse"],
+        color: "text-amber-500",
+        bg: "bg-amber-500/15",
+      },
+      {
+        to: "/barcodes",
+        icon: Barcode,
+        key: "nav.barcodes",
+        moduleId: "barcode",
+        allowedRoles: ["owner", "manager", "warehouse", "cashier"],
+        color: "text-violet-500",
+        bg: "bg-violet-500/15",
+      },
+      {
+        to: "/settlements",
+        icon: ClipboardList,
+        key: "nav.settlements",
+        moduleId: "core",
+        allowedRoles: ["owner", "manager", "warehouse", "accountant"],
+        color: "text-amber-500",
+        bg: "bg-amber-500/15",
+      },
+      {
+        to: "/transfers",
+        icon: ArrowRightLeft,
+        key: "nav.transfers",
+        moduleId: "multi_warehouse",
+        allowedRoles: ["owner", "manager", "warehouse"],
+        color: "text-purple-400",
+        bg: "bg-purple-500/15",
+      },
+      {
+        to: "/warehouses",
+        icon: Boxes,
+        key: "nav.warehouses",
+        moduleId: "multi_warehouse",
+        allowedRoles: ["owner", "manager", "warehouse"],
+        color: "text-blue-500",
+        bg: "bg-blue-500/15",
+      },
+      {
+        to: "/batches",
+        icon: CalendarClock,
+        key: "nav.batches",
+        moduleId: "batches",
+        allowedRoles: ["owner", "manager", "warehouse"],
+        color: "text-orange-500",
+        bg: "bg-orange-500/15",
+      },
+    ],
+  },
+
+  // ─────────────────────────────
+  // 4) الشراء والتوريد — دخول البضائع وإدارة الموردين
+  // ─────────────────────────────
+  {
+    titleKey: "nav.section.procurement",
+    items: [
+      {
+        to: "/purchase-pos",
+        icon: ShoppingBag,
+        key: "nav.purchase_pos",
+        moduleId: "purchases",
+        allowedRoles: ["owner", "manager", "accountant", "warehouse"],
+        color: "text-indigo-400",
+        bg: "bg-indigo-500/15",
+      },
+      {
+        to: "/purchases",
+        icon: Truck,
+        key: "nav.purchases",
+        moduleId: "purchases",
+        allowedRoles: ["owner", "manager", "accountant", "warehouse"],
+        color: "text-blue-400",
+        bg: "bg-blue-500/15",
+      },
+      {
+        to: "/suppliers",
+        icon: Building2,
+        key: "nav.suppliers",
+        moduleId: "purchases",
+        allowedRoles: ["owner", "manager", "accountant", "warehouse"],
+        color: "text-blue-500",
+        bg: "bg-blue-500/15",
+      },
+      {
+        to: "/purchase-returns",
+        icon: RotateCcw,
+        key: "nav.purchase_returns",
+        moduleId: "returns",
+        allowedRoles: ["owner", "manager", "accountant", "warehouse"],
+        color: "text-rose-500",
+        bg: "bg-rose-500/15",
+      },
+    ],
+  },
+
+  // ─────────────────────────────
+  // 5) المحاسبة والمالية — القيود والحسابات والتقارير الختامية
   // ─────────────────────────────
   {
     titleKey: "nav.section.finance",
     items: [
+      {
+        // The dedicated register. Roles here match the entry point's audience:
+        // an owner, manager or accountant works the queue, while a cashier
+        // reaches the module through the dashboard action instead.
+        to: "/expenses",
+        icon: Receipt,
+        key: "nav.expenses",
+        moduleId: "expenses",
+        allowedRoles: ["owner", "manager", "accountant"],
+        color: "text-rose-500",
+        bg: "bg-rose-500/15",
+      },
       {
         to: "/finance",
         icon: Wallet,
@@ -431,6 +434,8 @@ const sections: Section[] = [
 
   // ─────────────────────────────
   // 8) الإدارة والنظام — الصلاحيات والتهيئة والاشتراك
+  // 6) الإدارة والنظام — الموظفين والتهيئة والأمان
+
   // ─────────────────────────────
   {
     titleKey: "nav.section.admin",
@@ -445,6 +450,14 @@ const sections: Section[] = [
         bg: "bg-violet-500/15",
       },
       {
+        to: "/notifications",
+        icon: Bell,
+        key: "nav.notifications",
+        moduleId: "core",
+        color: "text-yellow-400",
+        bg: "bg-yellow-500/15",
+      },
+      {
         to: "/audit",
         icon: History,
         key: "nav.audit",
@@ -452,14 +465,6 @@ const sections: Section[] = [
         allowedRoles: ["owner", "manager"],
         color: "text-orange-400",
         bg: "bg-orange-500/15",
-      },
-      {
-        to: "/notifications",
-        icon: Bell,
-        key: "nav.notifications",
-        moduleId: "core",
-        color: "text-yellow-400",
-        bg: "bg-yellow-500/15",
       },
       {
         to: "/settings",
