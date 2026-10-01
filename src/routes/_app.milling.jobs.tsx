@@ -280,6 +280,15 @@ function MillingJobsPage() {
   const producedBags = (outputs ?? []).reduce((s, o) => s + Number(o.produced_bag_count ?? 0), 0);
 
   const isOpen = selectedJob?.status === "PROCESSING" || selectedJob?.status === "RECEIVED";
+  /*
+   * The service invoice is deliberately gated the opposite way from the output
+   * form: `issue_milling_service_invoice` only bills a COMPLETED/DELIVERED job,
+   * because billing a run that is still in the mill would charge the customer
+   * for grain the mill has not finished. The button used to render only while
+   * `isOpen` — the exact state the engine rejects — so invoicing was impossible
+   * from the UI even though the engine supported it.
+   */
+  const isInvoiceable = selectedJob?.status === "COMPLETED" || selectedJob?.status === "DELIVERED";
 
   return (
     <ModuleGuard moduleId="milling_operations">
@@ -388,7 +397,7 @@ function MillingJobsPage() {
                     >
                       <Printer className="h-3.5 w-3.5" />
                     </button>
-                    {isOpen && (
+                    {isInvoiceable && (
                       <button
                         type="button"
                         onClick={() => setInvoiceOpen(true)}

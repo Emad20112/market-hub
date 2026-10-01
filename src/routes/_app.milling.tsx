@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, Outlet, useLocation } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
 import {
@@ -32,8 +32,26 @@ import type { PageGuideConfig } from "@/components/page-guide";
 
 export const Route = createFileRoute("/_app/milling")({
   head: () => ({ meta: [{ title: "لوحة المطحنة — فورتكس ERP" }] }),
-  component: MillingDashboard,
+  component: MillingLayout,
 });
+
+/*
+ * /milling is a layout route: its four child screens (intake, jobs, delivery,
+ * customer-statement) are rendered through the Outlet below. Without the
+ * Outlet every child URL resolved to the dashboard, because a parent route
+ * that renders no Outlet never mounts its children — the dashboard swallowed
+ * them silently. The dashboard itself is shown only on the exact /milling path.
+ */
+function MillingLayout() {
+  const { pathname } = useLocation();
+  const isDashboard = pathname.replace(/\/+$/, "") === "/milling";
+
+  return (
+    <ModuleGuard moduleId="milling_operations">
+      {isDashboard ? <MillingDashboard /> : <Outlet />}
+    </ModuleGuard>
+  );
+}
 
 const guide: PageGuideConfig = {
   title: "دليل وحدة المطحنة وإدارة الأمانات",
@@ -261,7 +279,7 @@ function MillingDashboard() {
   }, [intakes, jobs]);
 
   return (
-    <ModuleGuard moduleId="milling_operations">
+    <>
       <PageHeader
         title="لوحة المطحنة والأمانات"
         subtitle="متابعة لحظية لحركة حبوب العملاء وأوامر الطحن والأكياس الجاهزة للتسليم"
@@ -471,6 +489,6 @@ function MillingDashboard() {
         هذه الوحدة تعمل على سجل مستقل تماماً (مilling_*) يقرأ ويكتب الأرصدة العينية للعميل فقط.
         مخزون المطحنة التجاري وتكلفة البضاعة المباعة لا يتأثران إطلاقاً بأي عملية في هذه الشاشة.
       </p>
-    </ModuleGuard>
+    </>
   );
 }
