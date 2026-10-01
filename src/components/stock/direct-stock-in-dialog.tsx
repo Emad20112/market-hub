@@ -271,7 +271,7 @@ export function DirectStockInDialog({
       <form
         onSubmit={handleSubmit}
         onClick={(e) => e.stopPropagation()}
-        className="panel-elevated w-full max-w-lg overflow-hidden my-8 rounded-3xl border border-border/80 bg-surface shadow-xl"
+        className="panel-elevated w-full max-w-lg lg:max-w-4xl overflow-hidden my-8 rounded-3xl border border-border/80 bg-surface shadow-xl transition-all"
       >
         {/* Header */}
         <div className="flex items-center justify-between border-b border-border/80 px-6 py-4 bg-emerald-500/10">

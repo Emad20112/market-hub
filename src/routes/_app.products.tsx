@@ -21,6 +21,7 @@ import {
   Plus,
   Package,
   Pencil,
+  Eye,
   Trash2,
   Settings,
   ExternalLink,
@@ -191,6 +192,7 @@ function ProductsPage() {
     "all",
   );
   const [viewMode, setViewMode] = useState<"grid" | "list" | "table">("grid");
+  const [selectedProductDetail, setSelectedProductDetail] = useState<ProductRow | null>(null);
   const [copiedBarcode, setCopiedBarcode] = useState<string | null>(null);
 
   const toggleProductActiveMutation = useMutation({
@@ -976,9 +978,7 @@ function ProductsPage() {
                     <div
                       key={p.id}
                       onClick={() => {
-                        setEditing(p);
-                        setPrefillBarcode(undefined);
-                        setOpen(true);
+                        setSelectedProductDetail(p);
                       }}
                       className={`card-mullak group relative overflow-hidden rounded-2xl p-3 sm:p-4.5 flex flex-col justify-between cursor-pointer border transition-all duration-200 hover:shadow-md ${
                         !p.is_active
@@ -1216,9 +1216,7 @@ function ProductsPage() {
                     <div
                       key={p.id}
                       onClick={() => {
-                        setEditing(p);
-                        setPrefillBarcode(undefined);
-                        setOpen(true);
+                        setSelectedProductDetail(p);
                       }}
                       className="card-mullak group relative flex flex-col md:flex-row md:items-center justify-between gap-3 p-3.5 sm:p-4 rounded-2xl cursor-pointer border transition-all duration-200 hover:border-primary/50 hover:shadow-md"
                     >
@@ -1320,6 +1318,18 @@ function ProductsPage() {
                             size="sm"
                             variant="ghost"
                             tooltip
+                            ariaLabel={lang === "ar" ? "عرض التفاصيل" : "View details"}
+                            icon={<Eye className="size-3.5 text-primary" />}
+                            round
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              setSelectedProductDetail(p);
+                            }}
+                          />
+                          <IconButton
+                            size="sm"
+                            variant="ghost"
+                            tooltip
                             ariaLabel={p.is_active ? (lang === "ar" ? "تعطيل المنتج" : "Deactivate") : (lang === "ar" ? "تفعيل المنتج" : "Activate")}
                             icon={<Power className={`size-3.5 ${p.is_active ? "text-emerald-500" : "text-muted-foreground"}`} />}
                             round
@@ -1410,9 +1420,7 @@ function ProductsPage() {
             horizontalScroll={tableUsesHorizontalScroll}
             stickyHeader
             onRowClick={(product) => {
-              setEditing(product);
-              setPrefillBarcode(undefined);
-              setOpen(true);
+              setSelectedProductDetail(product);
             }}
             empty={{
               icon: <Package />,
@@ -1427,6 +1435,211 @@ function ProductsPage() {
           />
         </div>
       )}
+
+
+      {/* ─── Luxury Product Detail Sheet (Drawer) ─── */}
+      {selectedProductDetail && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-end bg-black/65 backdrop-blur-xs animate-in fade-in duration-200"
+          onClick={() => setSelectedProductDetail(null)}
+        >
+          <div
+            className="h-full w-full max-w-lg border-s border-border/80 bg-background/95 backdrop-blur-md p-6 shadow-2xl overflow-y-auto animate-in slide-in-from-left duration-200"
+            onClick={(e) => e.stopPropagation()}
+            dir={lang === "ar" ? "rtl" : "ltr"}
+          >
+            {/* Ambient decorative blur */}
+            <div className="absolute -top-10 -right-10 size-40 rounded-full bg-primary/20 blur-3xl pointer-events-none" />
+
+            {/* Header */}
+            <div className="flex items-start justify-between pb-4 border-b border-border/60">
+              <div className="flex items-center gap-3.5">
+                <div className="grid size-14 place-items-center rounded-2xl bg-primary/10 text-primary font-bold text-xl border border-primary/20 shadow-sm">
+                  <Package className="size-6 text-primary" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-foreground">
+                    {lang === "ar"
+                      ? selectedProductDetail.name_ar || selectedProductDetail.name
+                      : selectedProductDetail.name || selectedProductDetail.name_ar}
+                  </h3>
+                  <div className="mt-0.5 flex items-center gap-2">
+                    <span
+                      className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] font-bold ${
+                        selectedProductDetail.is_active
+                          ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-400"
+                          : "border-border bg-muted text-muted-foreground"
+                      }`}
+                    >
+                      {selectedProductDetail.is_active ? t("common.active") : t("common.inactive")}
+                    </span>
+                    {selectedProductDetail.sku && (
+                      <span className="font-mono text-xs text-muted-foreground">
+                        SKU: {selectedProductDetail.sku}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedProductDetail(null)}
+                className="grid size-9 place-items-center rounded-full bg-surface-2 text-muted-foreground hover:text-foreground transition"
+              >
+                <X className="size-4" />
+              </button>
+            </div>
+
+            {/* Financial Overview Cards */}
+            <div className="mt-5 grid grid-cols-2 gap-3">
+              <div className="rounded-2xl border border-border/70 bg-card p-4">
+                <span className="text-[11px] font-bold text-muted-foreground block mb-1">
+                  {lang === "ar" ? "سعر البيع" : "Sale Price"}
+                </span>
+                <span className="text-xl font-black font-mono text-foreground">
+                  {moneyCell(selectedProductDetail.sale_price)}
+                </span>
+              </div>
+
+              {canViewCost && (
+                <div className="rounded-2xl border border-border/70 bg-card p-4">
+                  <span className="text-[11px] font-bold text-muted-foreground block mb-1">
+                    {lang === "ar" ? "سعر التكلفة" : "Cost Price"}
+                  </span>
+                  <span className="text-xl font-black font-mono text-muted-foreground">
+                    {selectedProductDetail.cost_price != null
+                      ? moneyCell(selectedProductDetail.cost_price)
+                      : "—"}
+                  </span>
+                </div>
+              )}
+
+              <div className="rounded-2xl border border-border/70 bg-card p-4">
+                <span className="text-[11px] font-bold text-muted-foreground block mb-1">
+                  {lang === "ar" ? "حد أدنى المخزون" : "Min Stock Alert"}
+                </span>
+                <span className="text-lg font-black font-mono text-amber-500">
+                  {qtyCell(selectedProductDetail.min_stock)}
+                </span>
+              </div>
+
+              <div className="rounded-2xl border border-border/70 bg-card p-4">
+                <span className="text-[11px] font-bold text-muted-foreground block mb-1">
+                  {lang === "ar" ? "الضريبة" : "Tax Rate"}
+                </span>
+                <span className="text-lg font-black font-mono text-foreground">
+                  {selectedProductDetail.tax_rate ? `${selectedProductDetail.tax_rate}%` : "0%"}
+                </span>
+              </div>
+            </div>
+
+            {/* Attribute & Specifications Grid */}
+            <div className="mt-5 rounded-2xl border border-border/70 bg-card p-4 space-y-3 text-xs">
+              <div className="flex items-center justify-between border-b border-border/40 pb-2">
+                <span className="text-muted-foreground">{lang === "ar" ? "التصنيف" : "Category"}</span>
+                <span className="font-semibold text-foreground">
+                  {selectedProductDetail.category
+                    ? label(selectedProductDetail.category.name, selectedProductDetail.category.name_ar)
+                    : "—"}
+                </span>
+              </div>
+
+              {selectedProductDetail.brand && (
+                <div className="flex items-center justify-between border-b border-border/40 pb-2">
+                  <span className="text-muted-foreground">{lang === "ar" ? "العلامة التجارية" : "Brand"}</span>
+                  <span className="font-semibold text-foreground">
+                    {label(selectedProductDetail.brand.name, selectedProductDetail.brand.name_ar)}
+                  </span>
+                </div>
+              )}
+
+              {selectedProductDetail.unit && (
+                <div className="flex items-center justify-between border-b border-border/40 pb-2">
+                  <span className="text-muted-foreground">{lang === "ar" ? "وحدة القياس" : "Unit"}</span>
+                  <span className="font-semibold text-foreground">
+                    {label(selectedProductDetail.unit.name, selectedProductDetail.unit.name_ar)} (
+                    {selectedProductDetail.unit.short_name})
+                  </span>
+                </div>
+              )}
+
+              {selectedProductDetail.barcode && (
+                <div className="flex items-center justify-between border-b border-border/40 pb-2">
+                  <span className="text-muted-foreground">{lang === "ar" ? "الباركود" : "Barcode"}</span>
+                  <div className="flex items-center gap-1.5 font-mono font-bold text-foreground">
+                    <span>{selectedProductDetail.barcode}</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        navigator.clipboard.writeText(selectedProductDetail.barcode!);
+                        toast.success(lang === "ar" ? "تم نسخ الباركود" : "Barcode copied");
+                      }}
+                      className="text-muted-foreground hover:text-foreground"
+                    >
+                      <Copy className="size-3.5" />
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {selectedProductDetail.shelf_location && (
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">{lang === "ar" ? "موقع الرف" : "Shelf Location"}</span>
+                  <span className="font-mono text-foreground font-semibold">
+                    {selectedProductDetail.shelf_location}
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {/* Quick Actions Footer */}
+            <div className="mt-6 flex items-center gap-2 pt-4 border-t border-border/60">
+              <Button
+                variant="outline"
+                className="flex-1 rounded-xl gap-2 font-bold"
+                onClick={() => {
+                  setEditing(selectedProductDetail);
+                  setSelectedProductDetail(null);
+                  setOpen(true);
+                }}
+              >
+                <Pencil className="size-4" />
+                <span>{t("common.edit")}</span>
+              </Button>
+              <Button
+                variant="outline"
+                className="rounded-xl gap-2 font-bold"
+                onClick={() => {
+                  toggleProductActiveMutation.mutate({
+                    id: selectedProductDetail.id,
+                    isActive: !selectedProductDetail.is_active,
+                  });
+                  setSelectedProductDetail({
+                    ...selectedProductDetail,
+                    is_active: !selectedProductDetail.is_active,
+                  });
+                }}
+              >
+                <Power
+                  className={`size-4 ${
+                    selectedProductDetail.is_active ? "text-emerald-500" : "text-muted-foreground"
+                  }`}
+                />
+                <span>
+                  {selectedProductDetail.is_active
+                    ? lang === "ar"
+                      ? "تعطيل"
+                      : "Deactivate"
+                    : lang === "ar"
+                      ? "تفعيل"
+                      : "Activate"}
+                </span>
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
 
       {open && (
         <ProductDialog
@@ -1617,10 +1830,10 @@ function ProductDialog({
     category_id: initial?.category_id ?? "",
     brand_id: initial?.brand_id ?? "",
     unit_id: initial?.unit_id ?? "",
-    cost_price: initial?.cost_price?.toString() ?? "0",
-    sale_price: initial?.sale_price?.toString() ?? "0",
-    tax_rate: initial?.tax_rate?.toString() ?? "0",
-    min_stock: initial?.min_stock?.toString() ?? "1",
+    cost_price: initial?.cost_price != null ? String(initial.cost_price) : "",
+    sale_price: initial?.sale_price != null ? String(initial.sale_price) : "",
+    tax_rate: initial?.tax_rate != null ? String(initial.tax_rate) : "",
+    min_stock: initial?.min_stock != null ? String(initial.min_stock) : "",
     shelf_location: initial?.shelf_location ?? "",
     origin_id: initial?.origin_id ?? "",
     quality_grade_id: initial?.quality_grade_id ?? "",
@@ -1722,7 +1935,7 @@ function ProductDialog({
       onOpenChange={(isOpen) => {
         if (!isOpen) onClose();
       }}
-      size="lg"
+      size="xl"
       title={initial ? t("products.edit_product") : t("products.new_product")}
       description={
         initial
@@ -1809,7 +2022,7 @@ function ProductDialog({
                   onChange={(e) => setForm({ ...form, category_id: e.target.value })}
                   className={fieldSurfaceClass}
                 >
-                  <option value="">—</option>
+                  <option value="">{lang === "ar" ? "اختر التصنيف..." : "Select category..."}</option>
                   {meta.categories.map((c) => (
                     <option key={c.id} value={c.id}>
                       {labelOf(c.name, c.name_ar)}
@@ -1895,7 +2108,7 @@ function ProductDialog({
                       onChange={(e) => setForm({ ...form, brand_id: e.target.value })}
                       className={fieldSurfaceClass}
                     >
-                      <option value="">—</option>
+                      <option value="">{lang === "ar" ? "اختر العلامة التجارية..." : "Select brand..."}</option>
                       {meta.brands.map((b) => (
                         <option key={b.id} value={b.id}>
                           {labelOf(b.name, b.name_ar)}
@@ -1916,7 +2129,7 @@ function ProductDialog({
                       onChange={(e) => setForm({ ...form, origin_id: e.target.value })}
                       className={fieldSurfaceClass}
                     >
-                      <option value="">—</option>
+                      <option value="">{lang === "ar" ? "اختر بلد المنشأ..." : "Select origin..."}</option>
                       {meta.origins.map((o) => (
                         <option key={o.id} value={o.id}>
                           {lang === "ar" ? o.name_ar : o.name} ({o.code})
@@ -1937,7 +2150,7 @@ function ProductDialog({
                       onChange={(e) => setForm({ ...form, quality_grade_id: e.target.value })}
                       className={fieldSurfaceClass}
                     >
-                      <option value="">—</option>
+                      <option value="">{lang === "ar" ? "اختر درجة الجودة..." : "Select quality grade..."}</option>
                       {meta.qualities.map((q) => (
                         <option key={q.id} value={q.id}>
                           {lang === "ar" ? q.name_ar : q.name}
@@ -1958,7 +2171,7 @@ function ProductDialog({
                       onChange={(e) => setForm({ ...form, unit_id: e.target.value })}
                       className={fieldSurfaceClass}
                     >
-                      <option value="">—</option>
+                      <option value="">{lang === "ar" ? "اختر وحدة القياس..." : "Select unit..."}</option>
                       {meta.units.map((u) => (
                         <option key={u.id} value={u.id}>
                           {labelOf(u.name, u.name_ar)} ({u.short_name})
@@ -1981,8 +2194,8 @@ function ProductDialog({
                 hint={lang === "ar" ? "سعر الشراء" : "Purchase price"}
               >
                 <VortexCurrencyInput
-                  value={form.cost_price === "" ? 0 : Number(form.cost_price)}
-                  onValueChange={(num) => setForm({ ...form, cost_price: String(num) })}
+                  value={form.cost_price === "" ? null : Number(form.cost_price)}
+                  onValueChange={(num) => setForm({ ...form, cost_price: num == null ? "" : String(num) })}
                   min={0}
                   currencySymbol="﷼"
                   placeholder="0.00"
@@ -1995,8 +2208,8 @@ function ProductDialog({
                 <VortexCurrencyInput
                   id={p.id}
                   aria-describedby={p["aria-describedby"]}
-                  value={form.sale_price === "" ? 0 : Number(form.sale_price)}
-                  onValueChange={(num) => setForm({ ...form, sale_price: String(num) })}
+                  value={form.sale_price === "" ? null : Number(form.sale_price)}
+                  onValueChange={(num) => setForm({ ...form, sale_price: num == null ? "" : String(num) })}
                   min={0}
                   currencySymbol="﷼"
                   placeholder="0.00"
