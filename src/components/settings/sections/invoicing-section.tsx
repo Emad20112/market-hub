@@ -1,19 +1,17 @@
+import { useEffect, useState } from "react";
 import { Receipt, ScanBarcode, Wrench, Image as ImageIcon, Printer } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import type { InvoiceTemplate } from "@/lib/invoice-print";
+import { getPrintSettings, savePrintSettings } from "@/lib/templates";
 
 interface InvoicingSectionProps {
   form: any;
   setForm: (form: any) => void;
   enablePosServiceFee: boolean;
   setEnablePosServiceFee: (v: boolean) => void;
-  printMode: "auto" | "ask" | "off";
-  setPrintMode: (v: "auto" | "ask" | "off") => void;
-  defaultPrintTemplate: InvoiceTemplate;
-  setDefaultPrintTemplate: (v: InvoiceTemplate) => void;
   canEdit: boolean;
   lang: string;
 }
@@ -23,14 +21,29 @@ export function InvoicingSection({
   setForm,
   enablePosServiceFee,
   setEnablePosServiceFee,
-  printMode,
-  setPrintMode,
-  defaultPrintTemplate,
-  setDefaultPrintTemplate,
   canEdit,
   lang,
 }: InvoicingSectionProps) {
   const isAr = lang === "ar";
+  // Post-sale printing preferences come from the same unified store used by POS
+  const [printMode, setPrintModeState] = useState<"auto" | "ask" | "off">("ask");
+  const [defaultPrintTemplate, setDefaultPrintTemplateState] = useState<InvoiceTemplate>("thermal");
+
+  useEffect(() => {
+    const s = getPrintSettings();
+    setPrintModeState(s.printMode);
+    setDefaultPrintTemplateState(s.defaultCustomerTemplate as InvoiceTemplate);
+  }, []);
+
+  const setPrintMode = (v: "auto" | "ask" | "off") => {
+    setPrintModeState(v);
+    savePrintSettings({ printMode: v });
+  };
+
+  const setDefaultPrintTemplate = (v: InvoiceTemplate) => {
+    setDefaultPrintTemplateState(v);
+    savePrintSettings({ defaultCustomerTemplate: v });
+  };
 
   return (
     <Card className="rounded-3xl border-border/80 shadow-xs">

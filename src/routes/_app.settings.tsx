@@ -1,25 +1,14 @@
-import { getDigitPreference, setDigitPreference, type DigitStyle } from "@/lib/format-preferences";
-import { Hash } from "lucide-react";
-import { SubscriptionSettingsCard } from "@/components/subscription-settings-card";
-import { BackupSettingsCard } from "@/components/backup-settings-card";
-import { PrintSettingsCard } from "@/components/print-settings-card";
-import { createFileRoute } from "@tanstack/react-router";
+﻿import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { PageHeader } from "@/components/page-header";
 import { useI18n } from "@/lib/i18n";
 import { useAuth } from "@/lib/auth";
-import { useCatalogModules } from "@/lib/catalog-modules";
-import { CatalogModulesDialog } from "@/components/catalog-modules-dialog";
+import { SettingsLayout } from "@/components/settings/settings-layout";
 import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Switch } from "@/components/ui/switch";
-import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { Save, Building2, Receipt, Languages, SlidersHorizontal } from "lucide-react";
+import { Save } from "lucide-react";
 import { setCompanySettingsCache } from "@/lib/format";
 
 export const Route = createFileRoute("/_app/settings")({
@@ -29,10 +18,8 @@ export const Route = createFileRoute("/_app/settings")({
 
 function SettingsPage() {
   const queryClient = useQueryClient();
-  const { t, lang, setLang } = useI18n();
+  const { t, lang } = useI18n();
   const { hasRole } = useAuth();
-  const { config } = useCatalogModules();
-  const [catalogDialogOpen, setCatalogDialogOpen] = useState(false);
   const canEdit = hasRole("owner") || hasRole("manager");
   const [form, setForm] = useState<any>({
     name: "",
@@ -49,17 +36,6 @@ function SettingsPage() {
   });
   const [exists, setExists] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [digitStyle, setDigitStyle] = useState<DigitStyle>("latin");
-
-  useEffect(() => {
-    setDigitStyle(getDigitPreference());
-  }, []);
-
-  const handleDigitChange = (style: DigitStyle) => {
-    setDigitStyle(style);
-    setDigitPreference(style);
-    toast.success(lang === "ar" ? "تم حفظ تفضيل نظام الأرقام" : "Number system preference updated");
-  };
 
   const [enablePosServiceFee, setEnablePosServiceFee] = useState<boolean>(() => {
     if (typeof window !== "undefined") {
@@ -113,361 +89,37 @@ function SettingsPage() {
     setExists(true);
   }
 
-  const profileLabel =
-    config.profile === "spare_parts"
-      ? lang === "ar"
-        ? "قطع غيار ودراجات ومركبات"
-        : "Spare Parts & Automotive"
-      : config.profile === "grocery"
-        ? lang === "ar"
-          ? "مواد غذائية وبقالة وسوبرماركت"
-          : "Grocery & Food Market"
-        : config.profile === "retail"
-          ? lang === "ar"
-            ? "تجارة عامة وملابس وتجزئة"
-            : "General Retail"
-          : lang === "ar"
-            ? "تخصيص يدوي مخصص"
-            : "Custom Configuration";
-
   return (
-    <>
+    <div className="space-y-6 pb-10">
       <PageHeader
         title={t("settings.title")}
         subtitle={
           lang === "ar"
-            ? "بيانات الشركة، العملة، الضريبة، إعدادات سلة البيع، وتخصيص نشاط الفهرسة"
-            : "Company profile, currency, tax, POS cart settings, and catalog customization"
+            ? "إدارة إعدادات النظام الموجودة: المنشأة، الفواتير، الطباعة، النشاط، الباقة، النسخ الاحتياطي، الأرقام، والمظهر"
+            : "Manage existing system settings: company, invoicing, printing, catalog, plan, backup, numbers, and appearance"
         }
         actions={
           canEdit && (
             <Button onClick={save} disabled={saving} className="rounded-full gap-1.5 px-5">
-              <Save className="h-4 w-4 me-1" />
-              {t("common.save")}
+              <Save className={`h-4 w-4 me-1 ${saving ? "animate-pulse" : ""}`} />
+              {saving ? (lang === "ar" ? "جارٍ الحفظ..." : "Saving...") : t("common.save")}
             </Button>
           )
         }
       />
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <SubscriptionSettingsCard />
-        <BackupSettingsCard />
-        {/* Industry & Catalog Modules Card */}
-        <Card className="lg:col-span-2 border-primary/30 bg-gradient-to-r from-primary/5 via-surface to-surface">
-          <CardHeader>
-            <CardTitle className="text-base flex items-center justify-between">
-              <span className="flex items-center gap-2">
-                <SlidersHorizontal className="h-4 w-4 text-primary" />
-                {lang === "ar"
-                  ? "تخصيص النشاط وموديولات الفهرسة"
-                  : "Industry Profile & Catalog Modules"}
-              </span>
-              <span className="rounded-full bg-primary/15 text-primary border border-primary/30 px-3 py-0.5 text-xs font-bold">
-                {profileLabel}
-              </span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="flex flex-wrap items-center justify-between gap-3 p-3.5 rounded-2xl border border-border/80 bg-surface/80">
-              <div>
-                <div className="text-sm font-semibold text-foreground">
-                  {lang === "ar"
-                    ? "تحديد الميزات المفعلة في الفهرس والمنتجات والـ POS"
-                    : "Configure active catalog modules"}
-                </div>
-                <div className="text-xs text-muted-foreground mt-0.5">
-                  {lang === "ar"
-                    ? "يمكنك بنقرة واحدة اختيار نشاطك (بقالة ومواد غذائية، قطع غيار ومركبات، تجارة عامة) لتفعيل أو إخفاء توافق القطع، درجات الجودة، وبلدان المنشأ."
-                    : "Toggle vehicle fitment, quality grades, origins, brands, and units for your industry."}
-                </div>
-              </div>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setCatalogDialogOpen(true)}
-                className="rounded-full border-primary/40 text-primary hover:bg-primary/10"
-              >
-                <SlidersHorizontal className="h-3.5 w-3.5 me-1.5" />
-                {lang === "ar" ? "تخصيص الموديولات والنشاط" : "Customize Modules"}
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
 
-        {/* Numbering Format Card - Inspired by Mullak */}
-        <Card className="rounded-3xl border-border/80">
-          <CardHeader>
-            <CardTitle className="text-base flex items-center justify-between">
-              <span className="flex items-center gap-2">
-                <Hash className="h-4 w-4 text-primary" />
-                {lang === "ar" ? "نظام الأرقام والترقيم الموحد" : "Numbering & Digit System"}
-              </span>
-              <span className="rounded-full bg-primary/10 text-primary border border-primary/20 px-2.5 py-0.5 text-xs font-medium">
-                {digitStyle === "arabic" ? "الأرقام العربية (٠-٩)" : "Latin (0-9)"}
-              </span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <p className="text-xs text-muted-foreground leading-relaxed">
-              {lang === "ar"
-                ? "حدد النمط الرقمي المعتمد في كامل النظام (الفواتير، السندات، تقارير الديون، وبطاقات التحصيل)."
-                : "Select the standard digit style used across all system views, invoices, and debt sheets."}
-            </p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div
-                onClick={() => handleDigitChange("latin")}
-                className={`cursor-pointer rounded-2xl border p-3.5 transition-all flex flex-col justify-between ${
-                  digitStyle === "latin"
-                    ? "border-primary bg-primary/5 ring-1 ring-primary/30"
-                    : "border-border hover:border-primary/40 bg-surface"
-                }`}
-              >
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-semibold">أرقام لاتينية / إنجليزية</span>
-                  <span className="text-xs font-mono px-2 py-0.5 rounded bg-muted">0 - 9</span>
-                </div>
-                <div className="text-xs text-muted-foreground font-mono">
-                  معاينة: 1,250.00 ﷼ • 2026-09-28
-                </div>
-              </div>
-
-              <div
-                onClick={() => handleDigitChange("arabic")}
-                className={`cursor-pointer rounded-2xl border p-3.5 transition-all flex flex-col justify-between ${
-                  digitStyle === "arabic"
-                    ? "border-primary bg-primary/5 ring-1 ring-primary/30"
-                    : "border-border hover:border-primary/40 bg-surface"
-                }`}
-              >
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-semibold">أرقام عربية مشرقية</span>
-                  <span className="text-xs font-mono px-2 py-0.5 rounded bg-muted">٠ - ٩</span>
-                </div>
-                <div className="text-xs text-muted-foreground font-mono">
-                  معاينة: ١,٢٥٠.٠٠ ﷼ • ٢٠٢٦-٠٩-٢٨
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* 1. Company Info */}
-        <Card className="rounded-3xl border-border/80">
-          <CardHeader>
-            <CardTitle className="text-base flex items-center gap-2">
-              <Building2 className="h-4 w-4 text-primary" />
-              {lang === "ar" ? "معلومات المنشأة والمتجر" : "Company & Store Info"}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <Field
-              label={lang === "ar" ? "الاسم التجاري للمتجر" : "Trade name"}
-              v={form.name}
-              on={(v) => setForm({ ...form, name: v })}
-              disabled={!canEdit}
-            />
-            <Field
-              label={lang === "ar" ? "الاسم القانوني / السجل التجاري" : "Legal name"}
-              v={form.legal_name ?? ""}
-              on={(v) => setForm({ ...form, legal_name: v })}
-              disabled={!canEdit}
-            />
-            <Field
-              label={lang === "ar" ? "الرقم الضريبي" : "Tax number"}
-              v={form.tax_number ?? ""}
-              on={(v) => setForm({ ...form, tax_number: v })}
-              disabled={!canEdit}
-            />
-            <div className="grid grid-cols-2 gap-3">
-              <Field
-                label={lang === "ar" ? "الهاتف" : "Phone"}
-                v={form.phone ?? ""}
-                on={(v) => setForm({ ...form, phone: v })}
-                disabled={!canEdit}
-              />
-              <Field
-                label={lang === "ar" ? "البريد الإلكتروني" : "Email"}
-                v={form.email ?? ""}
-                on={(v) => setForm({ ...form, email: v })}
-                disabled={!canEdit}
-              />
-            </div>
-            <div className="grid gap-1.5">
-              <Label className="text-xs">{lang === "ar" ? "العنوان والموقع" : "Address"}</Label>
-              <Textarea
-                rows={2}
-                value={form.address ?? ""}
-                onChange={(e) => setForm({ ...form, address: e.target.value })}
-                disabled={!canEdit}
-                className="rounded-2xl"
-              />
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* 2. Invoicing, POS & Cart Settings */}
-        <Card className="rounded-3xl border-border/80">
-          <CardHeader>
-            <CardTitle className="text-base flex items-center gap-2">
-              <Receipt className="h-4 w-4 text-primary" />
-              {lang === "ar"
-                ? "إعدادات الفواتير والسلة ونقطة البيع (POS)"
-                : "Invoicing & POS Cart Settings"}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="grid grid-cols-2 gap-3">
-              <Field
-                label={lang === "ar" ? "العملة" : "Currency"}
-                v={form.currency}
-                on={(v) => setForm({ ...form, currency: v })}
-                disabled={!canEdit}
-              />
-              <Field
-                label={lang === "ar" ? "رمز العملة" : "Symbol"}
-                v={form.currency_symbol ?? ""}
-                on={(v) => setForm({ ...form, currency_symbol: v })}
-                disabled={!canEdit}
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <Field
-                label={lang === "ar" ? "نسبة الضريبة %" : "Tax rate %"}
-                v={String(form.tax_rate ?? 0)}
-                on={(v) => setForm({ ...form, tax_rate: v })}
-                type="number"
-                disabled={!canEdit}
-              />
-              <Field
-                label={lang === "ar" ? "بادئة الفاتورة" : "Invoice prefix"}
-                v={form.invoice_prefix ?? "INV"}
-                on={(v) => setForm({ ...form, invoice_prefix: v })}
-                disabled={!canEdit}
-              />
-            </div>
-
-            {/* Custom Labor / Service Fee Toggle */}
-            <div className="flex items-center justify-between p-3.5 rounded-2xl border border-border/80 bg-surface/70">
-              <div className="space-y-0.5 pe-3">
-                <div className="text-sm font-semibold text-foreground">
-                  {lang === "ar"
-                    ? "خدمة أو أجرة تركيب بسعر متفق عليه"
-                    : "Custom Service / Installation Fee"}
-                </div>
-                <div className="text-xs text-muted-foreground">
-                  {lang === "ar"
-                    ? "إظهار زر مخصص في سلة البيع POS لإضافة بند خدمة سريعة أو أجور عمالة/تركيب دون الحاجة لتعريف منتج مسبق."
-                    : "Enable quick custom service or labor fee entry in POS cart without catalog lookup."}
-                </div>
-              </div>
-              <Switch
-                checked={enablePosServiceFee}
-                onCheckedChange={setEnablePosServiceFee}
-                disabled={!canEdit}
-              />
-            </div>
-
-            {/* Barcode Mode Toggle */}
-            <div className="flex items-center justify-between p-3.5 rounded-2xl border border-border/80 bg-surface/70">
-              <div className="space-y-0.5 pe-3">
-                <div className="text-sm font-semibold text-foreground">
-                  {lang === "ar" ? "تفعيل الباركود في POS" : "Barcode mode"}
-                </div>
-                <div className="text-xs text-muted-foreground">
-                  {lang === "ar"
-                    ? "السماح بمسح وقراءة الباركود بالكاميرا أو القارئ اليدوي"
-                    : "Allow barcode scanning at POS"}
-                </div>
-              </div>
-              <Switch
-                checked={!!form.barcode_enabled}
-                onCheckedChange={(v) => setForm({ ...form, barcode_enabled: v })}
-                disabled={!canEdit}
-              />
-            </div>
-
-            <Field
-              label={lang === "ar" ? "رابط الشعار المطبوع" : "Logo URL"}
-              v={form.logo_url ?? ""}
-              on={(v) => setForm({ ...form, logo_url: v })}
-              disabled={!canEdit}
-            />
-
-            {/* Print Settings — unified printing architecture (templates, paper size,
-                auto-print jobs, and document field visibility). This card persists to the
-                single source of truth and stays in sync with the legacy POS keys. */}
-            <PrintSettingsCard canEdit={canEdit} />
-          </CardContent>
-        </Card>
-
-        {/* Appearance & Language */}
-        <Card className="lg:col-span-2">
-          <CardHeader>
-            <CardTitle className="text-base flex items-center gap-2">
-              <Languages className="h-4 w-4" />
-              {lang === "ar" ? "المظهر واللغة" : "Appearance & Language"}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center justify-between rounded-md border border-border p-3">
-              <div>
-                <div className="text-sm font-medium">{lang === "ar" ? "اللغة" : "Language"}</div>
-                <div className="text-xs text-muted-foreground">
-                  {lang === "ar"
-                    ? "اختر لغة الواجهة، يتم حفظ اختيارك تلقائياً"
-                    : "Choose the interface language, your choice is saved automatically"}
-                </div>
-              </div>
-              <div className="inline-flex rounded-full border border-border bg-surface p-0.5">
-                <button
-                  type="button"
-                  onClick={() => setLang("en")}
-                  className={`h-8 rounded-full px-4 text-xs font-medium transition-colors ${
-                    lang === "en"
-                      ? "bg-primary text-primary-foreground"
-                      : "text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  English
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setLang("ar")}
-                  className={`h-8 rounded-full px-4 text-xs font-medium transition-colors ${
-                    lang === "ar"
-                      ? "bg-primary text-primary-foreground"
-                      : "text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  العربية
-                </button>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      <CatalogModulesDialog open={catalogDialogOpen} onClose={() => setCatalogDialogOpen(false)} />
-    </>
-  );
-}
-
-function Field({
-  label,
-  v,
-  on,
-  type = "text",
-  disabled,
-}: {
-  label: string;
-  v: string;
-  on: (v: string) => void;
-  type?: string;
-  disabled?: boolean;
-}) {
-  return (
-    <div className="grid gap-1.5">
-      <Label className="text-xs">{label}</Label>
-      <Input type={type} value={v} onChange={(e) => on(e.target.value)} disabled={disabled} />
+      <SettingsLayout
+        form={form}
+        setForm={setForm}
+        enablePosServiceFee={enablePosServiceFee}
+        setEnablePosServiceFee={setEnablePosServiceFee}
+        printMode={"ask" as any}
+        setPrintMode={() => {}}
+        defaultPrintTemplate={undefined}
+        setDefaultPrintTemplate={() => {}}
+        canEdit={canEdit}
+        lang={lang}
+      />
     </div>
   );
 }

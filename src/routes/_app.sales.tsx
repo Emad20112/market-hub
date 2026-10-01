@@ -420,10 +420,9 @@ export function SalesPage() {
       paid: Number(selected.paid),
       company: cs
         ? {
-            name: (cs as any).company_name,
-            address: (cs as any).address,
-            phone: (cs as any).phone,
-            vat: (cs as any).vat_number,
+            name: "طاحونتي",
+            phone: (cs as any).phone || "772217218",
+            logo: "/inama-soft-logo.ico",
           }
         : undefined,
       currency: (cs as any)?.currency ?? (isRtl ? "ريال" : ""),
