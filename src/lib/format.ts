@@ -65,11 +65,13 @@ export function num(n: number, locale = "en-US") {
 export function moneyCell(n: number | string | null | undefined, locale = "en-US"): string {
   const value = typeof n === "string" ? Number(n) : n;
   if (value == null || !Number.isFinite(value)) return "—";
-  return toSystemDigits(new Intl.NumberFormat(locale, {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-    useGrouping: true,
-  }).format(value));
+  return toSystemDigits(
+    new Intl.NumberFormat(locale, {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+      useGrouping: true,
+    }).format(value),
+  );
 }
 
 /**
@@ -79,9 +81,9 @@ export function moneyCell(n: number | string | null | undefined, locale = "en-US
 export function qtyCell(n: number | string | null | undefined, locale = "en-US"): string {
   const value = typeof n === "string" ? Number(n) : n;
   if (value == null || !Number.isFinite(value)) return "—";
-  return toSystemDigits(new Intl.NumberFormat(locale, { maximumFractionDigits: 3, useGrouping: true }).format(
-    value,
-  ));
+  return toSystemDigits(
+    new Intl.NumberFormat(locale, { maximumFractionDigits: 3, useGrouping: true }).format(value),
+  );
 }
 
 /**

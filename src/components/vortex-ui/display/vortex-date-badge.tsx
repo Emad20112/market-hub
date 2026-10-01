@@ -9,6 +9,8 @@ export interface VortexDateBadgeProps {
   date: string | Date;
   size?: "sm" | "md" | "lg";
   showWeekday?: boolean;
+  showTime?: boolean;
+  variant?: "default" | "subtle" | "outline" | string;
   className?: string;
 }
 
@@ -16,6 +18,8 @@ export function VortexDateBadge({
   date,
   size = "md",
   showWeekday = false,
+  showTime = false,
+  variant,
   className,
 }: VortexDateBadgeProps) {
   const { day, month, year, weekday } = formatLuxuryDate(date, { showDayName: showWeekday });
@@ -26,7 +30,7 @@ export function VortexDateBadge({
         "inline-flex items-center gap-2 rounded-2xl border border-border/80 bg-muted/40 backdrop-blur-sm px-3 py-1.5 shadow-sm",
         size === "sm" && "px-2.5 py-1 text-xs rounded-xl",
         size === "lg" && "px-4 py-2 text-sm rounded-2xl",
-        className
+        className,
       )}
     >
       <div className="grid size-7 place-items-center rounded-xl bg-card border border-border/60 text-primary shadow-xs">

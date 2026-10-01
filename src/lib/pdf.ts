@@ -44,7 +44,7 @@ export interface InvoiceDoc {
   discount: number;
   total: number;
   paid?: number;
-  company?: { name?: string; address?: string; phone?: string; vat?: string };
+  company?: { name?: string; address?: string; phone?: string; vat?: string; logo?: string };
   currency?: string;
   brandingText?: string;
 }

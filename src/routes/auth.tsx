@@ -1,22 +1,13 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { z } from "zod";
-import {
-  Loader2,
-  ShieldCheck,
-  Mail,
-  Lock,
-  Eye,
-  EyeOff,
-  CheckCircle2,
-  LogIn,
-  Sparkles,
-} from "lucide-react";
+import { ShieldCheck, Mail, Lock, Eye, EyeOff, CheckCircle2, LogIn, Sparkles } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import { useI18n } from "@/lib/i18n";
 import { toast } from "sonner";
 import { InamaSoftFooter } from "@/components/inama-soft-footer";
+import { Button } from "@/components/ui/button";
 
 export const Route = createFileRoute("/auth")({
   head: () => ({ meta: [{ title: "تسجيل الدخول — فورتيكس ERP" }] }),
@@ -124,182 +115,163 @@ function AuthPage() {
 
   return (
     <div
-      className="relative flex min-h-screen flex-col justify-between overflow-x-hidden bg-[radial-gradient(ellipse_at_top,_rgba(59,130,246,0.14),_transparent_50%),radial-gradient(ellipse_at_bottom,_rgba(16,185,129,0.12),_transparent_50%)] text-foreground"
+      className="relative flex min-h-screen flex-col overflow-x-hidden bg-[#030817] text-foreground"
       dir={dir}
     >
-      {/* Background ambient light */}
-      <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
-        <div className="absolute -top-40 start-1/4 h-[32rem] w-[32rem] rounded-full bg-primary/20 blur-[150px]" />
-        <div className="absolute -bottom-40 end-1/4 h-[28rem] w-[28rem] rounded-full bg-emerald-500/15 blur-[150px]" />
+      <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
+        <div className="absolute inset-x-0 top-0 h-96 bg-[radial-gradient(ellipse_at_top,_rgba(37,99,235,0.18),_transparent_65%)]" />
+        <div className="absolute top-1/3 start-1/2 size-[34rem] -translate-x-1/2 rounded-full bg-primary/10 blur-[150px]" />
       </div>
 
-      <div className="h-4 sm:h-8" />
-
-      {/* Main Container */}
-      <main className="mx-auto w-full max-w-4xl px-4 sm:px-6">
-        <div className="overflow-hidden rounded-[28px] border border-border/70 bg-card/85 shadow-[0_25px_70px_rgba(0,0,0,0.16)] backdrop-blur-2xl transition-all">
-          <div className="grid lg:grid-cols-[1fr_1fr]">
-            {/* Visual Branding Column */}
-            <div className="relative flex flex-col justify-between overflow-hidden bg-gradient-to-br from-primary via-primary/95 to-chart-4 p-8 text-primary-foreground sm:p-10">
-              <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(255,255,255,0.25),_transparent_40%)]" />
-
-              <div className="relative z-10">
-                <img
-                  src={logoWordmarkUrl}
-                  alt="Vortex ERP"
-                  className="mb-5 h-12 w-auto max-w-full object-contain object-start mix-blend-screen sm:h-14"
-                />
-                <div className="inline-flex items-center gap-2.5 rounded-full border border-white/25 bg-white/15 px-3.5 py-1.5 text-xs font-semibold backdrop-blur-md shadow-sm">
-                  <img
-                    src={logoMarkUrl}
-                    alt={t("app.name")}
-                    className="h-4.5 w-4.5 rounded-md object-contain bg-white/90 p-0.5"
-                    onError={(event) => {
-                      event.currentTarget.style.visibility = "hidden";
-                    }}
-                  />
-                  <span>{t("app.name")} ERP</span>
-                </div>
-
-                <h1 className="mt-6 text-2xl sm:text-3xl font-extrabold tracking-tight leading-snug">
-                  {isRtl
-                    ? "منظومة فورتيكس السحابية لإدارة المؤسسات"
-                    : "Vortex ERP Enterprise Cloud Platform"}
-                </h1>
-
-                <p className="mt-3 text-xs sm:text-sm leading-relaxed text-primary-foreground/90">
-                  {t("app.tagline")}
-                </p>
-
-                {/* Core Advantages */}
-                <div className="mt-6 space-y-2.5 text-xs sm:text-[13px] text-primary-foreground/95">
-                  <div className="flex items-center gap-2.5">
-                    <div className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-white/20">
-                      <CheckCircle2 className="h-3 w-3 text-white" />
-                    </div>
-                    <span>
-                      {isRtl
-                        ? "نقاط بيع سريعة، باركود، وإدارة المخزون"
-                        : "Fast POS, Barcode & Stock Management"}
-                    </span>
-                  </div>
-
-                  <div className="flex items-center gap-2.5">
-                    <div className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-white/20">
-                      <CheckCircle2 className="h-3 w-3 text-white" />
-                    </div>
-                    <span>
-                      {isRtl
-                        ? "تعدد الفروع، الدفعات وتواريخ الصلاحية"
-                        : "Multi-warehouse, Batches & Expiry Dates"}
-                    </span>
-                  </div>
-
-                  <div className="flex items-center gap-2.5">
-                    <div className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-white/20">
-                      <CheckCircle2 className="h-3 w-3 text-white" />
-                    </div>
-                    <span>
-                      {isRtl
-                        ? "محاسبة مالية متقدمة وكشوفات حساب تفصيلية"
-                        : "Advanced Accounting & Financial Statements"}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Security Badge */}
-              <div className="relative z-10 mt-8 rounded-xl border border-white/20 bg-white/10 p-3 backdrop-blur-md">
-                <div className="flex items-center gap-2.5">
-                  <div className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-white/20">
-                    <ShieldCheck className="h-4 w-4 text-white" />
-                  </div>
-                  <div className="text-xs">
-                    <p className="font-bold">
-                      {isRtl ? "نظام آمن ومشفر بالكامل" : "Fully Secure & Encrypted"}
-                    </p>
-                    <p className="text-primary-foreground/80 text-[11px]">
-                      {isRtl
-                        ? "إدارة الصلاحيات والمستخدمين تتم مركزياً عبر إدارة النظام."
-                        : "User access is strictly managed by system administrators."}
-                    </p>
-                  </div>
-                </div>
-              </div>
+      <main className="relative z-10 mx-auto flex w-full flex-1 items-center px-4 py-10 sm:px-6 sm:py-14">
+        <div className="mx-auto w-full max-w-[32rem]">
+          <header className="mb-8 text-center sm:mb-10">
+            <div className="mx-auto grid size-16 place-items-center rounded-[1.4rem] border border-primary/30 bg-primary/10 p-2 shadow-[0_10px_28px_rgba(37,99,235,0.18)]">
+              <img src={logoMarkUrl} alt={t("app.name")} className="size-full object-contain" />
             </div>
+            <h1 className="mt-4 text-2xl font-black tracking-tight text-white sm:text-3xl">
+              {isRtl ? "نظام فورتكس لإدارة الأعمال" : "Vortex Business Management"}
+            </h1>
+            <p className="mt-2 text-sm text-slate-400">
+              {isRtl
+                ? "سجّل الدخول لإدارة متجرك، مخزونك ومبيعاتك"
+                : "Sign in to manage your store, inventory, and sales"}
+            </p>
+          </header>
 
-            {/* Login Form Column */}
-            <div className="flex flex-col justify-between p-8 sm:p-10">
-              <div>
-                {/* Brand Header */}
-                <div className="flex items-center gap-3 pb-5 border-b border-border/60">
+          <div className="grid">
+            <section className="hidden">
+              <div className="pointer-events-none absolute inset-0 opacity-40 [background-image:radial-gradient(rgba(255,255,255,0.26)_1px,transparent_1px)] [background-size:18px_18px]" />
+              <div className="pointer-events-none absolute -bottom-32 -end-24 h-80 w-80 rounded-full border-[32px] border-white/10" />
+              <div className="relative flex h-full flex-col">
+                <div className="flex items-center justify-between gap-4">
                   <img
-                    src={logoMarkUrl}
-                    alt={t("app.name")}
-                    className="h-9 w-9 shrink-0 rounded-xl object-contain bg-surface-2 p-1 border border-border/70 shadow-sm"
-                    onError={(event) => {
-                      event.currentTarget.style.visibility = "hidden";
-                    }}
+                    src={logoWordmarkUrl}
+                    alt="Vortex ERP"
+                    className="h-9 w-auto max-w-[11rem] object-contain object-start brightness-0 invert sm:h-11 sm:max-w-[14rem]"
                   />
-                  <div>
-                    <h2 className="text-base font-bold text-foreground">{t("app.name")}</h2>
-                    <p className="text-xs text-muted-foreground">{t("app.tagline")}</p>
+                  <span className="inline-flex items-center gap-1.5 rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-[11px] font-semibold backdrop-blur-sm">
+                    <Sparkles className="size-3.5" />
+                    {isRtl ? "منصة أعمال متكاملة" : "Integrated business platform"}
+                  </span>
+                </div>
+
+                <div className="my-10 max-w-md sm:my-14 lg:my-auto">
+                  <div className="mb-5 inline-flex size-12 items-center justify-center rounded-2xl border border-white/20 bg-white/10 shadow-sm backdrop-blur-sm">
+                    <ShieldCheck className="size-6" />
+                  </div>
+                  <h1 className="text-2xl font-black leading-snug tracking-tight sm:text-[2rem]">
+                    {isRtl
+                      ? "إدارة متجرك بثقة، من مكان واحد."
+                      : "Run your business with confidence, from one place."}
+                  </h1>
+                  <p className="mt-4 max-w-sm text-sm leading-7 text-primary-foreground/85">
+                    {isRtl
+                      ? "المبيعات والمخزون والحسابات في مساحة عمل موحدة وواضحة."
+                      : "Sales, inventory, and accounting in one clear workspace."}
+                  </p>
+
+                  <div className="mt-7 grid grid-cols-3 gap-2.5 sm:gap-3">
+                    {[
+                      isRtl ? "نقاط البيع" : "Point of sale",
+                      isRtl ? "إدارة المخزون" : "Inventory",
+                      isRtl ? "تقارير مالية" : "Financials",
+                    ].map((item) => (
+                      <div
+                        key={item}
+                        className="rounded-2xl border border-white/15 bg-white/10 px-2 py-3 text-center text-[10px] font-semibold sm:text-[11px] backdrop-blur-sm"
+                      >
+                        <CheckCircle2 className="mx-auto mb-1.5 size-3.5 text-white/90" />
+                        {item}
+                      </div>
+                    ))}
                   </div>
                 </div>
 
-                {/* Subtitle */}
-                <div className="mt-5">
-                  <h3 className="text-xl font-bold tracking-tight text-foreground">
-                    {isRtl ? "تسجيل الدخول للنظام" : "Sign In to ERP"}
-                  </h3>
-                  <p className="mt-1 text-xs text-muted-foreground">
+                <div className="flex items-center gap-3 border-t border-white/15 pt-5 text-xs text-primary-foreground/85">
+                  <div className="grid size-9 shrink-0 place-items-center rounded-xl bg-white/10">
+                    <ShieldCheck className="size-4" />
+                  </div>
+                  <p>
                     {isRtl
-                      ? "أدخل بيانات حسابك للمتابعة إلى لوحة التحكم"
-                      : "Enter your credentials to access your dashboard"}
+                      ? "وصولك محمي وتُدار الصلاحيات مركزيًا عبر إدارة النظام."
+                      : "Your access is protected and managed centrally by your administrators."}
+                  </p>
+                </div>
+              </div>
+            </section>
+
+            <section className="flex flex-col justify-center rounded-[2rem] border border-white/10 bg-[#0d182d]/95 px-5 py-7 shadow-[0_24px_80px_rgba(0,0,0,0.32)] backdrop-blur-xl sm:px-7 sm:py-8">
+              <div className="mx-auto w-full max-w-sm">
+                <div className="text-center">
+                  <h2 className="text-xl font-black tracking-tight text-white">
+                    {isRtl ? "تسجيل الدخول" : "Sign in"}
+                  </h2>
+                  <p className="mt-1.5 text-xs leading-6 text-slate-400">
+                    {isRtl
+                      ? "أدخل بيانات حسابك للوصول إلى متجرك"
+                      : "Enter your account details to access your store"}
                   </p>
                 </div>
 
-                {/* Authentication Form */}
-                <form onSubmit={handleSubmit} className="mt-5 space-y-4">
-                  <div>
-                    <label className="mb-1.5 block text-xs font-semibold text-foreground/80">
+                <form onSubmit={handleSubmit} className="mt-8 space-y-5">
+                  <div className="space-y-2">
+                    <label htmlFor="login-email" className="block text-xs font-bold text-slate-200">
                       {t("common.email")}
                     </label>
-                    <div className="relative flex items-center">
-                      <Mail className="absolute start-3.5 h-4 w-4 text-muted-foreground" />
+                    <div className="relative">
+                      <Mail
+                        className="pointer-events-none absolute start-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+                        aria-hidden
+                      />
                       <input
+                        id="login-email"
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
                         type="email"
+                        inputMode="email"
                         autoComplete="email"
+                        autoCapitalize="none"
+                        spellCheck={false}
                         required
-                        className="h-11 w-full rounded-xl border border-border/80 bg-surface-1 ps-10 pe-4 text-sm text-foreground placeholder:text-muted-foreground/60 transition focus:border-primary focus:bg-background focus:outline-none focus:ring-2 focus:ring-primary/20"
-                        placeholder="example@domain.com"
+                        disabled={loading}
+                        dir="ltr"
+                        className="h-12 w-full rounded-2xl border border-white/10 bg-[#071125] px-4 ps-10 text-sm text-white shadow-sm outline-none transition-[border-color,box-shadow,background-color] placeholder:text-slate-500 hover:border-primary/45 focus:border-primary focus:ring-4 focus:ring-primary/15 disabled:cursor-not-allowed disabled:opacity-60 motion-reduce:transition-none"
+                        placeholder="name@company.com"
                       />
                     </div>
                   </div>
 
-                  <div>
-                    <label className="mb-1.5 block text-xs font-semibold text-foreground/80">
+                  <div className="space-y-2">
+                    <label
+                      htmlFor="login-password"
+                      className="block text-xs font-bold text-slate-200"
+                    >
                       {t("common.password")}
                     </label>
-                    <div className="relative flex items-center">
-                      <Lock className="absolute start-3.5 h-4 w-4 text-muted-foreground" />
+                    <div className="relative">
+                      <Lock
+                        className="pointer-events-none absolute start-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+                        aria-hidden
+                      />
                       <input
+                        id="login-password"
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
                         type={showPassword ? "text" : "password"}
                         autoComplete="current-password"
                         required
                         minLength={6}
-                        className="h-11 w-full rounded-xl border border-border/80 bg-surface-1 ps-10 pe-11 text-sm text-foreground placeholder:text-muted-foreground/60 transition focus:border-primary focus:bg-background focus:outline-none focus:ring-2 focus:ring-primary/20"
+                        disabled={loading}
+                        dir="ltr"
+                        className="h-12 w-full rounded-2xl border border-white/10 bg-[#071125] px-4 ps-10 pe-12 text-sm text-white shadow-sm outline-none transition-[border-color,box-shadow,background-color] placeholder:text-slate-500 hover:border-primary/45 focus:border-primary focus:ring-4 focus:ring-primary/15 disabled:cursor-not-allowed disabled:opacity-60 motion-reduce:transition-none"
                         placeholder="••••••••"
                       />
                       <button
                         type="button"
-                        onClick={() => setShowPassword(!showPassword)}
-                        className="absolute end-3 grid h-7 w-7 place-items-center text-muted-foreground hover:text-foreground transition"
-                        title={
+                        onClick={() => setShowPassword((visible) => !visible)}
+                        className="absolute end-2 top-1/2 grid size-9 -translate-y-1/2 place-items-center rounded-xl text-slate-400 transition-colors hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-not-allowed disabled:opacity-60 motion-reduce:transition-none"
+                        aria-label={
                           showPassword
                             ? isRtl
                               ? "إخفاء كلمة المرور"
@@ -308,55 +280,51 @@ function AuthPage() {
                               ? "إظهار كلمة المرور"
                               : "Show password"
                         }
+                        aria-pressed={showPassword}
+                        disabled={loading}
                       >
                         {showPassword ? (
-                          <EyeOff className="h-4 w-4" />
+                          <EyeOff className="size-4" aria-hidden />
                         ) : (
-                          <Eye className="h-4 w-4" />
+                          <Eye className="size-4" aria-hidden />
                         )}
                       </button>
                     </div>
                   </div>
 
-                  <button
+                  <Button
                     type="submit"
-                    disabled={loading}
-                    className="mt-2 flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-primary to-primary/90 text-sm font-bold text-primary-foreground shadow-lg shadow-primary/25 transition-all hover:brightness-110 active:scale-[0.99] disabled:opacity-60"
+                    size="lg"
+                    loading={loading}
+                    icon={<LogIn aria-hidden />}
+                    className="mt-2 h-12 w-full rounded-2xl bg-primary text-sm font-bold shadow-[0_14px_30px_-12px_color-mix(in_oklab,var(--primary)_80%,transparent)] hover:bg-primary/90 focus-visible:ring-primary/40"
                   >
-                    {loading ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <LogIn className="h-4 w-4" />
-                    )}
-                    <span>
-                      {loading
-                        ? isRtl
-                          ? "جاري التحقق..."
-                          : "Signing in..."
-                        : isRtl
-                          ? "دخول إلى النظام"
-                          : "Sign In"}
-                    </span>
-                  </button>
+                    {loading
+                      ? isRtl
+                        ? "جارٍ تسجيل الدخول..."
+                        : "Signing in..."
+                      : isRtl
+                        ? "تسجيل الدخول"
+                        : "Sign in"}
+                  </Button>
                 </form>
-              </div>
 
-              {/* Administrative Notice */}
-              <div className="mt-6 pt-3 border-t border-border/50 text-center text-[11px] text-muted-foreground">
-                <span>
-                  {isRtl
-                    ? "إنشاء وتعيين الحسابات يتم حصراً عبر إدارة النظام والمشرفين."
-                    : "Account provisioning is restricted to authorized administrators."}
-                </span>
+                <div className="mt-7 flex items-start gap-2.5 border-t border-white/10 pt-5 text-[11px] leading-5 text-slate-400">
+                  <ShieldCheck className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden />
+                  <p>
+                    {isRtl
+                      ? "يتم إنشاء الحسابات وإدارتها من قبل إدارة النظام فقط."
+                      : "Accounts are created and managed by your system administrator only."}
+                  </p>
+                </div>
               </div>
-            </div>
+            </section>
           </div>
         </div>
       </main>
 
-      {/* Company Branding Footer - Positioned strictly UNDER the card */}
-      <footer className="mt-8 w-full">
-        <InamaSoftFooter className="border-t border-border/60 bg-surface/60 backdrop-blur-md" />
+      <footer className="relative z-10 w-full">
+        <InamaSoftFooter className="border-t border-white/10 bg-[#030817]/80 text-slate-500 backdrop-blur-md" />
       </footer>
     </div>
   );

@@ -383,7 +383,7 @@ export function GuidedItemDialog({ onClose, onCreated, units, categories }: Guid
                     onChange={(event) => setCategoryId(event.target.value)}
                     className={inputClass}
                   >
-                    <option value="">—</option>
+                    <option value="">{ar ? "اختر التصنيف..." : "Select category..."}</option>
                     {categories.map((category) => (
                       <option key={category.id} value={category.id}>
                         {ar ? category.name_ar || category.name : category.name}
@@ -438,7 +438,7 @@ export function GuidedItemDialog({ onClose, onCreated, units, categories }: Guid
                     onChange={(event) => setBaseUomId(event.target.value)}
                     className={inputClass}
                   >
-                    <option value="">—</option>
+                    <option value="">{ar ? "اختر وحدة القياس..." : "Select unit..."}</option>
                     {units.map((unit) => (
                       <option key={unit.id} value={unit.id}>
                         {ar ? unit.name_ar || unit.name : unit.name} ({unit.short_name})

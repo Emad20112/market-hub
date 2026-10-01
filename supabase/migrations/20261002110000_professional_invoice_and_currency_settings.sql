@@ -34,6 +34,10 @@ SET currency_symbol = CASE currency
 END
 WHERE currency_symbol IS NULL OR btrim(currency_symbol) = '';
 
+UPDATE public.company_settings
+SET currency_symbol = 'ر.ي'
+WHERE currency = 'YER' AND currency_symbol = '﷼';
+
 DO $$
 BEGIN
   IF NOT EXISTS (
@@ -146,10 +150,12 @@ SET public = EXCLUDED.public,
     file_size_limit = EXCLUDED.file_size_limit,
     allowed_mime_types = EXCLUDED.allowed_mime_types;
 
+DROP POLICY IF EXISTS "Company logos are publicly readable" ON storage.objects;
 CREATE POLICY "Company logos are publicly readable"
   ON storage.objects FOR SELECT
   USING (bucket_id = 'company-logos');
 
+DROP POLICY IF EXISTS "Owners and managers can upload company logos" ON storage.objects;
 CREATE POLICY "Owners and managers can upload company logos"
   ON storage.objects FOR INSERT TO authenticated
   WITH CHECK (

@@ -51,6 +51,7 @@ import {
   Mail,
   Calendar,
   Eye,
+  Pencil,
   Send,
   MessageCircle,
   Briefcase,
@@ -159,15 +160,25 @@ function UsersPage() {
   const [addEmail, setAddEmail] = useState("");
   const [addPhone, setAddPhone] = useState("");
   const [addRole, setAddRole] = useState<StoreRole>(DEFAULT_NEW_ROLE);
+  const [addPassword, setAddPassword] = useState("");
+  const [addConfirmPassword, setAddConfirmPassword] = useState("");
+  const [useGeneratedPassword, setUseGeneratedPassword] = useState(true);
   const [addSaving, setAddSaving] = useState(false);
   const [issued, setIssued] = useState<IssuedCredentials | null>(null);
+
+  const [editOpen, setEditOpen] = useState(false);
+  const [editUser, setEditUser] = useState<any | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editPhone, setEditPhone] = useState("");
+  const [editLanguage, setEditLanguage] = useState("ar");
+  const [editSaving, setEditSaving] = useState(false);
   const [copiedField, setCopiedField] = useState<"password" | "all" | null>(null);
 
   async function load() {
     setLoading(true);
     try {
       const [profilesRes, rolesRes, platformRes] = await Promise.all([
-        supabase.from("profiles").select("id, full_name, avatar_url, phone, created_at, is_active"),
+        supabase.from("profiles").select("id, full_name, avatar_url, phone, language, created_at, is_active"),
         supabase.from("user_roles").select("id, user_id, role"),
         isSuper
           ? (supabase as any)
@@ -222,6 +233,14 @@ function UsersPage() {
   useEffect(() => {
     void load();
   }, [isSuper]);
+
+  const platformAdminIds = useMemo(
+    () =>
+      new Set(
+        platformAdminRows.filter((p) => p.is_active !== false).map((p) => p.user_id as string),
+      ),
+    [platformAdminRows],
+  );
 
   // Statistics calculation
   const stats = useMemo(() => {
@@ -332,10 +351,48 @@ function UsersPage() {
     void load();
   }
 
+  function openEditUser(row: any) {
+    setEditUser(row);
+    setEditName(row.full_name ?? "");
+    setEditPhone(row.phone ?? "");
+    setEditLanguage(row.language ?? "ar");
+    setEditOpen(true);
+  }
+
+  async function saveEditUser() {
+    if (!editUser) return;
+    const name = editName.trim();
+    const phone = editPhone.trim();
+
+    if (name.length < 2) {
+      return toast.error(isAr ? "يرجى إدخال اسم صحيح." : "Please enter a valid name.");
+    }
+
+    setEditSaving(true);
+    try {
+      const { error } = await supabase
+        .from("profiles")
+        .update({ full_name: name, phone: phone || null, language: editLanguage })
+        .eq("id", editUser.id);
+
+      if (error) throw error;
+      toast.success(isAr ? "تم تحديث بيانات الموظف" : "Employee details updated");
+      setEditOpen(false);
+      setEditUser(null);
+      void load();
+    } catch (err: any) {
+      toast.error(err?.message ?? (isAr ? "تعذر تحديث بيانات الموظف" : "Failed to update employee"));
+    } finally {
+      setEditSaving(false);
+    }
+  }
+
   async function createStoreUser() {
     const name = addName.trim();
     const email = addEmail.trim().toLowerCase();
     const phone = addPhone.trim();
+    const password = addPassword;
+    const confirmPassword = addConfirmPassword;
 
     if (name.length < 2) {
       return toast.error(isAr ? "يرجى إدخال اسم المستخدم." : "Please enter the user's name.");
@@ -348,6 +405,14 @@ function UsersPage() {
     if (STORE_ROLES.indexOf(addRole) === -1) {
       return toast.error(isAr ? "الدور المحدد غير مسموح." : "The selected role is not allowed.");
     }
+    if (!useGeneratedPassword) {
+      if (password.length < 8) {
+        return toast.error(isAr ? "كلمة المرور يجب أن تحتوي على 8 أحرف على الأقل." : "Password must be at least 8 characters.");
+      }
+      if (password !== confirmPassword) {
+        return toast.error(isAr ? "كلمتا المرور غير متطابقتين." : "Passwords do not match.");
+      }
+    }
 
     setAddSaving(true);
     try {
@@ -359,7 +424,14 @@ function UsersPage() {
       }
 
       const { data, error } = await supabase.functions.invoke("admin-create-user", {
-        body: { email, full_name: name, phone, role: addRole, language: lang },
+        body: {
+          email,
+          full_name: name,
+          phone,
+          role: addRole,
+          language: lang,
+          ...(useGeneratedPassword ? {} : { password }),
+        },
         headers: { Authorization: `Bearer ${accessToken}` },
       });
 
@@ -382,15 +454,20 @@ function UsersPage() {
         );
       }
 
-      setIssued({
-        email: data.email,
-        password: data.password,
-        full_name: data.full_name,
-        role: data.role,
-        phone,
-      });
-      setCopiedField(null);
-      toast.success(isAr ? "تم إنشاء حساب المستخدم بنجاح" : "User account created successfully");
+      if (useGeneratedPassword) {
+        setIssued({
+          email: data.email,
+          password: data.password,
+          full_name: data.full_name,
+          role: data.role,
+          phone,
+        });
+        setCopiedField(null);
+      } else {
+        toast.success(isAr ? "تم إنشاء حساب المستخدم بنجاح" : "User account created successfully");
+        setAddOpen(false);
+        resetCreateDialog();
+      }
       void load();
     } catch (err: any) {
       toast.error(err?.message ?? (isAr ? "تعذر إنشاء المستخدم" : "Failed to create user"));
@@ -406,6 +483,9 @@ function UsersPage() {
     setAddEmail("");
     setAddPhone("");
     setAddRole(DEFAULT_NEW_ROLE);
+    setAddPassword("");
+    setAddConfirmPassword("");
+    setUseGeneratedPassword(true);
   }
 
   async function copyToClipboard(text: string, field: "password" | "all") {
@@ -453,7 +533,9 @@ function UsersPage() {
         </div>
 
         <div className="flex items-center gap-2">
+          {canManageStore && (
           <RolePermissionsDialog
+            showPlatformRole={isSuper}
             trigger={
               <Button
                 variant="outline"
@@ -465,6 +547,7 @@ function UsersPage() {
               </Button>
             }
           />
+          )}
 
           {canManageStore && (
             <Button
@@ -575,7 +658,7 @@ function UsersPage() {
             <div className="w-full sm:flex-1">
               <VortexSearchInput
                 value={search}
-                onChange={setSearch}
+                onValueChange={setSearch}
                 placeholder={
                   isAr
                     ? "ابحث بالاسم، الدور، أو رقم الهاتف..."
@@ -678,6 +761,8 @@ function UsersPage() {
                 <div className="divide-y divide-border/50">
                   {filteredStoreRows.map((r) => {
                     const isCurrentUser = r.id === user?.id;
+                    // مدير المنصة لا يُعرض كمالك حتى لو كان يحمل دور owner في user_roles
+                    const isPlatformRow = platformAdminIds.has(r.id);
                     const hasOwner = r.roles.some((ro: any) => ro.role === "owner");
                     const initials = (r.full_name ?? "?").slice(0, 2).toUpperCase();
 
@@ -743,7 +828,18 @@ function UsersPage() {
 
                             {/* Roles badges list */}
                             <div className="flex flex-wrap items-center gap-1.5 pt-1">
-                              {r.roles.map((ro: any) => {
+                              {isPlatformRow && (
+                                <Badge
+                                  variant="outline"
+                                  className="gap-1.5 py-1 px-2.5 text-xs font-bold rounded-xl border bg-amber-500/20 text-amber-700 dark:text-amber-300 border-amber-500/40"
+                                >
+                                  <Crown className="size-3.5" />
+                                  <span>{isAr ? "سوبر أدمن" : "Superadmin"}</span>
+                                </Badge>
+                              )}
+                              {r.roles
+                                .filter((ro: any) => !(isPlatformRow && ro.role === "owner"))
+                                .map((ro: any) => {
                                 const meta = getRoleMeta(ro.role);
                                 const Icon = meta.icon;
                                 return (
@@ -808,7 +904,7 @@ function UsersPage() {
                                 className="h-8 text-xs gap-1.5 rounded-xl border-emerald-500/40 text-emerald-600 hover:bg-emerald-500/10"
                               >
                                 <UserCheck className="size-3.5" />
-                                <span>{isAr ? "تفعيل" : "Enable"}</span>
+                                <span>{isAr ? "إعادة تفعيل" : "Reactivate"}</span>
                               </Button>
                             ) : (
                               <Button
@@ -822,6 +918,18 @@ function UsersPage() {
                                 <span>{isAr ? "تعطيل" : "Disable"}</span>
                               </Button>
                             ))}
+
+                          {canManageStore && !isCurrentUser && !hasOwner && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => openEditUser(r)}
+                              className="size-8 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted"
+                              title={isAr ? "تعديل بيانات الموظف" : "Edit employee"}
+                            >
+                              <Pencil className="size-4" />
+                            </Button>
+                          )}
 
                           <Button
                             variant="ghost"
@@ -1016,6 +1124,93 @@ function UsersPage() {
         </SheetContent>
       </Sheet>
 
+      {/* Edit Employee Dialog */}
+      <Dialog
+        open={editOpen}
+        onOpenChange={(open) => {
+          setEditOpen(open);
+          if (!open) setEditUser(null);
+        }}
+      >
+        <DialogContent className="max-w-md rounded-3xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-base font-black">
+              <Pencil className="size-5 text-primary" />
+              <span>{isAr ? "تعديل بيانات الموظف" : "Edit Employee"}</span>
+            </DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground">
+              {isAr
+                ? "يمكنك تعديل الاسم ورقم الهاتف واللغة فقط."
+                : "You can edit the name, phone, and language only."}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-foreground">
+                {isAr ? "الاسم الكامل" : "Full Name"}
+              </label>
+              <Input
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+                maxLength={120}
+                className="h-10 text-xs rounded-2xl border-border/70"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-foreground">
+                {isAr ? "رقم الهاتف (اختياري)" : "Phone (optional)"}
+              </label>
+              <Input
+                type="tel"
+                value={editPhone}
+                onChange={(e) => setEditPhone(e.target.value)}
+                maxLength={40}
+                dir="ltr"
+                className="h-10 text-xs rounded-2xl border-border/70"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-foreground">
+                {isAr ? "اللغة" : "Language"}
+              </label>
+              <Select value={editLanguage} onValueChange={setEditLanguage}>
+                <SelectTrigger className="w-full h-10 text-xs rounded-2xl border-border/70">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ar" className="text-xs">العربية</SelectItem>
+                  <SelectItem value="en" className="text-xs">English</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="rounded-2xl h-10 px-4"
+              disabled={editSaving}
+              onClick={() => setEditOpen(false)}
+            >
+              {isAr ? "إلغاء" : "Cancel"}
+            </Button>
+            <Button
+              size="sm"
+              className="rounded-2xl h-10 px-5 gap-1.5 font-bold"
+              disabled={editSaving || !editName.trim()}
+              onClick={() => void saveEditUser()}
+            >
+              {editSaving && <Loader2 className="size-4 animate-spin" />}
+              <span>{editSaving ? (isAr ? "جارٍ الحفظ..." : "Saving...") : isAr ? "حفظ التغييرات" : "Save Changes"}</span>
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Create-User Dialog */}
       <Dialog
         open={addOpen}
@@ -1193,11 +1388,32 @@ function UsersPage() {
                 </Select>
               </div>
 
-              <p className="rounded-2xl border border-border/60 bg-muted/20 p-3 text-[11px] leading-relaxed text-muted-foreground">
-                {isAr
-                  ? "يتم توليد كلمة مرور معقدة وآمنة تلقائياً في السيرفر وتُسلّم لك مباشرة لتقديمها للموظف، مع تفعيل فوري للحساب دون أي انتظار."
-                  : "A secure password is automatically generated server-side and presented once for hand-off."}
-              </p>
+              <div className="rounded-2xl border border-border/60 bg-muted/20 p-3 text-[11px] leading-relaxed text-muted-foreground">
+                <div className="flex items-center justify-between gap-3">
+                  <label className="text-xs font-bold text-foreground">{isAr ? "كلمة المرور" : "Password"}</label>
+                  <label className="flex items-center gap-2 text-[11px] text-muted-foreground">
+                    <input type="checkbox" checked={useGeneratedPassword} onChange={(e) => setUseGeneratedPassword(e.target.checked)} className="accent-primary" />
+                    <span>{isAr ? "توليد تلقائي" : "Generate automatically"}</span>
+                  </label>
+                </div>
+                {!useGeneratedPassword && (
+                  <>
+                    <label className="block pt-2 text-[11px] font-semibold text-foreground">{isAr ? "كلمة المرور" : "Password"}</label>
+                    <Input type="password" value={addPassword} onChange={(e) => setAddPassword(e.target.value)} placeholder={isAr ? "8 أحرف على الأقل" : "At least 8 characters"} className="h-10 text-xs rounded-2xl border-border/70" autoComplete="new-password" maxLength={128} />
+                    <label className="block pt-2 text-[11px] font-semibold text-foreground">{isAr ? "تأكيد كلمة المرور" : "Confirm Password"}</label>
+                    <Input type="password" value={addConfirmPassword} onChange={(e) => setAddConfirmPassword(e.target.value)} placeholder={isAr ? "أعد كتابة كلمة المرور" : "Re-enter password"} className="h-10 text-xs rounded-2xl border-border/70" autoComplete="new-password" maxLength={128} />
+                  </>
+                )}
+                <p className="text-[11px] leading-relaxed text-muted-foreground">
+                  {useGeneratedPassword
+                    ? isAr
+                      ? "سيتم توليد كلمة مرور آمنة في السيرفر وعرضها مرة واحدة بعد نجاح الإنشاء."
+                      : "A secure password will be generated on the server and shown once after creation."
+                    : isAr
+                      ? "لن يتم حفظ كلمة المرور أو عرضها بعد إنشاء الحساب."
+                      : "The password will not be stored or shown after account creation."}
+                </p>
+              </div>
             </div>
           )}
 
