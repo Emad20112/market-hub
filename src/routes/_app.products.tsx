@@ -1,3 +1,4 @@
+import { cn } from "@/lib/utils";
 import {
   VortexDrawerDialog,
   VortexTextInput,
@@ -46,7 +47,8 @@ import {
   SlidersHorizontal,
   ShieldCheck,
   Percent,
-  X
+  X,
+  Copy
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/auth";
@@ -2444,7 +2446,7 @@ function ProductDialog({
                   value={policy.tracking}
                   options={( ["NONE", "BATCH", "SERIAL"] as ItemTracking[]).map((value) => ({
                     value,
-                    label: ITEM_TRACKING_LABELS[value][lang === "ar" ? "ar" : "en"],
+                    label: TRACKING_LABELS[value][lang === "ar" ? "ar" : "en"],
                   }))}
                   onChange={(value) =>
                     setPolicy((current) => ({

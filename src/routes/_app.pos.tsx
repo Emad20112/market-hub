@@ -477,14 +477,13 @@ function POSPage() {
       ] = await Promise.all([
         supabase.from("warehouses").select("id,name,name_ar").eq("is_active", true).order("name"),
         supabase.from("customers").select("id,name,phone,balance,credit_limit").eq("is_active", true).order("name"),
-        supabase
-          .from("products")
+        (supabase.from("products") as any)
           .select(
-            "id,sku,barcode,name,name_ar,sale_price,tax_rate,image_url,category_id,brand_id,unit_id,origin_id,quality_grade_id,unit:units(short_name,name,name_ar),category:categories(name,name_ar),brand:brands(name,name_ar),origin:countries_of_origin(name,name_ar,code),quality:quality_grades(name,name_ar,code)",
+            "id,sku,barcode,name,name_ar,sale_price,tax_rate,image_url,category_id,brand_id,unit_id,origin_id,quality_grade_id,is_active",
           )
-          .eq("is_active", true)
+          .neq("is_active", false)
           .order("name")
-          .limit(500),
+          .limit(1000),
         supabase.from("categories").select("id,name,name_ar").order("name"),
         supabase.from("brands").select("id,name,name_ar").order("name"),
         supabase.from("units").select("id,name,name_ar,short_name").order("name"),
@@ -501,7 +500,37 @@ function POSPage() {
       const loadedWarehouses = ws ?? [];
       setWarehouses(loadedWarehouses);
       setCustomers(cs ?? []);
-      setProducts((ps as any) ?? []);
+
+      // Build safe in-memory lookup maps to enrich products without brittle DB joins
+      const catMap = new Map((cats ?? []).map((c: any) => [c.id, c]));
+      const brandMap = new Map((brs ?? []).map((b: any) => [b.id, b]));
+      const unitMap = new Map((uns ?? []).map((u: any) => [u.id, u]));
+      const origMap = new Map((origs ?? []).map((o: any) => [o.id, o]));
+      const qualMap = new Map((quals ?? []).map((q: any) => [q.id, q]));
+
+      let rawProducts = (ps as any) ?? [];
+      // Fallback query if the first returned empty due to column discrepancy
+      if (!rawProducts.length) {
+        try {
+          const { data: fallbackPs } = await (supabase.from("products") as any)
+            .select("id,sku,barcode,name,name_ar,sale_price,tax_rate,image_url,category_id,brand_id,unit_id")
+            .limit(1000);
+          if (fallbackPs && fallbackPs.length) rawProducts = fallbackPs;
+        } catch (e) {
+          console.warn("Fallback products query error:", e);
+        }
+      }
+
+      const enrichedProducts = rawProducts.map((p: any) => ({
+        ...p,
+        category: p.category_id ? catMap.get(p.category_id) || null : null,
+        brand: p.brand_id ? brandMap.get(p.brand_id) || null : null,
+        unit: p.unit_id ? unitMap.get(p.unit_id) || null : null,
+        origin: p.origin_id ? origMap.get(p.origin_id) || null : null,
+        quality: p.quality_grade_id ? qualMap.get(p.quality_grade_id) || null : null,
+      }));
+
+      setProducts(enrichedProducts);
       setCategories(cats ?? []);
       setBrands(brs ?? []);
       setUnits(uns ?? []);

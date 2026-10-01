@@ -331,35 +331,37 @@ function DashboardPage() {
         }
       />
 
-      {/* Executive Luxury Greeting & Calendar Masterpiece */}
-      <div className="relative mb-6 overflow-hidden rounded-3xl border border-border/80 bg-gradient-to-br from-card/90 via-card to-surface-2/40 p-4 sm:p-6 shadow-sm backdrop-blur-xl">
-        <div className="pointer-events-none absolute -end-16 -top-16 size-60 rounded-full bg-primary/10 blur-3xl opacity-60" />
+      {/* Executive Luxury Greeting & Live Intelligence Hero */}
+      <div className="relative mb-6 overflow-hidden rounded-3xl border border-border/80 bg-gradient-to-br from-card/95 via-card/85 to-surface-2/50 p-4.5 sm:p-6 shadow-sm backdrop-blur-xl">
+        {/* Subtle Ambient Glow Elements */}
+        <div className="pointer-events-none absolute -end-20 -top-20 size-72 rounded-full bg-primary/10 blur-3xl opacity-70" />
+        <div className="pointer-events-none absolute -start-20 -bottom-20 size-72 rounded-full bg-emerald-500/10 blur-3xl opacity-50" />
 
-        <div className="relative flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          {/* Left / Start: Smart Greeting with Avatar & Role */}
-          <div className="flex items-center gap-3.5">
+        <div className="relative flex flex-col lg:flex-row lg:items-center justify-between gap-5">
+          {/* Section 1: Executive Identity & Smart Dynamic Greeting */}
+          <div className="flex items-start sm:items-center gap-3.5 sm:gap-4.5">
             <div className="relative shrink-0">
               {profile?.avatar_url ? (
                 <img
                   src={profile.avatar_url}
                   alt={userName}
-                  className="size-12 sm:size-14 rounded-2xl object-cover border-2 border-primary/20 shadow-md"
+                  className="size-13 sm:size-16 rounded-2xl object-cover border-2 border-primary/25 shadow-md shadow-primary/10"
                 />
               ) : (
-                <div className="grid size-12 sm:size-14 place-items-center rounded-2xl bg-gradient-to-tr from-primary to-primary/80 text-primary-foreground font-black text-xl sm:text-2xl shadow-md shadow-primary/20 border border-primary/30">
-                  {userName ? userName.charAt(0).toUpperCase() : "م"}
+                <div className="grid size-13 sm:size-16 place-items-center rounded-2xl bg-gradient-to-tr from-primary via-primary/95 to-primary/80 text-primary-foreground font-black text-xl sm:text-2xl shadow-md shadow-primary/20 border border-primary/30">
+                  {userName ? userName.charAt(0).toUpperCase() : "V"}
                 </div>
               )}
-              {/* Online pulse dot */}
-              <span className="absolute -bottom-0.5 -end-0.5 flex size-3.5 items-center justify-center">
+              {/* Live Connectivity Ring */}
+              <span className="absolute -bottom-1 -end-1 flex size-4 items-center justify-center">
                 <span className="absolute inline-flex size-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-                <span className="relative inline-flex size-2.5 rounded-full bg-emerald-500 border-2 border-card" />
+                <span className="relative inline-flex size-3 rounded-full bg-emerald-500 border-2 border-card" />
               </span>
             </div>
 
-            <div className="space-y-1">
+            <div className="space-y-1.5">
               <div className="flex flex-wrap items-center gap-2">
-                <span className="inline-flex items-center gap-1.5 rounded-full border border-primary/25 bg-primary/10 px-2.5 py-0.5 text-xs font-bold text-primary">
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-primary/25 bg-primary/10 px-2.5 py-0.5 text-xs font-bold text-primary shadow-xs">
                   <GreetingIcon className={`size-3.5 ${greeting.color}`} />
                   <span>{greeting.badge}</span>
                 </span>
@@ -370,53 +372,59 @@ function DashboardPage() {
                 </span>
               </div>
 
-              <h2 className="text-xl sm:text-2xl font-black tracking-tight text-foreground flex items-center gap-1.5">
+              <h2 className="text-xl sm:text-2xl lg:text-3xl font-black tracking-tight text-foreground flex items-center gap-2">
                 <span>{greeting.title}،</span>
                 <span className="bg-gradient-to-l from-primary via-primary/90 to-foreground bg-clip-text text-transparent">
                   {userName}
                 </span>
-                <span className="text-lg select-none">✨</span>
+                <span className="text-xl select-none animate-pulse">✨</span>
               </h2>
 
-              <p className="text-xs text-muted-foreground flex items-center gap-1.5">
-                <span className="inline-block size-1.5 rounded-full bg-emerald-500" />
-                <span>
-                  {isAr ? "نظام فورتكس يعمل بكفاءة ومباشر" : "Vortex ERP connected & live"}
+              <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+                <span className="inline-flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 font-medium">
+                  <span className="inline-block size-2 rounded-full bg-emerald-500 animate-pulse" />
+                  {isAr ? "نظام فورتكس ERP متصل ومباشر" : "Vortex ERP Connected & Live"}
                 </span>
-              </p>
+                <span className="hidden sm:inline-block size-1 rounded-full bg-muted-foreground/30" />
+                <span className="hidden sm:inline-flex items-center gap-1">
+                  <Clock className="size-3.5 text-muted-foreground" />
+                  <span>{now.toLocaleTimeString(isAr ? "ar-SA" : "en-US", { hour: "2-digit", minute: "2-digit" })}</span>
+                </span>
+              </div>
             </div>
           </div>
 
-          {/* Right / End: The Calendar Masterpiece Card (تحفة تقويمية فاخرة) */}
-          <div className="self-end sm:self-auto shrink-0">
+          {/* Section 2: Luxury Calendar & Date Masterpiece Widget */}
+          <div className="flex items-center gap-3 self-stretch sm:self-auto justify-between sm:justify-end">
             {(() => {
               const luxuryDate = formatLuxuryDate(now, { showDayName: true, showYear: true });
               return (
-                <div className="group relative overflow-hidden rounded-2xl border border-border/80 bg-card shadow-sm transition-all hover:border-primary/40 hover:shadow-md">
-                  {/* Calendar Top Accent Header Bar */}
-                  <div className="flex items-center justify-between gap-3 bg-gradient-to-r from-primary via-primary/95 to-primary/90 px-3.5 py-1 text-primary-foreground">
-                    <span className="text-[11px] font-black tracking-wider uppercase">
-                      {luxuryDate.month}
+                <div className="w-full sm:w-auto group relative overflow-hidden rounded-2xl border border-border/80 bg-gradient-to-br from-card via-card to-surface-2/40 shadow-sm transition-all hover:border-primary/40 hover:shadow-md">
+                  {/* Top Header Strip */}
+                  <div className="flex items-center justify-between gap-4 bg-gradient-to-r from-primary via-primary/95 to-primary/90 px-4 py-1.5 text-primary-foreground">
+                    <span className="text-xs font-black tracking-wider uppercase flex items-center gap-1.5">
+                      <CalendarIcon className="size-3.5 opacity-90" />
+                      <span>{luxuryDate.month}</span>
                     </span>
-                    <span className="text-[10px] font-bold opacity-90 font-mono">
+                    <span className="text-xs font-bold font-mono opacity-90">
                       {luxuryDate.year}
                     </span>
                   </div>
 
-                  {/* Calendar Body */}
-                  <div className="flex items-center gap-3 px-3.5 py-2 bg-gradient-to-b from-card via-card to-surface-2/30">
-                    <div className="text-center min-w-[2.2rem]">
-                      <span className="block text-2xl sm:text-3xl font-black text-foreground font-mono leading-none tracking-tight">
+                  {/* Body Details */}
+                  <div className="flex items-center gap-3.5 px-4 py-2.5">
+                    <div className="text-center min-w-[2.5rem]">
+                      <span className="block text-3xl sm:text-4xl font-black text-foreground font-mono leading-none tracking-tight">
                         {luxuryDate.day}
                       </span>
                     </div>
-                    <div className="h-7 w-px bg-border/60" />
+                    <div className="h-9 w-px bg-border/70" />
                     <div className="space-y-0.5">
-                      <span className="block text-xs font-bold text-foreground">
+                      <span className="block text-sm font-bold text-foreground">
                         {luxuryDate.weekday}
                       </span>
-                      <span className="block text-[10px] text-muted-foreground">
-                        {isAr ? "اليوم الحالي" : "Today"}
+                      <span className="block text-[11px] text-muted-foreground font-medium">
+                        {isAr ? "التاريخ اليومي المعتمد" : "System Current Date"}
                       </span>
                     </div>
                   </div>
@@ -426,8 +434,69 @@ function DashboardPage() {
           </div>
         </div>
 
-        {/* Sleek Quick Action Dock */}
-        <div className="mt-4 flex flex-wrap items-center gap-2 pt-3 border-t border-border/60">
+        {/* Section 3: Live Business Pulse Bar (نبض الأعمال اليومي المباشر) */}
+        {data?.daily && (
+          <div className="mt-4 pt-3.5 border-t border-border/60 grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+            {(() => {
+              const todayDaily = data.daily[data.daily.length - 1];
+              const todayRev = todayDaily?.revenue ?? 0;
+              const todayOrd = todayDaily?.orders ?? 0;
+              const alerts = data.alerts ?? 0;
+              const rec = data.receivables ?? 0;
+
+              return (
+                <>
+                  <div className="rounded-xl border border-border/70 bg-surface/60 p-2.5 backdrop-blur-sm transition-all hover:border-primary/30">
+                    <div className="flex items-center justify-between text-[11px] text-muted-foreground font-medium">
+                      <span>{isAr ? "مبيعات اليوم" : "Today Revenue"}</span>
+                      <TrendingUp className="size-3 text-emerald-500" />
+                    </div>
+                    <div className="mt-1 text-sm sm:text-base font-black font-mono text-foreground">
+                      {money(todayRev)}
+                    </div>
+                  </div>
+
+                  <div className="rounded-xl border border-border/70 bg-surface/60 p-2.5 backdrop-blur-sm transition-all hover:border-primary/30">
+                    <div className="flex items-center justify-between text-[11px] text-muted-foreground font-medium">
+                      <span>{isAr ? "فواتير اليوم" : "Today Invoices"}</span>
+                      <ShoppingCart className="size-3 text-primary" />
+                    </div>
+                    <div className="mt-1 text-sm sm:text-base font-black font-mono text-foreground">
+                      {num(todayOrd)} <span className="text-[10px] font-normal text-muted-foreground">{isAr ? "فاتورة" : "inv"}</span>
+                    </div>
+                  </div>
+
+                  <div className="rounded-xl border border-border/70 bg-surface/60 p-2.5 backdrop-blur-sm transition-all hover:border-primary/30">
+                    <div className="flex items-center justify-between text-[11px] text-muted-foreground font-medium">
+                      <span>{isAr ? "مستحقات التحصيل" : "Receivables"}</span>
+                      <Wallet className="size-3 text-amber-500" />
+                    </div>
+                    <div className="mt-1 text-sm sm:text-base font-black font-mono text-foreground">
+                      {money(rec)}
+                    </div>
+                  </div>
+
+                  <div className="rounded-xl border border-border/70 bg-surface/60 p-2.5 backdrop-blur-sm transition-all hover:border-primary/30">
+                    <div className="flex items-center justify-between text-[11px] text-muted-foreground font-medium">
+                      <span>{isAr ? "تنبيهات المخزون" : "Stock Alerts"}</span>
+                      <AlertTriangle className={`size-3 ${alerts > 0 ? "text-rose-500" : "text-emerald-500"}`} />
+                    </div>
+                    <div className="mt-1 text-sm sm:text-base font-black font-mono text-foreground">
+                      {alerts > 0 ? (
+                        <span className="text-rose-600 dark:text-rose-400">{alerts} {isAr ? "نواقص" : "items"}</span>
+                      ) : (
+                        <span className="text-emerald-600 dark:text-emerald-400">{isAr ? "ممتاز ✓" : "Healthy ✓"}</span>
+                      )}
+                    </div>
+                  </div>
+                </>
+              );
+            })()}
+          </div>
+        )}
+
+        {/* Section 4: Sleek Quick Action Dock */}
+        <div className="mt-3.5 flex flex-wrap items-center gap-2 pt-3 border-t border-border/60">
           <Link
             to="/pos"
             className="inline-flex h-8 sm:h-9 items-center gap-1.5 rounded-xl bg-primary px-3 text-xs font-bold text-primary-foreground shadow-sm hover:bg-primary/90 transition-all active:scale-95"
@@ -448,6 +517,13 @@ function DashboardPage() {
           >
             <Wallet className="size-3.5 text-muted-foreground" />
             <span>{lang === "ar" ? "الديون والتحصيل" : "Debts & Collection"}</span>
+          </Link>
+          <Link
+            to="/products"
+            className="inline-flex h-8 sm:h-9 items-center gap-1.5 rounded-xl border border-border/80 bg-surface/80 px-3 text-xs font-semibold text-foreground hover:bg-surface-2 transition-all active:scale-95"
+          >
+            <Package className="size-3.5 text-muted-foreground" />
+            <span>{lang === "ar" ? "كتالوج المنتجات" : "Products"}</span>
           </Link>
           {isModuleEnabled("analytics") && (
             <Link
