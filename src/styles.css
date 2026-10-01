@@ -149,15 +149,6 @@
 
 :root,
 .dark {
-<<<<<<< HEAD
-  /* Rich Midnight Slate — comfortable, premium, deep depth */
-  --background: oklch(0.165 0.018 258);
-  --foreground: oklch(0.95 0.008 258);
-  --surface: oklch(0.2 0.022 258);
-  --surface-elevated: oklch(0.23 0.024 258);
-  --surface-2: oklch(0.25 0.026 258);
-  --surface-3: oklch(0.29 0.028 258);
-=======
   /* Ultra-Luxury Obsidian Midnight Velvet — deep, majestic depth, zero washed-out haze */
   --background: oklch(0.128 0.018 260);
   --foreground: oklch(0.985 0.006 60);
@@ -165,30 +156,20 @@
   --surface-elevated: oklch(0.195 0.025 260);
   --surface-2: oklch(0.218 0.027 260);
   --surface-3: oklch(0.255 0.028 260);
->>>>>>> origin/main
 
   --card: oklch(0.172 0.024 260);
   --card-foreground: oklch(0.985 0.006 60);
   --popover: oklch(0.192 0.025 260);
   --popover-foreground: oklch(0.985 0.006 60);
 
-<<<<<<< HEAD
-  --primary: oklch(0.65 0.2 258); /* Vibrant Royal Sapphire */
-=======
   --primary: oklch(0.66 0.22 255); /* Royal Electric Sapphire / Luxury Jewel Cobalt */
->>>>>>> origin/main
   --primary-foreground: oklch(1 0 0);
 
   --secondary: oklch(0.215 0.025 260);
   --secondary-foreground: oklch(0.96 0.008 260);
 
-<<<<<<< HEAD
-  --muted: oklch(0.23 0.02 258);
-  --muted-foreground: oklch(0.7 0.015 258);
-=======
   --muted: oklch(0.20 0.022 260);
   --muted-foreground: oklch(0.70 0.018 260);
->>>>>>> origin/main
 
   --accent: oklch(0.225 0.026 260);
   --accent-foreground: oklch(0.98 0.006 260);
@@ -200,21 +181,6 @@
   --warning: oklch(0.79 0.16 78);
   --warning-foreground: oklch(0.15 0 0);
 
-<<<<<<< HEAD
-  --border: oklch(1 0 0 / 0.1);
-  --input: oklch(1 0 0 / 0.09);
-  --ring: oklch(0.65 0.2 258 / 0.5);
-
-  --chart-1: oklch(0.65 0.2 258);
-  --chart-2: oklch(0.7 0.18 180);
-  --chart-3: oklch(0.72 0.17 80);
-  --chart-4: oklch(0.66 0.22 320);
-  --chart-5: oklch(0.66 0.17 155);
-
-  --sidebar: oklch(0.145 0.018 258);
-  --sidebar-foreground: oklch(0.82 0.012 258);
-  --sidebar-primary: oklch(0.65 0.2 258);
-=======
   --border: oklch(1 0 0 / 0.09);
   --input: oklch(1 0 0 / 0.10);
   --ring: oklch(0.66 0.22 255 / 0.6);
@@ -228,28 +194,10 @@
   --sidebar: oklch(0.112 0.016 260);
   --sidebar-foreground: oklch(0.86 0.012 260);
   --sidebar-primary: oklch(0.66 0.22 255);
->>>>>>> origin/main
   --sidebar-primary-foreground: oklch(1 0 0);
   --sidebar-accent: oklch(0.185 0.024 260);
   --sidebar-accent-foreground: oklch(0.98 0.006 260);
   --sidebar-border: oklch(1 0 0 / 0.08);
-<<<<<<< HEAD
-  --sidebar-ring: oklch(0.65 0.2 258 / 0.5);
-
-  /* Status tones (dark) */
-  --tone-neutral: oklch(0.28 0.015 258);
-  --tone-neutral-fg: oklch(0.75 0.012 258);
-  --tone-info: oklch(0.65 0.18 255 / 0.18);
-  --tone-info-fg: oklch(0.8 0.14 255);
-  --tone-success: oklch(0.66 0.17 155 / 0.18);
-  --tone-success-fg: oklch(0.82 0.14 158);
-  --tone-warning: oklch(0.78 0.15 80 / 0.18);
-  --tone-warning-fg: oklch(0.86 0.12 82);
-  --tone-danger: oklch(0.62 0.22 25 / 0.18);
-  --tone-danger-fg: oklch(0.8 0.15 25);
-  --tone-primary: oklch(0.65 0.2 258 / 0.18);
-  --tone-primary-fg: oklch(0.8 0.14 258);
-=======
   --sidebar-ring: oklch(0.66 0.22 255 / 0.6);
 
   /* Status tones (dark) */
@@ -265,7 +213,6 @@
   --tone-danger-fg: oklch(0.84 0.16 27);
   --tone-primary: oklch(0.66 0.22 255 / 0.20);
   --tone-primary-fg: oklch(0.84 0.14 255);
->>>>>>> origin/main
 }
 
 .light {
@@ -277,18 +224,6 @@
   --card: oklch(1 0 0);
   --card-foreground: oklch(0.17 0.040 258);
   --popover: oklch(1 0 0);
-<<<<<<< HEAD
-  --popover-foreground: oklch(0.18 0.035 258);
-  --primary: oklch(0.56 0.2 258);
-  --primary-foreground: oklch(1 0 0);
-  --secondary: oklch(0.935 0.01 250);
-  --secondary-foreground: oklch(0.2 0.03 258);
-  --muted: oklch(0.935 0.01 250);
-  --muted-foreground: oklch(0.5 0.02 258);
-  --accent: oklch(0.935 0.012 250);
-  --accent-foreground: oklch(0.18 0.035 258);
-  --destructive: oklch(0.58 0.23 25);
-=======
   --popover-foreground: oklch(0.17 0.040 258);
   --primary: oklch(0.55 0.22 258); /* Deep Majestic Royal Sapphire */
   --primary-foreground: oklch(0.99 0.01 55);
@@ -299,39 +234,9 @@
   --accent: oklch(0.945 0.010 60);
   --accent-foreground: oklch(0.17 0.040 258);
   --destructive: oklch(0.60 0.23 27);
->>>>>>> origin/main
   --destructive-foreground: oklch(1 0 0);
   --success: oklch(0.56 0.18 152);
   --success-foreground: oklch(1 0 0);
-<<<<<<< HEAD
-  --warning: oklch(0.7 0.16 80);
-  --warning-foreground: oklch(0.15 0 0);
-  --border: oklch(0.2 0.03 258 / 0.1);
-  --input: oklch(0.2 0.03 258 / 0.09);
-  --ring: oklch(0.56 0.2 258 / 0.5);
-  --sidebar: oklch(0.982 0.005 250);
-  --sidebar-foreground: oklch(0.25 0.03 258);
-  --sidebar-accent: oklch(0.935 0.01 250);
-  --sidebar-accent-foreground: oklch(0.18 0.035 258);
-  --sidebar-border: oklch(0.2 0.03 258 / 0.08);
-
-  --surface-2: oklch(0.94 0.01 250);
-  --surface-3: oklch(0.9 0.012 250);
-
-  /* Status tones (light) */
-  --tone-neutral: oklch(0.92 0.008 250);
-  --tone-neutral-fg: oklch(0.4 0.018 258);
-  --tone-info: oklch(0.56 0.18 255 / 0.12);
-  --tone-info-fg: oklch(0.4 0.17 255);
-  --tone-success: oklch(0.58 0.17 155 / 0.14);
-  --tone-success-fg: oklch(0.36 0.15 155);
-  --tone-warning: oklch(0.74 0.16 80 / 0.18);
-  --tone-warning-fg: oklch(0.42 0.14 75);
-  --tone-danger: oklch(0.58 0.23 25 / 0.12);
-  --tone-danger-fg: oklch(0.45 0.19 25);
-  --tone-primary: oklch(0.56 0.2 258 / 0.12);
-  --tone-primary-fg: oklch(0.4 0.17 258);
-=======
   --warning: oklch(0.72 0.16 78);
   --warning-foreground: oklch(0.15 0 0);
   --border: oklch(0.20 0.03 258 / 0.09);
@@ -359,7 +264,6 @@
   --tone-danger-fg: oklch(0.44 0.20 27);
   --tone-primary: oklch(0.55 0.22 258 / 0.12);
   --tone-primary-fg: oklch(0.38 0.18 258);
->>>>>>> origin/main
 }
 
 @layer base {
