@@ -30,7 +30,7 @@ import {
   Calendar as CalendarIcon,
   Clock,
   ArrowLeft,
-  ChevronLeft,,
+  ChevronLeft,
   Radio,
   Activity,
   Zap,
