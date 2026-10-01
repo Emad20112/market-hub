@@ -14,18 +14,18 @@
 
 ## 2. البيانات الحقيقية الموجودة (قراءة فقط)
 
-| الجدول | عدد الصفوف |
-|---|---|
-| `sales_invoices` | 86 |
-| `sales_invoice_items` | 152 |
-| `products` | 376 |
-| `stock_movements` | 381 |
-| `inventory` | 215 |
-| `customers` | 5 |
-| `customer_payments` | 1 |
-| `purchase_invoices` | 1 |
-| `profiles` | 3 |
-| `auth.users` | 3 |
+| الجدول                | عدد الصفوف |
+| --------------------- | ---------- |
+| `sales_invoices`      | 86         |
+| `sales_invoice_items` | 152        |
+| `products`            | 376        |
+| `stock_movements`     | 381        |
+| `inventory`           | 215        |
+| `customers`           | 5          |
+| `customer_payments`   | 1          |
+| `purchase_invoices`   | 1          |
+| `profiles`            | 3          |
+| `auth.users`          | 3          |
 
 ## 3. الترحيلات المعلّقة (غير مطبّقة)
 
@@ -60,22 +60,22 @@
 
 ### 4.1 لا يحذف ولا يُعدّل بيانات قائمة
 
-| الترحيل | ما يفعله |
-|---|---|
-| `20260918000050` | سياسات RLS فقط |
-| `20260918000100` | `ADD COLUMN is_active NOT NULL DEFAULT true` — كل الصفوف تصبح active |
-| `20260918000200` | تعديل دالة `is_staff` |
-| `20260926000000` | ⚠️ `UPDATE auth.users SET encrypted_password = crypt('Mm0534035aborak') WHERE email = 'mousa.mc13@gmail.com'` |
-| `20260930000x00` (7 ملفات) | دوال/صلاحيات/سياسات — لا DML |
+| الترحيل                    | ما يفعله                                                                                                      |
+| -------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| `20260918000050`           | سياسات RLS فقط                                                                                                |
+| `20260918000100`           | `ADD COLUMN is_active NOT NULL DEFAULT true` — كل الصفوف تصبح active                                          |
+| `20260918000200`           | تعديل دالة `is_staff`                                                                                         |
+| `20260926000000`           | ⚠️ `UPDATE auth.users SET encrypted_password = crypt('Mm0534035aborak') WHERE email = 'mousa.mc13@gmail.com'` |
+| `20260930000x00` (7 ملفات) | دوال/صلاحيات/سياسات — لا DML                                                                                  |
 
 ### 4.2 ⚠️ تعديل بيانات — لكن **يملأ NULL فقط** (لا يستبدل قيمة قائمة)
 
-| الترحيل | السطر | الأثر |
-|---|---|---|
-| `20260929000000` | L137 | `UPDATE products SET base_uom_id = unit_id WHERE base_uom_id IS NULL` |
-| `20260929010000` | L127 | `UPDATE stock_movements SET movement_kind = <map> WHERE movement_kind IS NULL` — يمسّ حتى 381 صفاً |
-| `20260929010000` | L142 | `UPDATE stock_movements SET total_cost = abs(qty)*unit_cost WHERE total_cost IS NULL` |
-| `20260929010000` | L149 | `UPDATE stock_movements SET source_type = reference_type WHERE source_type IS NULL` |
+| الترحيل          | السطر | الأثر                                                                                              |
+| ---------------- | ----- | -------------------------------------------------------------------------------------------------- |
+| `20260929000000` | L137  | `UPDATE products SET base_uom_id = unit_id WHERE base_uom_id IS NULL`                              |
+| `20260929010000` | L127  | `UPDATE stock_movements SET movement_kind = <map> WHERE movement_kind IS NULL` — يمسّ حتى 381 صفاً |
+| `20260929010000` | L142  | `UPDATE stock_movements SET total_cost = abs(qty)*unit_cost WHERE total_cost IS NULL`              |
+| `20260929010000` | L149  | `UPDATE stock_movements SET source_type = reference_type WHERE source_type IS NULL`                |
 
 **كلها `WHERE ... IS NULL`** — لا تُفقد أي قيمة موجودة. الأثر إضافة، لا استبدال.
 
@@ -86,30 +86,30 @@
 
 ## 5. حالة القاعدة الحالية مقابل ما تفترضه الترحيلات
 
-| العنصر | على market-prime |
-|---|---|
+| العنصر                                                                                                                 | على market-prime  |
+| ---------------------------------------------------------------------------------------------------------------------- | ----------------- |
 | أعمدة نموذج الأصناف على `products` (`item_nature`, `inventory_policy`, `tracking`, `costing_method`, `base_uom_id`, …) | ❌ **غير موجودة** |
-| `company_items` | ❌ غير موجود |
-| `stock_openings` / `stock_opening_items` | ❌ غير موجودة |
-| `stock_adjustments` / `stock_adjustment_items` | ❌ غير موجودة |
-| `item_policy_review_queue` | ❌ غير موجود |
-| `ad_hoc_service_lines` | ❌ غير موجود |
-| `customer_payment_splits` | ❌ غير موجود |
-| `stock_positions` (view) | ❌ غير موجود |
-| `stock_transfers` / `stock_transfer_items` | ✅ موجودة |
+| `company_items`                                                                                                        | ❌ غير موجود      |
+| `stock_openings` / `stock_opening_items`                                                                               | ❌ غير موجودة     |
+| `stock_adjustments` / `stock_adjustment_items`                                                                         | ❌ غير موجودة     |
+| `item_policy_review_queue`                                                                                             | ❌ غير موجود      |
+| `ad_hoc_service_lines`                                                                                                 | ❌ غير موجود      |
+| `customer_payment_splits`                                                                                              | ❌ غير موجود      |
+| `stock_positions` (view)                                                                                               | ❌ غير موجود      |
+| `stock_transfers` / `stock_transfer_items`                                                                             | ✅ موجودة         |
 
 **الخلاصة:** الترحيلات معلّقة لا لأن الدمج أفسد شيئاً، بل لأن **main نفسه
 لم يُطبَّق على market-prime بعد**. الـremote متأخر عن `main` بعدة أطوار.
 
 ## 6. المخاطر الفعلية عند التنفيذ
 
-| # | الخطر | التقييم |
-|---|---|---|
-| R1 | `20260926000000` يعيد ضبط كلمة مرور `mousa.mc13@gmail.com` إلى قيمة نصّية في git | 🔴 مرتفع — سرّ مكشوف في المستودع + يُبطل كلمة المرور الحالية للمستخدم |
-| R2 | backfill `stock_movements` على 381 صفاً حقيقي | 🟡 متوسط — يملأ NULL فقط، لكن يستحسن نسخة احتياطية أولاً |
-| R3 | إعادة بناء دوال `create_sale` وسياسات RLS على قاعدة عاملة | 🟡 متوسط — لحظة التنفيذ تنقطع الكتابة، وقد تتغيّر صلاحيات الواجهة |
-| R4 | `20260918000100` يضيف `is_active` افتراضياً `true` لكل المستخدمين | 🟢 منخفض — مقصود |
-| R5 | لا يوجد `DELETE`/`TRUNCATE`/`DROP` فعّال | 🟢 لا خطر حذف سجلات |
+| #   | الخطر                                                                            | التقييم                                                               |
+| --- | -------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
+| R1  | `20260926000000` يعيد ضبط كلمة مرور `mousa.mc13@gmail.com` إلى قيمة نصّية في git | 🔴 مرتفع — سرّ مكشوف في المستودع + يُبطل كلمة المرور الحالية للمستخدم |
+| R2  | backfill `stock_movements` على 381 صفاً حقيقي                                    | 🟡 متوسط — يملأ NULL فقط، لكن يستحسن نسخة احتياطية أولاً              |
+| R3  | إعادة بناء دوال `create_sale` وسياسات RLS على قاعدة عاملة                        | 🟡 متوسط — لحظة التنفيذ تنقطع الكتابة، وقد تتغيّر صلاحيات الواجهة     |
+| R4  | `20260918000100` يضيف `is_active` افتراضياً `true` لكل المستخدمين                | 🟢 منخفض — مقصود                                                      |
+| R5  | لا يوجد `DELETE`/`TRUNCATE`/`DROP` فعّال                                         | 🟢 لا خطر حذف سجلات                                                   |
 
 ## 7. التوصية
 

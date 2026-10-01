@@ -7,6 +7,7 @@
 ## 1. ما تم تنفيذه في هذه المرحلة (Implemented Features)
 
 ### أ. واجهات المستخدم والـ UI Components:
+
 1. **مكون بطاقة إعدادات النسخ الاحتياطي ([`src/components/backup-settings-card.tsx`](file:///c:/Users/ahmed/Desktop/market-hub/src/components/backup-settings-card.tsx)):**
    - تصميم واجهة عربية متكاملة بأسلوب RTL ومتناسقة مع نظام Vortex ERP.
    - مراجعة والتحكم في مفتاح النسخ التلقائي المجدول.
@@ -22,6 +23,7 @@
    - تنفيذ عملية الجولة التجريبية (Dry-Run Integrity Verification) للتحقق من سلامة التوقيع الرقمي ومطابقة شجرة التبعيات دون مساس بقاعدة البيانات.
 
 ### ب. المعمارية الفنية ومحرك النسخ والتشفير (Backup Engine & Security Architecture):
+
 1. **تعريفات الأنواع والموديلات ([`src/lib/backup/types.ts`](file:///c:/Users/ahmed/Desktop/market-hub/src/lib/backup/types.ts)):**
    - هيكلة حزمة الملف `.vortexbak` (الترويسة Metadata، الحمولة المشفّرة Ciphertext، والرمز IV).
    - تعريف مستويات الأمان ومراحل الفحص الـ 7 للمحرك.

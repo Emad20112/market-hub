@@ -200,7 +200,7 @@ function DashboardPage() {
   const roleMeta = getRoleMeta(isPlatformSuperadmin, isPlatformAdmin, hasRole, isAr);
 
   // Elegant Date formatting
-  const formattedDate = now.toLocaleDateString(isAr ? "ar-SA" : "en-US", {
+  const formattedDate = now.toLocaleDateString(isAr ? "ar-YE" : "en-US", {
     weekday: "long",
     day: "numeric",
     month: "long",
@@ -423,7 +423,7 @@ function DashboardPage() {
                   <div className="flex flex-col justify-center px-3.5 py-2.5 space-y-0.5 text-end">
                     <div className="flex items-center gap-1.5 text-xs font-bold font-mono text-foreground justify-end">
                       <Clock className="size-3 text-primary" />
-                      <span>{now.toLocaleTimeString(isAr ? "ar-SA" : "en-US", { hour: "2-digit", minute: "2-digit" })}</span>
+                      <span>{now.toLocaleTimeString(isAr ? "ar-YE" : "en-US", { hour: "2-digit", minute: "2-digit" })}</span>
                     </div>
                     <div className="flex items-center gap-1 text-[10px] text-muted-foreground font-medium justify-end">
                       <Radio className="size-2.5 text-emerald-500 animate-pulse" />
@@ -818,7 +818,10 @@ function DashboardPage() {
                     contentStyle={TOOLTIP_STYLE}
                     itemStyle={TOOLTIP_ITEM_STYLE}
                     labelStyle={TOOLTIP_LABEL_STYLE}
-                    formatter={(val: any) => [money(Number(val)), name]}
+                    formatter={(val: any, itemName: any) => [
+                      money(Number(val)),
+                      String(itemName ?? ""),
+                    ]}
                   />
                 </PieChart>
               </ResponsiveContainer>

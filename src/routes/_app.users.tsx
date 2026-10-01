@@ -647,7 +647,7 @@ function UsersPage() {
             <div className="w-full sm:flex-1">
               <VortexSearchInput
                 value={search}
-                onChange={setSearch}
+                onValueChange={setSearch}
                 placeholder={
                   isAr
                     ? "ابحث بالاسم، الدور، أو رقم الهاتف..."

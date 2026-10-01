@@ -1,4 +1,3 @@
-import { toast } from "sonner";
 import {
   VortexMetricCard,
   VortexCollectionSheet,
@@ -23,6 +22,7 @@ import { Search, Users, X, AlertCircle, FileText } from "lucide-react";
 import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/page-header";
+import { toast } from "sonner";
 import { useI18n } from "@/lib/i18n";
 import { money } from "@/lib/format";
 import { useDebtIndex } from "@/hooks/use-debts-overview";
@@ -272,7 +272,6 @@ function DebtsPage() {
         <VortexMetricCard
           title={t("debts.total_debt")}
           value={totals.totalDebt}
-          currency="ر.س"
           highlight
           icon={<HandCoins className="size-5 text-amber-600 dark:text-amber-400" />}
           iconClassName="bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20"
