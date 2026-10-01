@@ -1250,10 +1250,19 @@ export function SalesPage() {
         </VortexFilterSection>
       </VortexFilterSheet>
 
-      {/* Invoice Details Modal */}
+      {/* Luxury Invoice Details Drawer */}
       {selected && (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-background/80 backdrop-blur-sm p-4 overflow-y-auto">
-          <div className="panel-elevated my-8 flex max-h-[92vh] w-full max-w-3xl flex-col overflow-hidden p-0 shadow-2xl border border-border/80">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-end bg-black/65 backdrop-blur-xs animate-in fade-in duration-200"
+          onClick={() => setSelected(null)}
+        >
+          <div
+            className="h-full w-full max-w-2xl border-s border-border/80 bg-background/95 backdrop-blur-md p-6 shadow-2xl overflow-y-auto animate-in slide-in-from-left duration-200 relative flex flex-col justify-between"
+            onClick={(e) => e.stopPropagation()}
+            dir={isRtl ? "rtl" : "ltr"}
+          >
+            {/* Ambient decorative glow */}
+            <div className="absolute -top-12 -right-12 size-48 rounded-full bg-primary/20 blur-3xl pointer-events-none" />
             {/* Modal Header */}
             <div className="flex items-center justify-between border-b border-border/80 bg-surface-2/40 px-6 py-4">
               <div className="flex items-center gap-3">
