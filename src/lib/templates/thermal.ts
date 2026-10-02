@@ -45,10 +45,10 @@ export function renderThermalTemplate(
 
   return `<!doctype html><html dir="${rtl ? "rtl" : "ltr"}" lang="${rtl ? "ar" : "en"}"><head><meta charset="utf-8"><title>${esc(doc.number)}</title>
 <style>
-  @page { size: 80mm auto; margin: 0; }
+  @page { size: var(--print-paper-width, 80mm) auto; margin: 0; }
   * { box-sizing: border-box; }
   html,body { margin:0; padding:0; background:#fff; color:#000; font-family: 'Courier New', ui-monospace, monospace; }
-  .r { width: 80mm; padding: 6mm 5mm; font-size: 12px; line-height: 1.35; }
+  .r { width: var(--print-paper-width, 80mm); padding: 6mm 5mm; font-size: 12px; line-height: 1.35; }
   .c { text-align: center; }
   h1 { font-size: 15px; margin: 0 0 2px; letter-spacing: .5px; }
   .muted { color:#333; font-size: 11px; }

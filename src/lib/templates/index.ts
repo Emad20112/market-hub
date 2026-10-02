@@ -8,7 +8,14 @@ import {
   PrintJobItem,
   CustomFieldOptions,
   DEFAULT_BRANDING,
+  PrintProfile,
 } from "./types";
+import {
+  PAPER_PROFILES,
+  paperCss,
+  paperProfileForLegacySize,
+  type PaperProfileId,
+} from "./paper-profiles";
 import { renderThermalTemplate } from "./thermal";
 import { renderStandardTemplate } from "./standard";
 import { renderElegantTemplate } from "./elegant";
@@ -17,6 +24,7 @@ import { getPrintSettings } from "./settings-store";
 
 export * from "./types";
 export * from "./settings-store";
+export * from "./paper-profiles";
 export { renderThermalTemplate } from "./thermal";
 export { renderStandardTemplate } from "./standard";
 export { renderElegantTemplate } from "./elegant";
@@ -74,6 +82,44 @@ export function getAvailableTemplates(): PrintTemplateMeta[] {
   return Array.from(templateRegistry.values()).map((t) => t.meta);
 }
 
+export function getTemplateMeta(id: InvoiceTemplateId): PrintTemplateMeta | undefined {
+  return templateRegistry.get(id)?.meta;
+}
+
+export function getCompatibleTemplates(
+  documentType: DocumentType,
+  paperProfileId?: PaperProfileId,
+): PrintTemplateMeta[] {
+  return getAvailableTemplates().filter((template) => {
+    const supportsDocument = !template.supportedDocTypes || template.supportedDocTypes.includes(documentType);
+    const supportsPaper = !paperProfileId || template.supportedPaperProfiles.includes(paperProfileId);
+    return supportsDocument && supportsPaper;
+  });
+}
+
+export function resolvePrintProfile(
+  documentType: DocumentType,
+  templateId?: InvoiceTemplateId,
+  paperProfileId?: PaperProfileId,
+): PrintProfile {
+  const settings = getPrintSettings();
+  const requestedTemplate = templateId ||
+    (documentType === "inventory_document" ? settings.defaultInventoryTemplate : settings.defaultCustomerTemplate);
+  const legacyPaper = paperProfileForLegacySize(settings.paperSize);
+  const requested = templateRegistry.get(requestedTemplate);
+  const compatible = getCompatibleTemplates(documentType);
+  const template = requested &&
+    (!requested.meta.supportedDocTypes || requested.meta.supportedDocTypes.includes(documentType))
+    ? requested.meta
+    : compatible[0] || templateRegistry.get("thermal")!.meta;
+  const requestedPaper = paperProfileId || (template.supportedPaperProfiles.includes(legacyPaper) ? legacyPaper : template.supportedPaperProfiles[0]);
+  const resolvedPaper = template.supportedPaperProfiles.includes(requestedPaper)
+    ? requestedPaper
+    : template.supportedPaperProfiles[0];
+
+  return { documentType, templateId: template.id, paperProfileId: resolvedPaper };
+}
+
 // Register built-in default templates
 registerTemplate(
   {
@@ -82,6 +128,8 @@ registerTemplate(
     nameEn: "Thermal (POS 80mm)",
     category: "thermal",
     paperSize: "80mm",
+    supportedPaperProfiles: ["thermal-80", "thermal-58"],
+    supportedDocTypes: ["customer_invoice", "inventory_document"],
   },
   renderThermalTemplate,
 );
@@ -93,6 +141,8 @@ registerTemplate(
     nameEn: "Standard (A4)",
     category: "standard",
     paperSize: "A4",
+    supportedPaperProfiles: ["a4"],
+    supportedDocTypes: ["customer_invoice", "inventory_document"],
   },
   renderStandardTemplate,
 );
@@ -104,6 +154,8 @@ registerTemplate(
     nameEn: "Elegant Luxury (A4)",
     category: "standard",
     paperSize: "A4",
+    supportedPaperProfiles: ["a4"],
+    supportedDocTypes: ["customer_invoice"],
   },
   renderElegantTemplate,
 );
@@ -117,6 +169,7 @@ export function renderDocumentHTML(
   labels?: Partial<InvoiceLabels>,
   rtl = true,
   options?: CustomFieldOptions,
+  paperProfileId?: PaperProfileId,
 ): string {
   const settings = getPrintSettings();
   const effectiveTemplateId =
@@ -153,8 +206,10 @@ export function renderDocumentHTML(
     ...doc.options,
   };
 
-  const renderer = getTemplateRenderer(effectiveTemplateId, doc.docType);
-  return renderer(doc, mergedLabels, rtl, mergedOptions);
+  const profile = resolvePrintProfile(doc.docType || "customer_invoice", effectiveTemplateId, paperProfileId);
+  const renderer = getTemplateRenderer(profile.templateId, doc.docType);
+  const html = renderer(doc, mergedLabels, rtl, mergedOptions);
+  return html.replace("</head>", `<style data-print-profile="${profile.paperProfileId}">${paperCss(PAPER_PROFILES[profile.paperProfileId])}</style></head>`).replace(/\s+onload="[^"]*"/gi, "");
 }
 
 /**
@@ -189,6 +244,7 @@ export function printDocument(
   labels?: Partial<InvoiceLabels>,
   rtl = true,
   options?: CustomFieldOptions,
+  paperProfileId?: PaperProfileId,
 ): void {
   // Respect the global "no printing" mode unless the caller forces a print
   const settings = getPrintSettings();
@@ -196,7 +252,7 @@ export function printDocument(
     return;
   }
 
-  const html = renderDocumentHTML(doc, templateId, labels, rtl, options);
+  const html = renderDocumentHTML(doc, templateId, labels, rtl, options, paperProfileId);
 
   const iframe = document.createElement("iframe");
   iframe.style.cssText =

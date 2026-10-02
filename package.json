@@ -10,7 +10,8 @@
     "preview": "vite preview",
     "lint": "eslint .",
     "format": "prettier --write .",
-    "test:statements": "npx tsx src/lib/statements/__tests__/engine.test.ts"
+    "test:statements": "npx tsx src/lib/statements/__tests__/engine.test.ts",
+    "test:print-engine": "npx tsx src/lib/templates/__tests__/print-engine.test.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",

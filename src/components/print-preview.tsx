@@ -6,6 +6,10 @@ import {
   renderDocumentHTML,
   printDocument,
   getPrintSettings,
+  getTemplateMeta,
+  paperProfileForLegacySize,
+  type PaperProfileId,
+  savePrintSettings,
 } from "@/lib/templates";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -107,6 +111,10 @@ export function PrintPreviewModal({ open, onOpenChange, customDoc }: PrintPrevie
       ? settings.defaultInventoryTemplate
       : settings.defaultCustomerTemplate,
   );
+  const [paperProfileId, setPaperProfileId] = useState<PaperProfileId>(() =>
+    paperProfileForLegacySize(settings.paperSize),
+  );
+  const [saveAsDefault, setSaveAsDefault] = useState(false);
 
   const doc = useMemo(() => {
     if (customDoc) return customDoc;
@@ -114,12 +122,21 @@ export function PrintPreviewModal({ open, onOpenChange, customDoc }: PrintPrevie
   }, [customDoc, docType]);
 
   const previewHtml = useMemo(() => {
-    return renderDocumentHTML(doc, templateId, undefined, true);
-  }, [doc, templateId]);
+    return renderDocumentHTML(doc, templateId, undefined, true, undefined, paperProfileId);
+  }, [doc, templateId, paperProfileId]);
 
   function handlePrint() {
-    printDocument(doc, templateId);
+    if (saveAsDefault) {
+      savePrintSettings(
+        doc.docType === "inventory_document"
+          ? { defaultInventoryTemplate: templateId, paperSize: paperProfileId === "a4" ? "A4" : paperProfileId === "thermal-58" ? "58mm" : "80mm" }
+          : { defaultCustomerTemplate: templateId, paperSize: paperProfileId === "a4" ? "A4" : paperProfileId === "thermal-58" ? "58mm" : "80mm" },
+      );
+    }
+    printDocument(doc, templateId, undefined, true, undefined, paperProfileId);
   }
+
+  const supportedPapers = getTemplateMeta(templateId)?.supportedPaperProfiles ?? [paperProfileId];
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -212,6 +229,30 @@ export function PrintPreviewModal({ open, onOpenChange, customDoc }: PrintPrevie
               )}
             </div>
           </div>
+
+          <div className="flex items-center gap-2">
+            <span className="font-semibold text-muted-foreground">الورق:</span>
+            <div className="inline-flex rounded-lg border bg-background p-1 gap-1">
+              {(["a4", "thermal-80", "thermal-58"] as const).map((paper) => {
+                const supported = supportedPapers.includes(paper);
+                return (
+                  <button
+                    key={paper}
+                    type="button"
+                    disabled={!supported}
+                    onClick={() => setPaperProfileId(paper)}
+                    className={`px-3 py-1 rounded-md text-xs font-medium transition ${paperProfileId === paper ? "bg-primary text-primary-foreground shadow" : supported ? "hover:bg-muted" : "opacity-40 cursor-not-allowed"}`}
+                  >
+                    {paper === "a4" ? "A4" : paper === "thermal-80" ? "80mm" : "58mm"}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+          <label className="flex items-center gap-2 text-xs text-muted-foreground">
+            <input type="checkbox" checked={saveAsDefault} onChange={(event) => setSaveAsDefault(event.target.checked)} />
+            حفظ كإعداد افتراضي
+          </label>
         </div>
 
         {/* Live Iframe Preview Frame */}
