@@ -201,8 +201,13 @@ function UsersPage() {
       const profileMap = new Map<string, any>();
       (profiles ?? []).forEach((p) => profileMap.set(p.id, p));
 
+      const platformAdminSet = new Set(
+        (platformAdmins ?? []).map((pa: any) => pa.user_id),
+      );
+
       const storeUsers: any[] = [];
       (profiles ?? []).forEach((p) => {
+        if (platformAdminSet.has(p.id)) return;
         const uRoles = byUser.get(p.id) ?? [];
         if (uRoles.length === 0) return;
         storeUsers.push({ ...p, roles: uRoles });
@@ -233,14 +238,6 @@ function UsersPage() {
   useEffect(() => {
     void load();
   }, [isSuper]);
-
-  const platformAdminIds = useMemo(
-    () =>
-      new Set(
-        platformAdminRows.filter((p) => p.is_active !== false).map((p) => p.user_id as string),
-      ),
-    [platformAdminRows],
-  );
 
   // Statistics calculation
   const stats = useMemo(() => {
@@ -436,13 +433,22 @@ function UsersPage() {
       });
 
       if (error) {
-        let payload: any = data;
-        const ctx = (error as any).context;
-        if (!payload && ctx && typeof ctx.json === "function") {
-          payload = await ctx.json().catch(() => null);
+        let errorMsg = error.message;
+        try {
+          const ctx = (error as any).context;
+          if (ctx && typeof ctx.json === "function") {
+            const body = await ctx.json();
+            if (body?.message) {
+              errorMsg = body.message;
+            } else if (body?.error && typeof body.error === "string") {
+              errorMsg = body.error;
+            }
+          }
+        } catch {
+          // fallback to error.message
         }
         throw new Error(
-          payload?.message ??
+          errorMsg ||
             (isAr ? "تعذر إنشاء المستخدم. يرجى المحاولة مرة أخرى." : "Failed to create user."),
         );
       }
@@ -761,8 +767,6 @@ function UsersPage() {
                 <div className="divide-y divide-border/50">
                   {filteredStoreRows.map((r) => {
                     const isCurrentUser = r.id === user?.id;
-                    // مدير المنصة لا يُعرض كمالك حتى لو كان يحمل دور owner في user_roles
-                    const isPlatformRow = platformAdminIds.has(r.id);
                     const hasOwner = r.roles.some((ro: any) => ro.role === "owner");
                     const initials = (r.full_name ?? "?").slice(0, 2).toUpperCase();
 
@@ -828,18 +832,7 @@ function UsersPage() {
 
                             {/* Roles badges list */}
                             <div className="flex flex-wrap items-center gap-1.5 pt-1">
-                              {isPlatformRow && (
-                                <Badge
-                                  variant="outline"
-                                  className="gap-1.5 py-1 px-2.5 text-xs font-bold rounded-xl border bg-amber-500/20 text-amber-700 dark:text-amber-300 border-amber-500/40"
-                                >
-                                  <Crown className="size-3.5" />
-                                  <span>{isAr ? "سوبر أدمن" : "Superadmin"}</span>
-                                </Badge>
-                              )}
-                              {r.roles
-                                .filter((ro: any) => !(isPlatformRow && ro.role === "owner"))
-                                .map((ro: any) => {
+                              {r.roles.map((ro: any) => {
                                 const meta = getRoleMeta(ro.role);
                                 const Icon = meta.icon;
                                 return (
