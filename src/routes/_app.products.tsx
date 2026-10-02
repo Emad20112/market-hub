@@ -1029,10 +1029,6 @@ function ProductsPage() {
                               )}
                               <span className="truncate max-w-[65px] sm:max-w-[85px]">{p.barcode}</span>
                             </button>
-                          ) : p.sku ? (
-                            <span className="rounded-md bg-surface-2 px-1.5 py-0.5 font-mono text-[9px] sm:text-[10px] text-muted-foreground truncate max-w-[70px]">
-                              {p.sku}
-                            </span>
                           ) : null}
 
                           <span
