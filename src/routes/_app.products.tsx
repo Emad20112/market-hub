@@ -92,6 +92,7 @@ import {
   INVENTORY_POLICY_LABELS,
   ITEM_NATURE_LABELS,
   TRACKING_LABELS,
+  validateItemPolicy,
   type CostingMethod,
   type InventoryPolicy,
   type ItemNature,
@@ -1827,8 +1828,20 @@ function ProductDialog({
   const { isModuleEnabled } = useModules();
   const [scannerOpen, setScannerOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<"general" | "pricing" | "specs" | "policy">("general");
+  const policyFromProduct = (product: ProductRow): UserItemPolicyPreferences => ({
+    item_nature: product.item_nature ?? "GOOD",
+    inventory_policy: product.inventory_policy ?? "TRACKED",
+    tracking: product.tracking ?? "NONE",
+    costing_method: product.costing_method ?? "MOVING_AVERAGE",
+    is_sellable: product.is_sellable ?? true,
+    is_purchasable: product.is_purchasable ?? true,
+  });
   const [policy, setPolicy] = useState<UserItemPolicyPreferences>(() =>
-    userId ? readUserItemPolicyPreferences(userId) : DEFAULT_USER_ITEM_POLICY_PREFERENCES,
+    initial
+      ? policyFromProduct(initial)
+      : userId
+        ? readUserItemPolicyPreferences(userId)
+        : DEFAULT_USER_ITEM_POLICY_PREFERENCES,
   );
   const [form, setForm] = useState({
     name: initial?.name ?? "",
@@ -1850,9 +1863,13 @@ function ProductDialog({
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    if (!initial && userId) {
-      setPolicy(readUserItemPolicyPreferences(userId));
-    }
+    setPolicy(
+      initial
+        ? policyFromProduct(initial)
+        : userId
+          ? readUserItemPolicyPreferences(userId)
+          : DEFAULT_USER_ITEM_POLICY_PREFERENCES,
+    );
   }, [initial, userId]);
 
   useKeyboardWedge({
@@ -1871,16 +1888,21 @@ function ProductDialog({
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (saving) return;
-    if (!form.name_ar.trim() && !form.name.trim()) {
-      toast.error(lang === "ar" ? "اسم المنتج مطلوب" : t("products.name_required"));
+    if (!form.name_ar.trim()) {
+      toast.error(
+        lang === "ar"
+          ? "اسم المنتج بالعربية مطلوب لظهوره بشكل صحيح في بطاقات النظام."
+          : "An Arabic product name is required for the Yemen catalogue.",
+      );
       setActiveTab("general");
       return;
     }
-    if (!policy.is_sellable && !policy.is_purchasable) {
+    const policyCheck = validateItemPolicy(policy);
+    if (!policyCheck.valid) {
       toast.error(
         lang === "ar"
-          ? "يجب أن يكون المنتج متاحًا للبيع أو الشراء على الأقل."
-          : "The product must be available for sales or purchases.",
+          ? policyCheck.errors[0]
+          : "The selected item policy is not valid.",
       );
       setActiveTab("policy");
       return;
@@ -1902,6 +1924,12 @@ function ProductDialog({
       origin_id: config.enableOrigins ? form.origin_id || null : null,
       quality_grade_id: config.enableQualityGrades ? form.quality_grade_id || null : null,
       is_active: form.is_active,
+      item_nature: policy.item_nature,
+      inventory_policy: policy.inventory_policy,
+      tracking: policy.tracking,
+      costing_method: policy.costing_method,
+      is_sellable: policy.is_sellable,
+      is_purchasable: policy.is_purchasable,
     };
     const request: any = initial
       ? (supabase.from("products") as any)
