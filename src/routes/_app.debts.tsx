@@ -5,7 +5,7 @@ import {
   VortexFilterSection,
   type PaymentMethod,
 } from "@/components/vortex-ui";
-import { SlidersHorizontal, HandCoins, AlertTriangle, UserCheck } from "lucide-react";
+import { SlidersHorizontal, Wallet, AlertTriangle, UserCheck } from "lucide-react";
 /**
  * شاشة الديون — تعرض الأرصدة **من الدفتر** لا من العمود المخزَّن.
  *
@@ -97,11 +97,9 @@ function DebtsPage() {
     method: PaymentMethod;
     notes?: string;
   }) => {
-    const dbMethodMap: Record<PaymentMethod, "cash" | "card" | "bank_transfer"> = {
+    const dbMethodMap: Record<PaymentMethod, "cash" | "bank_transfer"> = {
       cash: "cash",
-      card: "card",
       transfer: "bank_transfer",
-      cheque: "bank_transfer",
     };
     const dbMethod = dbMethodMap[data.method] || "cash";
     const receiptNumber = String(Date.now()).slice(-6);
@@ -273,7 +271,7 @@ function DebtsPage() {
           value={totals.totalDebt}
           currency="ر.س"
           highlight
-          icon={<HandCoins className="size-5 text-amber-600 dark:text-amber-400" />}
+          icon={<Wallet className="size-5 text-amber-600 dark:text-amber-400" />}
           iconClassName="bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20"
           subtitle="إجمالي المبالغ المستحقة طرف العملاء"
         />
@@ -429,7 +427,7 @@ function DebtsPage() {
                                 title={lang === "ar" ? "تحصيل فوري" : "Quick Collect"}
                                 className="flex h-7 items-center gap-1 rounded-full bg-primary/10 hover:bg-primary hover:text-primary-foreground border border-primary/20 px-2.5 text-[11px] font-bold text-primary transition active:scale-95"
                               >
-                                <HandCoins className="size-3" />
+                                <Wallet className="size-3" />
                                 <span>{lang === "ar" ? "تحصيل" : "Collect"}</span>
                               </button>
                               <WhatsAppButton

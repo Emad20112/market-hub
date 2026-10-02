@@ -7,14 +7,14 @@ import {
   Calendar,
   User,
   CreditCard,
-  MessageCircle,
-  Send,
+  MessageSquareText,
   Copy,
   Check
 } from "lucide-react";
 import { VortexDrawerDialog } from "../form/vortex-drawer-dialog";
 import { VortexDateBadge } from "../display/vortex-date-badge";
 import { formatSystemNumber, toSystemDigits } from "@/lib/format-preferences";
+import { WhatsAppIcon } from "@/components/whatsapp-icon";
 
 export interface VortexTransactionDetailSheetProps {
   open: boolean;
@@ -146,7 +146,7 @@ ${transaction.remainingBalance !== undefined ? `المتبقي في الحساب
               onClick={shareWhatsApp}
               className="h-12 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-md shadow-emerald-600/20 active:scale-98 transition cursor-pointer"
             >
-              <MessageCircle className="size-4" />
+              <WhatsAppIcon className="size-4" />
               <span>واتساب للعميل</span>
             </button>
 
@@ -155,7 +155,7 @@ ${transaction.remainingBalance !== undefined ? `المتبقي في الحساب
               onClick={shareSMS}
               className="h-12 rounded-2xl bg-sky-600 hover:bg-sky-700 text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-md shadow-sky-600/20 active:scale-98 transition cursor-pointer"
             >
-              <Send className="size-4" />
+              <MessageSquareText className="size-4" />
               <span>رسالة SMS</span>
             </button>
           </div>

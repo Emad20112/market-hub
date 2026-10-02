@@ -30,7 +30,6 @@ import {
   Layers,
   Boxes,
   Menu,
-  HandCoins,
   AlertTriangle,
   LineChart,
   FileText,
@@ -146,7 +145,7 @@ const sections: Section[] = [
       },
       {
         to: "/payments",
-        icon: HandCoins,
+        icon: Wallet,
         key: "nav.payments",
         moduleId: "payments",
         allowedRoles: ["owner", "manager", "accountant"],

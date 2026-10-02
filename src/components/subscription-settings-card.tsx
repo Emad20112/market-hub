@@ -21,7 +21,6 @@ import {
   CalendarClock,
   Truck,
   RotateCcw,
-  HandCoins,
   Wallet,
   BarChart3,
   History,
@@ -111,7 +110,7 @@ export function SubscriptionSettingsCard() {
       case "returns":
         return <RotateCcw className="h-4 w-4 text-rose-500" />;
       case "payments":
-        return <HandCoins className="h-4 w-4 text-amber-500" />;
+        return <Wallet className="h-4 w-4 text-amber-500" />;
       case "expenses":
         return <Wallet className="h-4 w-4 text-indigo-500" />;
       case "multi_warehouse":

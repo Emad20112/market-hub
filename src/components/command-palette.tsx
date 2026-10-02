@@ -33,7 +33,6 @@ import {
   History,
   Layers,
   Boxes,
-  HandCoins,
   AlertTriangle,
   FileText,
   BookOpen,
@@ -158,7 +157,7 @@ export function CommandPalette({
             <CommandGroup heading={t("common.accounting")}>
               {isModuleEnabled("payments") && (
                 <CommandItem onSelect={() => go("/payments")}>
-                  <HandCoins /> {t("nav.payments")}
+                  <Wallet /> {t("nav.payments")}
                 </CommandItem>
               )}
               {isModuleEnabled("payments") && (
