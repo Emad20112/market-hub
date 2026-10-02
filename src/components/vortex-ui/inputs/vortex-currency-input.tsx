@@ -3,6 +3,7 @@
 import * as React from "react";
 import { Coins, X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useCompanyCurrency } from "@/hooks/use-company-currency";
 
 export interface VortexCurrencyInputProps extends Omit<
   React.InputHTMLAttributes<HTMLInputElement>,
@@ -45,7 +46,7 @@ export const VortexCurrencyInput = React.forwardRef<HTMLInputElement, VortexCurr
       onValueChange,
       onChange,
       currency,
-      currencySymbol = "﷼",
+      currencySymbol,
       decimals = 2,
       min = 0,
       max,
@@ -57,6 +58,7 @@ export const VortexCurrencyInput = React.forwardRef<HTMLInputElement, VortexCurr
     },
     ref,
   ) => {
+    const { currencySymbol: configuredCurrencySymbol } = useCompanyCurrency();
     const inputRef = React.useRef<HTMLInputElement | null>(null);
     const combinedRef = (node: HTMLInputElement | null) => {
       inputRef.current = node;
@@ -140,7 +142,7 @@ export const VortexCurrencyInput = React.forwardRef<HTMLInputElement, VortexCurr
       inputRef.current?.focus();
     };
 
-    const activeCurrency = currency || currencySymbol;
+    const activeCurrency = currency || currencySymbol || configuredCurrencySymbol;
 
     return (
       <div className="group relative flex items-center w-full">

@@ -37,8 +37,8 @@ export const Route = createFileRoute("/_app/platform-admin")({
 function PlatformAdminPage() {
   const { lang } = useI18n();
   const isAr = lang === "ar";
-  const { user, isPlatformAdmin, isPlatformSuperadmin, hasRole, loading: authLoading } = useAuth();
-  const canAccess = isPlatformAdmin || isPlatformSuperadmin || hasRole("owner");
+  const { user, isPlatformAdmin, isPlatformSuperadmin, loading: authLoading } = useAuth();
+  const canAccess = isPlatformAdmin || isPlatformSuperadmin;
   const navigate = useNavigate();
   const {
     currentPlanId,

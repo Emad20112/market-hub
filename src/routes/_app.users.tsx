@@ -234,6 +234,14 @@ function UsersPage() {
     void load();
   }, [isSuper]);
 
+  const platformAdminIds = useMemo(
+    () =>
+      new Set(
+        platformAdminRows.filter((p) => p.is_active !== false).map((p) => p.user_id as string),
+      ),
+    [platformAdminRows],
+  );
+
   // Statistics calculation
   const stats = useMemo(() => {
     const total = storeRows.length;
@@ -525,7 +533,9 @@ function UsersPage() {
         </div>
 
         <div className="flex items-center gap-2">
+          {canManageStore && (
           <RolePermissionsDialog
+            showPlatformRole={isSuper}
             trigger={
               <Button
                 variant="outline"
@@ -537,6 +547,7 @@ function UsersPage() {
               </Button>
             }
           />
+          )}
 
           {canManageStore && (
             <Button
@@ -750,6 +761,8 @@ function UsersPage() {
                 <div className="divide-y divide-border/50">
                   {filteredStoreRows.map((r) => {
                     const isCurrentUser = r.id === user?.id;
+                    // مدير المنصة لا يُعرض كمالك حتى لو كان يحمل دور owner في user_roles
+                    const isPlatformRow = platformAdminIds.has(r.id);
                     const hasOwner = r.roles.some((ro: any) => ro.role === "owner");
                     const initials = (r.full_name ?? "?").slice(0, 2).toUpperCase();
 
@@ -815,7 +828,18 @@ function UsersPage() {
 
                             {/* Roles badges list */}
                             <div className="flex flex-wrap items-center gap-1.5 pt-1">
-                              {r.roles.map((ro: any) => {
+                              {isPlatformRow && (
+                                <Badge
+                                  variant="outline"
+                                  className="gap-1.5 py-1 px-2.5 text-xs font-bold rounded-xl border bg-amber-500/20 text-amber-700 dark:text-amber-300 border-amber-500/40"
+                                >
+                                  <Crown className="size-3.5" />
+                                  <span>{isAr ? "سوبر أدمن" : "Superadmin"}</span>
+                                </Badge>
+                              )}
+                              {r.roles
+                                .filter((ro: any) => !(isPlatformRow && ro.role === "owner"))
+                                .map((ro: any) => {
                                 const meta = getRoleMeta(ro.role);
                                 const Icon = meta.icon;
                                 return (

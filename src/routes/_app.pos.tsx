@@ -2062,10 +2062,8 @@ function POSPage() {
                       placeholder={
                         isPaidEmpty
                           ? paymentMethod === "credit"
-                            ? lang === "ar"
-                              ? "آجل بالكامل (0 ﷼)"
-                              : "Full credit (0)"
-                            : `${lang === "ar" ? "مدفوع بالكامل" : "Full paid"} (${formatWithCommas(total)} ﷼)`
+                            ? `${lang === "ar" ? "آجل بالكامل" : "Full credit"} (${money(0)})`
+                            : `${lang === "ar" ? "مدفوع بالكامل" : "Full paid"} (${money(total)})`
                           : `${t("pos.paid")}`
                       }
                       className={`h-9 w-full rounded-2xl border px-3 text-xs font-mono outline-none transition ${
@@ -2076,7 +2074,7 @@ function POSPage() {
                     />
                     {paid.trim() !== "" && !isNaN(Number(paid)) && (
                       <span className="absolute end-3 top-1/2 -translate-y-1/2 text-[11px] font-mono text-muted-foreground pointer-events-none">
-                        = {formatWithCommas(paid)} ﷼
+                        = {money(Number(paid))}
                       </span>
                     )}
                   </div>

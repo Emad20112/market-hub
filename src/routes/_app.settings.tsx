@@ -31,7 +31,11 @@ function SettingsPage() {
     address: "",
     phone: "",
     email: "",
-    invoice_prefix: "INV",
+    invoice_prefix: "INV-",
+    purchase_invoice_prefix: "PO-",
+    invoice_number_period: "year_month",
+    invoice_number_digits: 4,
+    logo_url: null,
     barcode_enabled: true,
   });
   const [exists, setExists] = useState(false);

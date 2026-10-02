@@ -7,7 +7,7 @@
 BEGIN;
 
 INSERT INTO company_settings (id, name, legal_name, tax_number, currency, currency_symbol, tax_rate, logo_url, address, phone, email, invoice_prefix, barcode_enabled, updated_at) VALUES
-  (1, 'نهج لوازم القرطاسية', 'شركة نهج لوازم القرطاسية', '300-XYZ-001', 'YER', '﷼', 15, NULL, 'صنعاء، اليمن', '777123456', 'info@nahj-stationery.example', 'INV-', TRUE, '2026-07-05T09:01:00+00:00');
+  (1, 'نهج لوازم القرطاسية', 'شركة نهج لوازم القرطاسية', '300-XYZ-001', 'YER', 'ر.ي', 15, NULL, 'صنعاء، اليمن', '777123456', 'info@nahj-stationery.example', 'INV-', TRUE, '2026-07-05T09:01:00+00:00');
 INSERT INTO categories (id, name, name_ar, parent_id) VALUES
   ('7b5b5e7a-8603-5df6-bff1-23cfd0d74fbf', 'القرطاسية والمستلزمات', 'المكتبات والقرطاسية', NULL),
   ('4b867143-fb9c-57d4-b06c-a96f142eb6d2', 'الدفاتر', 'الدفاتر', '7b5b5e7a-8603-5df6-bff1-23cfd0d74fbf'),

@@ -420,12 +420,15 @@ export function SalesPage() {
       paid: Number(selected.paid),
       company: cs
         ? {
-            name: "طاحونتي",
+            name: (cs as any).name || "طاحونتي",
             phone: (cs as any).phone || "772217218",
-            logo: "/inama-soft-logo.ico",
+            logo: (cs as any).logo_url || undefined,
           }
         : undefined,
-      currency: (cs as any)?.currency ?? (isRtl ? "ريال" : ""),
+      currency:
+        (cs as any)?.currency_symbol?.trim() ||
+        (cs as any)?.currency ||
+        (isRtl ? "ريال" : ""),
     };
   }
 

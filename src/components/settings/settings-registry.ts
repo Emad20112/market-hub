@@ -71,8 +71,8 @@ registerSettingsSection({
   id: "invoicing",
   titleAr: "الفواتير والعملة",
   titleEn: "Invoicing & POS",
-  descriptionAr: "العملة، نسبة الضريبة، البادئة، الخدمة المخصصة، والباركود",
-  descriptionEn: "Currency, tax %, prefix, service fee, and barcode",
+  descriptionAr: "العملة والضريبة وترقيم الفواتير والشعار وخيارات السلة",
+  descriptionEn: "Currency, tax, invoice numbering, logo, and POS cart options",
   icon: Receipt,
   component: InvoicingSection,
 });

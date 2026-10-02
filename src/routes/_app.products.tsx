@@ -61,7 +61,7 @@ import {
   type ReferenceCounts,
 } from "@/lib/safety";
 import { fuzzySearch, buildSearchIndex } from "@/design/fuzzy";
-import { moneyCell, qtyCell } from "@/lib/format";
+import { getCompanyCurrencySymbol, moneyCell, qtyCell } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import { IconButton } from "@/components/ui/icon-button";
 import { FieldInput, NumberInput, fieldSurfaceClass } from "@/components/ui/input";
@@ -2017,7 +2017,7 @@ function ProductDialog({
                 {form.barcode && (
                   <span className="inline-flex items-center gap-1 rounded-md bg-muted/80 px-2 py-0.5 text-[11px] font-mono text-muted-foreground">
                     <Barcode className="size-3" />
-                    {toSystemDigits(form.barcode, lang)}
+                    {toSystemDigits(form.barcode)}
                   </span>
                 )}
                 <span
@@ -2049,7 +2049,7 @@ function ProductDialog({
                   </div>
                   <div className="flex items-center justify-center gap-1 font-mono text-sm font-bold text-foreground sm:justify-end">
                     <span className={cn(profitNum >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400")}>
-                      {profitNum > 0 ? "+" : ""}{toSystemDigits(profitNum.toFixed(2), lang)} ﷼
+                      {profitNum > 0 ? "+" : ""}{toSystemDigits(profitNum.toFixed(2))} {getCompanyCurrencySymbol()}
                     </span>
                   </div>
                 </div>
@@ -2249,7 +2249,7 @@ function ProductDialog({
                     value={form.sale_price === "" ? null : Number(form.sale_price)}
                     onValueChange={(num) => setForm({ ...form, sale_price: num == null ? "" : String(num) })}
                     min={0}
-                    currencySymbol="﷼"
+                    currencySymbol={getCompanyCurrencySymbol()}
                     placeholder="0.00"
                   />
                 )}
@@ -2264,7 +2264,7 @@ function ProductDialog({
                     value={form.cost_price === "" ? null : Number(form.cost_price)}
                     onValueChange={(num) => setForm({ ...form, cost_price: num == null ? "" : String(num) })}
                     min={0}
-                    currencySymbol="﷼"
+                    currencySymbol={getCompanyCurrencySymbol()}
                     placeholder="0.00"
                   />
                 </FormField>
