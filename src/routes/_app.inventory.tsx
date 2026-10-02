@@ -919,14 +919,7 @@ function InventoryPage() {
                         >
                           {primary}
                         </h4>
-                        {secondary && (
-                          <p
-                            className="mt-0.5 line-clamp-1 text-[11px] text-muted-foreground/80"
-                            dir={lang === "ar" ? "ltr" : "rtl"}
-                          >
-                            {secondary}
-                          </p>
-                        )}
+
                       </div>
 
                       <div className="mb-3.5 flex flex-wrap items-center gap-1.5 text-[11px] text-muted-foreground">

@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { z } from "zod";
-import { ShieldCheck, Mail, Lock, Eye, EyeOff, CheckCircle2, LogIn, Sparkles } from "lucide-react";
+import { ShieldCheck, Mail, Lock, Eye, EyeOff, CheckCircle2, LogIn, Sparkles, Sun, Moon } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import { useI18n } from "@/lib/i18n";
@@ -35,6 +35,21 @@ function AuthPage() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [theme, setTheme] = useState<"light" | "dark">(() => {
+    if (typeof window !== "undefined") {
+      return (localStorage.getItem("theme") as "light" | "dark") || "light";
+    }
+    return "light";
+  });
+
+  useEffect(() => {
+    if (typeof document !== "undefined") {
+      const root = document.documentElement;
+      root.classList.toggle("dark", theme === "dark");
+      root.classList.toggle("light", theme === "light");
+      localStorage.setItem("theme", theme);
+    }
+  }, [theme]);
   const logoMarkUrl = "/vortex-erp-mark.png";
   const logoWordmarkUrl = "/vortex-erp-wordmark.png";
   const isRtl = dir === "rtl";
@@ -115,7 +130,7 @@ function AuthPage() {
 
   return (
     <div
-      className="relative flex min-h-screen flex-col overflow-x-hidden bg-[#030817] text-foreground"
+      className="relative flex min-h-screen flex-col overflow-x-hidden bg-background text-foreground transition-colors duration-200"
       dir={dir}
     >
       <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
@@ -125,14 +140,25 @@ function AuthPage() {
 
       <main className="relative z-10 mx-auto flex w-full flex-1 items-center px-4 py-10 sm:px-6 sm:py-14">
         <div className="mx-auto w-full max-w-[32rem]">
+          <div className="flex justify-end mb-4">
+            <button
+              type="button"
+              onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+              className="grid size-10 place-items-center rounded-full border border-border/80 bg-surface text-muted-foreground hover:text-foreground hover:border-primary/50 shadow-xs transition-colors"
+              title={theme === "dark" ? "الوضع الفاتح" : "الوضع الداكن"}
+              aria-label="تبديل الثيم"
+            >
+              {theme === "dark" ? <Sun className="size-4 text-amber-400" /> : <Moon className="size-4 text-sky-500" />}
+            </button>
+          </div>
           <header className="mb-8 text-center sm:mb-10">
-            <div className="mx-auto grid size-16 place-items-center rounded-[1.4rem] border border-primary/30 bg-primary/10 p-2 shadow-[0_10px_28px_rgba(37,99,235,0.18)]">
+            <div className="mx-auto grid size-16 place-items-center rounded-[1.4rem] border border-primary/30 bg-primary/10 p-2 shadow-md shadow-primary/10">
               <img src={logoMarkUrl} alt={t("app.name")} className="size-full object-contain" />
             </div>
             <h1 className="mt-4 text-2xl font-black tracking-tight text-foreground sm:text-3xl">
               {isRtl ? "نظام فورتكس لإدارة الأعمال" : "Vortex Business Management"}
             </h1>
-            <p className="mt-2 text-sm text-slate-400">
+            <p className="mt-2 text-sm text-muted-foreground">
               {isRtl
                 ? "سجّل الدخول لإدارة متجرك، مخزونك ومبيعاتك"
                 : "Sign in to manage your store, inventory, and sales"}
@@ -142,7 +168,7 @@ function AuthPage() {
           <div className="grid">
             <section className="hidden">
               <div className="pointer-events-none absolute inset-0 opacity-40 [background-image:radial-gradient(rgba(255,255,255,0.26)_1px,transparent_1px)] [background-size:18px_18px]" />
-              <div className="pointer-events-none absolute -bottom-32 -end-24 h-80 w-80 rounded-full border-[32px] border-white/10" />
+              <div className="pointer-events-none absolute -bottom-32 -end-24 h-80 w-80 rounded-full border-[32px] border-border/60" />
               <div className="relative flex h-full flex-col">
                 <div className="flex items-center justify-between gap-4">
                   <img
@@ -201,13 +227,13 @@ function AuthPage() {
               </div>
             </section>
 
-            <section className="flex flex-col justify-center rounded-[2rem] border border-white/10 bg-[#0d182d]/95 px-5 py-7 shadow-[0_24px_80px_rgba(0,0,0,0.32)] backdrop-blur-xl sm:px-7 sm:py-8">
+            <section className="flex flex-col justify-center rounded-[2rem] border border-border/80 bg-card/95 px-5 py-7 shadow-xl backdrop-blur-xl sm:px-7 sm:py-8">
               <div className="mx-auto w-full max-w-sm">
                 <div className="text-center">
                   <h2 className="text-xl font-black tracking-tight text-foreground">
                     {isRtl ? "تسجيل الدخول" : "Sign in"}
                   </h2>
-                  <p className="mt-1.5 text-xs leading-6 text-slate-400">
+                  <p className="mt-1.5 text-xs leading-6 text-muted-foreground">
                     {isRtl
                       ? "أدخل بيانات حسابك للوصول إلى متجرك"
                       : "Enter your account details to access your store"}
@@ -216,7 +242,7 @@ function AuthPage() {
 
                 <form onSubmit={handleSubmit} className="mt-8 space-y-5">
                   <div className="space-y-2">
-                    <label htmlFor="login-email" className="block text-xs font-bold text-slate-200">
+                    <label htmlFor="login-email" className="block text-xs font-bold text-foreground">
                       {t("common.email")}
                     </label>
                     <div className="relative">
@@ -236,7 +262,7 @@ function AuthPage() {
                         required
                         disabled={loading}
                         dir="ltr"
-                        className="h-12 w-full rounded-2xl border border-white/10 bg-[#071125] px-4 ps-10 text-sm text-foreground shadow-sm outline-none transition-[border-color,box-shadow,background-color] placeholder:text-slate-500 hover:border-primary/45 focus:border-primary focus:ring-4 focus:ring-primary/15 disabled:cursor-not-allowed disabled:opacity-60 motion-reduce:transition-none"
+                        className="h-12 w-full rounded-2xl border border-border/70 bg-surface px-4 ps-10 text-sm text-foreground shadow-xs outline-none transition-[border-color,box-shadow,background-color] placeholder:text-muted-foreground/60 hover:border-primary/45 focus:border-primary focus:ring-4 focus:ring-primary/15 disabled:cursor-not-allowed disabled:opacity-60 motion-reduce:transition-none"
                         placeholder="name@company.com"
                       />
                     </div>
@@ -245,7 +271,7 @@ function AuthPage() {
                   <div className="space-y-2">
                     <label
                       htmlFor="login-password"
-                      className="block text-xs font-bold text-slate-200"
+                      className="block text-xs font-bold text-foreground"
                     >
                       {t("common.password")}
                     </label>
@@ -264,13 +290,13 @@ function AuthPage() {
                         minLength={6}
                         disabled={loading}
                         dir="ltr"
-                        className="h-12 w-full rounded-2xl border border-white/10 bg-[#071125] px-4 ps-10 pe-12 text-sm text-foreground shadow-sm outline-none transition-[border-color,box-shadow,background-color] placeholder:text-slate-500 hover:border-primary/45 focus:border-primary focus:ring-4 focus:ring-primary/15 disabled:cursor-not-allowed disabled:opacity-60 motion-reduce:transition-none"
+                        className="h-12 w-full rounded-2xl border border-border/70 bg-surface px-4 ps-10 pe-12 text-sm text-foreground shadow-xs outline-none transition-[border-color,box-shadow,background-color] placeholder:text-muted-foreground/60 hover:border-primary/45 focus:border-primary focus:ring-4 focus:ring-primary/15 disabled:cursor-not-allowed disabled:opacity-60 motion-reduce:transition-none"
                         placeholder="••••••••"
                       />
                       <button
                         type="button"
                         onClick={() => setShowPassword((visible) => !visible)}
-                        className="absolute end-2 top-1/2 grid size-9 -translate-y-1/2 place-items-center rounded-xl text-slate-400 transition-colors hover:bg-white/10 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-not-allowed disabled:opacity-60 motion-reduce:transition-none"
+                        className="absolute end-2 top-1/2 grid size-9 -translate-y-1/2 place-items-center rounded-xl text-muted-foreground transition-colors hover:bg-white/10 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-not-allowed disabled:opacity-60 motion-reduce:transition-none"
                         aria-label={
                           showPassword
                             ? isRtl
@@ -309,7 +335,7 @@ function AuthPage() {
                   </Button>
                 </form>
 
-                <div className="mt-7 flex items-start gap-2.5 border-t border-white/10 pt-5 text-[11px] leading-5 text-slate-400">
+                <div className="mt-7 flex items-start gap-2.5 border-t border-border/60 pt-5 text-[11px] leading-5 text-muted-foreground">
                   <ShieldCheck className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden />
                   <p>
                     {isRtl
@@ -324,7 +350,7 @@ function AuthPage() {
       </main>
 
       <footer className="relative z-10 w-full">
-        <InamaSoftFooter className="border-t border-white/10 bg-[#030817]/80 text-slate-500 backdrop-blur-md" />
+        <InamaSoftFooter className="border-t border-border/60 bg-card/70 text-muted-foreground backdrop-blur-md" />
       </footer>
     </div>
   );
