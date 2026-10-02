@@ -121,8 +121,11 @@ export const SYSTEM_MODULES: PlatformModule[] = [
     },
     category: "module",
     dependencies: ["core"],
-    navItems: ["/finance"],
-    routes: ["/_app/finance"],
+    // `/finance` is kept in the list rather than replaced: the expenses module
+    // still owns that screen's register tab during the transition, and removing
+    // a route from a module definition silently disables access to it.
+    navItems: ["/expenses", "/finance"],
+    routes: ["/_app/expenses", "/_app/finance"],
   },
   {
     id: "multi_warehouse",
@@ -187,6 +190,32 @@ export const SYSTEM_MODULES: PlatformModule[] = [
       "/_app/trial-balance",
       "/_app/income-statement",
       "/_app/balance-sheet",
+    ],
+  },
+  {
+    id: "milling_operations",
+    name: { ar: "إدارة المطاحن والأمانات", en: "Flour Mill & Toll Processing" },
+    description: {
+      ar: "استلام حبوب العملاء كأمانات، أوامر الطحن، توزيع النواتج على الأكياس، فواتير أجور الطحن، وإذونات تسليم النواتج — بفصل تام عن المخزون التجاري",
+      en: "Customer grain custody, milling jobs, bag-based output distribution, toll service invoices and delivery notes — fully separated from commercial stock",
+    },
+    category: "enterprise",
+    dependencies: ["core"],
+    navItems: [
+      "/milling",
+      "/milling/intake",
+      "/milling/jobs",
+      "/milling/delivery",
+      "/milling/customer-statement",
+      "/milling/operations-guide",
+    ],
+    routes: [
+      "/_app/milling",
+      "/_app/milling/intake",
+      "/_app/milling/jobs",
+      "/_app/milling/delivery",
+      "/_app/milling/customer-statement",
+      "/_app/milling/operations-guide",
     ],
   },
   {
@@ -265,6 +294,7 @@ export const SYSTEM_PLANS: PlatformPlan[] = [
       "advanced_accounting",
       "analytics",
       "audit",
+      "milling_operations",
     ],
     maxUsers: 50,
     maxWarehouses: 20,

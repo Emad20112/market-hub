@@ -21,17 +21,17 @@ If it needs one, a primitive is missing — add it to Layer 1/2 instead.
 
 ## 2. Where to change what
 
-| To change… | Edit |
-| --- | --- |
-| Control height / radius / focus ring | `src/design/styles.ts` → `fieldSize`, `fieldSurface` |
-| Button size or variant | `src/components/ui/button.tsx` → `buttonVariants` |
-| Colour, radius scale, shadow, motion, z-index | `src/styles.css` → `@theme inline` |
-| Status pill (any colour, any page) | `src/styles.css` → `--tone-*` (both themes) |
-| Empty / loading / error appearance | `src/components/ui/feedback.tsx` |
-| Table density, sticky header, pagination | `src/components/ui/data-table.tsx` |
-| Toolbar / filter / sort responsive layout | `src/components/ui/table-toolbar.tsx` |
-| Modal desktop↔mobile behaviour | `src/components/ui/modal.tsx` |
-| Number / Arabic-digit parsing | `src/design/number.ts` |
+| To change…                                    | Edit                                                 |
+| --------------------------------------------- | ---------------------------------------------------- |
+| Control height / radius / focus ring          | `src/design/styles.ts` → `fieldSize`, `fieldSurface` |
+| Button size or variant                        | `src/components/ui/button.tsx` → `buttonVariants`    |
+| Colour, radius scale, shadow, motion, z-index | `src/styles.css` → `@theme inline`                   |
+| Status pill (any colour, any page)            | `src/styles.css` → `--tone-*` (both themes)          |
+| Empty / loading / error appearance            | `src/components/ui/feedback.tsx`                     |
+| Table density, sticky header, pagination      | `src/components/ui/data-table.tsx`                   |
+| Toolbar / filter / sort responsive layout     | `src/components/ui/table-toolbar.tsx`                |
+| Modal desktop↔mobile behaviour                | `src/components/ui/modal.tsx`                        |
+| Number / Arabic-digit parsing                 | `src/design/number.ts`                               |
 
 Changing a value in the left column changes **every** page. That is the point.
 
@@ -109,12 +109,12 @@ Numeric fields reject `12abc45`, use a numeric keypad on mobile, and translitera
 
 ### Arabic digits — the rule
 
-| Field kind | Digits normalized? | Why |
-| --- | --- | --- |
-| `number`, `decimal`, `currency`, `percent`, `integer` | **Yes** | Quantities and amounts |
-| `phone`, `tel` | **Yes** | Users legitimately type `٠٧…` |
-| `text`, `email`, `password`, `url`, `search`, dates | **No** | Normalizing identifiers corrupts data |
-| SKU / barcode / product code (typed as `text`) | **No** | Must stay byte-identical |
+| Field kind                                            | Digits normalized? | Why                                   |
+| ----------------------------------------------------- | ------------------ | ------------------------------------- |
+| `number`, `decimal`, `currency`, `percent`, `integer` | **Yes**            | Quantities and amounts                |
+| `phone`, `tel`                                        | **Yes**            | Users legitimately type `٠٧…`         |
+| `text`, `email`, `password`, `url`, `search`, dates   | **No**             | Normalizing identifiers corrupts data |
+| SKU / barcode / product code (typed as `text`)        | **No**             | Must stay byte-identical              |
 
 If you need normalization on a text-like identifier, do it in the business layer, not the UI.
 
@@ -153,7 +153,7 @@ full-screen), Escape to close, overlay click, focus trap, focus restore, scroll 
 shift, `role="dialog"` + `aria-modal`, RTL-aware close button, safe-area padding on the footer.
 
 - `dismissible={false}` for unsaved-data confirmations.
-- `ConfirmDialog` replaces native `confirm()`. Note: it changes the *dialog*, **not** the delete.
+- `ConfirmDialog` replaces native `confirm()`. Note: it changes the _dialog_, **not** the delete.
 
 ### List page
 
@@ -190,22 +190,22 @@ const columns: DataTableColumn<ProductRow>[] = [
 
 `priority` decides the mobile representation:
 
-| value | cards mode | compact mode |
-| --- | --- | --- |
-| `primary` | title + key/value rows | always shown |
-| `secondary` | behind a **More** expander | behind a row expander |
-| `hidden-mobile` | never | never |
+| value           | cards mode                 | compact mode          |
+| --------------- | -------------------------- | --------------------- |
+| `primary`       | title + key/value rows     | always shown          |
+| `secondary`     | behind a **More** expander | behind a row expander |
+| `hidden-mobile` | never                      | never                 |
 
 `hidden` removes a column entirely (permission gating) — preferable to conditional array
 building, and it removes the fragile `colSpan` arithmetic the old tables used.
 
 ### Mobile strategy — pick per data type
 
-| Table type | `mobileMode` | Why |
-| --- | --- | --- |
-| Record lists (products, customers, suppliers, sales, purchases, batches, payments) | `cards` | Each row is an independent record |
-| Comparative grids (inventory, catalog, users, audit, settlements) | `compact` | Keeping columns aligned matters more than cards |
-| Financial matrices (trial balance, journal, statement, P&L, balance sheet) | `scroll` | Debit/credit column relationship must survive |
+| Table type                                                                         | `mobileMode` | Why                                             |
+| ---------------------------------------------------------------------------------- | ------------ | ----------------------------------------------- |
+| Record lists (products, customers, suppliers, sales, purchases, batches, payments) | `cards`      | Each row is an independent record               |
+| Comparative grids (inventory, catalog, users, audit, settlements)                  | `compact`    | Keeping columns aligned matters more than cards |
+| Financial matrices (trial balance, journal, statement, P&L, balance sheet)         | `scroll`     | Debit/credit column relationship must survive   |
 
 Never shrink a desktop table with `min-width` and call it responsive. The old global
 `.overflow-x-auto > table { min-width: 680px }` hack has been removed.

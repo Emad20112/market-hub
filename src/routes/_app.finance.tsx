@@ -1,5 +1,5 @@
 import { ModuleGuard, useModules } from "@/lib/modules";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { PageHeader } from "@/components/page-header";
 import { useI18n } from "@/lib/i18n";
@@ -187,88 +187,102 @@ function FinancePage() {
             : "Receivables, payables, cashflow and profit"
         }
         actions={
-          <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild>
-              <Button>
-                <Plus className="h-4 w-4 me-1" />
-                {lang === "ar" ? "مصروف جديد" : "New expense"}
+          <div className="flex items-center gap-2">
+            {/*
+             * The full expense register lives in its own module now. This link
+             * is the bridge: the finance screen keeps its summary and its
+             * debtors/creditors tabs, while anything that needs lines, approval,
+             * posting or payments goes where those exist.
+             */}
+            <Link to="/expenses">
+              <Button variant="outline">
+                <Receipt className="h-4 w-4 me-1" />
+                {lang === "ar" ? "سجل المصروفات" : "Expense register"}
               </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>{lang === "ar" ? "إضافة مصروف" : "Add expense"}</DialogTitle>
-              </DialogHeader>
-              <div className="grid gap-3">
-                <div className="grid gap-1.5">
-                  <Label>{lang === "ar" ? "الفئة" : "Category"}</Label>
-                  <Select
-                    value={form.category_id}
-                    onValueChange={(v) => setForm({ ...form, category_id: v })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="—" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {categories.map((c) => (
-                        <SelectItem key={c.id} value={c.id}>
-                          {lang === "ar" ? (c.name_ar ?? c.name) : c.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="grid gap-1.5">
-                    <Label>{lang === "ar" ? "المبلغ" : "Amount"}</Label>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      value={form.amount}
-                      onChange={(e) => setForm({ ...form, amount: e.target.value })}
-                    />
-                  </div>
-                  <div className="grid gap-1.5">
-                    <Label>{lang === "ar" ? "التاريخ" : "Date"}</Label>
-                    <Input
-                      type="date"
-                      value={form.expense_date}
-                      onChange={(e) => setForm({ ...form, expense_date: e.target.value })}
-                    />
-                  </div>
-                </div>
-                <div className="grid gap-1.5">
-                  <Label>{lang === "ar" ? "طريقة الدفع" : "Payment method"}</Label>
-                  <Select
-                    value={form.payment_method}
-                    onValueChange={(v) => setForm({ ...form, payment_method: v })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="cash">Cash</SelectItem>
-                      <SelectItem value="card">Card</SelectItem>
-                      <SelectItem value="bank">Bank</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="grid gap-1.5">
-                  <Label>{lang === "ar" ? "ملاحظات" : "Note"}</Label>
-                  <Textarea
-                    rows={2}
-                    value={form.note}
-                    onChange={(e) => setForm({ ...form, note: e.target.value })}
-                  />
-                </div>
-              </div>
-              <DialogFooter>
-                <Button variant="ghost" onClick={() => setOpen(false)}>
-                  {t("common.cancel")}
+            </Link>
+            <Dialog open={open} onOpenChange={setOpen}>
+              <DialogTrigger asChild>
+                <Button>
+                  <Plus className="h-4 w-4 me-1" />
+                  {lang === "ar" ? "مصروف جديد" : "New expense"}
                 </Button>
-                <Button onClick={saveExpense}>{t("common.save")}</Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>{lang === "ar" ? "إضافة مصروف" : "Add expense"}</DialogTitle>
+                </DialogHeader>
+                <div className="grid gap-3">
+                  <div className="grid gap-1.5">
+                    <Label>{lang === "ar" ? "الفئة" : "Category"}</Label>
+                    <Select
+                      value={form.category_id}
+                      onValueChange={(v) => setForm({ ...form, category_id: v })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="—" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {categories.map((c) => (
+                          <SelectItem key={c.id} value={c.id}>
+                            {lang === "ar" ? (c.name_ar ?? c.name) : c.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="grid gap-1.5">
+                      <Label>{lang === "ar" ? "المبلغ" : "Amount"}</Label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        value={form.amount}
+                        onChange={(e) => setForm({ ...form, amount: e.target.value })}
+                      />
+                    </div>
+                    <div className="grid gap-1.5">
+                      <Label>{lang === "ar" ? "التاريخ" : "Date"}</Label>
+                      <Input
+                        type="date"
+                        value={form.expense_date}
+                        onChange={(e) => setForm({ ...form, expense_date: e.target.value })}
+                      />
+                    </div>
+                  </div>
+                  <div className="grid gap-1.5">
+                    <Label>{lang === "ar" ? "طريقة الدفع" : "Payment method"}</Label>
+                    <Select
+                      value={form.payment_method}
+                      onValueChange={(v) => setForm({ ...form, payment_method: v })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="cash">Cash</SelectItem>
+                        <SelectItem value="card">Card</SelectItem>
+                        <SelectItem value="bank">Bank</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="grid gap-1.5">
+                    <Label>{lang === "ar" ? "ملاحظات" : "Note"}</Label>
+                    <Textarea
+                      rows={2}
+                      value={form.note}
+                      onChange={(e) => setForm({ ...form, note: e.target.value })}
+                    />
+                  </div>
+                </div>
+                <DialogFooter>
+                  <Button variant="ghost" onClick={() => setOpen(false)}>
+                    {t("common.cancel")}
+                  </Button>
+                  <Button onClick={saveExpense}>{t("common.save")}</Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          </div>
         }
       />
 

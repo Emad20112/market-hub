@@ -1,7 +1,6 @@
 import { ModuleGuard } from "@/lib/modules";
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
-import JsBarcode from "jsbarcode";
 import { Printer, Barcode as BarcodeIcon, Search, Camera, Plus, Wand2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/page-header";
@@ -135,31 +134,42 @@ function BarcodesPage() {
       .slice(0, 50);
   }, [products, search]);
 
-  // Render barcodes into svg elements
+  // Render barcodes into svg elements (dynamically load jsbarcode to save initial bundle size)
   useEffect(() => {
     if (!product || !previewRef.current) return;
+    let active = true;
     const svgs = previewRef.current.querySelectorAll<SVGElement>("svg[data-barcode]");
-    svgs.forEach((svg) => {
-      svg.innerHTML = "";
-      try {
-        JsBarcode(svg, code, {
-          format,
-          displayValue: true,
-          fontSize: 11,
-          height: layout === "roll-50" ? 45 : 36,
-          margin: 2,
-          width: format === "CODE39" ? 1.2 : 1.5,
-          background: "#ffffff",
-          lineColor: "#000000",
-        });
-      } catch {
+
+    import("jsbarcode").then(({ default: JsBarcode }) => {
+      if (!active) return;
+      svgs.forEach((svg) => {
+        svg.innerHTML = "";
         try {
-          JsBarcode(svg, code, { format: "CODE128", displayValue: true, fontSize: 11, height: 36 });
+          JsBarcode(svg, code, {
+            format,
+            displayValue: true,
+            fontSize: 11,
+            height: layout === "roll-50" ? 45 : 36,
+            margin: 2,
+            width: format === "CODE39" ? 1.2 : 1.5,
+            background: "#ffffff",
+            lineColor: "#000000",
+          });
         } catch {
-          /* ignore */
+          try {
+            JsBarcode(svg, code, { format: "CODE128", displayValue: true, fontSize: 11, height: 36 });
+          } catch {
+            /* ignore */
+          }
         }
-      }
+      });
+    }).catch((err) => {
+      console.error("Failed to load jsbarcode:", err);
     });
+
+    return () => {
+      active = false;
+    };
   }, [product, code, copies, format, showPrice, showName, showCompany, layout]);
 
   async function assignRandomBarcode() {

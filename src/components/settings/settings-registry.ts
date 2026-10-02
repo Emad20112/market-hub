@@ -1,4 +1,4 @@
-import React from "react";
+﻿import React from "react";
 import {
   Building2,
   Receipt,
@@ -6,6 +6,8 @@ import {
   SlidersHorizontal,
   Crown,
   Languages,
+  Hash,
+  ShieldCheck,
   LucideIcon,
 } from "lucide-react";
 import { CompanySection } from "./sections/company-section";
@@ -14,9 +16,19 @@ import { PrintingSection } from "./sections/printing-section";
 import { CatalogSection } from "./sections/catalog-section";
 import { SubscriptionSection } from "./sections/subscription-section";
 import { AppearanceSection } from "./sections/appearance-section";
+import { NumberFormatSection } from "./sections/number-format-section";
+import { BackupSettingsCard } from "@/components/backup-settings-card";
 
 export type SettingsSectionId =
-  "company" | "invoicing" | "printing" | "catalog" | "subscription" | "appearance" | string;
+  | "company"
+  | "invoicing"
+  | "printing"
+  | "catalog"
+  | "subscription"
+  | "backup"
+  | "number-format"
+  | "appearance"
+  | string;
 
 export interface SettingsSectionMeta {
   id: SettingsSectionId;
@@ -59,8 +71,8 @@ registerSettingsSection({
   id: "invoicing",
   titleAr: "الفواتير والعملة",
   titleEn: "Invoicing & POS",
-  descriptionAr: "العملة، نسبة الضريبة، البادئة، الخدمة المخصصة، والباركود",
-  descriptionEn: "Currency, tax %, prefix, service fee, and barcode",
+  descriptionAr: "العملة والضريبة وترقيم الفواتير والشعار وخيارات السلة",
+  descriptionEn: "Currency, tax, invoice numbering, logo, and POS cart options",
   icon: Receipt,
   component: InvoicingSection,
 });
@@ -95,6 +107,26 @@ registerSettingsSection({
   badgeAr: "مؤسسات",
   badgeEn: "Enterprise",
   component: SubscriptionSection,
+});
+
+registerSettingsSection({
+  id: "backup",
+  titleAr: "النسخ الاحتياطي",
+  titleEn: "Backup & Restore",
+  descriptionAr: "إعدادات النسخ الاحتياطي والسجل والاستعادة",
+  descriptionEn: "Backup settings, history, and restore",
+  icon: ShieldCheck,
+  component: BackupSettingsCard,
+});
+
+registerSettingsSection({
+  id: "number-format",
+  titleAr: "نظام الأرقام",
+  titleEn: "Number Format",
+  descriptionAr: "اختيار نمط الأرقام المستخدم في النظام",
+  descriptionEn: "Choose the digit style used across the system",
+  icon: Hash,
+  component: NumberFormatSection,
 });
 
 registerSettingsSection({

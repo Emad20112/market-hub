@@ -305,7 +305,7 @@ function NewBatchModal({
               onChange={(e) => setForm({ ...form, product_id: e.target.value })}
               className="h-9 w-full rounded-md border border-input bg-surface px-3 text-sm"
             >
-              <option value="">—</option>
+              <option value="">{lang === "ar" ? "اختر..." : "Select..."}</option>
               {products.map((p) => (
                 <option key={p.id} value={p.id}>
                   {lang === "ar" ? p.name_ar || p.name : p.name || p.name_ar}
@@ -319,7 +319,7 @@ function NewBatchModal({
               onChange={(e) => setForm({ ...form, warehouse_id: e.target.value })}
               className="h-9 w-full rounded-md border border-input bg-surface px-3 text-sm"
             >
-              <option value="">—</option>
+              <option value="">{lang === "ar" ? "اختر..." : "Select..."}</option>
               {warehouses.map((w) => (
                 <option key={w.id} value={w.id}>
                   {lang === "ar" ? w.name_ar || w.name : w.name || w.name_ar}

@@ -174,7 +174,7 @@ export function VortexCollectionSheet({
         notes: notes.trim() || undefined,
       });
 
-      const today = new Date().toLocaleDateString("ar-SA", {
+      const today = new Date().toLocaleDateString("ar-YE", {
         year: "numeric",
         month: "short",
         day: "numeric",

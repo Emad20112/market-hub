@@ -22,6 +22,7 @@ import { Search, Users, X, AlertCircle, FileText } from "lucide-react";
 import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/page-header";
+import { toast } from "sonner";
 import { useI18n } from "@/lib/i18n";
 import { money } from "@/lib/format";
 import { useDebtIndex } from "@/hooks/use-debts-overview";
@@ -117,7 +118,7 @@ function DebtsPage() {
 
     const currentCust = rows.find((r) => r.id === data.customerId) || collectionCustomer;
     if (currentCust) {
-      const newBal = (Number(currentCust.balance) || 0) - data.amount;
+      const newBal = Math.round(((Number(currentCust.balance) || 0) - data.amount) * 100) / 100;
       await (supabase as any)
         .from("customers")
         .update({ balance: newBal })
@@ -213,7 +214,7 @@ function DebtsPage() {
       const ledgerRow = ledgerIndex.get(r.id);
       const balance = ledgerRow ? ledgerRow.ledgerBalance : Number(r.balance);
       if (balance > 0) {
-        totalDebt += balance;
+        totalDebt = Math.round((totalDebt + balance) * 100) / 100;
         debtors += 1;
         if (Number(r.credit_limit) > 0 && balance > Number(r.credit_limit)) overLimit += 1;
       }
@@ -271,7 +272,6 @@ function DebtsPage() {
         <VortexMetricCard
           title={t("debts.total_debt")}
           value={totals.totalDebt}
-          currency="ر.س"
           highlight
           icon={<HandCoins className="size-5 text-amber-600 dark:text-amber-400" />}
           iconClassName="bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20"

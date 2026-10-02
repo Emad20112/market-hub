@@ -114,32 +114,43 @@ function AnalyticsPage() {
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ["analytics", days],
+    staleTime: 60_000,
     queryFn: async () => {
       const since = new Date(Date.now() - days * 86400_000).toISOString();
       const [sales, items, products, inv, expenses, purchases] = await Promise.all([
         supabase
           .from("sales_invoices")
           .select("id,total,paid,payment_method,status,created_at,customer_id")
-          .gte("created_at", since),
+          .gte("created_at", since)
+          .order("created_at", { ascending: false })
+          .limit(1500),
         supabase
           .from("sales_invoice_items")
           .select(
             "product_id,quantity,total,invoice_id,sales_invoices!inner(created_at,customer_id)",
           )
-          .gte("sales_invoices.created_at", since),
+          .gte("sales_invoices.created_at", since)
+          .limit(3000),
         supabase
           .from("products")
           .select(
             "id,name,name_ar,cost,sale_price,min_stock,category_id,brand_id,categories(name,name_ar),brands(name,name_ar)",
-          ),
+          )
+          .limit(2000),
         supabase
           .from("inventory")
-          .select("product_id,quantity,warehouse_id,warehouses(name,name_ar)"),
+          .select("product_id,quantity,warehouse_id,warehouses(name,name_ar)")
+          .limit(2000),
         supabase
           .from("expenses")
           .select("amount,created_at,category:expense_categories(name,name_ar)")
-          .gte("created_at", since),
-        supabase.from("purchase_invoices").select("total,created_at").gte("created_at", since),
+          .gte("created_at", since)
+          .limit(1000),
+        supabase
+          .from("purchase_invoices")
+          .select("total,created_at")
+          .gte("created_at", since)
+          .limit(1000),
       ]);
       return {
         sales: sales.data ?? [],

@@ -8,7 +8,8 @@ export interface VortexSearchInputProps extends Omit<
   "size" | "onChange" | "value"
 > {
   value: string;
-  onValueChange: (value: string) => void;
+  onValueChange?: (value: string) => void;
+  onChange?: any;
   size?: FieldSize;
   loading?: boolean;
   debounceMs?: number;
@@ -22,6 +23,7 @@ export const VortexSearchInput = React.forwardRef<HTMLInputElement, VortexSearch
       className,
       value,
       onValueChange,
+      onChange,
       size = "md",
       loading = false,
       debounceMs = 0,
@@ -41,28 +43,46 @@ export const VortexSearchInput = React.forwardRef<HTMLInputElement, VortexSearch
       setLocalValue(value);
     }, [value]);
 
+    const emitChange = React.useCallback(
+      (val: string, e?: React.ChangeEvent<HTMLInputElement>) => {
+        onValueChange?.(val);
+        if (typeof onChange === "function") {
+          try {
+            if (e && onChange.length > 0) {
+              onChange(e);
+            } else {
+              onChange(val);
+            }
+          } catch {
+            onChange(val);
+          }
+        }
+      },
+      [onValueChange, onChange],
+    );
+
     // Handle debounce
     React.useEffect(() => {
       if (debounceMs <= 0) return;
       const timer = setTimeout(() => {
         if (localValue !== value) {
-          onValueChange(localValue);
+          emitChange(localValue);
         }
       }, debounceMs);
       return () => clearTimeout(timer);
-    }, [localValue, debounceMs, onValueChange, value]);
+    }, [localValue, debounceMs, emitChange, value]);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
       const val = e.target.value;
       setLocalValue(val);
       if (debounceMs <= 0) {
-        onValueChange(val);
+        emitChange(val, e);
       }
     };
 
     const handleClear = () => {
       setLocalValue("");
-      onValueChange("");
+      emitChange("");
       inputRef.current?.focus();
     };
 

@@ -245,7 +245,8 @@ function NewPurchaseReturn({
           lang === "ar"
             ? item.products?.name_ar || item.products?.name
             : item.products?.name || item.products?.name_ar,
-        quantity: 1,
+        quantity: Math.min(1, Math.max(1, Number(item.quantity ?? 1))),
+        max_quantity: Number(item.quantity ?? 9999),
         unit_cost: Number(item.unit_cost ?? 0),
         tax_rate: Number(item.tax_rate ?? 0),
       }));
@@ -276,7 +277,8 @@ function NewPurchaseReturn({
           lang === "ar"
             ? item.products?.name_ar || item.products?.name
             : item.products?.name || item.products?.name_ar,
-        quantity: 1,
+        quantity: Math.min(1, Math.max(1, Number(item.quantity ?? 1))),
+        max_quantity: Number(item.quantity ?? 9999),
         unit_cost: Number(item.unit_cost ?? 0),
         tax_rate: Number(item.tax_rate ?? 0),
       }));
@@ -322,10 +324,17 @@ function NewPurchaseReturn({
 
   function updateQty(pid: string, qty: number) {
     if (qty < 1) return removeLine(pid);
-    setLines((l) => l.map((x) => (x.product_id === pid ? { ...x, quantity: qty } : x)));
+    setLines((l) =>
+      l.map((x) => {
+        if (x.product_id !== pid) return x;
+        const maxQ = (x as any).max_quantity;
+        const validQty = typeof maxQ === "number" && maxQ > 0 ? Math.min(qty, maxQ) : qty;
+        return { ...x, quantity: validQty };
+      }),
+    );
   }
 
-  const total = lines.reduce((a, l) => a + l.quantity * l.unit_cost * (1 + l.tax_rate / 100), 0);
+  const total = Math.round(lines.reduce((a, l) => a + l.quantity * l.unit_cost * (1 + l.tax_rate / 100), 0) * 100) / 100;
 
   async function save() {
     if (!warehouseId || !supplierId || lines.length === 0) {

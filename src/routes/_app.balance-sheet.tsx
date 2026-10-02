@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { PageHeader } from "@/components/page-header";
 import { useI18n } from "@/lib/i18n";
 import { supabase } from "@/integrations/supabase/client";
-import { money } from "@/lib/format";
+import { getCompanyCurrencySymbol, money } from "@/lib/format";
 import { printFinancialStatement } from "@/lib/pdf";
 import { exportToCSV } from "@/lib/excel-export";
 import { Button } from "@/components/ui/button";
@@ -105,7 +105,7 @@ function BalanceSheetPage() {
         lang === "ar"
           ? `بتاريخ: ${new Date().toLocaleDateString("ar-YE")}`
           : `As of ${new Date().toLocaleDateString()}`,
-      currency: "﷼",
+      currency: getCompanyCurrencySymbol(),
       twoColumn: true,
       columnTitles: [
         lang === "ar" ? "الأصول والموجودات (Assets)" : "Assets",
@@ -168,11 +168,11 @@ function BalanceSheetPage() {
     exportToCSV({
       filename: `الميزانية_العمومية_${new Date().toISOString().slice(0, 10)}`,
       title: "بيان الميزانية العمومية والمركز المالي",
-      currency: "﷼",
+      currency: getCompanyCurrencySymbol(),
       columns: [
         { key: "category", header: "التصنيف المحاسبي" },
         { key: "item", header: "بند الميزانية العمومية" },
-        { key: "amount", header: "القيمة المالية بالريال اليمني", format: "money" },
+        { key: "amount", header: "القيمة المالية بالعملة المحددة", format: "money" },
       ],
       rows: [
         { category: "الأصول", item: "النقدية بالصندوق والبنك", amount: bs.cashOnHand },

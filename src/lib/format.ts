@@ -1,4 +1,5 @@
 import { toSystemDigits } from "./format-preferences";
+import { getCurrencySymbol } from "./currencies";
 const COMPANY_SETTINGS_CACHE_KEY = "company_settings_cache";
 
 type CompanySettingsCache = {
@@ -25,12 +26,21 @@ export function setCompanySettingsCache(settings: CompanySettingsCache | null | 
   window.localStorage.setItem(COMPANY_SETTINGS_CACHE_KEY, JSON.stringify(settings));
 }
 
+export function getCompanyCurrencySymbol(): string {
+  const settings = readCompanySettingsCache();
+  const locale = typeof navigator !== "undefined" ? navigator.language : "ar-YE";
+  return settings.currency_symbol?.trim() || getCurrencySymbol(settings.currency || "YER", locale);
+}
+
 export function money(n: number, currency?: string, locale?: string) {
   const settings = readCompanySettingsCache();
   const currencyCode = currency || settings.currency || "YER";
   const resolvedLocale =
     locale || (typeof navigator !== "undefined" ? navigator.language : "ar-YE");
-  const symbol = settings.currency_symbol?.trim() || "﷼";
+  const symbol =
+    currency && settings.currency && currency !== settings.currency
+      ? getCurrencySymbol(currency, resolvedLocale)
+      : settings.currency_symbol?.trim() || getCurrencySymbol(currencyCode, resolvedLocale);
 
   const base = new Intl.NumberFormat(resolvedLocale, {
     minimumFractionDigits: 0,
@@ -55,11 +65,13 @@ export function num(n: number, locale = "en-US") {
 export function moneyCell(n: number | string | null | undefined, locale = "en-US"): string {
   const value = typeof n === "string" ? Number(n) : n;
   if (value == null || !Number.isFinite(value)) return "—";
-  return toSystemDigits(new Intl.NumberFormat(locale, {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-    useGrouping: true,
-  }).format(value));
+  return toSystemDigits(
+    new Intl.NumberFormat(locale, {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+      useGrouping: true,
+    }).format(value),
+  );
 }
 
 /**
@@ -69,20 +81,22 @@ export function moneyCell(n: number | string | null | undefined, locale = "en-US
 export function qtyCell(n: number | string | null | undefined, locale = "en-US"): string {
   const value = typeof n === "string" ? Number(n) : n;
   if (value == null || !Number.isFinite(value)) return "—";
-  return toSystemDigits(new Intl.NumberFormat(locale, { maximumFractionDigits: 3, useGrouping: true }).format(
-    value,
-  ));
+  return toSystemDigits(
+    new Intl.NumberFormat(locale, { maximumFractionDigits: 3, useGrouping: true }).format(value),
+  );
 }
 
 /**
  * Currency with grouping — the full-form alternative to `money()`.
- * Example: 12500 → "12,500.00 ﷼"
+ * Example: 12500 → "12,500.00 ر.ي"
  */
 export function moneyGrouped(n: number, locale?: string) {
   const settings = readCompanySettingsCache();
   const resolvedLocale =
     locale || (typeof navigator !== "undefined" ? navigator.language : "ar-YE");
-  const symbol = settings.currency_symbol?.trim() || "﷼";
+  const symbol =
+    settings.currency_symbol?.trim() ||
+    getCurrencySymbol(settings.currency || "YER", resolvedLocale);
   const base = new Intl.NumberFormat(resolvedLocale, {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,

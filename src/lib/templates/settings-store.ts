@@ -3,6 +3,8 @@ import { InvoiceTemplateId, PrintSettings } from "./types";
 export const DEFAULT_PRINT_SETTINGS: PrintSettings = {
   defaultCustomerTemplate: "thermal",
   defaultInventoryTemplate: "thermal",
+  defaultCustomerPaperProfile: "thermal-80",
+  defaultInventoryPaperProfile: "thermal-80",
   paperSize: "80mm",
   autoPrintCustomerInvoice: true,
   autoPrintInventoryDocument: false,
@@ -70,6 +72,8 @@ export function getPrintSettings(): PrintSettings {
       const hydrated: PrintSettings = {
         ...DEFAULT_PRINT_SETTINGS,
         defaultCustomerTemplate: legacyTemplate ?? DEFAULT_PRINT_SETTINGS.defaultCustomerTemplate,
+        defaultCustomerPaperProfile: DEFAULT_PRINT_SETTINGS.defaultCustomerPaperProfile,
+        defaultInventoryPaperProfile: DEFAULT_PRINT_SETTINGS.defaultInventoryPaperProfile,
         printMode: legacyMode ?? DEFAULT_PRINT_SETTINGS.printMode,
       };
       return reconcileModeAndAutoPrint(hydrated);
