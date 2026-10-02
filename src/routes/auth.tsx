@@ -129,7 +129,7 @@ function AuthPage() {
             <div className="mx-auto grid size-16 place-items-center rounded-[1.4rem] border border-primary/30 bg-primary/10 p-2 shadow-[0_10px_28px_rgba(37,99,235,0.18)]">
               <img src={logoMarkUrl} alt={t("app.name")} className="size-full object-contain" />
             </div>
-            <h1 className="mt-4 text-2xl font-black tracking-tight text-white sm:text-3xl">
+            <h1 className="mt-4 text-2xl font-black tracking-tight text-foreground sm:text-3xl">
               {isRtl ? "نظام فورتكس لإدارة الأعمال" : "Vortex Business Management"}
             </h1>
             <p className="mt-2 text-sm text-slate-400">
@@ -181,7 +181,7 @@ function AuthPage() {
                         key={item}
                         className="rounded-2xl border border-white/15 bg-white/10 px-2 py-3 text-center text-[10px] font-semibold sm:text-[11px] backdrop-blur-sm"
                       >
-                        <CheckCircle2 className="mx-auto mb-1.5 size-3.5 text-white/90" />
+                        <CheckCircle2 className="mx-auto mb-1.5 size-3.5 text-foreground/90" />
                         {item}
                       </div>
                     ))}
@@ -204,7 +204,7 @@ function AuthPage() {
             <section className="flex flex-col justify-center rounded-[2rem] border border-white/10 bg-[#0d182d]/95 px-5 py-7 shadow-[0_24px_80px_rgba(0,0,0,0.32)] backdrop-blur-xl sm:px-7 sm:py-8">
               <div className="mx-auto w-full max-w-sm">
                 <div className="text-center">
-                  <h2 className="text-xl font-black tracking-tight text-white">
+                  <h2 className="text-xl font-black tracking-tight text-foreground">
                     {isRtl ? "تسجيل الدخول" : "Sign in"}
                   </h2>
                   <p className="mt-1.5 text-xs leading-6 text-slate-400">
@@ -236,7 +236,7 @@ function AuthPage() {
                         required
                         disabled={loading}
                         dir="ltr"
-                        className="h-12 w-full rounded-2xl border border-white/10 bg-[#071125] px-4 ps-10 text-sm text-white shadow-sm outline-none transition-[border-color,box-shadow,background-color] placeholder:text-slate-500 hover:border-primary/45 focus:border-primary focus:ring-4 focus:ring-primary/15 disabled:cursor-not-allowed disabled:opacity-60 motion-reduce:transition-none"
+                        className="h-12 w-full rounded-2xl border border-white/10 bg-[#071125] px-4 ps-10 text-sm text-foreground shadow-sm outline-none transition-[border-color,box-shadow,background-color] placeholder:text-slate-500 hover:border-primary/45 focus:border-primary focus:ring-4 focus:ring-primary/15 disabled:cursor-not-allowed disabled:opacity-60 motion-reduce:transition-none"
                         placeholder="name@company.com"
                       />
                     </div>
@@ -264,13 +264,13 @@ function AuthPage() {
                         minLength={6}
                         disabled={loading}
                         dir="ltr"
-                        className="h-12 w-full rounded-2xl border border-white/10 bg-[#071125] px-4 ps-10 pe-12 text-sm text-white shadow-sm outline-none transition-[border-color,box-shadow,background-color] placeholder:text-slate-500 hover:border-primary/45 focus:border-primary focus:ring-4 focus:ring-primary/15 disabled:cursor-not-allowed disabled:opacity-60 motion-reduce:transition-none"
+                        className="h-12 w-full rounded-2xl border border-white/10 bg-[#071125] px-4 ps-10 pe-12 text-sm text-foreground shadow-sm outline-none transition-[border-color,box-shadow,background-color] placeholder:text-slate-500 hover:border-primary/45 focus:border-primary focus:ring-4 focus:ring-primary/15 disabled:cursor-not-allowed disabled:opacity-60 motion-reduce:transition-none"
                         placeholder="••••••••"
                       />
                       <button
                         type="button"
                         onClick={() => setShowPassword((visible) => !visible)}
-                        className="absolute end-2 top-1/2 grid size-9 -translate-y-1/2 place-items-center rounded-xl text-slate-400 transition-colors hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-not-allowed disabled:opacity-60 motion-reduce:transition-none"
+                        className="absolute end-2 top-1/2 grid size-9 -translate-y-1/2 place-items-center rounded-xl text-slate-400 transition-colors hover:bg-white/10 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-not-allowed disabled:opacity-60 motion-reduce:transition-none"
                         aria-label={
                           showPassword
                             ? isRtl

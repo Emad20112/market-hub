@@ -767,13 +767,13 @@ function InventoryPage() {
           viewToggle={
             <div className="flex items-center gap-1.5">
               <ToolbarAction
-                label={lang === "ar" ? "إدخال مخزني مباشر" : lang === "ar" ? "إدخال مخزني مباشر" : "Direct Stock In"}
+                label={lang === "ar" ? "إدخال مخزني مباشر" : "إدخال مخزني مباشر"}
                 icon={<PackagePlus />}
                 onClick={() => setDirectIn({})}
                 tone="primary"
               />
               <ToolbarAction
-                label={lang === "ar" ? "رصيد أول المدة" : lang === "ar" ? "رصيد أول المدة" : "Opening stock"}
+                label={lang === "ar" ? "رصيد أول المدة" : "رصيد أول المدة"}
                 icon={<Sparkles />}
                 onClick={() => setOpeningOpen(true)}
               />

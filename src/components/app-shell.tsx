@@ -919,7 +919,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <header className="sticky top-0 z-30 flex h-16 items-center gap-2.5 border-b border-border/60 bg-background/70 px-4 backdrop-blur-xl sm:px-6">
           <button
             onClick={() => setMobileOpen(true)}
-            className="md:hidden grid h-10 w-10 place-items-center rounded-full border border-border/60 bg-surface text-muted-foreground hover:text-foreground transition-colors"
+            className="md:hidden shrink-0 size-10 aspect-square grid place-items-center rounded-full border border-border/60 bg-surface text-muted-foreground hover:text-foreground transition-colors active:scale-95"
             aria-label="Open menu"
           >
             <Menu className="h-4.5 w-4.5" />
