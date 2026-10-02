@@ -22,6 +22,11 @@ import {
   Database,
   FileCheck,
   RefreshCw,
+  Factory,
+  Receipt,
+  Users,
+  Layers,
+  Building2,
 } from "lucide-react";
 import { validateBackupFile } from "@/lib/backup/engine";
 import { BackupValidationResult } from "@/lib/backup/types";
@@ -78,7 +83,7 @@ export function BackupRestoreDialog({ open, onClose }: BackupRestoreDialogProps)
   const handleExecuteRestoreNotice = () => {
     setStep("complete");
     toast.info(
-      "ملاحظة السلامة: تم إجراء الجولة التجريبية (Dry-Run). الاستعادة النهائية تطلب تنفيذ Transaction سيرفر سحابي محمي.",
+      "ملاحظة السلامة: تم إجراء الجولة التجريبية (Dry-Run). الاستعادة النهائية تتطلب تنفيذ Transaction سيرفر سحابي محمي.",
       { duration: 6000 },
     );
   };
@@ -98,10 +103,10 @@ export function BackupRestoreDialog({ open, onClose }: BackupRestoreDialogProps)
         <DialogHeader>
           <DialogTitle className="text-lg font-bold flex items-center gap-2">
             <Database className="h-5 w-5 text-primary" />
-            استعادة نقطة زمنية سابقة (Snapshot Restore)
+            استعادة نقطة زمنية سابقة (Snapshot Restore Inspector v2.0)
           </DialogTitle>
           <DialogDescription className="text-xs text-muted-foreground">
-            فحص وتأكيد سلامة النسخة الاحتياطية قبل الاستعادة لحماية بيانات المتجر.
+            فحص وتأكيد سلامة وتكامل جداول النسخة الاحتياطية قبل الاستعادة لحماية بيانات المتجر.
           </DialogDescription>
         </DialogHeader>
 
@@ -186,7 +191,7 @@ export function BackupRestoreDialog({ open, onClose }: BackupRestoreDialogProps)
             <div className="grid grid-cols-2 gap-3 p-3.5 rounded-2xl border border-border bg-surface/70 text-xs">
               <div>
                 <span className="text-muted-foreground">معرف النسخة:</span>
-                <span className="font-mono block text-foreground">
+                <span className="font-mono block text-foreground truncate">
                   {validationResult.metadata.backup_id}
                 </span>
               </div>
@@ -203,13 +208,48 @@ export function BackupRestoreDialog({ open, onClose }: BackupRestoreDialogProps)
                 </span>
               </div>
               <div>
-                <span className="text-muted-foreground">إصدار السكيما والمفتاح:</span>
+                <span className="text-muted-foreground">إصدار السكيما والمحرك:</span>
                 <span className="block font-medium text-foreground">
-                  {validationResult.metadata.schema_version} (
-                  {validationResult.metadata.key_version})
+                  {validationResult.metadata.schema_version} ({validationResult.metadata.engine_version})
                 </span>
               </div>
             </div>
+
+            {/* Category Statistics Breakdown */}
+            {validationResult.categoryStats && (
+              <div className="p-3 rounded-2xl border border-border/80 bg-surface/80 space-y-2">
+                <div className="text-xs font-bold text-foreground flex items-center justify-between">
+                  <span>توزيع سجلات الجداول المكتشفة بالملف:</span>
+                  <span className="text-primary font-mono">{validationResult.categoryStats.totalRecords} سجل في {validationResult.categoryStats.totalTables} جدولاً</span>
+                </div>
+                <div className="grid grid-cols-3 gap-2 text-[11px]">
+                  <div className="p-1.5 rounded-lg bg-surface-2/60 border border-border/50">
+                    <span className="text-muted-foreground">إعدادات أساسية: </span>
+                    <span className="font-bold font-mono">{validationResult.categoryStats.core}</span>
+                  </div>
+                  <div className="p-1.5 rounded-lg bg-surface-2/60 border border-border/50">
+                    <span className="text-muted-foreground">منتجات ومخزون: </span>
+                    <span className="font-bold font-mono">{validationResult.categoryStats.productsAndStock}</span>
+                  </div>
+                  <div className="p-1.5 rounded-lg bg-surface-2/60 border border-border/50">
+                    <span className="text-muted-foreground">مبيعات ومشتريات: </span>
+                    <span className="font-bold font-mono">{validationResult.categoryStats.salesAndPurchases}</span>
+                  </div>
+                  <div className="p-1.5 rounded-lg bg-surface-2/60 border border-border/50">
+                    <span className="text-muted-foreground">عملاء ومالية: </span>
+                    <span className="font-bold font-mono">{validationResult.categoryStats.financeAndLedgers}</span>
+                  </div>
+                  <div className="p-1.5 rounded-lg bg-surface-2/60 border border-border/50">
+                    <span className="text-amber-600 dark:text-amber-400 font-medium">المطاحن والمعالجة: </span>
+                    <span className="font-bold font-mono">{validationResult.categoryStats.millingModule}</span>
+                  </div>
+                  <div className="p-1.5 rounded-lg bg-surface-2/60 border border-border/50">
+                    <span className="text-purple-600 dark:text-purple-400 font-medium">المصروفات ERP: </span>
+                    <span className="font-bold font-mono">{validationResult.categoryStats.expenseModule}</span>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {validationResult.warnings.length > 0 && (
               <div className="p-3 rounded-2xl border border-amber-500/30 bg-amber-500/5 text-xs text-amber-600 dark:text-amber-400 space-y-1">
@@ -244,7 +284,7 @@ export function BackupRestoreDialog({ open, onClose }: BackupRestoreDialogProps)
               تم فحص واكتشاف هيكلية التبعيات المرجعية (DAG) بنجاح
             </div>
             <div className="text-xs text-muted-foreground max-w-md mx-auto leading-relaxed">
-              تم التحقق من تطابق كافة الفواتير والمنتجات والمستودعات والعملاء دون وجود أيتام.
+              تم التحقق من تطابق كافة الفواتير والمنتجات والمستودعات والعملاء وعقود المطاحن والمصروفات دون وجود أيتام.
               الاستعادة الفعلية محمية وموثقة في محرك السيرفر لمنع أي تأثير غير مقصود.
             </div>
           </div>
