@@ -1206,9 +1206,13 @@ function InvoiceDialog({
   const millBags = outputs.filter((o) => o.bags_source === "MILL");
   const packagingTotal = millBags.reduce((s, o) => s + o.mill_bags_used, 0);
 
-  const serviceFee =
-    (Number(job.input_bag_count) * Number(job.milling_fee_per_bag) || 0) +
-    ((Number(job.input_weight_kg) / 1000) * Number(job.milling_fee_per_ton) || 0);
+  // The server rejects a job with two fee bases.  Keep the preview on the
+  // same single-basis rule so the amount shown to the operator cannot imply
+  // that bag and ton fees will be charged together.
+  const isPricedPerBag = Number(job.milling_fee_per_bag) > 0;
+  const serviceFee = isPricedPerBag
+    ? Number(job.input_bag_count) * Number(job.milling_fee_per_bag)
+    : (Number(job.input_weight_kg) / 1000) * Number(job.milling_fee_per_ton);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/70 p-4 backdrop-blur-sm">
