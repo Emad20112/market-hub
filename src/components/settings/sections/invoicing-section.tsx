@@ -1,11 +1,8 @@
-import { useEffect, useState } from "react";
-import { Receipt, ScanBarcode, Wrench, Image as ImageIcon, Printer } from "lucide-react";
+import { Receipt, ScanBarcode, Wrench, Image as ImageIcon } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import type { InvoiceTemplate } from "@/lib/invoice-print";
-import { getPrintSettings, savePrintSettings } from "@/lib/templates";
 
 interface InvoicingSectionProps {
   form: any;
@@ -25,26 +22,6 @@ export function InvoicingSection({
   lang,
 }: InvoicingSectionProps) {
   const isAr = lang === "ar";
-  // Post-sale printing preferences come from the same unified store used by POS
-  const [printMode, setPrintModeState] = useState<"auto" | "ask" | "off">("ask");
-  const [defaultPrintTemplate, setDefaultPrintTemplateState] = useState<InvoiceTemplate>("thermal");
-
-  useEffect(() => {
-    const s = getPrintSettings();
-    setPrintModeState(s.printMode);
-    setDefaultPrintTemplateState(s.defaultCustomerTemplate as InvoiceTemplate);
-  }, []);
-
-  const setPrintMode = (v: "auto" | "ask" | "off") => {
-    setPrintModeState(v);
-    savePrintSettings({ printMode: v });
-  };
-
-  const setDefaultPrintTemplate = (v: InvoiceTemplate) => {
-    setDefaultPrintTemplateState(v);
-    savePrintSettings({ defaultCustomerTemplate: v });
-  };
-
   return (
     <Card className="rounded-3xl border-border/80 shadow-xs">
       <CardHeader className="border-b border-border/50 pb-4">
@@ -53,11 +30,11 @@ export function InvoicingSection({
             <Receipt className="h-5 w-5" />
           </div>
           <div>
-            <div>{isAr ? "إعدادات الفواتير والسلة والعملة" : "Invoicing & POS Cart Settings"}</div>
+            <div>{isAr ? "إعدادات المبيعات ونقطة البيع" : "Sales & POS Settings"}</div>
             <div className="text-xs text-muted-foreground font-normal mt-0.5">
               {isAr
-                ? "ضبط العملة الحسابية، نسبة الضريبة، الباركود، وإيقاف/تفعيل أجور الخدمة والسلة"
-                : "Configure base currency, tax %, invoice numbering prefix, and POS cart toggles"}
+                ? "ضبط العملة، الضرائب، ترقيم الفواتير، الخدمات الإضافية، والباركود"
+                : "Configure currency, taxes, invoice numbering, extra services, and barcode"}
             </div>
           </div>
         </CardTitle>
@@ -175,79 +152,6 @@ export function InvoicingSection({
           />
         </div>
 
-        {/* Post-Sale Printing Shortcut */}
-        <div className="pt-3 border-t border-border/60">
-          <div className="flex items-center gap-2 mb-3">
-            <Printer className="h-4 w-4 text-primary" />
-            <span className="text-xs font-bold text-foreground uppercase tracking-wider">
-              {isAr ? "سلوك الطباعة التلقائي بعد البيع" : "Post-Sale Print Behavior"}
-            </span>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Print Mode Selector */}
-            <div className="grid gap-1.5">
-              <label className="text-xs text-muted-foreground font-medium">
-                {isAr ? "وضع الطباعة بعد حفظ الفاتورة" : "Print mode after sale"}
-              </label>
-              <div className="grid grid-cols-3 gap-2">
-                {(
-                  [
-                    { val: "ask", ar: "سؤال دائمًا", en: "Always ask" },
-                    { val: "auto", ar: "طباعة تلقائية", en: "Auto print" },
-                    { val: "off", ar: "بدون طباعة", en: "No printing" },
-                  ] as const
-                ).map((opt) => (
-                  <button
-                    key={opt.val}
-                    type="button"
-                    disabled={!canEdit}
-                    onClick={() => setPrintMode(opt.val)}
-                    className={`h-9 rounded-xl border text-xs font-semibold transition-all ${
-                      printMode === opt.val
-                        ? "border-primary bg-primary/10 text-primary ring-1 ring-primary/30"
-                        : "border-border/80 text-muted-foreground hover:bg-surface-2 hover:text-foreground disabled:opacity-50"
-                    }`}
-                  >
-                    {isAr ? opt.ar : opt.en}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Default Invoice Template */}
-            {printMode !== "off" && (
-              <div className="grid gap-1.5">
-                <label className="text-xs text-muted-foreground font-medium">
-                  {isAr ? "القالب الافتراضي السريع" : "Quick Default Template"}
-                </label>
-                <div className="grid grid-cols-3 gap-2">
-                  {(
-                    [
-                      { val: "thermal", ar: "حراري 80mm", en: "Thermal 80mm" },
-                      { val: "standard", ar: "A4 عادي", en: "Standard A4" },
-                      { val: "elegant", ar: "A4 فاخر", en: "Elegant A4" },
-                    ] as const
-                  ).map((tmpl) => (
-                    <button
-                      key={tmpl.val}
-                      type="button"
-                      disabled={!canEdit}
-                      onClick={() => setDefaultPrintTemplate(tmpl.val)}
-                      className={`h-9 rounded-xl border text-xs font-semibold transition-all ${
-                        defaultPrintTemplate === tmpl.val
-                          ? "border-primary bg-primary/10 text-primary ring-1 ring-primary/30"
-                          : "border-border/80 text-muted-foreground hover:bg-surface-2 hover:text-foreground disabled:opacity-50"
-                      }`}
-                    >
-                      {isAr ? tmpl.ar : tmpl.en}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
       </CardContent>
     </Card>
   );

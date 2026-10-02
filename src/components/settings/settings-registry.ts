@@ -69,20 +69,20 @@ registerSettingsSection({
 
 registerSettingsSection({
   id: "invoicing",
-  titleAr: "الفواتير والعملة",
-  titleEn: "Invoicing & POS",
-  descriptionAr: "العملة، نسبة الضريبة، البادئة، الخدمة المخصصة، والباركود",
-  descriptionEn: "Currency, tax %, prefix, service fee, and barcode",
+  titleAr: "إعدادات المبيعات ونقطة البيع",
+  titleEn: "Sales & POS Settings",
+  descriptionAr: "العملة، الضرائب، ترقيم الفواتير، الخدمات الإضافية، والباركود",
+  descriptionEn: "Currency, taxes, invoice numbering, extra services, and barcode",
   icon: Receipt,
   component: InvoicingSection,
 });
 
 registerSettingsSection({
   id: "printing",
-  titleAr: "الطباعة والقوالب",
-  titleEn: "Printing Architecture",
-  descriptionAr: "القوالب الافتراضية، حجم الورق، والطباعة التلقائية",
-  descriptionEn: "Default templates, paper size, and auto print",
+  titleAr: "إعدادات الطباعة",
+  titleEn: "Print Settings",
+  descriptionAr: "القوالب، أحجام الورق، المعاينة، وإعدادات الطباعة الافتراضية",
+  descriptionEn: "Templates, paper profiles, preview, and default print options",
   icon: Printer,
   component: PrintingSection,
 });
