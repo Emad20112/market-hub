@@ -417,6 +417,15 @@ const sections: Section[] = [
         color: "text-yellow-500",
         bg: "bg-yellow-500/15",
       },
+      {
+        to: "/milling/operations-guide",
+        icon: BookOpen,
+        key: "nav.milling_guide",
+        moduleId: "milling_operations",
+        allowedRoles: ["owner", "manager", "accountant", "warehouse"],
+        color: "text-sky-500",
+        bg: "bg-sky-500/15",
+      },
     ],
   },
 

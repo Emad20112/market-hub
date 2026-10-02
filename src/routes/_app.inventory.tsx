@@ -31,6 +31,7 @@ import {
   TrendingDown,
   Wallet,
   PackagePlus,
+  RefreshCw,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -628,6 +629,32 @@ function InventoryPage() {
     </div>
   );
 
+  // A failed read must never look like an empty warehouse. That concealed
+  // permissions/schema problems behind a misleading "no inventory" card.
+  const inventoryLoadError = error ? (
+    <div className="card-mullak flex flex-col items-center justify-center space-y-3 p-12 text-center">
+      <div className="grid size-14 place-items-center rounded-2xl bg-destructive/10 text-destructive">
+        <AlertTriangle className="size-8" />
+      </div>
+      <h4 className="text-base font-bold text-foreground">
+        {lang === "ar" ? "تعذر تحميل بيانات المخزون" : "Could not load inventory"}
+      </h4>
+      <p className="max-w-sm text-xs text-muted-foreground">
+        {lang === "ar"
+          ? "لم يتم اعتبار الخطأ مخزوناً فارغاً. أعد المحاولة، وإذا استمر الخطأ راجع صلاحية المستخدم أو اتصال قاعدة البيانات."
+          : "The error is not shown as an empty inventory. Retry, then check access and database connectivity if it persists."}
+      </p>
+      <Button
+        size="sm"
+        variant="outline"
+        icon={<RefreshCw className="size-4" />}
+        onClick={() => void refetch()}
+      >
+        {lang === "ar" ? "إعادة المحاولة" : "Retry"}
+      </Button>
+    </div>
+  ) : null;
+
   return (
     <div className="space-y-4 pb-12">
       <PageHeader title={t("inventory.title")} subtitle={t("inventory.subtitle")} />
@@ -830,6 +857,8 @@ function InventoryPage() {
                 />
               ))}
             </div>
+          ) : inventoryLoadError ? (
+            inventoryLoadError
           ) : sortedRows.length === 0 ? (
             emptyState
           ) : (
@@ -1006,6 +1035,8 @@ function InventoryPage() {
                 />
               ))}
             </div>
+          ) : inventoryLoadError ? (
+            inventoryLoadError
           ) : sortedRows.length === 0 ? (
             emptyState
           ) : (
@@ -1151,6 +1182,8 @@ function InventoryPage() {
             </>
           )}
         </div>
+      ) : inventoryLoadError ? (
+        inventoryLoadError
       ) : (
         /* ─── Classic table view with infinite scroll sentinel ─── */
         <div className="panel-elevated -mx-1 overflow-hidden rounded-2xl border border-border/70 sm:mx-0">
