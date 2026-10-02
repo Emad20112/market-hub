@@ -17,7 +17,6 @@ import { PageHeader } from "@/components/page-header";
 import { ModuleGuard } from "@/lib/modules";
 import { supabase } from "@/integrations/supabase/client";
 import {
-  createJob,
   addOutput,
   completeJob,
   cancelJob,
@@ -33,6 +32,14 @@ import {
   type MillingOutputType,
   type JobCompletionSummary,
 } from "@/lib/milling";
+import {
+  createAgreement,
+  createJobFromAgreement,
+  invoiceJobV2,
+  fetchAgreements,
+  AGREEMENT_OUTPUT_LABELS,
+  type AgreementOutputType,
+} from "@/lib/milling/agreements";
 import { printMillingJobTicket } from "@/lib/milling/print";
 import {
   MillingPanel,
@@ -243,6 +250,16 @@ function MillingJobsPage() {
 
   const selectedJob = (jobs ?? []).find((j) => j.id === selectedJobId) ?? null;
 
+  // عقد الطحن الذي ينفذه هذا الأمر — يعرض ما اتفق عليه وقت الاستلام.
+  // الأوامر القديمة (قبل نظام العقود) agreement_id = NULL، فنُخفي البانر.
+  const agreementId = selectedJob?.agreement_id ?? null;
+  const { data: agreements } = useQuery({
+    queryKey: ["milling", "agreement", agreementId],
+    queryFn: () => fetchAgreements(),
+    enabled: !!agreementId,
+  });
+  const agreement = (agreements ?? []).find((a) => a.id === agreementId) ?? null;
+
   const { data: outputs } = useQuery({
     queryKey: ["milling", "outputs", selectedJobId],
     queryFn: () => fetchOutputs(selectedJobId),
@@ -277,8 +294,10 @@ function MillingJobsPage() {
     },
   });
 
+  // المرحلة 2: نستخدم الفاتورة v2 — سطر واحد (أساس واحد) وبند تعبئة.
+  // القديمة تُصدر شطرين وتقرأ السعر من products.sale_price لا من الأمر.
   const invoiceMutation = useMutation({
-    mutationFn: invoiceJob,
+    mutationFn: invoiceJobV2,
     onSuccess: (res) => {
       if (!res.ok) return toast.error(res.message ?? "تعذّر إصدار الفاتورة");
       toast.success("تم إصدار فاتورة أجور الطحن");
@@ -437,6 +456,39 @@ function MillingJobsPage() {
                 }
               />
 
+              {/* عقد الطحن — يوثّق ما طلبه العميل وقت الاتفاق. */}
+              {agreement && (
+                <div className="grid gap-3 border-b border-border/60 bg-surface-2/20 p-4 sm:grid-cols-4">
+                  <div>
+                    <p className="text-[11px] text-muted-foreground">الدرجة المطلوبة</p>
+                    <p className="mt-0.5 text-xs font-bold text-foreground">
+                      {(() => {
+                        const t = agreement.requested_output_type;
+                        return t ? AGREEMENT_OUTPUT_LABELS[t] : "—";
+                      })()}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-[11px] text-muted-foreground">درجة الحبوب</p>
+                    <p className="mt-0.5 text-xs font-bold text-foreground">
+                      {agreement.grade_name_ar ?? "—"}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-[11px] text-muted-foreground">الأكياس من</p>
+                    <p className="mt-0.5 text-xs font-bold text-foreground">
+                      {agreement.bags_source === "MILL" ? "المطحنة" : "العميل"}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-[11px] text-muted-foreground">طريقة التسليم</p>
+                    <p className="mt-0.5 text-xs font-bold text-foreground">
+                      {agreement.delivery_mode === "PARTIAL" ? "على دفعات" : "كلي"}
+                    </p>
+                  </div>
+                </div>
+              )}
+
               <div className="grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-4">
                 {[
                   { l: "الكمية المسحوبة", v: `${nf(selectedJob.input_bag_count)} كيس` },
@@ -453,15 +505,21 @@ function MillingJobsPage() {
 
               <div className="grid gap-3 border-t border-border/60 p-4 sm:grid-cols-3">
                 <div className="rounded-xl bg-surface-2/40 px-3 py-2">
-                  <p className="text-[11px] text-muted-foreground">أجرة الكيس</p>
+                  <p className="text-[11px] text-muted-foreground">أجرة الطحن</p>
+                  {/* المرحلة 2: أساس واحد فقط. عرض الكيس والطن معًا كان يُوهم
+                      بوجود أجرة مزدوجة، وهو ما سبّب الفاتورة المشوّهة. */}
                   <Mono className="mt-0.5 block font-bold">
-                    {nf(selectedJob.milling_fee_per_bag, 2)}
+                    {selectedJob.milling_fee_per_bag > 0
+                      ? `${nf(selectedJob.milling_fee_per_bag, 2)} / كيس`
+                      : selectedJob.milling_fee_per_ton > 0
+                        ? `${nf(selectedJob.milling_fee_per_ton, 2)} / طن`
+                        : "—"}
                   </Mono>
                 </div>
                 <div className="rounded-xl bg-surface-2/40 px-3 py-2">
-                  <p className="text-[11px] text-muted-foreground">أجرة الطن</p>
+                  <p className="text-[11px] text-muted-foreground">الاستخراج المتوقع</p>
                   <Mono className="mt-0.5 block font-bold">
-                    {nf(selectedJob.milling_fee_per_ton, 2)}
+                    {nf(selectedJob.expected_extraction_rate, 2)}%
                   </Mono>
                 </div>
                 <div className="rounded-xl bg-surface-2/40 px-3 py-2">
@@ -659,11 +717,53 @@ function NewJobForm({
   const [bags, setBags] = useState(0);
   const [bagSize, setBagSize] = useState(50);
   const [weight, setWeight] = useState(0);
-  const [feeBag, setFeeBag] = useState(0);
-  const [feeTon, setFeeTon] = useState(0);
   const [extraction, setExtraction] = useState(80);
   const [loss, setLoss] = useState(2);
   const [notes, setNotes] = useState("");
+
+  // ── عقد الطحن (المرحلة 1) ─────────────────────────────────────────────────
+  // المشكلة التي تحلها: النموذج القديم كان يسأل عن الأجر فقط، ولا يسأل
+  // «ماذا يريد العميل؟» — فيُنشأ أمر وسعر دون بيانات واضحة. الآن التجاوز
+  // يبدأ بالعقد: درجة الطلب + أساس تسعير واحد + مصدر الأكياس.
+  const [outputType, setOutputType] = useState<AgreementOutputType>("FLOUR_GRADE_1");
+  const [outputNote, setOutputNote] = useState("");
+  const [priceBasis, setPriceBasis] = useState<"BAG" | "TON">("BAG");
+  const [agreedPrice, setAgreedPrice] = useState(0);
+  const [bagsSource, setBagsSource] = useState<"CUSTOMER" | "MILL">("CUSTOMER");
+  const [deliveryMode, setDeliveryMode] = useState<"FULL" | "PARTIAL">("FULL");
+
+  // بطاقة الخدمة: SRV-MILL-* تطابق أساس التسعير (كيس → BAG، طن → TON).
+  // الربط التلقائي يمنع تمرير null فينزلق النظام إلى البطاقة الافتراضية.
+  const [services, setServices] = useState<{ id: string; name_ar: string; sku: string }[]>([]);
+
+  // الأنواع المولّدة لا تُحدَّث تلقائياً مع كل migration؛ نستخدم as any
+  // هنا فقط، تماماً كما يفعل lib/milling/agreements.ts.
+  useEffect(() => {
+    let alive = true;
+    void supabase
+      .from("products")
+      .select("id, name_ar, sku")
+      .eq("is_active", true)
+      .then(({ data }) => {
+        if (!alive) return;
+        const rows = (data ?? []) as {
+          id: string;
+          name_ar: string;
+          sku: string;
+        }[];
+        setServices(rows.filter((r) => r.sku.startsWith("SRV-")));
+      });
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  const selectedServiceId =
+    services.find((s) => (priceBasis === "TON" ? s.sku.includes("TON") : s.sku.includes("BAG")))
+      ?.id ?? null;
+
+  // الأجر يُشتق من العقد — إدخال واحد فقط، وأثره يظهر فوراً.
+  const estimatedTotal = priceBasis === "BAG" ? bags * agreedPrice : (weight / 1000) * agreedPrice;
 
   const receipt = intakes.find((i) => i.id === intakeId);
 
@@ -674,11 +774,43 @@ function NewJobForm({
     setWeight(receipt.net_weight_kg);
   }, [receipt]);
 
+  // المرحلة 1: أمر واحد = عقد واحد + تنفيذ. ننشئ العقد أولاً (يثبت الاتفاق
+  // وسعره)، ثم نفتح الأمر منه فيرث التسعير. لو فشل أيٌّ منهما لا يُكتب الآخر.
   const mutation = useMutation({
-    mutationFn: createJob,
+    mutationFn: async () => {
+      const agreement = await createAgreement({
+        intakeReceiptId: intakeId,
+        // الفحص يأتي من السند نفسه — لا يُخترع في شاشة الأمر.
+        grainGradeId: (receipt as { grain_grade_id?: string | null })?.grain_grade_id ?? "",
+        requestedOutputType: outputType,
+        requestedOutputNote: outputNote,
+        outputBagSizeKg: bagSize,
+        bagsSource,
+        deliveryMode,
+        serviceProductId: selectedServiceId,
+        priceBasis,
+        agreedPrice,
+        expectedExtractionRate: extraction,
+        allowedLossPercentage: loss,
+        notes,
+      });
+
+      if (!agreement.ok || !agreement.id) {
+        return { ok: false, message: agreement.message ?? "تعذّر إنشاء عقد الطحن" };
+      }
+
+      return await createJobFromAgreement({
+        agreementId: agreement.id,
+        intakeReceiptId: intakeId,
+        inputBagCount: bags,
+        inputBagSizeKg: bagSize,
+        inputWeightKg: weight,
+        notes,
+      });
+    },
     onSuccess: (res) => {
       if (!res.ok) return toast.error(res.message ?? "تعذّر فتح أمر الطحن");
-      toast.success("تم فتح أمر الطحن");
+      toast.success("تم إنشاء عقد الطحن وفتح أمر الطحن");
       onDone(res.id);
     },
   });
@@ -734,25 +866,86 @@ function NewJobForm({
           />
         </MillingField>
 
-        <MillingField label="أجرة الكيس">
+        {/* ── عقد الطحن: ماذا يريد العميل، وبأي شروم ─────────────────── */}
+        <MillingField
+          label="الدرجة المطلوبة *"
+          hint="ما يطلبه العميل بالضبط"
+          className="sm:col-span-2"
+        >
+          <MillingSelect
+            value={outputType}
+            onChange={(e) => setOutputType(e.target.value as AgreementOutputType)}
+          >
+            {(Object.keys(AGREEMENT_OUTPUT_LABELS) as AgreementOutputType[]).map((t) => (
+              <option key={t} value={t}>
+                {AGREEMENT_OUTPUT_LABELS[t]}
+              </option>
+            ))}
+          </MillingSelect>
+        </MillingField>
+
+        <MillingField label="وصف الطلب" className="sm:col-span-2">
           <MillingInput
-            type="number"
-            step="0.01"
-            min={0}
-            value={feeBag || ""}
-            onChange={(e) => setFeeBag(Number(e.target.value))}
+            value={outputNote}
+            onChange={(e) => setOutputNote(e.target.value)}
+            placeholder="مثال: نمرة 1 خشن للمخبز"
           />
         </MillingField>
 
-        <MillingField label="أجرة الطن">
+        <MillingField label="من يوفّر الأكياس">
+          <MillingSelect
+            value={bagsSource}
+            onChange={(e) => setBagsSource(e.target.value as "CUSTOMER" | "MILL")}
+          >
+            <option value="CUSTOMER">العميل (بلا تكلفة)</option>
+            <option value="MILL">المطحنة (تُفوتَر وتُستنزف من المخزون)</option>
+          </MillingSelect>
+        </MillingField>
+
+        <MillingField label="طريقة التسليم">
+          <MillingSelect
+            value={deliveryMode}
+            onChange={(e) => setDeliveryMode(e.target.value as "FULL" | "PARTIAL")}
+          >
+            <option value="FULL">كلي عند الإقفال</option>
+            <option value="PARTIAL">على دفعات</option>
+          </MillingSelect>
+        </MillingField>
+
+        <MillingField label="أساس التسعير *">
+          <MillingSelect
+            value={priceBasis}
+            onChange={(e) => setPriceBasis(e.target.value as "BAG" | "TON")}
+          >
+            <option value="BAG">أجرة الكيس</option>
+            <option value="TON">أجرة الطن</option>
+          </MillingSelect>
+        </MillingField>
+
+        <MillingField
+          label={`السعر المتفق عليه (${priceBasis === "BAG" ? "لكل كيس" : "لكل طن"}) *`}
+        >
           <MillingInput
             type="number"
             step="0.01"
             min={0}
-            value={feeTon || ""}
-            onChange={(e) => setFeeTon(Number(e.target.value))}
+            value={agreedPrice || ""}
+            onChange={(e) => setAgreedPrice(Number(e.target.value))}
           />
         </MillingField>
+
+        {agreedPrice > 0 && (
+          <div className="sm:col-span-2 lg:col-span-4">
+            <p className="rounded-xl border border-border/60 bg-muted/40 px-3 py-2 text-[11.5px] text-muted-foreground">
+              الأجرة التقديرية:{" "}
+              <span className="font-bold text-foreground">{nf(estimatedTotal, 2)} ريال</span>{" "}
+              {priceBasis === "BAG"
+                ? `(${nf(bags)} كيس × ${nf(agreedPrice, 2)})`
+                : `(${nf(weight / 1000, 3)} طن × ${nf(agreedPrice, 2)})`}
+              {" — تُثبَّت الآن بالعقد ولا تتغير بأمر الطحن."}
+            </p>
+          </div>
+        )}
 
         <MillingField label="الهدر المسموح %">
           <MillingInput
@@ -787,20 +980,10 @@ function NewJobForm({
         </p>
         <button
           type="button"
-          onClick={() =>
-            mutation.mutate({
-              intakeReceiptId: intakeId,
-              inputBagCount: bags,
-              inputBagSizeKg: bagSize,
-              inputWeightKg: weight,
-              feePerBag: feeBag,
-              feePerTon: feeTon,
-              expectedExtractionRate: extraction,
-              allowedLossPercentage: loss,
-              notes,
-            })
+          onClick={() => mutation.mutate()}
+          disabled={
+            mutation.isPending || !intakeId || weight <= 0 || agreedPrice <= 0 || !outputType
           }
-          disabled={mutation.isPending || !intakeId || weight <= 0}
           className="flex h-10 shrink-0 items-center gap-2 rounded-xl bg-primary px-5 text-xs font-bold text-primary-foreground transition hover:opacity-90 disabled:opacity-40"
         >
           <Plus className="h-4 w-4" />
@@ -1006,6 +1189,8 @@ function InvoiceDialog({
     discount: number;
     note: string;
     includePackaging: boolean;
+    includeSewing: boolean;
+    sewingPrice: number;
   }) => void;
 }) {
   const [paymentMethod, setPaymentMethod] = useState("cash");
@@ -1013,13 +1198,21 @@ function InvoiceDialog({
   const [discount, setDiscount] = useState(0);
   const [note, setNote] = useState("");
   const [includePackaging, setIncludePackaging] = useState(true);
+  // قرار Q3 (2026-10-03): بند التعبئة مستقل عن أجرة الطحن، ويظهر فقط
+  // عندما تكون الأكياس من المطحنة — عندها فقط يوجد ما يُعبَّأ ويُفوتر.
+  const [includeSewing, setIncludeSewing] = useState(false);
+  const [sewingPrice, setSewingPrice] = useState(1);
 
   const millBags = outputs.filter((o) => o.bags_source === "MILL");
   const packagingTotal = millBags.reduce((s, o) => s + o.mill_bags_used, 0);
 
-  const serviceFee =
-    (Number(job.input_bag_count) * Number(job.milling_fee_per_bag) || 0) +
-    ((Number(job.input_weight_kg) / 1000) * Number(job.milling_fee_per_ton) || 0);
+  // The server rejects a job with two fee bases.  Keep the preview on the
+  // same single-basis rule so the amount shown to the operator cannot imply
+  // that bag and ton fees will be charged together.
+  const isPricedPerBag = Number(job.milling_fee_per_bag) > 0;
+  const serviceFee = isPricedPerBag
+    ? Number(job.input_bag_count) * Number(job.milling_fee_per_bag)
+    : (Number(job.input_weight_kg) / 1000) * Number(job.milling_fee_per_ton);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/70 p-4 backdrop-blur-sm">
@@ -1102,6 +1295,37 @@ function InvoiceDialog({
             </label>
           )}
 
+          {/* بند أجرة التعبئة والحياكة — مستقل، ولا يخصم مخزوناً. */}
+          {millBags.length > 0 && (
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <label className="flex flex-1 items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={includeSewing}
+                  onChange={(e) => setIncludeSewing(e.target.checked)}
+                  className="h-4 w-4 rounded border-border/70"
+                />
+                إضافة أجرة تعبئة وحياكة
+              </label>
+              {includeSewing && (
+                <div className="flex items-center gap-1">
+                  <span className="text-[10.5px]">لكل كيس</span>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min={0}
+                    value={sewingPrice || ""}
+                    onChange={(e) => setSewingPrice(Number(e.target.value))}
+                    className="h-8 w-20 rounded-lg border border-border/70 bg-background px-2 text-xs"
+                  />
+                  <span className="text-[10.5px]">
+                    = {nf(sewingPrice * (millBags[0]?.mill_bags_used ?? 0), 2)}
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
+
           <MillingField label="ملاحظات">
             <MillingTextarea value={note} onChange={(e) => setNote(e.target.value)} />
           </MillingField>
@@ -1118,7 +1342,16 @@ function InvoiceDialog({
           <button
             type="button"
             onClick={() =>
-              onSubmit({ jobId: job.id, paymentMethod, paid, discount, note, includePackaging })
+              onSubmit({
+                jobId: job.id,
+                paymentMethod,
+                paid,
+                discount,
+                note,
+                includePackaging,
+                includeSewing,
+                sewingPrice,
+              })
             }
             disabled={busy || job.status === "PROCESSING"}
             className="flex h-10 items-center gap-2 rounded-xl bg-emerald-600 px-5 text-xs font-bold text-white transition hover:opacity-90 disabled:opacity-40"

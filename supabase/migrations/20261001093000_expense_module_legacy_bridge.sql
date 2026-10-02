@@ -61,7 +61,7 @@ SELECT
   count(*) FILTER (WHERE l.id IS NULL)                 AS not_yet_migrated,
   count(*) FILTER (WHERE l.id IS NOT NULL)             AS already_migrated,
   COALESCE(sum(x.amount), 0)                           AS legacy_total,
-  COALESCE(sum(b.total_amount), 0)                     AS migrated_total,
+  COALESCE(sum(b.gross_amount), 0)                     AS migrated_total,
   COALESCE(min(x.expense_date), CURRENT_DATE)          AS first_date,
   COALESCE(max(x.expense_date), CURRENT_DATE)          AS last_date,
   count(*) FILTER (WHERE x.category_id IS NULL)        AS uncategorised_rows,

@@ -207,6 +207,7 @@ export const SYSTEM_MODULES: PlatformModule[] = [
       "/milling/jobs",
       "/milling/delivery",
       "/milling/customer-statement",
+      "/milling/operations-guide",
     ],
     routes: [
       "/_app/milling",
@@ -214,6 +215,7 @@ export const SYSTEM_MODULES: PlatformModule[] = [
       "/_app/milling/jobs",
       "/_app/milling/delivery",
       "/_app/milling/customer-statement",
+      "/_app/milling/operations-guide",
     ],
   },
   {

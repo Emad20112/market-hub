@@ -1,4 +1,5 @@
 import * as React from "react";
+import { getCompanyCurrencySymbol } from "@/lib/format";
 import { X } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -353,20 +354,7 @@ export interface CurrencyInputProps extends Omit<NumberInputProps, "suffix"> {
 
 /** Money field: stores a number, shows the amount with a currency symbol. */
 export function CurrencyInput({ symbol, ...props }: CurrencyInputProps) {
-  // Default to the operator's configured currency symbol (falls back to ﷼ inside `money`).
-  const resolved =
-    symbol ??
-    (typeof window !== "undefined"
-      ? (() => {
-          try {
-            const raw = window.localStorage.getItem("company_settings_cache");
-            const parsed = raw ? JSON.parse(raw) : null;
-            return (parsed?.currency_symbol as string | undefined)?.trim() || "﷼";
-          } catch {
-            return "﷼";
-          }
-        })()
-      : "﷼");
+  const resolved = symbol ?? getCompanyCurrencySymbol();
 
   return <NumberInput {...props} suffix={resolved} decimal />;
 }

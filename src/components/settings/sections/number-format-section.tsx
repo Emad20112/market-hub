@@ -2,6 +2,7 @@ import { Hash } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useI18n } from "@/lib/i18n";
 import { getDigitPreference, setDigitPreference, type DigitStyle } from "@/lib/format-preferences";
+import { getCompanyCurrencySymbol } from "@/lib/format";
 import { toast } from "sonner";
 import { useEffect, useState } from "react";
 
@@ -9,6 +10,22 @@ export function NumberFormatSection() {
   const { lang } = useI18n();
   const [digitStyle, setDigitStyle] = useState<DigitStyle>("latin");
   const isAr = lang === "ar";
+  const currencySymbol = getCompanyCurrencySymbol();
+  const latinAmount = new Intl.NumberFormat("en-US", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(1250);
+  const arabicAmount = new Intl.NumberFormat("ar-YE", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(1250);
+  const dateOptions: Intl.DateTimeFormatOptions = {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  };
+  const latinDate = new Intl.DateTimeFormat("en-CA", dateOptions).format(new Date());
+  const arabicDate = new Intl.DateTimeFormat("ar-YE", dateOptions).format(new Date());
 
   useEffect(() => setDigitStyle(getDigitPreference()), []);
 
@@ -37,8 +54,18 @@ export function NumberFormatSection() {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {(
             [
-              ["latin", "أرقام لاتينية / إنجليزية", "0 - 9", "معاينة: 1,250.00 ﷼ • 2026-09-28"],
-              ["arabic", "أرقام عربية مشرقية", "٠ - ٩", "معاينة: ١,٢٥٠.٠ ﷼ • ٢٠٢٦-٠٩-٢٨"],
+              [
+                "latin",
+                "أرقام لاتينية / إنجليزية",
+                "0 - 9",
+                `معاينة: ${latinAmount} ${currencySymbol} • ${latinDate}`,
+              ],
+              [
+                "arabic",
+                "أرقام عربية مشرقية",
+                "٠ - ٩",
+                `معاينة: ${arabicAmount} ${currencySymbol} • ${arabicDate}`,
+              ],
             ] as const
           ).map(([style, label, sample, preview]) => (
             <button

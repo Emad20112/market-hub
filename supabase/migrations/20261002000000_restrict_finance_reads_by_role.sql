@@ -3,6 +3,29 @@
 -- الآن: المالك/المدير/المحاسب (expense_role_rank >= 30) يقرأون الكل،
 -- وباقي الموظفين يقرأون فقط المستندات التي أنشأوها (لأن إدخال المسودة مسموح لهم).
 
+-- بعض قواعد البيانات الحية سُجِّل لديها ترحيل أساس المصروفات في سجل
+-- الترحيلات، لكن الدالة المساعدة لم تصل إليها. نعيد تعريفها هنا حتى يبقى
+-- هذا الترحيل آمناً وقابلاً للتطبيق على قاعدة جديدة أو على تلك القواعد.
+CREATE OR REPLACE FUNCTION public.expense_role_rank(p_user uuid)
+RETURNS integer
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT CASE
+    WHEN public.has_role(p_user, 'owner')      THEN 50
+    WHEN public.has_role(p_user, 'manager')    THEN 40
+    WHEN public.has_role(p_user, 'accountant') THEN 30
+    WHEN public.has_role(p_user, 'cashier')    THEN 20
+    WHEN public.has_role(p_user, 'warehouse')  THEN 10
+    ELSE 0
+  END
+$$;
+
+REVOKE EXECUTE ON FUNCTION public.expense_role_rank(uuid) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.expense_role_rank(uuid) TO authenticated;
+
 CREATE OR REPLACE FUNCTION public.can_read_finance(p_user uuid)
 RETURNS boolean
 LANGUAGE sql

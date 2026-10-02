@@ -1,12 +1,13 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
-import { PackagePlus, Printer, Scale, Wheat, Calculator, Info } from "lucide-react";
+import { PackagePlus, Printer, Scale, Wheat, Calculator, Info, TriangleAlert } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/page-header";
 import { ModuleGuard } from "@/lib/modules";
 import { supabase } from "@/integrations/supabase/client";
 import { createIntake, fetchIntakes, BAG_SIZES_KG, type MillingIntake } from "@/lib/milling";
+import { fetchGrainGrades, checkGrainGrade } from "@/lib/milling/agreements";
 import { printIntakeReceipt, type MillingPaper } from "@/lib/milling/print";
 import {
   MillingPanel,
@@ -100,7 +101,10 @@ const guide: PageGuideConfig = {
   footerTip: "نصيحة: سجّل نسبة الرطوبة عند الاستلام، فهي أساس تسوية الفاقد عند التسليم.",
 };
 
-const grainTypes = [
+// نُبقي النص حراً كاحتياط فقط. سلسلة الحيازة: القيمة الفعلية تأتي من
+// فحص معرَّف في grain_grade_id، ونستخدمه كنص مشتق للعرض فقط.
+// المرحلة 0: استُبدلت القائمة الثابتة `const grainTypes` بمرجع القاعدة.
+const FALLBACK_GRAIN_TYPES = [
   "قمح صلب",
   "قمح بلدي",
   "قمح طري",
@@ -120,7 +124,8 @@ function MillingIntakePage() {
 
   const [customerId, setCustomerId] = useState("");
   const [storeId, setStoreId] = useState("");
-  const [grainType, setGrainType] = useState(grainTypes[0]);
+  const [grainGradeId, setGrainGradeId] = useState("");
+  const [grainType, setGrainType] = useState("");
   const [bagSize, setBagSize] = useState<number>(50);
   const [bagCount, setBagCount] = useState<number>(0);
   const [gross, setGross] = useState<number>(0);
@@ -131,6 +136,22 @@ function MillingIntakePage() {
   const [driverName, setDriverName] = useState("");
   const [silo, setSilo] = useState(silos[0]);
   const [notes, setNotes] = useState("");
+
+  // المرحلة 0: الفحوص تأتي من القاعدة، لا من مصفوفة ثابتة في الكود.
+  // هذا يحل الانقسام بين "قمح صلب" (بلا مرجع) و "قمح صلب مستورد" (مرتبط).
+  const { data: grainGrades } = useQuery({
+    queryKey: ["milling", "grain-grades"],
+    queryFn: () => fetchGrainGrades(true),
+  });
+
+  // فحص الرطوبة/الشوائب مقابل الحد الفني — تنبيه لا منع (قرار المستخدم).
+  const { data: gradeCheck } = useQuery({
+    queryKey: ["milling", "grade-check", grainGradeId, moisture || 0, impurities || 0],
+    queryFn: () => checkGrainGrade(grainGradeId || null, moisture || 0, impurities || 0),
+    enabled: !!grainGradeId,
+  });
+
+  const activeGrade = grainGrades?.find((g) => g.id === grainGradeId) ?? null;
 
   const { data: warehouses } = useQuery({
     queryKey: ["milling", "warehouses"],
@@ -203,12 +224,20 @@ function MillingIntakePage() {
   const submit = () => {
     if (!customerId) return toast.error("اختر صاحب الأمانات");
     if (!activeStore) return toast.error("اختر المستودع");
+    if (!grainGradeId) return toast.error("اختر نوع الحبوب — بدون فحص مرتبط لا يُحفظ السند");
     if (net <= 0) return toast.error("أدخل أوزان الميزان (القائم والفارغ)");
+
+    // تنبيه فقط — لا يمنع (قرار المستخدم 2026-10-03).
+    if (gradeCheck?.status === "WARN") {
+      toast.warning(gradeCheck.message_ar);
+    }
 
     createMutation.mutate({
       storeId: activeStore,
       customerId,
       grainType,
+      grainGradeId: grainGradeId || null,
+      grainProductId: activeGrade?.product_id ?? null,
       bagSizeKg: bagSize,
       bagCount: bagCount || 0,
       grossWeightKg: gross || 0,
@@ -280,13 +309,32 @@ function MillingIntakePage() {
               </MillingField>
 
               <MillingField label="نوع الحبوب *">
-                <MillingSelect value={grainType} onChange={(e) => setGrainType(e.target.value)}>
-                  {grainTypes.map((g) => (
-                    <option key={g} value={g}>
-                      {g}
+                {/* المرحلة 0: القائمة تأتي من milling_grain_grades، لا من ثابت في الكود.
+                    هذا يحل الانقسام بين "قمح صلب" و "قمح صلب مستورد" — وهو فرق تسعيري. */}
+                <MillingSelect
+                  value={grainGradeId}
+                  onChange={(e) => {
+                    const gid = e.target.value;
+                    setGrainGradeId(gid);
+                    const g = grainGrades?.find((x) => x.id === gid);
+                    if (g) {
+                      setGrainType(g.grade_name_ar);
+                      setBagSize(g.default_bag_size_kg);
+                    }
+                  }}
+                >
+                  <option value="">— اختر نوع الحبوب —</option>
+                  {(grainGrades?.length ? grainGrades : []).map((g) => (
+                    <option key={g.id} value={g.id}>
+                      {g.grade_name_ar} ({g.sku})
                     </option>
                   ))}
                 </MillingSelect>
+                {(!grainGrades || grainGrades.length === 0) && (
+                  <p className="mt-1 text-[11px] text-amber-600 dark:text-amber-400">
+                    لم تُحمّل الفحوص بعد. شغّل migration 20261003000000.
+                  </p>
+                )}
               </MillingField>
 
               <MillingField label="مكان التخزين">
@@ -430,6 +478,24 @@ function MillingIntakePage() {
                 />
               </MillingField>
             </div>
+
+            {/* المرحلة 0: نتيجة الفحص الفني — تنبيه فقط، لا يمنع الحفظ. */}
+            {grainGradeId && gradeCheck && gradeCheck.status !== "OK" && (
+              <p
+                className={`mt-2 flex items-start gap-2 rounded-xl border px-3 py-2 text-[11.5px] leading-relaxed ${
+                  gradeCheck.status === "WARN"
+                    ? "border-amber-500/30 bg-amber-500/8 text-muted-foreground"
+                    : "border-destructive/30 bg-destructive/8 text-muted-foreground"
+                }`}
+              >
+                <TriangleAlert
+                  className={`mt-0.5 h-3.5 w-3.5 shrink-0 ${
+                    gradeCheck.status === "WARN" ? "text-amber-500" : "text-destructive"
+                  }`}
+                />
+                <span>{gradeCheck.message_ar}</span>
+              </p>
+            )}
 
             <MillingField label="ملاحظات">
               <MillingTextarea

@@ -213,6 +213,12 @@ const tiles = [
     title: "كشف حساب الأمانات المزدوج",
     description: "كشف عيني (أكياس وأطنان) وكشف مالي لأجور الطحن.",
   },
+  {
+    to: "/milling/operations-guide",
+    icon: Layers,
+    title: "دليل العمليات ودورة الحياة",
+    description: "تعليمات متسلسلة للطحن للغير، تجارة منتجات المطحنة، وتخزين الأمانات.",
+  },
 ];
 
 function MillingDashboard() {

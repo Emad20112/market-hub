@@ -61,7 +61,7 @@ import {
   type ReferenceCounts,
 } from "@/lib/safety";
 import { fuzzySearch, buildSearchIndex } from "@/design/fuzzy";
-import { moneyCell, qtyCell } from "@/lib/format";
+import { getCompanyCurrencySymbol, moneyCell, qtyCell } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import { IconButton } from "@/components/ui/icon-button";
 import { FieldInput, NumberInput, fieldSurfaceClass } from "@/components/ui/input";
@@ -127,7 +127,7 @@ type ProductRow = {
   unit_id: string | null;
   category?: { name: string; name_ar: string | null } | null;
   brand?: { name: string; name_ar: string | null } | null;
-  unit?: { short_name: string; name_ar: string | null } | null;
+  unit?: { name?: string; short_name: string; name_ar: string | null } | null;
   origin?: { id: string; name: string; name_ar: string | null; code: string } | null;
   quality?: {
     id: string;
@@ -276,7 +276,7 @@ function ProductsPage() {
       const { data: enrichmentRows, error: enrichmentError } = productIds.length
         ? await (supabase.from("products") as any)
             .select(
-              "id, shelf_location, origin_id, quality_grade_id, category:categories(name, name_ar), brand:brands(name, name_ar), unit:units(short_name, name_ar), origin:countries_of_origin(id, name, name_ar, code), quality:quality_grades(id, name, name_ar, code, sort_order)",
+              "id, shelf_location, origin_id, quality_grade_id, category:categories(name, name_ar), brand:brands(name, name_ar), unit:units(name, short_name, name_ar), origin:countries_of_origin(id, name, name_ar, code), quality:quality_grades(id, name, name_ar, code, sort_order)",
             )
             .in("id", productIds)
         : { data: [], error: null };
@@ -764,7 +764,7 @@ function ProductsPage() {
       <PageHeader
         title={t("products.title")}
         subtitle={t("products.subtitle")}
-        action={
+        actions={
           <div className="flex items-center gap-2">
             <Button
               variant="outline"
@@ -1074,7 +1074,7 @@ function ProductsPage() {
                         )}
                         {p.unit && (
                           <span className="rounded-md bg-surface-2/70 px-1.5 py-0.2 border border-border/50">
-                            {label(p.unit.short_name, p.unit.name_ar)}
+                            {label(p.unit.name_ar || p.unit.short_name, p.unit.short_name)}
                           </span>
                         )}
                         {p.shelf_location && (
@@ -2017,7 +2017,7 @@ function ProductDialog({
                 {form.barcode && (
                   <span className="inline-flex items-center gap-1 rounded-md bg-muted/80 px-2 py-0.5 text-[11px] font-mono text-muted-foreground">
                     <Barcode className="size-3" />
-                    {toSystemDigits(form.barcode, lang)}
+                    {toSystemDigits(form.barcode)}
                   </span>
                 )}
                 <span
@@ -2049,7 +2049,7 @@ function ProductDialog({
                   </div>
                   <div className="flex items-center justify-center gap-1 font-mono text-sm font-bold text-foreground sm:justify-end">
                     <span className={cn(profitNum >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400")}>
-                      {profitNum > 0 ? "+" : ""}{toSystemDigits(profitNum.toFixed(2), lang)} ﷼
+                      {profitNum > 0 ? "+" : ""}{toSystemDigits(profitNum.toFixed(2))} {getCompanyCurrencySymbol()}
                     </span>
                   </div>
                 </div>
@@ -2249,7 +2249,7 @@ function ProductDialog({
                     value={form.sale_price === "" ? null : Number(form.sale_price)}
                     onValueChange={(num) => setForm({ ...form, sale_price: num == null ? "" : String(num) })}
                     min={0}
-                    currencySymbol="﷼"
+                    currencySymbol={getCompanyCurrencySymbol()}
                     placeholder="0.00"
                   />
                 )}
@@ -2264,7 +2264,7 @@ function ProductDialog({
                     value={form.cost_price === "" ? null : Number(form.cost_price)}
                     onValueChange={(num) => setForm({ ...form, cost_price: num == null ? "" : String(num) })}
                     min={0}
-                    currencySymbol="﷼"
+                    currencySymbol={getCompanyCurrencySymbol()}
                     placeholder="0.00"
                   />
                 </FormField>
@@ -2522,22 +2522,30 @@ function SettingsChoice({
 
 function SettingsToggle({
   label,
+  description,
   checked,
   onChange,
 }: {
   label: string;
+  /** نص توضيحي تحت العنوان. اختياري — يخفيه ركن التبديل إن لم يُمرَّر. */
+  description?: string;
   checked: boolean;
   onChange: (checked: boolean) => void;
 }) {
   return (
-    <label className="flex cursor-pointer items-center gap-3 rounded-xl border-border bg-surface p-3 text-sm">
+    <label className="flex cursor-pointer items-start gap-3 rounded-xl border-border bg-surface p-3 text-sm">
       <input
         type="checkbox"
         checked={checked}
         onChange={(event) => onChange(event.target.checked)}
-        className="size-4 accent-[var(--primary)]"
+        className="mt-0.5 size-4 accent-[var(--primary)]"
       />
-      <span>{label}</span>
+      <span>
+        <span>{label}</span>
+        {description && (
+          <span className="mt-0.5 block text-[11px] text-muted-foreground">{description}</span>
+        )}
+      </span>
     </label>
   );
 }

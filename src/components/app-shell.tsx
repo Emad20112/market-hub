@@ -44,6 +44,7 @@ import {
   ClipboardList,
   Cog,
   PackagePlus,
+  ChartColumn,
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { canAccessRoute, getRouteRule } from "@/lib/route-access";
@@ -54,6 +55,8 @@ import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { ConnectionBanner } from "@/components/ui/connection";
 import { cn } from "@/lib/utils";
 import { InamaSoftFooter } from "@/components/inama-soft-footer";
+import { supabase } from "@/integrations/supabase/client";
+import { setCompanySettingsCache } from "@/lib/format";
 
 type Item = {
   to: string;
@@ -62,6 +65,9 @@ type Item = {
   moduleId?: string;
   color?: string;
   bg?: string;
+  /** يقصر ظهور العنصر على أدوار محددة. كان مستخدماً في عناصر القائمة
+   *  دون أن يكون معرَّفاً في النوع، فيرفضه TypeScript. */
+  allowedRoles?: string[];
 };
 
 type Section = {
@@ -391,6 +397,15 @@ const sections: Section[] = [
         allowedRoles: ["owner", "manager", "warehouse"],
         color: "text-lime-500",
         bg: "bg-lime-500/15",
+      },
+      {
+        to: "/milling/reports",
+        icon: ChartColumn,
+        key: "nav.milling_reports",
+        moduleId: "milling_operations",
+        allowedRoles: ["owner", "manager", "accountant"],
+        color: "text-amber-500",
+        bg: "bg-amber-500/15",
       },
       {
         to: "/milling/customer-statement",
@@ -781,6 +796,28 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       (typeof window !== "undefined" && (localStorage.getItem("theme") as "dark" | "light")) ||
       "dark",
   );
+
+  useEffect(() => {
+    let active = true;
+    void supabase
+      .from("company_settings")
+      .select("currency, currency_symbol")
+      .order("id")
+      .limit(1)
+      .maybeSingle()
+      .then(({ data, error }) => {
+        if (!active) return;
+        if (error) {
+          console.warn("[AppShell] Could not load company currency settings.", error);
+          return;
+        }
+        if (data) setCompanySettingsCache(data);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
 
   useEffect(() => {
     const root = document.documentElement;

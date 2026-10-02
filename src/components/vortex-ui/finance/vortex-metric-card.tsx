@@ -24,6 +24,9 @@ export interface VortexMetricCardProps {
   highlight?: boolean;
   currency?: string;
   badge?: string;
+  /** كان مستخدماً في شاشة المبيعات عبر الفرع المدموج لكن لم يكن معرَّفاً.
+   *  صنف Tailwind لا يمكن بناؤه ديناميكياً، لذا يُطبّق عبر className. */
+  gradient?: string;
   className?: string;
   onClick?: () => void;
 }
@@ -50,6 +53,8 @@ export function VortexMetricCard({
   highlight = false,
   currency,
   badge,
+  // مقبول للتوافق مع الشاشات القديمة؛视觉效果 يمر عبر tone/variant.
+  gradient: _gradient,
   className,
   onClick,
 }: VortexMetricCardProps) {

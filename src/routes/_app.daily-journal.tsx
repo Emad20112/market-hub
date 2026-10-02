@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { PageHeader } from "@/components/page-header";
 import { useI18n } from "@/lib/i18n";
 import { supabase } from "@/integrations/supabase/client";
-import { money } from "@/lib/format";
+import { getCompanyCurrencySymbol, money } from "@/lib/format";
 import { printReport } from "@/lib/pdf";
 import { exportToCSV } from "@/lib/excel-export";
 import { Input } from "@/components/ui/input";
@@ -157,7 +157,7 @@ function DailyJournalPage() {
           ? `قيود وتصفية اليومية لتاريخ: ${selectedDate}`
           : `Journal Vouchers for Date: ${selectedDate}`,
       date: selectedDate,
-      currency: "﷼",
+      currency: getCompanyCurrencySymbol(),
       summaryCards: [
         {
           label: lang === "ar" ? "عدد قيود اليومية" : "Total Entries",
@@ -202,7 +202,7 @@ function DailyJournalPage() {
     exportToCSV({
       filename: `دفتر_اليومية_${selectedDate}`,
       title: `دفتر اليومية العامة - ${selectedDate}`,
-      currency: "﷼",
+      currency: getCompanyCurrencySymbol(),
       columns: [
         { key: "voucherNo", header: "رقم السند/الفاتورة" },
         { key: "source", header: "نوع القيد" },

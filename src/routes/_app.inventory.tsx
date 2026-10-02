@@ -84,7 +84,7 @@ type Row = {
   shelf_location: string | null;
   category?: { name: string; name_ar: string | null } | null;
   brand?: { name: string; name_ar: string | null } | null;
-  unit?: { short_name: string; name_ar: string | null } | null;
+  unit?: { name?: string; short_name: string; name_ar: string | null } | null;
   byWarehouse: Record<string, number>;
 };
 
@@ -259,7 +259,7 @@ function InventoryPage() {
       if (ids.length) {
         const { data: detailRows } = await (supabase.from("products") as any)
           .select(
-            "id, barcode, min_stock, cost_price, shelf_location, category:categories(name, name_ar), brand:brands(name, name_ar), unit:units(short_name, name_ar)",
+            "id, barcode, min_stock, cost_price, shelf_location, category:categories(name, name_ar), brand:brands(name, name_ar), unit:units(name, short_name, name_ar)",
           )
           .in("id", ids);
         details = (detailRows ?? []) as any[];

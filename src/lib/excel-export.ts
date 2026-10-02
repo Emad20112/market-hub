@@ -1,3 +1,5 @@
+import { getCompanyCurrencySymbol } from "./format";
+
 /**
  * Excel / CSV Export Module for Vortex ERP
  *
@@ -30,7 +32,7 @@ export interface ExportOptions {
  * Uses UTF-8 BOM to ensure Excel opens the file with correct encoding.
  */
 export function exportToCSV(options: ExportOptions) {
-  const { columns, rows, totalsRow, filename, currency = "﷼" } = options;
+  const { columns, rows, totalsRow, filename, currency = getCompanyCurrencySymbol() } = options;
 
   const formatCell = (val: string | number | null | undefined, col: ExportColumn): string => {
     if (val == null || val === "") return "";
@@ -90,7 +92,7 @@ export function exportToCSV(options: ExportOptions) {
  * The user can also print directly from this view.
  */
 export function exportToHTMLTable(options: ExportOptions) {
-  const { columns, rows, totalsRow, title, currency = "﷼" } = options;
+  const { columns, rows, totalsRow, title, currency = getCompanyCurrencySymbol() } = options;
   const rtl = options.rtl ?? true;
 
   const formatCell = (val: string | number | null | undefined, col: ExportColumn): string => {
