@@ -112,7 +112,11 @@ export function resolvePrintProfile(
     (!requested.meta.supportedDocTypes || requested.meta.supportedDocTypes.includes(documentType))
     ? requested.meta
     : compatible[0] || templateRegistry.get("thermal")!.meta;
-  const requestedPaper = paperProfileId || (template.supportedPaperProfiles.includes(legacyPaper) ? legacyPaper : template.supportedPaperProfiles[0]);
+  const storedPaper = documentType === "inventory_document"
+    ? settings.defaultInventoryPaperProfile
+    : settings.defaultCustomerPaperProfile;
+  const requestedPaper = paperProfileId || storedPaper ||
+    (template.supportedPaperProfiles.includes(legacyPaper) ? legacyPaper : template.supportedPaperProfiles[0]);
   const resolvedPaper = template.supportedPaperProfiles.includes(requestedPaper)
     ? requestedPaper
     : template.supportedPaperProfiles[0];

@@ -159,6 +159,9 @@ export type TemplateRenderer = (
 export interface PrintSettings extends CustomFieldOptions {
   defaultCustomerTemplate: InvoiceTemplateId;
   defaultInventoryTemplate: InvoiceTemplateId;
+  /** New profile defaults; paperSize remains legacy compatibility data. */
+  defaultCustomerPaperProfile?: PaperProfileId;
+  defaultInventoryPaperProfile?: PaperProfileId;
   paperSize: PaperSize;
   autoPrintCustomerInvoice: boolean;
   autoPrintInventoryDocument: boolean;

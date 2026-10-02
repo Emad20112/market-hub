@@ -101,18 +101,21 @@ interface PrintPreviewModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   customDoc?: UnifiedDocumentData;
+  initialDocType?: DocumentType;
 }
 
-export function PrintPreviewModal({ open, onOpenChange, customDoc }: PrintPreviewModalProps) {
+export function PrintPreviewModal({ open, onOpenChange, customDoc, initialDocType }: PrintPreviewModalProps) {
   const settings = getPrintSettings();
-  const [docType, setDocType] = useState<DocumentType>(customDoc?.docType || "customer_invoice");
+  const [docType, setDocType] = useState<DocumentType>(customDoc?.docType || initialDocType || "customer_invoice");
   const [templateId, setTemplateId] = useState<InvoiceTemplateId>(
     customDoc?.docType === "inventory_document"
       ? settings.defaultInventoryTemplate
       : settings.defaultCustomerTemplate,
   );
   const [paperProfileId, setPaperProfileId] = useState<PaperProfileId>(() =>
-    paperProfileForLegacySize(settings.paperSize),
+    customDoc?.docType === "inventory_document"
+      ? settings.defaultInventoryPaperProfile ?? paperProfileForLegacySize(settings.paperSize)
+      : settings.defaultCustomerPaperProfile ?? paperProfileForLegacySize(settings.paperSize),
   );
   const [saveAsDefault, setSaveAsDefault] = useState(false);
 
@@ -163,6 +166,7 @@ export function PrintPreviewModal({ open, onOpenChange, customDoc }: PrintPrevie
                 onClick={() => {
                   setDocType("customer_invoice");
                   setTemplateId(settings.defaultCustomerTemplate);
+                  setPaperProfileId(settings.defaultCustomerPaperProfile ?? paperProfileForLegacySize(settings.paperSize));
                 }}
                 className={`flex items-center gap-1 px-3 py-1 rounded-md text-xs font-medium transition ${
                   docType === "customer_invoice"
@@ -178,6 +182,7 @@ export function PrintPreviewModal({ open, onOpenChange, customDoc }: PrintPrevie
                 onClick={() => {
                   setDocType("inventory_document");
                   setTemplateId(settings.defaultInventoryTemplate);
+                  setPaperProfileId(settings.defaultInventoryPaperProfile ?? paperProfileForLegacySize(settings.paperSize));
                 }}
                 className={`flex items-center gap-1 px-3 py-1 rounded-md text-xs font-medium transition ${
                   docType === "inventory_document"
