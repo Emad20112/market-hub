@@ -689,7 +689,6 @@ const en: Dict = {
   "settings.invoice_prefix": "Invoice prefix",
   "settings.barcode_mode": "Barcode mode",
   "settings.barcode_desc": "Allow barcode scanning at POS",
-  "settings.logo_url": "Logo URL",
   "settings.saved": "Saved",
 
   // Audit
@@ -1593,7 +1592,6 @@ const ar: Dict = {
   "settings.invoice_prefix": "بادئة الفاتورة",
   "settings.barcode_mode": "تفعيل الباركود",
   "settings.barcode_desc": "السماح بقراءة الباركود من نقطة البيع",
-  "settings.logo_url": "رابط الشعار",
   "settings.saved": "تم الحفظ",
 
   // السجل

@@ -1,4 +1,4 @@
-import { Receipt, ScanBarcode, Wrench, Image as ImageIcon } from "lucide-react";
+import { Receipt, ScanBarcode, Wrench } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -135,21 +135,6 @@ export function InvoicingSection({
               disabled={!canEdit}
             />
           </div>
-        </div>
-
-        {/* Logo URL */}
-        <div className="grid gap-1.5">
-          <Label className="text-xs font-semibold flex items-center gap-1.5">
-            <ImageIcon className="h-3.5 w-3.5 text-primary" />
-            {isAr ? "رابط الشعار المطبوع (Logo URL)" : "Printed Logo URL"}
-          </Label>
-          <Input
-            value={form.logo_url ?? ""}
-            onChange={(e) => setForm({ ...form, logo_url: e.target.value })}
-            disabled={!canEdit}
-            placeholder="https://example.com/logo.png"
-            className="rounded-2xl font-mono"
-          />
         </div>
 
       </CardContent>

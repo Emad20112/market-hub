@@ -38,8 +38,6 @@ import {
   Scale,
   Landmark,
   PieChart,
-  PanelLeftClose,
-  PanelLeftOpen,
   Crown,
   ClipboardList,
 } from "lucide-react";
@@ -735,10 +733,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     pathname.startsWith("/pos/") ||
     pathname === "/purchase-pos" ||
     pathname.startsWith("/purchase-pos/");
+  const isSettingsRoute = pathname === "/settings" || pathname.startsWith("/settings/");
 
   const [paletteOpen, setPaletteOpen] = useState(false);
 
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [settingsSidebarOpen, setSettingsSidebarOpen] = useState(false);
 
   const [collapsed, setCollapsed] = useState<boolean>(() => {
     if (typeof window !== "undefined") {
@@ -759,6 +759,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       return next;
     });
   };
+
+  useEffect(() => {
+    if (isSettingsRoute) {
+      setSettingsSidebarOpen(false);
+    }
+  }, [isSettingsRoute]);
 
   const [theme, setTheme] = useState<"dark" | "light">(
     () =>
@@ -799,13 +805,22 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         className={cn(
           "hidden md:flex h-full shrink-0 flex-col overflow-hidden transition-all duration-300 ease-in-out",
 
-          collapsed ? "w-[72px]" : "w-64",
+          isSettingsRoute
+            ? settingsSidebarOpen
+              ? "w-64"
+              : "w-[72px]"
+            : collapsed
+              ? "w-[72px]"
+              : "w-64",
 
           sideEdge,
           "border-sidebar-border/60",
         )}
       >
-        <SidebarContents collapsed={collapsed} onToggleCollapse={toggleCollapsed} />
+        <SidebarContents
+          collapsed={isSettingsRoute ? !settingsSidebarOpen : collapsed}
+          onToggleCollapse={toggleCollapsed}
+        />
       </aside>
 
       {/* Mobile drawer */}
@@ -827,19 +842,27 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <header className="sticky top-0 z-30 flex h-16 items-center gap-2.5 border-b border-border/60 bg-background/70 px-4 backdrop-blur-xl sm:px-6">
           <button
             onClick={() => setMobileOpen(true)}
-            className="md:hidden grid h-10 w-10 place-items-center rounded-full border border-border/60 bg-surface text-muted-foreground hover:text-foreground transition-colors"
-            aria-label="Open menu"
+            className="md:hidden grid size-10 shrink-0 place-items-center rounded-lg border border-border/70 bg-transparent text-muted-foreground transition-colors hover:bg-surface hover:text-foreground"
+            aria-label={dir === "rtl" ? "فتح القائمة الجانبية" : "Open sidebar"}
           >
-            <Menu className="h-4.5 w-4.5" />
+            <Menu className="size-5" />
           </button>
 
           {/* Desktop Sidebar Collapse / Expand Toggle */}
           <button
             type="button"
-            onClick={toggleCollapsed}
-            className="hidden md:grid h-10 w-10 shrink-0 place-items-center rounded-full border border-border/60 bg-surface text-muted-foreground hover:text-foreground hover:border-ring/40 transition-colors"
+            onClick={() =>
+              isSettingsRoute
+                ? setSettingsSidebarOpen((open) => !open)
+                : toggleCollapsed()
+            }
+            className="hidden md:grid size-10 shrink-0 place-items-center rounded-lg border border-border/70 bg-transparent text-muted-foreground transition-colors hover:bg-surface hover:text-foreground hover:border-ring/40"
             title={
-              collapsed
+              isSettingsRoute
+                ? settingsSidebarOpen
+                  ? dir === "rtl" ? "إغلاق القائمة الجانبية" : "Close sidebar"
+                  : dir === "rtl" ? "فتح القائمة الجانبية" : "Open sidebar"
+                : collapsed
                 ? dir === "rtl"
                   ? "توسيع القائمة الجانبية"
                   : "Expand sidebar"
@@ -847,12 +870,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   ? "طي القائمة (أيقونات فقط)"
                   : "Collapse sidebar"
             }
+            aria-label={
+              isSettingsRoute && settingsSidebarOpen
+                ? dir === "rtl" ? "إغلاق القائمة الجانبية" : "Close sidebar"
+                : dir === "rtl" ? "القائمة الجانبية" : "Sidebar menu"
+            }
           >
-            {collapsed ? (
-              <PanelLeftOpen className="h-4.5 w-4.5" />
-            ) : (
-              <PanelLeftClose className="h-4.5 w-4.5" />
-            )}
+            <Menu className="size-5" />
           </button>
 
           <button
