@@ -1052,14 +1052,7 @@ function ProductsPage() {
                         >
                           {primary}
                         </h4>
-                        {secondary && (
-                          <p
-                            className="text-[10px] sm:text-[11px] text-muted-foreground/80 line-clamp-1 mt-0.5"
-                            dir={lang === "ar" ? "ltr" : "rtl"}
-                          >
-                            {secondary}
-                          </p>
-                        )}
+
                       </div>
 
                       {/* Attribute Pills: Brand, Unit, Shelf */}
@@ -1071,7 +1064,7 @@ function ProductsPage() {
                         )}
                         {p.unit && (
                           <span className="rounded-md bg-surface-2/70 px-1.5 py-0.2 border border-border/50">
-                            {label(p.unit.name_ar || p.unit.short_name, p.unit.short_name)}
+                            {p.unit.name_ar || p.unit.name || ''}
                           </span>
                         )}
                         {p.shelf_location && (
@@ -1562,8 +1555,8 @@ function ProductsPage() {
                 <div className="flex items-center justify-between border-b border-border/40 pb-2">
                   <span className="text-muted-foreground">{lang === "ar" ? "وحدة القياس" : "Unit"}</span>
                   <span className="font-semibold text-foreground">
-                    {label(selectedProductDetail.unit.name, selectedProductDetail.unit.name_ar)} (
-                    {selectedProductDetail.unit.short_name})
+                    {selectedProductDetail.unit.name_ar || selectedProductDetail.unit.name}
+                    }
                   </span>
                 </div>
               )}
@@ -2323,7 +2316,7 @@ function ProductDialog({
                       <option value="">{lang === "ar" ? "اختر وحدة القياس..." : "Select unit..."}</option>
                       {meta.units.map((u) => (
                         <option key={u.id} value={u.id}>
-                          {labelOf(u.name, u.name_ar)} ({u.short_name})
+                          {labelOf(u.name, u.name_ar)} 
                         </option>
                       ))}
                     </select>
@@ -2390,7 +2383,7 @@ function ProductDialog({
                       <option value="">{lang === "ar" ? "اختر بلد المنشأ..." : "Select origin..."}</option>
                       {meta.origins.map((o) => (
                         <option key={o.id} value={o.id}>
-                          {lang === "ar" ? o.name_ar : o.name} ({o.code})
+                          {lang === "ar" ? o.name_ar : o.name} 
                         </option>
                       ))}
                     </select>
