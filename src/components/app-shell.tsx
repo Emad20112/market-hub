@@ -44,6 +44,7 @@ import {
   ClipboardList,
   Cog,
   PackagePlus,
+  ChartColumn,
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { useAuth } from "@/lib/auth";
@@ -419,6 +420,15 @@ const sections: Section[] = [
         allowedRoles: ["owner", "manager", "warehouse"],
         color: "text-lime-500",
         bg: "bg-lime-500/15",
+      },
+      {
+        to: "/milling/reports",
+        icon: ChartColumn,
+        key: "nav.milling_reports",
+        moduleId: "milling_operations",
+        allowedRoles: ["owner", "manager", "accountant"],
+        color: "text-amber-500",
+        bg: "bg-amber-500/15",
       },
       {
         to: "/milling/customer-statement",

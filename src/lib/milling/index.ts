@@ -42,6 +42,8 @@ export interface MillingIntake {
   driver_name: string | null;
   grain_type: string;
   grain_product_id: string | null;
+  /** مرجع فحص الحبوب (المرحلة 0/4). grain_type مشتق منه. */
+  grain_grade_id: string | null;
   bag_size_kg: number;
   intake_bag_count: number;
   nominal_weight_kg: number;
@@ -68,6 +70,8 @@ export interface MillingJob {
   milling_fee_per_bag: number;
   milling_fee_per_ton: number;
   service_product_id: string | null;
+  /** العقد الذي ينفذه هذا الأمر. NULL = أمر قديم قبل نظام العقود. */
+  agreement_id: string | null;
   expected_extraction_rate: number;
   allowed_loss_percentage: number;
   actual_loss_kg: number;
@@ -211,6 +215,8 @@ export interface CreateIntakeInput {
   customerId: string;
   grainType: string;
   grainProductId?: string | null;
+  /** مرجع فحص الحبوب. يقود التسمية المشتقة لـ grainType (المرحلة 0). */
+  grainGradeId?: string | null;
   bagSizeKg: number;
   bagCount: number;
   grossWeightKg: number;
@@ -252,6 +258,7 @@ export async function createIntake(input: CreateIntakeInput): Promise<OpResult> 
     _customer_id: input.customerId,
     _grain_type: input.grainType.trim(),
     _grain_product_id: input.grainProductId ?? null,
+    _grain_grade_id: input.grainGradeId ?? null,
     _bag_size_kg: input.bagSizeKg,
     _bag_count: input.bagCount,
     _gross_weight_kg: input.grossWeightKg,
