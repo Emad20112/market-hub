@@ -343,7 +343,7 @@ function DashboardPage() {
         <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/30 to-transparent" />
 
         {/* ─── Layer 1: Identity Horizon & Chronos Capsule ─── */}
-        <div className="relative flex flex-col gap-5 p-5 sm:p-6 lg:flex-row lg:items-center lg:justify-between border-b border-border/50">
+        <div className="relative flex flex-col gap-4 p-3.5 sm:p-6 lg:flex-row lg:items-center lg:justify-between border-b border-border/50 overflow-hidden w-full">
           {/* Executive Identity & Status */}
           <div className="flex items-center gap-4">
             <div className="relative shrink-0">
@@ -400,7 +400,7 @@ function DashboardPage() {
             {(() => {
               const luxuryDate = formatLuxuryDate(now, { showDayName: true, showYear: true });
               return (
-                <div className="flex w-full sm:w-auto items-stretch rounded-2xl border border-border/80 bg-surface/70 shadow-xs backdrop-blur-md">
+                <div className="flex flex-wrap sm:flex-nowrap w-full sm:w-auto items-stretch rounded-2xl border border-border/80 bg-surface/70 shadow-xs backdrop-blur-md overflow-hidden">
                   {/* Date Pillar */}
                   <div className="flex items-center gap-3 px-3.5 py-2.5">
                     <div className="grid place-items-center min-w-[2.4rem] h-10 rounded-xl bg-primary/10 text-primary font-mono font-black text-xl leading-none">

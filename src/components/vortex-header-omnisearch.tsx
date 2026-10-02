@@ -149,24 +149,29 @@ export function VortexHeaderOmnisearch() {
     const handler = setTimeout(async () => {
       try {
         const normQ = cleanQuery;
-        // جلب متزامن سريع من المنتجات، الفواتير، والعملاء
-        const [productsRes, invoicesRes, customersRes] = await Promise.all([
+        // جلب متزامن فائق السرعة من المنتجات، الفواتير، العملاء، والموردين
+        const [productsRes, invoicesRes, customersRes, suppliersRes] = await Promise.all([
           supabase
             .from("products")
             .select("id, name, name_ar, barcode, sku, retail_price")
             .or(`name.ilike.%${normQ}%,name_ar.ilike.%${normQ}%,barcode.ilike.%${normQ}%,sku.ilike.%${normQ}%`)
-            .limit(5),
+            .limit(6),
           supabase
             .from("sales_invoices")
             .select("id, invoice_number, customer_name, total_amount, created_at")
             .or(`invoice_number.ilike.%${normQ}%,customer_name.ilike.%${normQ}%`)
             .order("created_at", { ascending: false })
-            .limit(5),
+            .limit(6),
           supabase
             .from("customers")
             .select("id, name, phone, balance")
             .or(`name.ilike.%${normQ}%,phone.ilike.%${normQ}%`)
-            .limit(5),
+            .limit(6),
+          supabase
+            .from("suppliers")
+            .select("id, name, phone, balance")
+            .or(`name.ilike.%${normQ}%,phone.ilike.%${normQ}%`)
+            .limit(6),
         ]);
 
         const results: SearchResultItem[] = [];
@@ -210,6 +215,18 @@ export function VortexHeaderOmnisearch() {
           });
         });
 
+                // 4) موردين
+        (suppliersRes.data || []).forEach((s: any) => {
+          results.push({
+            id: `supp-${s.id}`,
+            title: s.name,
+            subtitle: `${s.phone ? `${s.phone} • ` : ""}${isAr ? "الرصيد للمورد:" : "Supplier balance:"} ${s.balance?.toLocaleString()} ${isAr ? "ر.ي" : "YER"}`,
+            category: "supplier",
+            to: `/suppliers?search=${encodeURIComponent(s.name)}`,
+            badge: isAr ? "مورد" : "Supplier",
+            icon: Building2,
+          });
+        });
         setDataResults(results);
       } catch (err) {
         console.warn("[Omnisearch] Error searching:", err);
@@ -266,7 +283,7 @@ export function VortexHeaderOmnisearch() {
   };
 
   return (
-    <div ref={containerRef} className="relative flex-1 max-w-2xl min-w-[200px]">
+    <div ref={containerRef} className="relative flex-1 w-full min-w-0 max-w-none">
       {/* Search Input Bar in Header */}
       <div
         className={cn(
@@ -294,7 +311,7 @@ export function VortexHeaderOmnisearch() {
           }}
           onFocus={() => setIsOpen(true)}
           onKeyDown={handleKeyDownInput}
-          placeholder={isAr ? "ابحث عن أي فاتورة، عميل، منتج، أو إعداد... ( / )" : "Search invoices, products, customers... ( / )"}
+          placeholder={isAr ? "ابحث عن فاتورة، عميل، منتج، مورد... (/)" : "Search invoices, products, customers... (/)"}
           className="h-full flex-1 bg-transparent text-sm font-medium text-foreground placeholder:text-muted-foreground/75 focus:outline-none"
         />
 
