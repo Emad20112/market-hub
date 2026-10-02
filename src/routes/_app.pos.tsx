@@ -30,6 +30,7 @@ import {
   SkipForward,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { posOfflineService, productsRepo, warehousesRepo, customersRepo, categoriesRepo, brandsRepo, unitsRepo } from "@/lib/offline";
 import { useI18n } from "@/lib/i18n";
 import { money } from "@/lib/format";
 import { PageHeader } from "@/components/page-header";
@@ -469,18 +470,18 @@ function POSPage() {
   async function loadAll() {
     try {
       const [
-        { data: ws },
-        { data: cs },
-        { data: ps },
-        { data: cats },
-        { data: brs },
-        { data: uns },
-        { data: origs },
-        { data: quals },
-        { data: vMakes },
-        { data: vModels },
-        { data: compats },
-      ] = await Promise.all([
+        wsRes,
+        csRes,
+        psRes,
+        catsRes,
+        brsRes,
+        unsRes,
+        origsRes,
+        qualsRes,
+        vMakesRes,
+        vModelsRes,
+        compatsRes,
+      ] = await Promise.allSettled([
         supabase.from("warehouses").select("id,name,name_ar").eq("is_active", true).order("name"),
         supabase.from("customers").select("id,name,phone,balance,credit_limit").eq("is_active", true).order("name"),
         (supabase.from("products") as any)
@@ -502,6 +503,34 @@ function POSPage() {
         (supabase as any).from("vehicle_models").select("id,name,name_ar,make_id").order("name"),
         (supabase as any).from("product_compatibilities").select("product_id,vehicle_model_id"),
       ]);
+
+      let ws = wsRes.status === "fulfilled" ? wsRes.value.data : null;
+      let cs = csRes.status === "fulfilled" ? csRes.value.data : null;
+      let ps = psRes.status === "fulfilled" ? psRes.value.data : null;
+      let cats = catsRes.status === "fulfilled" ? catsRes.value.data : null;
+      let brs = brsRes.status === "fulfilled" ? brsRes.value.data : null;
+      let uns = unsRes.status === "fulfilled" ? unsRes.value.data : null;
+      let origs = origsRes.status === "fulfilled" ? origsRes.value.data : [];
+      let quals = qualsRes.status === "fulfilled" ? qualsRes.value.data : [];
+      let vMakes = vMakesRes.status === "fulfilled" ? vMakesRes.value.data : [];
+      let vModels = vModelsRes.status === "fulfilled" ? vModelsRes.value.data : [];
+      let compats = compatsRes.status === "fulfilled" ? compatsRes.value.data : [];
+
+      // Offline fallbacks from local repositories
+      if (!ws || ws.length === 0) ws = (await warehousesRepo.getAll()) as any;
+      if (!cs || cs.length === 0) cs = (await customersRepo.getAll()) as any;
+      if (!ps || ps.length === 0) ps = (await productsRepo.getAll()) as any;
+      if (!cats || cats.length === 0) cats = (await categoriesRepo.getAll()) as any;
+      if (!brs || brs.length === 0) brs = (await brandsRepo.getAll()) as any;
+      if (!uns || uns.length === 0) uns = (await unitsRepo.getAll()) as any;
+
+      // Seed local repositories for future offline usage when fetch succeeds
+      if (ws && ws.length > 0) ws.forEach((w) => warehousesRepo.create(w as any).catch(() => {}));
+      if (cs && cs.length > 0) cs.forEach((c) => customersRepo.create(c as any).catch(() => {}));
+      if (ps && ps.length > 0) ps.forEach((p) => productsRepo.create(p as any).catch(() => {}));
+      if (cats && cats.length > 0) cats.forEach((c) => categoriesRepo.create(c as any).catch(() => {}));
+      if (brs && brs.length > 0) brs.forEach((b) => brandsRepo.create(b as any).catch(() => {}));
+      if (uns && uns.length > 0) uns.forEach((u) => unitsRepo.create(u as any).catch(() => {}));
 
       const loadedWarehouses = ws ?? [];
       setWarehouses(loadedWarehouses);
@@ -1082,37 +1111,101 @@ function POSPage() {
           : note.trim()
         : splitNote || null;
 
-      const { data, error } = await supabase.rpc("create_sale", {
-        _warehouse_id: warehouseId,
-        _customer_id: (customerId || null) as any,
-        _payment_method: finalMethod as any,
-        _paid: Math.min(Math.max(effectivePaid, 0), total),
-        _discount: discountN,
-        _note: finalNote as any,
-        _sale_date: saleDate,
-        _payment_splits: paymentSplits as any,
-        _items: cart.map((l) => ({
-          product_id: l.product_id,
-          quantity: l.quantity,
-          unit_price: l.unit_price,
-          tax_rate: l.tax_rate,
-          is_service: !!l.is_service,
-          name: l.name,
-        })),
-      });
-      if (error) throw error;
-      const invoiceId = data as string;
-      const { data: inv } = await supabase
-        .from("sales_invoices")
-        .select("invoice_number")
-        .eq("id", invoiceId)
-        .maybeSingle();
-      setLastInvoice({ id: invoiceId, number: inv?.invoice_number ?? "" });
-      toast.success(
-        lang === "ar"
-          ? `تمت عملية البيع بنجاح — فاتورة #${inv?.invoice_number ?? ""}`
-          : `${t("pos.sale_complete")} — #${inv?.invoice_number ?? ""}`,
-      );
+      let invoiceId: string;
+      let invoiceNumber: string;
+
+      const isOfflineMode = typeof navigator !== "undefined" && !navigator.onLine;
+
+      if (isOfflineMode) {
+        const offlineResult = await posOfflineService.processOfflineSale({
+          warehouse_id: warehouseId,
+          customer_id: customerId || null,
+          items: cart.map((l) => ({
+            product_id: l.product_id,
+            product_name: l.name,
+            quantity: l.quantity,
+            unit_price: l.unit_price,
+            subtotal: l.quantity * l.unit_price,
+          })),
+          subtotal,
+          discount: discountN,
+          tax: 0,
+          total,
+          paid: Math.min(Math.max(effectivePaid, 0), total),
+          payment_method: finalMethod as any,
+          notes: finalNote as any,
+        });
+        invoiceId = offlineResult.invoice_id;
+        invoiceNumber = offlineResult.local_document_ref;
+        setLastInvoice({ id: invoiceId, number: invoiceNumber });
+        toast.success(
+          lang === "ar"
+            ? `تم حفظ الفاتورة محلياً (Offline) — مرجع #${invoiceNumber}`
+            : `Invoice saved offline — Ref #${invoiceNumber}`,
+        );
+      } else {
+        try {
+          const { data, error } = await supabase.rpc("create_sale", {
+            _warehouse_id: warehouseId,
+            _customer_id: (customerId || null) as any,
+            _payment_method: finalMethod as any,
+            _paid: Math.min(Math.max(effectivePaid, 0), total),
+            _discount: discountN,
+            _note: finalNote as any,
+            _sale_date: saleDate,
+            _payment_splits: paymentSplits as any,
+            _items: cart.map((l) => ({
+              product_id: l.product_id,
+              quantity: l.quantity,
+              unit_price: l.unit_price,
+              tax_rate: l.tax_rate,
+              is_service: !!l.is_service,
+              name: l.name,
+            })),
+          });
+          if (error) throw error;
+          invoiceId = data as string;
+          const { data: inv } = await supabase
+            .from("sales_invoices")
+            .select("invoice_number")
+            .eq("id", invoiceId)
+            .maybeSingle();
+          invoiceNumber = inv?.invoice_number ?? invoiceId.slice(0, 8);
+          setLastInvoice({ id: invoiceId, number: invoiceNumber });
+          toast.success(
+            lang === "ar"
+              ? `تمت عملية البيع بنجاح — فاتورة #${invoiceNumber}`
+              : `${t("pos.sale_complete")} — #${invoiceNumber}`,
+          );
+        } catch (netErr: any) {
+          const offlineResult = await posOfflineService.processOfflineSale({
+            warehouse_id: warehouseId,
+            customer_id: customerId || null,
+            items: cart.map((l) => ({
+              product_id: l.product_id,
+              product_name: l.name,
+              quantity: l.quantity,
+              unit_price: l.unit_price,
+              subtotal: l.quantity * l.unit_price,
+            })),
+            subtotal,
+            discount: discountN,
+            tax: 0,
+            total,
+            paid: Math.min(Math.max(effectivePaid, 0), total),
+            payment_method: finalMethod as any,
+            notes: finalNote as any,
+          });
+          invoiceId = offlineResult.invoice_id;
+          invoiceNumber = offlineResult.local_document_ref;
+          setLastInvoice({ id: invoiceId, number: invoiceNumber });
+          toast.success(
+            lang === "ar"
+              ? `تعذر الاتصال بالخادم، تم حفظ الفاتورة محلياً — مرجع #${invoiceNumber}`
+              : `Connection error, saved offline — Ref #${invoiceNumber}`,
+          );
+        }
+      }
 
       // Build invoice doc for printing
       const customer = customers.find((c) => c.id === customerId);
@@ -1120,7 +1213,7 @@ function POSPage() {
       const cur = companySettings?.currency_symbol ?? companySettings?.currency ?? "";
       const invoiceDoc: InvoiceDoc = {
         title: lang === "ar" ? "فاتورة بيع" : "Sales Invoice",
-        number: inv?.invoice_number ?? invoiceId.slice(0, 8),
+        number: invoiceNumber,
         date: saleDate,
         partyLabel: lang === "ar" ? "العميل" : "Bill To",
         partyName: customer?.name ?? (lang === "ar" ? "عميل نقدي" : "Walk-in Customer"),

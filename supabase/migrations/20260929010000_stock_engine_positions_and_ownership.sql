@@ -124,25 +124,6 @@ COMMENT ON COLUMN public.stock_movements.total_cost IS
 --   transfer_out  -> TRANSFER_OUT
 --   adjustment    -> ADJUSTMENT
 --   opening       -> OPENING
---
--- BEFORE touching these rows we must satisfy the check constraint added by
--- 20260929000000 (`stock_movements_adjustment_reason_required`): any row with
--- movement_type = 'adjustment' must carry a non-empty adjustment_reason.
---
--- Historical adjustments predate that rule and therefore have no reason. An
--- UPDATE makes a row "new" for the purposes of a CHECK constraint — including
--- one declared NOT VALID, which only skips *pre-existing* rows — so the
--- movement_kind backfill below would fail on the first legacy adjustment.
---
--- We label those rows truthfully rather than inventing a business reason: the
--- text says exactly what is known, that the movement is a legacy adjustment
--- recorded before reasons were captured. No quantity, cost or ownership value
--- is altered.
-UPDATE public.stock_movements
-SET adjustment_reason = 'تسوية مخزون تاريخية — سُجّلت قبل تفعيل حقل السبب الإلزامي'
-WHERE movement_type::text = 'adjustment'
-  AND (adjustment_reason IS NULL OR btrim(adjustment_reason) = '');
-
 UPDATE public.stock_movements
 SET movement_kind = CASE movement_type::text
       WHEN 'purchase'     THEN 'RECEIPT'::public.stock_movement_kind

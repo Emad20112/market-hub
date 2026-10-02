@@ -1,4 +1,4 @@
--- ============================================================================
+﻿-- ============================================================================
 -- 20260930000100_separate_platform_and_tenant_privileges.sql
 --
 -- ARCHITECTURE FIX — separates platform administration from tenant ownership.

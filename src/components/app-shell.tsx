@@ -57,6 +57,7 @@ import { cn } from "@/lib/utils";
 import { InamaSoftFooter } from "@/components/inama-soft-footer";
 import { supabase } from "@/integrations/supabase/client";
 import { setCompanySettingsCache } from "@/lib/format";
+import { checkBackupReminderStatus } from "@/lib/backup/reminder";
 
 type Item = {
   to: string;
@@ -933,7 +934,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
             <button
               className="relative grid h-10 w-10 place-items-center rounded-full border border-border/60 bg-surface text-muted-foreground hover:text-foreground hover:border-ring/40 transition-colors"
-              title={t("nav.notifications")}
+              title={
+                checkBackupReminderStatus().isDue
+                  ? "تنبيه: حان موعد تنزيل نسخة احتياطية محلية للجهاز!"
+                  : t("nav.notifications")
+              }
               aria-label={t("nav.notifications")}
               onClick={() =>
                 navigate({
@@ -943,7 +948,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             >
               <Bell className="h-4 w-4" />
 
-              <span className="absolute top-2 end-2 h-1.5 w-1.5 rounded-full bg-primary ring-2 ring-background" />
+              {checkBackupReminderStatus().isDue ? (
+                <span className="absolute top-1.5 end-1.5 flex h-2.5 w-2.5">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
+                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-500" />
+                </span>
+              ) : (
+                <span className="absolute top-2 end-2 h-1.5 w-1.5 rounded-full bg-primary ring-2 ring-background" />
+              )}
             </button>
           </div>
         </header>

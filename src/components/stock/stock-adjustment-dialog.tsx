@@ -1,8 +1,8 @@
-﻿﻿import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useI18n } from "@/lib/i18n";
-import { postStockAdjustment } from "@/lib/items/stock-operations";
+import { useAuth } from "@/lib/auth";
 import { toast } from "sonner";
 import {
   X,
@@ -46,6 +46,7 @@ export function StockAdjustmentDialog({
   onSaved,
 }: StockAdjustmentDialogProps) {
   const { lang } = useI18n();
+  const { user } = useAuth();
   const isAr = lang === "ar";
 
   const [selectedWarehouseId, setSelectedWarehouseId] = useState<string>(initialWarehouseId || "");
@@ -115,24 +116,19 @@ export function StockAdjustmentDialog({
     }
   }, [selectedProduct]);
 
-  // 3. Fetch Current System Balance for selected Product + Warehouse.
-  //
-  // The balance is read from public.stock_positions — the same source of truth
-  // the inventory page reports from — so the dialog and the list can never
-  // disagree about what is on hand.
-  const positionsTable = () => supabase.from("stock_positions" as never) as any;
+  // 3. Fetch Current System Balance for selected Product + Warehouse
   const { data: systemQty = 0, isLoading: isLoadingStock } = useQuery<number>({
     queryKey: ["inventory_balance_check", selectedProductId, selectedWarehouseId],
     queryFn: async () => {
       if (!selectedProductId || !selectedWarehouseId) return 0;
-      const { data, error } = await positionsTable()
+      const { data, error } = await supabase
+        .from("inventory")
         .select("quantity")
-        .eq("item_id", selectedProductId)
+        .eq("product_id", selectedProductId)
         .eq("warehouse_id", selectedWarehouseId)
-        .eq("owner_type", "COMPANY")
         .maybeSingle();
       if (error) throw error;
-      return Number((data as { quantity?: number } | null)?.quantity ?? 0);
+      return Number(data?.quantity ?? 0);
     },
     enabled: Boolean(selectedProductId && selectedWarehouseId),
   });
@@ -189,33 +185,32 @@ export function StockAdjustmentDialog({
 
     setSaving(true);
     try {
-      /*
-       * Post through the stock engine, never by writing inventory rows directly.
-       *
-       * `post_stock_adjustment` owns the whole effect of an adjustment — the
-       * position, the ledger movement and the audit fields — so this dialog only
-       * has to describe the correction. The quantity posted is the SIGNED
-       * difference (surplus positive, shortage negative) because the engine
-       * applies a correction to a balance; it never overwrites one.
-       */
-      const result = await postStockAdjustment({
-        warehouseId: selectedWarehouseId,
-        reason,
-        note: note.trim() || undefined,
-        effectiveDate: new Date().toISOString().slice(0, 10),
-        lines: [
-          {
-            productId: selectedProductId,
-            quantity: difference,
-            unitCost: Number(unitCostStr) || 0,
-          },
-        ],
-      });
+      // 1. Update/Upsert the inventory table with the EXACT actual physical count
+      const { error: invErr } = await supabase.from("inventory").upsert(
+        {
+          product_id: selectedProductId,
+          warehouse_id: selectedWarehouseId,
+          quantity: actualQty,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "product_id,warehouse_id" },
+      );
 
-      if (!result.ok) {
-        toast.error(result.message ?? (isAr ? "فشل تنفيذ التسوية" : "Failed to apply adjustment"));
-        return;
-      }
+      if (invErr) throw invErr;
+
+      // 2. Log the stock movement for the difference (positive for surplus, negative for shortage)
+      const { error: mvErr } = await supabase.from("stock_movements").insert({
+        product_id: selectedProductId,
+        warehouse_id: selectedWarehouseId,
+        movement_type: "adjustment",
+        quantity: difference,
+        unit_cost: Number(unitCostStr) || 0,
+        note: note.trim() || null,
+        adjustment_reason: reason,
+        created_by: user?.id ?? null,
+      } as any);
+
+      if (mvErr) throw mvErr;
 
       toast.success(
         isAr
