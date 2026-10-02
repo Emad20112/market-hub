@@ -49,7 +49,7 @@ export class WebStorageAdapter implements IOfflineStorageAdapter {
 
   async enqueueOutbox<T>(envelope: OutboxEnvelope<T>): Promise<void> {
     const queue = await this.getOutboxQueue();
-    queue.push(envelope);
+    queue.push(envelope as OutboxEnvelope);
     localStorage.setItem(this.outboxKey, JSON.stringify(queue));
   }
 

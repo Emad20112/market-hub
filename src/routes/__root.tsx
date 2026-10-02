@@ -24,6 +24,7 @@ import { I18nProvider } from "@/lib/i18n";
 import { AuthProvider } from "@/lib/auth";
 import { ModulesProvider } from "@/lib/modules";
 import { Toaster } from "@/components/ui/sonner";
+import { IosInstallPrompt } from "@/components/IosInstallPrompt";
 
 function NotFoundComponent() {
   return (
@@ -52,7 +53,7 @@ function NotFoundComponent() {
   );
 }
 
-function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
+function ErrorComponent({ error, reset }: { error: any; reset: () => void }) {
   // `reset` يُستدعى من زر "إعادة المحاولة" بالأسفل.
   console.error(error);
   const router = useRouter();
@@ -250,6 +251,11 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       },
       { name: "author", content: "Inama Soft" },
       { name: "theme-color", content: "#0A0A0B" },
+      { name: "apple-mobile-web-app-capable", content: "yes" },
+      { name: "apple-mobile-web-app-status-bar-style", content: "black-translucent" },
+      { name: "apple-mobile-web-app-title", content: "Vortex ERP" },
+      { name: "mobile-web-app-capable", content: "yes" },
+      { name: "application-name", content: "Vortex ERP" },
       { property: "og:title", content: "فورتيكس ERP - منصة البيع بالجملة والتجزئة" },
       {
         property: "og:description",
@@ -279,9 +285,9 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     ],
     links: [
       { rel: "canonical", href: "https://market-hub-two-theta.vercel.app/" },
-      { rel: "icon", type: "image/png", href: "/vortex-erp-mark.png" },
-      { rel: "apple-touch-icon", href: "/vortex-erp-mark.png" },
-      { rel: "manifest", href: "/site.webmanifest" },
+      { rel: "icon", type: "image/png", sizes: "192x192", href: "/pwa-192x192.png" },
+      { rel: "apple-touch-icon", sizes: "180x180", href: "/apple-touch-icon.png" },
+      { rel: "manifest", href: "/manifest.json" },
       { rel: "stylesheet", href: appCss },
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
@@ -299,7 +305,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 
 function RootShell({ children }: { children: ReactNode }) {
   return (
-    <html lang="ar" dir="rtl" className="dark">
+    <html lang="ar" dir="rtl" className="light">
       <head>
         <HeadContent />
       </head>
@@ -319,6 +325,7 @@ function RootComponent() {
         <AuthProvider>
           <ModulesProvider>
             <Outlet />
+            <IosInstallPrompt />
             <Toaster />
           </ModulesProvider>
         </AuthProvider>

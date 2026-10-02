@@ -527,7 +527,7 @@ function POSPage() {
       // Seed local repositories for future offline usage when fetch succeeds
       if (ws && ws.length > 0) ws.forEach((w) => warehousesRepo.create(w as any).catch(() => {}));
       if (cs && cs.length > 0) cs.forEach((c) => customersRepo.create(c as any).catch(() => {}));
-      if (ps && ps.length > 0) ps.forEach((p) => productsRepo.create(p as any).catch(() => {}));
+      if (ps && ps.length > 0) ps.forEach((p: any) => productsRepo.create(p as any).catch(() => {}));
       if (cats && cats.length > 0) cats.forEach((c) => categoriesRepo.create(c as any).catch(() => {}));
       if (brs && brs.length > 0) brs.forEach((b) => brandsRepo.create(b as any).catch(() => {}));
       if (uns && uns.length > 0) uns.forEach((u) => unitsRepo.create(u as any).catch(() => {}));

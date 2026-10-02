@@ -22,6 +22,7 @@ import {
   Sun,
   Sparkles,
   RotateCcw,
+  RotateCw,
   ArrowRightLeft,
   CalendarClock,
   Barcode,
@@ -51,6 +52,8 @@ import { canAccessRoute, getRouteRule } from "@/lib/route-access";
 import { useAuth } from "@/lib/auth";
 import { useModules } from "@/lib/modules";
 import { CommandPalette } from "@/components/command-palette";
+import { VortexHeaderOmnisearch } from "@/components/vortex-header-omnisearch";
+import { useQuery } from "@tanstack/react-query";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { ConnectionBanner } from "@/components/ui/connection";
 import { cn } from "@/lib/utils";
@@ -801,10 +804,36 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     });
   };
 
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // استعلام خفيف وسريع لجلب عدد التنبيهات الذكية للهيدر
+  const { data: alertsSummary } = useQuery({
+    queryKey: ["vortex-header-alerts-summary"],
+    staleTime: 60_000,
+    gcTime: 300_000,
+    queryFn: async () => {
+      try {
+        const [invRes, custsRes] = await Promise.all([
+          supabase.from("inventory").select("quantity").eq("quantity", 0).limit(20),
+          supabase.from("customers").select("id").gt("balance", 0).limit(20),
+        ]);
+        const outCount = (invRes.data || []).length;
+        const debtCount = (custsRes.data || []).length;
+        const backupDue = checkBackupReminderStatus().isDue;
+        return {
+          total: (outCount > 0 ? 1 : 0) + (debtCount > 0 ? 1 : 0) + (backupDue ? 1 : 0),
+          hasDanger: backupDue || outCount > 0,
+        };
+      } catch {
+        return { total: checkBackupReminderStatus().isDue ? 1 : 0, hasDanger: checkBackupReminderStatus().isDue };
+      }
+    },
+  });
+
   const [theme, setTheme] = useState<"dark" | "light">(
     () =>
       (typeof window !== "undefined" && (localStorage.getItem("theme") as "dark" | "light")) ||
-      "dark",
+      "light",
   );
 
   useEffect(() => {
@@ -918,35 +947,42 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             )}
           </button>
 
-          <button
-            onClick={() => setPaletteOpen(true)}
-            className="group flex h-10 flex-1 max-w-xl items-center gap-2.5 rounded-full border border-border/60 bg-surface/80 px-4 text-sm text-muted-foreground transition-all hover:border-ring/40 hover:bg-surface hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
-          >
-            <Search className="h-4 w-4" />
-
-            <span className="flex-1 text-start truncate">{t("common.search")}</span>
-
-            <kbd className="hidden sm:inline-flex items-center gap-1 rounded-full border border-border/60 bg-background/60 px-2 py-0.5 text-[10px] font-mono text-muted-foreground">
-              <CommandIcon className="h-3 w-3" /> K
-            </kbd>
-          </button>
+          <VortexHeaderOmnisearch />
 
           <div className="ms-auto flex items-center gap-2">
+            {/* زر تحديث الصفحة الحالية في نفس المكان بدون انتقال */}
+            <button
+              type="button"
+              onClick={() => {
+                setIsRefreshing(true);
+                window.location.reload();
+              }}
+              className="grid h-10 w-10 place-items-center rounded-full border border-border/60 bg-surface text-muted-foreground hover:text-foreground hover:border-ring/40 hover:bg-surface-2 transition-all active:scale-95"
+              title={dir === "rtl" ? "تحديث الصفحة الحالية" : "Refresh page"}
+              aria-label={dir === "rtl" ? "تحديث الصفحة" : "Refresh"}
+            >
+              <RotateCw className={cn("h-4 w-4 transition-all duration-300", isRefreshing && "animate-spin text-primary")} />
+            </button>
+
+            {/* زر تبديل الوضع (فاتح / مظلم) */}
             <button
               onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-              className="grid h-10 w-10 place-items-center rounded-full border border-border/60 bg-surface text-muted-foreground hover:text-foreground hover:border-ring/40 transition-colors"
+              className="grid h-10 w-10 place-items-center rounded-full border border-border/60 bg-surface text-muted-foreground hover:text-foreground hover:border-ring/40 hover:bg-surface-2 transition-all active:scale-95"
               title={t("common.theme")}
               aria-label={t("common.theme")}
             >
-              {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+              {theme === "dark" ? <Sun className="h-4 w-4 text-amber-400" /> : <Moon className="h-4 w-4 text-sky-500" />}
             </button>
 
+            {/* زر الإشعارات مع الشارة الذكية والرقم الصغير */}
             <button
-              className="relative grid h-10 w-10 place-items-center rounded-full border border-border/60 bg-surface text-muted-foreground hover:text-foreground hover:border-ring/40 transition-colors"
+              className="relative grid h-10 w-10 place-items-center rounded-full border border-border/60 bg-surface text-muted-foreground hover:text-foreground hover:border-ring/40 hover:bg-surface-2 transition-all active:scale-95"
               title={
                 checkBackupReminderStatus().isDue
                   ? "تنبيه: حان موعد تنزيل نسخة احتياطية محلية للجهاز!"
-                  : t("nav.notifications")
+                  : alertsSummary?.total
+                    ? `لديك ${alertsSummary.total} تنبيهات نشطة`
+                    : t("nav.notifications")
               }
               aria-label={t("nav.notifications")}
               onClick={() =>
@@ -957,13 +993,20 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             >
               <Bell className="h-4 w-4" />
 
-              {checkBackupReminderStatus().isDue ? (
-                <span className="absolute top-1.5 end-1.5 flex h-2.5 w-2.5">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
-                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-500" />
+              {/* الشارة الذكية: دائرة نابضة للتنبيهات العاجلة ورقم أنيق مصغر */}
+              {checkBackupReminderStatus().isDue || alertsSummary?.hasDanger ? (
+                <span className="absolute -top-1 -end-1 flex items-center justify-center">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-500 opacity-75" />
+                  <span className="relative flex h-4 min-w-[16px] items-center justify-center rounded-full bg-gradient-to-r from-red-600 to-rose-500 px-1 text-[9px] font-extrabold text-white shadow-md ring-2 ring-background">
+                    {alertsSummary?.total || "!"}
+                  </span>
+                </span>
+              ) : alertsSummary?.total && alertsSummary.total > 0 ? (
+                <span className="absolute -top-0.5 -end-0.5 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-amber-500 px-1 text-[9px] font-bold text-white shadow-sm ring-2 ring-background">
+                  {alertsSummary.total}
                 </span>
               ) : (
-                <span className="absolute top-2 end-2 h-1.5 w-1.5 rounded-full bg-primary ring-2 ring-background" />
+                <span className="absolute top-2 end-2 h-2 w-2 rounded-full bg-primary/70 ring-2 ring-background" />
               )}
             </button>
           </div>

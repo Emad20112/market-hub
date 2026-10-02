@@ -767,13 +767,13 @@ function InventoryPage() {
           viewToggle={
             <div className="flex items-center gap-1.5">
               <ToolbarAction
-                label={lang === "ar" ? "إدخال مخزني مباشر" : "Direct Stock In"}
+                label={lang === "ar" ? "إدخال مخزني مباشر" : lang === "ar" ? "إدخال مخزني مباشر" : "Direct Stock In"}
                 icon={<PackagePlus />}
                 onClick={() => setDirectIn({})}
                 tone="primary"
               />
               <ToolbarAction
-                label={lang === "ar" ? "رصيد أول المدة" : "Opening stock"}
+                label={lang === "ar" ? "رصيد أول المدة" : lang === "ar" ? "رصيد أول المدة" : "Opening stock"}
                 icon={<Sparkles />}
                 onClick={() => setOpeningOpen(true)}
               />
@@ -930,11 +930,6 @@ function InventoryPage() {
                       </div>
 
                       <div className="mb-3.5 flex flex-wrap items-center gap-1.5 text-[11px] text-muted-foreground">
-                        {r.sku && (
-                          <span className="rounded-md border border-border/50 bg-surface-2/70 px-2 py-0.5 font-mono text-[10px]">
-                            {r.sku}
-                          </span>
-                        )}
                         {r.barcode && (
                           <span className="inline-flex items-center gap-1 rounded-md border border-border/50 bg-surface-2/70 px-2 py-0.5 font-mono text-[10px]">
                             <Barcode className="size-2.5" />
