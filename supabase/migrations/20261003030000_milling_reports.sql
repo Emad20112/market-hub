@@ -37,7 +37,9 @@ CREATE OR REPLACE VIEW public.milling_revenue_report AS
   si.warehouse_id                                          AS store_id,
   w.name_ar                                               AS store_name_ar,
   si.customer_id,
-  c.name_ar                                               AS customer_name_ar,
+  -- تصحيح 2026-10-03: جدول public.customers ليس فيه name_ar (المتحفّظ الوحيد name)،
+  -- بينما warehouses وproducts فيه name_ar. هذا الاختلاط لا يراه TypeScript.
+  c.name                                               AS customer_name_ar,
   j.job_number,
   a.id                                                    AS agreement_number,
   i.product_id,
@@ -59,6 +61,7 @@ LEFT JOIN public.warehouses w    ON w.id = si.warehouse_id
   WHERE si.status NOT IN ('draft', 'cancelled', 'returned')
   AND i.line_type = 'SERVICE'
   AND (j.id IS NOT NULL OR a.id IS NOT NULL)   -- بنود الطحن فقط
+  -- stock_effect عمود غير مجمّع ⇒ يجب أن يدخل GROUP BY (الموضع 12).
 GROUP BY 1,2,3,4,5,6,7,8,9,10,11,12;
 
 COMMENT ON VIEW public.milling_revenue_report IS
@@ -77,7 +80,9 @@ SELECT
   j.store_id,
   w.name_ar                                               AS store_name_ar,
   j.customer_id,
-  c.name_ar                                               AS customer_name_ar,
+  -- تصحيح 2026-10-03: جدول public.customers ليس فيه name_ar (المتحفّظ الوحيد name)،
+  -- بينما warehouses وproducts فيه name_ar. هذا الاختلاط لا يراه TypeScript.
+  c.name                                               AS customer_name_ar,
   j.status,
   r.receipt_number,
   g.grade_name_ar                                         AS grain_grade,
@@ -142,7 +147,9 @@ SELECT
   r.id,
   r.receipt_number,
   r.customer_id,
-  c.name_ar                                               AS customer_name_ar,
+  -- تصحيح 2026-10-03: جدول public.customers ليس فيه name_ar (المتحفّظ الوحيد name)،
+  -- بينما warehouses وproducts فيه name_ar. هذا الاختلاط لا يراه TypeScript.
+  c.name                                               AS customer_name_ar,
   r.store_id,
   r.status,
   r.grain_type,

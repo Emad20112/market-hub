@@ -115,7 +115,7 @@ CREATE INDEX IF NOT EXISTS idx_milling_jobs_agreement ON public.milling_jobs(agr
 -- لكن نسجّل أي أساس كان معتمداً فعلياً لكل أمر، لن reporta Fase 2 عليه.
 -- ---------------------------------------------------------------------------
 UPDATE public.milling_jobs j
-   SET milling_fee_per_ton = NULL
+   SET milling_fee_per_ton = 0
  WHERE j.milling_fee_per_bag > 0
    AND j.milling_fee_per_ton > 0
    AND EXISTS (
@@ -126,8 +126,15 @@ UPDATE public.milling_jobs j
 -- ---------------------------------------------------------------------------
 -- 4. create_milling_agreement — إنشاء عقد
 -- ---------------------------------------------------------------------------
+-- التوقيع هنا يطابق ما في 20261003040000 بالحرف (13 وسيطاً، ومعها
+-- _grain_grade_id). سبب التعديل: كان التعريفان مختلفين — 12 وسيط هنا
+-- و13 هناك — فكان PostgreSQL ينشئ دالتين متباينتين بدل واحدة تُستبدل،
+-- والواجهة تستدعي واحدة فيمين خطأ "does not exist".
+-- 20261003040000 يبقى التعريف النهائي (نفس التوقيع ⇒ استبدال حقيقي).
+-- ---------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION public.create_milling_agreement(
   _intake_receipt_id      uuid,
+  _grain_grade_id         uuid,
   _requested_output_type  text,
   _requested_output_note  text,
   _output_bag_size_kg     numeric,
@@ -183,6 +190,15 @@ BEGIN
   END IF;
   IF v_receipt_status = 'CANCELLED' THEN
     RAISE EXCEPTION 'This intake receipt is cancelled';
+  END IF;
+
+  -- الفحص: يُمرَّر صراحةً، ويجب أن يطابق درجة السند.
+  IF _grain_grade_id IS NULL THEN
+    RAISE EXCEPTION 'Grain grade is required';
+  END IF;
+  IF v_grade IS NOT NULL AND v_grade <> _grain_grade_id THEN
+    RAISE EXCEPTION
+      'The agreement grade does not match the grade recorded on the intake receipt';
   END IF;
 
   -- Grade مطلوب — هو جوهر المرحلة 1.
@@ -245,7 +261,7 @@ BEGIN
     status, agreed_by, notes
   )
   VALUES (
-    v_store, v_customer, _intake_receipt_id, v_grade,
+    v_store, v_customer, _intake_receipt_id, _grain_grade_id,
     _requested_output_type::public.milling_output_type,
     nullif(btrim(COALESCE(_requested_output_note, '')), ''),
     coalesce(_output_bag_size_kg, 50),
@@ -261,6 +277,7 @@ BEGIN
     jsonb_build_object(
       'intake_receipt_id', _intake_receipt_id,
       'customer_id',      v_customer,
+      'grain_grade_id',   _grain_grade_id,
       'requested_output_type', _requested_output_type,
       'bags_source',      v_src,
       'delivery_mode',    v_mode,
@@ -272,13 +289,11 @@ BEGIN
   RETURN v_id;
 END $$;
 
-REVOKE ALL ON FUNCTION public.create_milling_agreement(uuid, text, text, numeric, varchar, varchar, uuid, varchar, numeric, numeric, numeric, text)
-  FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.create_milling_agreement(uuid, text, text, numeric, varchar, varchar, uuid, varchar, numeric, numeric, numeric, text)
-  TO authenticated;
+REVOKE ALL ON FUNCTION public.create_milling_agreement(uuid, uuid, text, text, numeric, text, text, uuid, text, numeric, numeric, numeric, text) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.create_milling_agreement(uuid, uuid, text, text, numeric, text, text, uuid, text, numeric, numeric, numeric, text) TO authenticated;
 
-COMMENT ON FUNCTION public.create_milling_agreement(uuid, text, text, numeric, varchar, varchar, uuid, varchar, numeric, numeric, numeric, text) IS
-  'إنشاء عقد طحن قبل أمر الطحن. يُجبر على تسجيل النتيجة المطلوبة وأساس تسعير واحد بسعر موجب. صفر أثر مخزون.';
+COMMENT ON FUNCTION public.create_milling_agreement(uuid, uuid, text, text, numeric, text, text, uuid, text, numeric, numeric, numeric, text) IS
+  'إنشاء عقد طحن قبل أمر الطحن. يُجبر على درجة الطلب وأساس تسعير واحد بسعر موجب. صفر أثر مخزون.';
 
 -- ---------------------------------------------------------------------------
 -- 5. create_milling_job — إضافة مرجع العقد
@@ -430,7 +445,9 @@ SELECT
   a.id,
   a.store_id,
   a.customer_id,
-  c.name_ar AS customer_name_ar,
+  -- تصحيح 2026-10-03: جدول public.customers ليس فيه عمود name_ar.
+  -- عمود العرض الوحيد هو `name`، مع coalesce احتياطاً لمNULL.
+  c.name AS customer_name_ar,
   a.intake_receipt_id,
   r.receipt_number,
   a.grain_grade_id,

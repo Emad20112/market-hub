@@ -360,10 +360,10 @@ BEGIN
   RETURN v_id;
 END $$;
 
-REVOKE ALL ON FUNCTION public.create_milling_agreement(uuid, uuid, text, text, numeric, varchar, varchar, uuid, varchar, numeric, numeric, numeric, text) FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.create_milling_agreement(uuid, uuid, text, text, numeric, varchar, varchar, uuid, varchar, numeric, numeric, numeric, text) TO authenticated;
+REVOKE ALL ON FUNCTION public.create_milling_agreement(uuid, uuid, text, text, numeric, text, text, uuid, text, numeric, numeric, numeric, text) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.create_milling_agreement(uuid, uuid, text, text, numeric, text, text, uuid, text, numeric, numeric, numeric, text) TO authenticated;
 
-COMMENT ON FUNCTION public.create_milling_agreement(uuid, uuid, text, text, numeric, varchar, varchar, uuid, varchar, numeric, numeric, numeric, text) IS
+COMMENT ON FUNCTION public.create_milling_agreement(uuid, uuid, text, text, numeric, text, text, uuid, text, numeric, numeric, numeric, text) IS
   'إنشاء عقد طحن قبل أمر الطحن. يُجبر على درجة الطلب وأساس تسعير واحد بسعر موجب. صفر أثر مخزون.';
 
 -- ---------------------------------------------------------------------------
