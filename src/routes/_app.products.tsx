@@ -61,7 +61,7 @@ import {
   type ReferenceCounts,
 } from "@/lib/safety";
 import { fuzzySearch, buildSearchIndex } from "@/design/fuzzy";
-import { moneyCell, qtyCell } from "@/lib/format";
+import { getCompanyCurrencySymbol, moneyCell, qtyCell } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import { IconButton } from "@/components/ui/icon-button";
 import { FieldInput, NumberInput, fieldSurfaceClass } from "@/components/ui/input";
@@ -92,6 +92,7 @@ import {
   INVENTORY_POLICY_LABELS,
   ITEM_NATURE_LABELS,
   TRACKING_LABELS,
+  validateItemPolicy,
   type CostingMethod,
   type InventoryPolicy,
   type ItemNature,
@@ -127,7 +128,7 @@ type ProductRow = {
   unit_id: string | null;
   category?: { name: string; name_ar: string | null } | null;
   brand?: { name: string; name_ar: string | null } | null;
-  unit?: { short_name: string; name_ar: string | null } | null;
+  unit?: { name?: string; short_name: string; name_ar: string | null } | null;
   origin?: { id: string; name: string; name_ar: string | null; code: string } | null;
   quality?: {
     id: string;
@@ -276,7 +277,7 @@ function ProductsPage() {
       const { data: enrichmentRows, error: enrichmentError } = productIds.length
         ? await (supabase.from("products") as any)
             .select(
-              "id, shelf_location, origin_id, quality_grade_id, category:categories(name, name_ar), brand:brands(name, name_ar), unit:units(short_name, name_ar), origin:countries_of_origin(id, name, name_ar, code), quality:quality_grades(id, name, name_ar, code, sort_order)",
+              "id, shelf_location, origin_id, quality_grade_id, category:categories(name, name_ar), brand:brands(name, name_ar), unit:units(name, short_name, name_ar), origin:countries_of_origin(id, name, name_ar, code), quality:quality_grades(id, name, name_ar, code, sort_order)",
             )
             .in("id", productIds)
         : { data: [], error: null };
@@ -764,7 +765,7 @@ function ProductsPage() {
       <PageHeader
         title={t("products.title")}
         subtitle={t("products.subtitle")}
-        action={
+        actions={
           <div className="flex items-center gap-2">
             <Button
               variant="outline"
@@ -1074,7 +1075,7 @@ function ProductsPage() {
                         )}
                         {p.unit && (
                           <span className="rounded-md bg-surface-2/70 px-1.5 py-0.2 border border-border/50">
-                            {label(p.unit.short_name, p.unit.name_ar)}
+                            {label(p.unit.name_ar || p.unit.short_name, p.unit.short_name)}
                           </span>
                         )}
                         {p.shelf_location && (
@@ -1827,8 +1828,20 @@ function ProductDialog({
   const { isModuleEnabled } = useModules();
   const [scannerOpen, setScannerOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<"general" | "pricing" | "specs" | "policy">("general");
+  const policyFromProduct = (product: ProductRow): UserItemPolicyPreferences => ({
+    item_nature: product.item_nature ?? "GOOD",
+    inventory_policy: product.inventory_policy ?? "TRACKED",
+    tracking: product.tracking ?? "NONE",
+    costing_method: product.costing_method ?? "MOVING_AVERAGE",
+    is_sellable: product.is_sellable ?? true,
+    is_purchasable: product.is_purchasable ?? true,
+  });
   const [policy, setPolicy] = useState<UserItemPolicyPreferences>(() =>
-    userId ? readUserItemPolicyPreferences(userId) : DEFAULT_USER_ITEM_POLICY_PREFERENCES,
+    initial
+      ? policyFromProduct(initial)
+      : userId
+        ? readUserItemPolicyPreferences(userId)
+        : DEFAULT_USER_ITEM_POLICY_PREFERENCES,
   );
   const [form, setForm] = useState({
     name: initial?.name ?? "",
@@ -1850,9 +1863,13 @@ function ProductDialog({
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    if (!initial && userId) {
-      setPolicy(readUserItemPolicyPreferences(userId));
-    }
+    setPolicy(
+      initial
+        ? policyFromProduct(initial)
+        : userId
+          ? readUserItemPolicyPreferences(userId)
+          : DEFAULT_USER_ITEM_POLICY_PREFERENCES,
+    );
   }, [initial, userId]);
 
   useKeyboardWedge({
@@ -1871,16 +1888,21 @@ function ProductDialog({
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (saving) return;
-    if (!form.name_ar.trim() && !form.name.trim()) {
-      toast.error(lang === "ar" ? "اسم المنتج مطلوب" : t("products.name_required"));
+    if (!form.name_ar.trim()) {
+      toast.error(
+        lang === "ar"
+          ? "اسم المنتج بالعربية مطلوب لظهوره بشكل صحيح في بطاقات النظام."
+          : "An Arabic product name is required for the Yemen catalogue.",
+      );
       setActiveTab("general");
       return;
     }
-    if (!policy.is_sellable && !policy.is_purchasable) {
+    const policyCheck = validateItemPolicy(policy);
+    if (!policyCheck.valid) {
       toast.error(
         lang === "ar"
-          ? "يجب أن يكون المنتج متاحًا للبيع أو الشراء على الأقل."
-          : "The product must be available for sales or purchases.",
+          ? policyCheck.errors[0]
+          : "The selected item policy is not valid.",
       );
       setActiveTab("policy");
       return;
@@ -1902,6 +1924,12 @@ function ProductDialog({
       origin_id: config.enableOrigins ? form.origin_id || null : null,
       quality_grade_id: config.enableQualityGrades ? form.quality_grade_id || null : null,
       is_active: form.is_active,
+      item_nature: policy.item_nature,
+      inventory_policy: policy.inventory_policy,
+      tracking: policy.tracking,
+      costing_method: policy.costing_method,
+      is_sellable: policy.is_sellable,
+      is_purchasable: policy.is_purchasable,
     };
     const request: any = initial
       ? (supabase.from("products") as any)
@@ -2017,7 +2045,7 @@ function ProductDialog({
                 {form.barcode && (
                   <span className="inline-flex items-center gap-1 rounded-md bg-muted/80 px-2 py-0.5 text-[11px] font-mono text-muted-foreground">
                     <Barcode className="size-3" />
-                    {toSystemDigits(form.barcode, lang)}
+                    {toSystemDigits(form.barcode)}
                   </span>
                 )}
                 <span
@@ -2049,7 +2077,7 @@ function ProductDialog({
                   </div>
                   <div className="flex items-center justify-center gap-1 font-mono text-sm font-bold text-foreground sm:justify-end">
                     <span className={cn(profitNum >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400")}>
-                      {profitNum > 0 ? "+" : ""}{toSystemDigits(profitNum.toFixed(2), lang)} ﷼
+                      {profitNum > 0 ? "+" : ""}{toSystemDigits(profitNum.toFixed(2))} {getCompanyCurrencySymbol()}
                     </span>
                   </div>
                 </div>
@@ -2249,7 +2277,7 @@ function ProductDialog({
                     value={form.sale_price === "" ? null : Number(form.sale_price)}
                     onValueChange={(num) => setForm({ ...form, sale_price: num == null ? "" : String(num) })}
                     min={0}
-                    currencySymbol="﷼"
+                    currencySymbol={getCompanyCurrencySymbol()}
                     placeholder="0.00"
                   />
                 )}
@@ -2264,7 +2292,7 @@ function ProductDialog({
                     value={form.cost_price === "" ? null : Number(form.cost_price)}
                     onValueChange={(num) => setForm({ ...form, cost_price: num == null ? "" : String(num) })}
                     min={0}
-                    currencySymbol="﷼"
+                    currencySymbol={getCompanyCurrencySymbol()}
                     placeholder="0.00"
                   />
                 </FormField>
@@ -2522,22 +2550,30 @@ function SettingsChoice({
 
 function SettingsToggle({
   label,
+  description,
   checked,
   onChange,
 }: {
   label: string;
+  /** نص توضيحي تحت العنوان. اختياري — يخفيه ركن التبديل إن لم يُمرَّر. */
+  description?: string;
   checked: boolean;
   onChange: (checked: boolean) => void;
 }) {
   return (
-    <label className="flex cursor-pointer items-center gap-3 rounded-xl border-border bg-surface p-3 text-sm">
+    <label className="flex cursor-pointer items-start gap-3 rounded-xl border-border bg-surface p-3 text-sm">
       <input
         type="checkbox"
         checked={checked}
         onChange={(event) => onChange(event.target.checked)}
-        className="size-4 accent-[var(--primary)]"
+        className="mt-0.5 size-4 accent-[var(--primary)]"
       />
-      <span>{label}</span>
+      <span>
+        <span>{label}</span>
+        {description && (
+          <span className="mt-0.5 block text-[11px] text-muted-foreground">{description}</span>
+        )}
+      </span>
     </label>
   );
 }

@@ -54,6 +54,7 @@ function NotFoundComponent() {
 }
 
 function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
+  // `reset` يُستدعى من زر "إعادة المحاولة" بالأسفل.
   console.error(error);
   const router = useRouter();
   const [showDetails, setShowDetails] = useState(false);

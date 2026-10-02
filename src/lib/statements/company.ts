@@ -27,7 +27,7 @@ export const INAMA_SOFT_BRAND = {
 export const DEFAULT_COMPANY_INFO = {
   name: "انماء سوفت",
   currency: "YER",
-  currencySymbol: "﷼",
+  currencySymbol: "ر.ي",
 };
 
 export interface StatementCompanyInfo {

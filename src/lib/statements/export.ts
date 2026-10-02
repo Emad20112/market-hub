@@ -6,6 +6,7 @@
  */
 
 import { exportToCSV, exportToHTMLTable } from "@/lib/excel-export";
+import { getCompanyCurrencySymbol } from "@/lib/format";
 import { cellValue, esc, fmtAmount } from "./format";
 import { kindLabel } from "./engine";
 import type { StatementLayout, StatementResult } from "./types";
@@ -103,7 +104,7 @@ export function exportStatementToCsv(options: StatementExportOptions): void {
   exportToCSV({
     filename,
     title: buildTitle(result, layout, lang),
-    currency: currencySymbol ?? "﷼",
+    currency: currencySymbol ?? getCompanyCurrencySymbol(),
     columns: buildColumns(result, layout, lang),
     rows: buildRows(result, layout, lang),
     totalsRow: layout.showTotalsRow ? buildTotalsRow(result, layout, lang) : undefined,
@@ -117,7 +118,7 @@ export function exportStatementToHtmlTable(options: StatementExportOptions): voi
   exportToHTMLTable({
     filename,
     title: buildTitle(result, layout, lang),
-    currency: currencySymbol ?? "﷼",
+    currency: currencySymbol ?? getCompanyCurrencySymbol(),
     columns: buildColumns(result, layout, lang),
     rows: buildRows(result, layout, lang),
     totalsRow: layout.showTotalsRow ? buildTotalsRow(result, layout, lang) : undefined,

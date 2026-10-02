@@ -119,7 +119,12 @@ export function numberToArabicWords(amount: number, currency = ""): string {
   } else if (curUpper.includes("SAR") || curUpper.includes("سعودي")) {
     mainCurrencyName = "ريال سعودي";
     subCurrencyName = "هللة";
-  } else if (curUpper.includes("YER") || curUpper.includes("يمني") || curUpper.includes("﷼")) {
+  } else if (
+    curUpper.includes("YER") ||
+    curUpper.includes("يمني") ||
+    curUpper.includes("﷼") ||
+    currency.includes("ر.ي")
+  ) {
     mainCurrencyName = "ريال يمني";
     subCurrencyName = "فلس";
   } else if (curUpper.includes("EUR") || curUpper.includes("يورو")) {

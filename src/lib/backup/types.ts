@@ -2,12 +2,12 @@
  * Market Hub (Vortex ERP) — Backup System Type Definitions
  *
  * Single Source of Truth for backup metadata, engine formats, validation results,
- * and settings configurations.
+ * categorised table breakdown, and settings configurations.
  */
 
 export type BackupType = "manual_local" | "manual_cloud" | "auto_scheduled" | "pre_restore_safety";
 export type StorageDestination = "local" | "cloud" | "both";
-export type ScheduleFrequency = "daily" | "weekly";
+export type ScheduleFrequency = "twice_daily" | "daily" | "weekly";
 export type BackupStatus = "success" | "failed" | "in_progress" | "pending";
 
 /**
@@ -28,6 +28,7 @@ export interface BackupMetadata {
   checksum_sha256: string;
   status: BackupStatus;
   tables_summary: Record<string, number>;
+  categories_summary?: Record<string, number>;
 }
 
 /**
@@ -41,10 +42,12 @@ export interface BackupFileFormat {
 
 /**
  * Unencrypted Payload Data Structure (Internal representation prior to encryption)
+ * Fully updated to support all new system modules (Milling, Expense ERP, Ledgers, POS)
  */
 export interface BackupDataPayload {
   metadata: BackupMetadata;
   tables: {
+    // 1) Core & Master Setup
     company_settings?: any[];
     warehouses?: any[];
     categories?: any[];
@@ -53,8 +56,10 @@ export interface BackupDataPayload {
     products?: any[];
     product_batches?: any[];
     inventory?: any[];
-    customers?: any[];
-    suppliers?: any[];
+    product_shelves?: any[];
+    pos_services?: any[];
+
+    // 2) Trading & Operations
     sales_invoices?: any[];
     sales_invoice_items?: any[];
     sales_returns?: any[];
@@ -63,18 +68,57 @@ export interface BackupDataPayload {
     purchase_invoice_items?: any[];
     purchase_returns?: any[];
     purchase_return_items?: any[];
-    customer_payments?: any[];
-    customer_payment_splits?: any[];
     stock_movements?: any[];
     stock_transfers?: any[];
     stock_transfer_items?: any[];
+
+    // 3) Customers, Suppliers & Financial Ledgers
+    customers?: any[];
+    suppliers?: any[];
+    customer_payments?: any[];
+    customer_payment_splits?: any[];
+    customer_ledger?: any[];
+    loyalty_transactions?: any[];
+
+    // 4) Industrial Flour Milling Module (مطاحن الدقيق والمعالجة)
+    milling_intake_receipts?: any[];
+    milling_jobs?: any[];
+    milling_job_inputs?: any[];
+    milling_job_outputs?: any[];
+    milling_delivery_notes?: any[];
+    milling_delivery_items?: any[];
+    milling_byproduct_rates?: any[];
+    milling_grain_grades?: any[];
+    milling_service_agreements?: any[];
+
+    // 5) Expense ERP Module (المصروفات والإصدارات)
     expenses?: any[];
     expense_categories?: any[];
-    loyalty_transactions?: any[];
+    expense_approvals?: any[];
+    expense_attachments?: any[];
+
+    // 6) Administration & System History
     profiles?: any[];
     user_roles?: any[];
     audit_logs?: any[];
+    idempotency_keys?: any[];
+    backup_logs?: any[];
   };
+}
+
+/**
+ * Categorised Summary of Data Tables
+ */
+export interface TableCategorySummary {
+  core: number;
+  productsAndStock: number;
+  salesAndPurchases: number;
+  financeAndLedgers: number;
+  millingModule: number;
+  expenseModule: number;
+  systemAndAudit: number;
+  totalRecords: number;
+  totalTables: number;
 }
 
 /**
@@ -94,6 +138,7 @@ export interface BackupValidationResult {
   warnings: string[];
   metadata?: BackupMetadata;
   payload?: BackupDataPayload;
+  categoryStats?: TableCategorySummary;
 }
 
 /**
@@ -105,11 +150,15 @@ export interface BackupSettingsConfig {
   frequency: ScheduleFrequency;
   execution_time: string; // e.g. "03:00"
   retention_count: number; // e.g. 7, 15, 30
+  reminder_enabled: boolean; // Notification alert for local download
+  reminder_frequency: ScheduleFrequency; // "twice_daily" | "daily" | "weekly"
   last_backup_at?: string;
   last_backup_status?: BackupStatus;
   last_backup_type?: BackupType;
   last_backup_size_bytes?: number;
   last_backup_file_name?: string;
+  last_reminder_prompt_at?: string;
+  last_local_download_at?: string;
 }
 
 /**
@@ -117,6 +166,7 @@ export interface BackupSettingsConfig {
  */
 export interface BackupLogRecord {
   id: string;
+  tenant_id?: string;
   actor_name: string;
   action_type: BackupType;
   storage_type: StorageDestination;
@@ -127,6 +177,6 @@ export interface BackupLogRecord {
   error_message?: string;
 }
 
-export const CURRENT_SCHEMA_VERSION = "2026.09.28.1";
-export const BACKUP_ENGINE_VERSION = "v1.0.0";
+export const CURRENT_SCHEMA_VERSION = "2026.10.03.1";
+export const BACKUP_ENGINE_VERSION = "v2.0.0";
 export const DEFAULT_KEY_VERSION = "v1";

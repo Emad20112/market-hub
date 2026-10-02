@@ -40,10 +40,10 @@ export function renderInventoryThermalTemplate(
 
   return `<!doctype html><html dir="${rtl ? "rtl" : "ltr"}" lang="${rtl ? "ar" : "en"}"><head><meta charset="utf-8"><title>${esc(doc.number)}</title>
 <style>
-  @page { size: 80mm auto; margin: 0; }
+  @page { size: var(--print-paper-width, 80mm) auto; margin: 0; }
   * { box-sizing: border-box; }
   html,body { margin:0; padding:0; background:#fff; color:#000; font-family: 'Courier New', ui-monospace, monospace; }
-  .r { width: 80mm; padding: 6mm 5mm; font-size: 12px; line-height: 1.35; }
+  .r { width: var(--print-paper-width, 80mm); padding: 6mm 5mm; font-size: 12px; line-height: 1.35; }
   .c { text-align: center; }
   .badge { display:inline-block; border: 1px solid #000; padding: 2px 8px; font-weight:700; font-size:12px; margin-bottom:4px; text-transform:uppercase; }
   h1 { font-size: 15px; margin: 0 0 2px; letter-spacing: .5px; }

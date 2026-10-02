@@ -1,19 +1,44 @@
-import { Receipt, ScanBarcode, Wrench, Image as ImageIcon, Printer } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import type { Dispatch, SetStateAction } from "react";
+import {
+  CalendarDays,
+  Check,
+  ChevronDown,
+  Hash,
+  Image as ImageIcon,
+  LoaderCircle,
+  Receipt,
+  ScanBarcode,
+  Trash2,
+  Upload,
+  Wrench,
+  Printer,
+} from "lucide-react";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Switch } from "@/components/ui/switch";
+import { supabase } from "@/integrations/supabase/client";
+import { getCurrencyOptions, getCurrencySymbol, type CurrencyOption } from "@/lib/currencies";
+import { toast } from "sonner";
 import type { InvoiceTemplate } from "@/lib/invoice-print";
+import { getPrintSettings, savePrintSettings } from "@/lib/templates";
 
 interface InvoicingSectionProps {
   form: any;
-  setForm: (form: any) => void;
+  setForm: Dispatch<SetStateAction<any>>;
   enablePosServiceFee: boolean;
   setEnablePosServiceFee: (v: boolean) => void;
-  printMode: "auto" | "ask" | "off";
-  setPrintMode: (v: "auto" | "ask" | "off") => void;
-  defaultPrintTemplate: InvoiceTemplate;
-  setDefaultPrintTemplate: (v: InvoiceTemplate) => void;
   canEdit: boolean;
   lang: string;
 }
@@ -23,14 +48,111 @@ export function InvoicingSection({
   setForm,
   enablePosServiceFee,
   setEnablePosServiceFee,
-  printMode,
-  setPrintMode,
-  defaultPrintTemplate,
-  setDefaultPrintTemplate,
   canEdit,
   lang,
 }: InvoicingSectionProps) {
   const isAr = lang === "ar";
+  // Post-sale printing preferences come from the same unified store used by POS
+  const [printMode, setPrintModeState] = useState<"auto" | "ask" | "off">("ask");
+  const [defaultPrintTemplate, setDefaultPrintTemplateState] = useState<InvoiceTemplate>("thermal");
+  const [logoUploading, setLogoUploading] = useState(false);
+  const logoInputRef = useRef<HTMLInputElement>(null);
+  const currencyOptions = useMemo(() => getCurrencyOptions(lang), [lang]);
+  const invoiceNumberPreview = useMemo(() => {
+    const cleanPrefix = (value: string) => value.trim().replace(/^-+|-+$/g, "");
+    const digits = Math.max(1, Math.min(8, Number(form.invoice_number_digits) || 4));
+    const sequence = "1".padStart(digits, "0");
+    const now = new Date();
+    const period =
+      form.invoice_number_period === "year_month"
+        ? `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}`
+        : form.invoice_number_period === "year"
+          ? String(now.getFullYear())
+          : "";
+    const format = (prefix: string) =>
+      [cleanPrefix(prefix), period, sequence].filter(Boolean).join("-");
+
+    return {
+      sales: format(form.invoice_prefix ?? "INV-"),
+      purchase: format(form.purchase_invoice_prefix ?? "PO-"),
+    };
+  }, [
+    form.invoice_number_digits,
+    form.invoice_number_period,
+    form.invoice_prefix,
+    form.purchase_invoice_prefix,
+  ]);
+  const currencyPreviewSymbol =
+    form.currency_symbol?.trim() ||
+    getCurrencySymbol(form.currency || "YER", isAr ? "ar-YE" : "en");
+
+  useEffect(() => {
+    const s = getPrintSettings();
+    setPrintModeState(s.printMode);
+    setDefaultPrintTemplateState(s.defaultCustomerTemplate as InvoiceTemplate);
+  }, []);
+
+  const setPrintMode = (v: "auto" | "ask" | "off") => {
+    setPrintModeState(v);
+    savePrintSettings({ printMode: v });
+  };
+
+  const setDefaultPrintTemplate = (v: InvoiceTemplate) => {
+    setDefaultPrintTemplateState(v);
+    savePrintSettings({ defaultCustomerTemplate: v });
+  };
+
+  async function uploadCompanyLogo(file: File) {
+    const allowedTypes = ["image/png", "image/jpeg", "image/webp"];
+    if (!allowedTypes.includes(file.type)) {
+      toast.error(
+        isAr
+          ? "اختر صورة بصيغة PNG أو JPG أو WebP."
+          : "Choose a PNG, JPG, or WebP image.",
+      );
+      return;
+    }
+    if (file.size > 3 * 1024 * 1024) {
+      toast.error(
+        isAr ? "حجم الشعار يجب ألا يتجاوز 3 ميجابايت." : "The logo must be 3 MB or smaller.",
+      );
+      return;
+    }
+
+    setLogoUploading(true);
+    const extension =
+      file.type === "image/png" ? "png" : file.type === "image/webp" ? "webp" : "jpg";
+    const path = `company/logo-${Date.now()}.${extension}`;
+
+    try {
+      const { error } = await supabase.storage
+        .from("company-logos")
+        .upload(path, file, {
+          contentType: file.type,
+          cacheControl: "31536000",
+          upsert: false,
+        });
+      if (error) throw error;
+
+      const { data } = supabase.storage.from("company-logos").getPublicUrl(path);
+      setForm((current: any) => ({ ...current, logo_url: data.publicUrl }));
+      toast.success(
+        isAr
+          ? "تم رفع الشعار. اضغط «حفظ» لتطبيقه على الفواتير."
+          : "Logo uploaded. Save the settings to apply it to invoices.",
+      );
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : isAr
+            ? "تعذر رفع الشعار."
+            : "Could not upload the logo.",
+      );
+    } finally {
+      setLogoUploading(false);
+    }
+  }
 
   return (
     <Card className="rounded-3xl border-border/80 shadow-xs">
@@ -50,58 +172,169 @@ export function InvoicingSection({
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-5 pt-5">
-        {/* Currency & Financial Standards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div className="grid gap-1.5">
-            <Label className="text-xs font-semibold">{isAr ? "العملة" : "Currency"}</Label>
-            <Input
-              value={form.currency ?? "USD"}
-              onChange={(e) => setForm({ ...form, currency: e.target.value })}
-              disabled={!canEdit}
-              placeholder="YER / SAR / USD"
-              className="rounded-2xl uppercase font-mono"
-            />
+        <div className="space-y-3">
+          <div className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
+            {isAr ? "العملة والضريبة" : "Currency & tax"}
           </div>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+            <CurrencyPicker
+              options={currencyOptions}
+              selectedCode={form.currency ?? "YER"}
+              language={lang}
+              disabled={!canEdit}
+              onSelect={(code) =>
+                setForm((current: any) => ({
+                  ...current,
+                  currency: code,
+                  currency_symbol: getCurrencySymbol(code, isAr ? "ar-YE" : "en"),
+                }))
+              }
+            />
+            <div className="grid gap-1.5">
+              <Label htmlFor="currency-symbol" className="text-xs font-semibold">
+                {isAr ? "رمز العرض" : "Display symbol"}
+              </Label>
+              <Input
+                id="currency-symbol"
+                value={form.currency_symbol ?? currencyPreviewSymbol}
+                onChange={(event) =>
+                  setForm((current: any) => ({ ...current, currency_symbol: event.target.value }))
+                }
+                disabled={!canEdit}
+                placeholder={currencyPreviewSymbol}
+                className="rounded-2xl"
+              />
+            </div>
+            <div className="grid gap-1.5">
+              <Label htmlFor="tax-rate" className="text-xs font-semibold">
+                {isAr ? "نسبة الضريبة %" : "Tax rate %"}
+              </Label>
+              <Input
+                id="tax-rate"
+                type="number"
+                min="0"
+                max="100"
+                step="0.01"
+                value={String(form.tax_rate ?? 0)}
+                onChange={(event) =>
+                  setForm((current: any) => ({ ...current, tax_rate: event.target.value }))
+                }
+                disabled={!canEdit}
+                placeholder="0"
+                className="rounded-2xl font-mono"
+              />
+            </div>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            {isAr
+              ? "العملة الافتراضية للمنشآت الجديدة هي الريال اليمني. تغييرها لا يحوّل المبالغ المسجلة سابقاً."
+              : "New companies default to Yemeni Rial. Changing currency does not convert existing amounts."}
+          </p>
+        </div>
 
-          <div className="grid gap-1.5">
-            <Label className="text-xs font-semibold">
-              {isAr ? "رمز العملة" : "Currency symbol"}
-            </Label>
-            <Input
-              value={form.currency_symbol ?? ""}
-              onChange={(e) => setForm({ ...form, currency_symbol: e.target.value })}
-              disabled={!canEdit}
-              placeholder="ر.ي / $"
-              className="rounded-2xl"
-            />
+        <div className="space-y-3 rounded-2xl border border-border/80 bg-surface/50 p-4">
+          <div className="flex items-center gap-2 text-sm font-semibold">
+            <Hash className="h-4 w-4 text-primary" />
+            {isAr ? "ترقيم الفواتير" : "Invoice numbering"}
           </div>
-
-          <div className="grid gap-1.5">
-            <Label className="text-xs font-semibold">
-              {isAr ? "نسبة الضريبة %" : "Tax rate %"}
-            </Label>
-            <Input
-              type="number"
-              value={String(form.tax_rate ?? 0)}
-              onChange={(e) => setForm({ ...form, tax_rate: e.target.value })}
-              disabled={!canEdit}
-              placeholder="15"
-              className="rounded-2xl font-mono"
-            />
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+            <div className="grid gap-1.5">
+              <Label htmlFor="sales-invoice-prefix" className="text-xs">
+                {isAr ? "بادئة فاتورة المبيعات" : "Sales invoice prefix"}
+              </Label>
+              <Input
+                id="sales-invoice-prefix"
+                value={form.invoice_prefix ?? "INV-"}
+                onChange={(event) =>
+                  setForm((current: any) => ({ ...current, invoice_prefix: event.target.value }))
+                }
+                disabled={!canEdit}
+                placeholder="INV-"
+                className="rounded-2xl font-mono"
+              />
+            </div>
+            <div className="grid gap-1.5">
+              <Label htmlFor="purchase-invoice-prefix" className="text-xs">
+                {isAr ? "بادئة فاتورة المشتريات" : "Purchase invoice prefix"}
+              </Label>
+              <Input
+                id="purchase-invoice-prefix"
+                value={form.purchase_invoice_prefix ?? "PO-"}
+                onChange={(event) =>
+                  setForm((current: any) => ({
+                    ...current,
+                    purchase_invoice_prefix: event.target.value,
+                  }))
+                }
+                disabled={!canEdit}
+                placeholder="PO-"
+                className="rounded-2xl font-mono"
+              />
+            </div>
+            <div className="grid gap-1.5">
+              <Label htmlFor="invoice-number-period" className="text-xs">
+                {isAr ? "إضافة التاريخ إلى الرقم" : "Date in invoice number"}
+              </Label>
+              <select
+                id="invoice-number-period"
+                value={form.invoice_number_period ?? "year_month"}
+                onChange={(event) =>
+                  setForm((current: any) => ({
+                    ...current,
+                    invoice_number_period: event.target.value,
+                  }))
+                }
+                disabled={!canEdit}
+                className="h-10 w-full rounded-2xl border border-input bg-background px-3 text-sm disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <option value="none">{isAr ? "بدون تاريخ" : "No date"}</option>
+                <option value="year">{isAr ? "السنة" : "Year"}</option>
+                <option value="year_month">{isAr ? "السنة والشهر" : "Year and month"}</option>
+              </select>
+            </div>
+            <div className="grid gap-1.5">
+              <Label htmlFor="invoice-number-digits" className="text-xs">
+                {isAr ? "خانات التسلسل (حد أدنى)" : "Minimum sequence digits"}
+              </Label>
+              <select
+                id="invoice-number-digits"
+                value={String(form.invoice_number_digits ?? 4)}
+                onChange={(event) =>
+                  setForm((current: any) => ({
+                    ...current,
+                    invoice_number_digits: Number(event.target.value),
+                  }))
+                }
+                disabled={!canEdit}
+                className="h-10 w-full rounded-2xl border border-input bg-background px-3 text-sm disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <option value="1">{isAr ? "1 — مثال: 1" : "1 — e.g. 1"}</option>
+                <option value="4">{isAr ? "4 — مثال: 0001" : "4 — e.g. 0001"}</option>
+                <option value="6">{isAr ? "6 — مثال: 000001" : "6 — e.g. 000001"}</option>
+              </select>
+            </div>
           </div>
-
-          <div className="grid gap-1.5">
-            <Label className="text-xs font-semibold">
-              {isAr ? "بادئة الفاتورة" : "Invoice prefix"}
-            </Label>
-            <Input
-              value={form.invoice_prefix ?? "INV"}
-              onChange={(e) => setForm({ ...form, invoice_prefix: e.target.value })}
-              disabled={!canEdit}
-              placeholder="INV"
-              className="rounded-2xl uppercase font-mono"
-            />
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-background px-3.5 py-3">
+            <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+              <CalendarDays className="h-4 w-4 text-primary" />
+              {isAr ? "مثال على شكل الرقم" : "Invoice number format example"}
+            </div>
+            <div className="flex flex-wrap gap-x-5 gap-y-1 font-mono text-xs" dir="ltr">
+              <span>
+                <span className="text-muted-foreground">{isAr ? "مبيعات: " : "Sales: "}</span>
+                <strong>{invoiceNumberPreview.sales}</strong>
+              </span>
+              <span>
+                <span className="text-muted-foreground">{isAr ? "مشتريات: " : "Purchase: "}</span>
+                <strong>{invoiceNumberPreview.purchase}</strong>
+              </span>
+            </div>
           </div>
+          <p className="text-xs text-muted-foreground">
+            {isAr
+              ? "تتبع الأرقام تسلسلاً متواصلاً ولا تعود إلى 0001 عند بداية شهر جديد."
+              : "Numbers remain sequential and do not reset to 0001 when a new month starts."}
+          </p>
         </div>
 
         {/* Feature Switches */}
@@ -147,19 +380,91 @@ export function InvoicingSection({
           </div>
         </div>
 
-        {/* Logo URL */}
-        <div className="grid gap-1.5">
-          <Label className="text-xs font-semibold flex items-center gap-1.5">
-            <ImageIcon className="h-3.5 w-3.5 text-primary" />
-            {isAr ? "رابط الشعار المطبوع (Logo URL)" : "Printed Logo URL"}
-          </Label>
-          <Input
-            value={form.logo_url ?? ""}
-            onChange={(e) => setForm({ ...form, logo_url: e.target.value })}
-            disabled={!canEdit}
-            placeholder="https://example.com/logo.png"
-            className="rounded-2xl font-mono"
-          />
+        <div className="space-y-2">
+          <div className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
+            {isAr ? "شعار الفاتورة" : "Invoice logo"}
+          </div>
+          <div className="flex flex-col gap-4 rounded-2xl border border-border/80 bg-surface/50 p-4 sm:flex-row sm:items-center">
+            <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-border bg-background">
+              {form.logo_url ? (
+                <img
+                  src={form.logo_url}
+                  alt={isAr ? "معاينة شعار الفاتورة" : "Invoice logo preview"}
+                  className="h-full w-full object-contain p-1"
+                />
+              ) : (
+                <ImageIcon className="h-7 w-7 text-muted-foreground" />
+              )}
+            </div>
+            <div className="min-w-0 flex-1 space-y-1">
+              <div className="text-sm font-semibold">
+                {form.logo_url
+                  ? isAr
+                    ? "الشعار الحالي"
+                    : "Current logo"
+                  : isAr
+                    ? "لم يتم اختيار شعار"
+                    : "No logo selected"}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {isAr
+                  ? "ارفع صورة PNG أو JPG أو WebP بحد أقصى 3 ميجابايت. لا حاجة إلى رابط خارجي."
+                  : "Upload a PNG, JPG, or WebP image up to 3 MB. No external URL is needed."}
+              </p>
+              <div className="flex flex-wrap gap-2 pt-1">
+                <input
+                  ref={logoInputRef}
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp"
+                  className="hidden"
+                  disabled={!canEdit || logoUploading}
+                  onChange={(event) => {
+                    const file = event.currentTarget.files?.[0];
+                    event.currentTarget.value = "";
+                    if (file) void uploadCompanyLogo(file);
+                  }}
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => logoInputRef.current?.click()}
+                  disabled={!canEdit || logoUploading}
+                  className="rounded-xl"
+                >
+                  {logoUploading ? (
+                    <LoaderCircle className="me-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Upload className="me-2 h-4 w-4" />
+                  )}
+                  {logoUploading
+                    ? isAr
+                      ? "جارٍ الرفع..."
+                      : "Uploading..."
+                    : form.logo_url
+                      ? isAr
+                        ? "استبدال الشعار"
+                        : "Replace logo"
+                      : isAr
+                        ? "اختيار صورة"
+                        : "Choose image"}
+                </Button>
+                {form.logo_url && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setForm((current: any) => ({ ...current, logo_url: null }))}
+                    disabled={!canEdit || logoUploading}
+                    className="rounded-xl text-muted-foreground"
+                  >
+                    <Trash2 className="me-2 h-4 w-4" />
+                    {isAr ? "إزالة" : "Remove"}
+                  </Button>
+                )}
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* Post-Sale Printing Shortcut */}
@@ -237,5 +542,90 @@ export function InvoicingSection({
         </div>
       </CardContent>
     </Card>
+  );
+}
+
+function CurrencyPicker({
+  options,
+  selectedCode,
+  language,
+  disabled,
+  onSelect,
+}: {
+  options: CurrencyOption[];
+  selectedCode: string;
+  language: string;
+  disabled: boolean;
+  onSelect: (code: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const isAr = language === "ar";
+  const selected = options.find((currency) => currency.code === selectedCode);
+
+  return (
+    <div className="grid gap-1.5">
+      <Label>{isAr ? "العملة الأساسية" : "Base currency"}</Label>
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <Button
+            type="button"
+            variant="outline"
+            role="combobox"
+            aria-expanded={open}
+            disabled={disabled}
+            className="h-10 w-full justify-between rounded-2xl px-3 font-normal"
+          >
+            <span className="flex min-w-0 items-center gap-2">
+              <span aria-hidden="true" className="text-lg leading-none">
+                {selected?.flag ?? "🌐"}
+              </span>
+              <span className="truncate text-start">
+                <span className="font-mono font-semibold">{selectedCode}</span>
+                {selected?.name && (
+                  <span className="ms-2 text-muted-foreground">{selected.name}</span>
+                )}
+              </span>
+            </span>
+            <ChevronDown className="ms-2 h-4 w-4 shrink-0 opacity-50" />
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent align="start" className="w-[min(360px,calc(100vw-2rem))] p-0">
+          <Command dir={isAr ? "rtl" : "ltr"}>
+            <CommandInput
+              placeholder={
+                isAr ? "ابحث باسم العملة أو رمزها..." : "Search by currency or code..."
+              }
+            />
+            <CommandList>
+              <CommandEmpty>{isAr ? "لم يتم العثور على عملة." : "No currency found."}</CommandEmpty>
+              <CommandGroup heading={isAr ? "العملات" : "Currencies"}>
+                {options.map((currency) => (
+                  <CommandItem
+                    key={currency.code}
+                    value={`${currency.code} ${currency.name} ${currency.symbol} ${currency.flag}`}
+                    onSelect={() => {
+                      onSelect(currency.code);
+                      setOpen(false);
+                    }}
+                    className="gap-2"
+                  >
+                    <span aria-hidden="true" className="text-lg leading-none">
+                      {currency.flag}
+                    </span>
+                    <span className="min-w-0 flex-1 truncate">{currency.name}</span>
+                    <span className="font-mono text-xs text-muted-foreground">
+                      {currency.code} · {currency.symbol}
+                    </span>
+                    <Check
+                      className={`h-4 w-4 ${currency.code === selectedCode ? "opacity-100" : "opacity-0"}`}
+                    />
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            </CommandList>
+          </Command>
+        </PopoverContent>
+      </Popover>
+    </div>
   );
 }

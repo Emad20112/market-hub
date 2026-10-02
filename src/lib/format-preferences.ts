@@ -26,7 +26,7 @@ export function toSystemDigits(input: number | string, forceStyle?: DigitStyle):
 
 export function formatSystemNumber(
   value: number | string,
-  options?: { decimals?: number; currency?: string }
+  options?: { decimals?: number; currency?: string },
 ): string {
   const num = typeof value === "string" ? parseFloat(value) || 0 : value;
   const formatted = num.toLocaleString("en-US", {
@@ -42,17 +42,25 @@ export function formatSystemNumber(
 }
 
 const ARABIC_MONTHS = [
-  "يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو",
-  "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر"
+  "يناير",
+  "فبراير",
+  "مارس",
+  "أبريل",
+  "مايو",
+  "يونيو",
+  "يوليو",
+  "أغسطس",
+  "سبتمبر",
+  "أكتوبر",
+  "نوفمبر",
+  "ديسمبر",
 ];
 
-const ARABIC_DAYS = [
-  "الأحد", "الإثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت"
-];
+const ARABIC_DAYS = ["الأحد", "الإثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت"];
 
 export function formatLuxuryDate(
   dateInput: string | Date,
-  options?: { showDayName?: boolean; showYear?: boolean }
+  options?: { showDayName?: boolean; showYear?: boolean },
 ): { day: string; month: string; year: string; weekday: string; full: string } {
   const d = typeof dateInput === "string" ? new Date(dateInput) : dateInput;
   if (isNaN(d.getTime())) {

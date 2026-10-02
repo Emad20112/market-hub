@@ -42,8 +42,12 @@ import {
   PanelLeftOpen,
   Crown,
   ClipboardList,
+  Cog,
+  PackagePlus,
+  ChartColumn,
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
+import { canAccessRoute, getRouteRule } from "@/lib/route-access";
 import { useAuth } from "@/lib/auth";
 import { useModules } from "@/lib/modules";
 import { CommandPalette } from "@/components/command-palette";
@@ -51,16 +55,20 @@ import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { ConnectionBanner } from "@/components/ui/connection";
 import { cn } from "@/lib/utils";
 import { InamaSoftFooter } from "@/components/inama-soft-footer";
+import { supabase } from "@/integrations/supabase/client";
+import { setCompanySettingsCache } from "@/lib/format";
+import { checkBackupReminderStatus } from "@/lib/backup/reminder";
 
 type Item = {
   to: string;
   icon: typeof LayoutDashboard;
   key: string;
   moduleId?: string;
-  superadminOnly?: boolean;
-  allowedRoles?: ("owner" | "manager" | "accountant" | "cashier" | "warehouse")[];
   color?: string;
   bg?: string;
+  /** يقصر ظهور العنصر على أدوار محددة. كان مستخدماً في عناصر القائمة
+   *  دون أن يكون معرَّفاً في النوع، فيرفضه TypeScript. */
+  allowedRoles?: string[];
 };
 
 type Section = {
@@ -88,7 +96,6 @@ const sections: Section[] = [
         icon: LineChart,
         key: "nav.analytics",
         moduleId: "analytics",
-        allowedRoles: ["owner", "manager", "accountant"],
         color: "text-indigo-500",
         bg: "bg-indigo-500/15",
       },
@@ -97,7 +104,6 @@ const sections: Section[] = [
         icon: BarChart3,
         key: "nav.reports",
         moduleId: "analytics",
-        allowedRoles: ["owner", "manager", "accountant"],
         color: "text-sky-400",
         bg: "bg-sky-500/15",
       },
@@ -115,7 +121,6 @@ const sections: Section[] = [
         icon: ScanBarcode,
         key: "nav.pos",
         moduleId: "pos",
-        allowedRoles: ["owner", "manager", "cashier"],
         color: "text-emerald-500",
         bg: "bg-emerald-500/15",
       },
@@ -124,7 +129,6 @@ const sections: Section[] = [
         icon: Receipt,
         key: "nav.sales",
         moduleId: "core",
-        allowedRoles: ["owner", "manager", "accountant", "cashier"],
         color: "text-emerald-400",
         bg: "bg-emerald-500/15",
       },
@@ -133,7 +137,6 @@ const sections: Section[] = [
         icon: RotateCcw,
         key: "nav.sales_returns",
         moduleId: "returns",
-        allowedRoles: ["owner", "manager", "accountant", "cashier"],
         color: "text-rose-400",
         bg: "bg-rose-500/15",
       },
@@ -142,7 +145,6 @@ const sections: Section[] = [
         icon: Users,
         key: "nav.customers",
         moduleId: "core",
-        allowedRoles: ["owner", "manager", "accountant", "cashier"],
         color: "text-teal-400",
         bg: "bg-teal-500/15",
       },
@@ -151,7 +153,6 @@ const sections: Section[] = [
         icon: HandCoins,
         key: "nav.payments",
         moduleId: "payments",
-        allowedRoles: ["owner", "manager", "accountant"],
         color: "text-amber-500",
         bg: "bg-amber-500/15",
       },
@@ -160,7 +161,6 @@ const sections: Section[] = [
         icon: AlertTriangle,
         key: "nav.debts",
         moduleId: "payments",
-        allowedRoles: ["owner", "manager", "accountant"],
         color: "text-red-500",
         bg: "bg-red-500/15",
       },
@@ -169,7 +169,6 @@ const sections: Section[] = [
         icon: FileText,
         key: "nav.account_statement",
         moduleId: "payments",
-        allowedRoles: ["owner", "manager", "accountant"],
         color: "text-yellow-500",
         bg: "bg-yellow-500/15",
       },
@@ -178,7 +177,6 @@ const sections: Section[] = [
         icon: Gift,
         key: "nav.loyalty",
         moduleId: "loyalty",
-        allowedRoles: ["owner", "manager", "cashier"],
         color: "text-pink-500",
         bg: "bg-pink-500/15",
       },
@@ -204,7 +202,6 @@ const sections: Section[] = [
         icon: Warehouse,
         key: "nav.inventory",
         moduleId: "core",
-        allowedRoles: ["owner", "manager", "accountant", "warehouse"],
         color: "text-cyan-500",
         bg: "bg-cyan-500/15",
       },
@@ -213,7 +210,6 @@ const sections: Section[] = [
         icon: Layers,
         key: "nav.catalog",
         moduleId: "core",
-        allowedRoles: ["owner", "manager", "accountant", "warehouse"],
         color: "text-amber-500",
         bg: "bg-amber-500/15",
       },
@@ -222,7 +218,6 @@ const sections: Section[] = [
         icon: Barcode,
         key: "nav.barcodes",
         moduleId: "barcode",
-        allowedRoles: ["owner", "manager", "warehouse", "cashier"],
         color: "text-violet-500",
         bg: "bg-violet-500/15",
       },
@@ -231,7 +226,6 @@ const sections: Section[] = [
         icon: ClipboardList,
         key: "nav.settlements",
         moduleId: "core",
-        allowedRoles: ["owner", "manager", "warehouse", "accountant"],
         color: "text-amber-500",
         bg: "bg-amber-500/15",
       },
@@ -240,7 +234,6 @@ const sections: Section[] = [
         icon: ArrowRightLeft,
         key: "nav.transfers",
         moduleId: "multi_warehouse",
-        allowedRoles: ["owner", "manager", "warehouse"],
         color: "text-purple-400",
         bg: "bg-purple-500/15",
       },
@@ -249,7 +242,6 @@ const sections: Section[] = [
         icon: Boxes,
         key: "nav.warehouses",
         moduleId: "multi_warehouse",
-        allowedRoles: ["owner", "manager", "warehouse"],
         color: "text-blue-500",
         bg: "bg-blue-500/15",
       },
@@ -258,7 +250,6 @@ const sections: Section[] = [
         icon: CalendarClock,
         key: "nav.batches",
         moduleId: "batches",
-        allowedRoles: ["owner", "manager", "warehouse"],
         color: "text-orange-500",
         bg: "bg-orange-500/15",
       },
@@ -276,7 +267,6 @@ const sections: Section[] = [
         icon: ShoppingBag,
         key: "nav.purchase_pos",
         moduleId: "purchases",
-        allowedRoles: ["owner", "manager", "accountant", "warehouse"],
         color: "text-indigo-400",
         bg: "bg-indigo-500/15",
       },
@@ -285,7 +275,6 @@ const sections: Section[] = [
         icon: Truck,
         key: "nav.purchases",
         moduleId: "purchases",
-        allowedRoles: ["owner", "manager", "accountant", "warehouse"],
         color: "text-blue-400",
         bg: "bg-blue-500/15",
       },
@@ -294,7 +283,6 @@ const sections: Section[] = [
         icon: Building2,
         key: "nav.suppliers",
         moduleId: "purchases",
-        allowedRoles: ["owner", "manager", "accountant", "warehouse"],
         color: "text-blue-500",
         bg: "bg-blue-500/15",
       },
@@ -303,7 +291,6 @@ const sections: Section[] = [
         icon: RotateCcw,
         key: "nav.purchase_returns",
         moduleId: "returns",
-        allowedRoles: ["owner", "manager", "accountant", "warehouse"],
         color: "text-rose-500",
         bg: "bg-rose-500/15",
       },
@@ -324,7 +311,6 @@ const sections: Section[] = [
         icon: Receipt,
         key: "nav.expenses",
         moduleId: "expenses",
-        allowedRoles: ["owner", "manager", "accountant"],
         color: "text-rose-500",
         bg: "bg-rose-500/15",
       },
@@ -333,7 +319,6 @@ const sections: Section[] = [
         icon: Wallet,
         key: "nav.finance",
         moduleId: "expenses",
-        allowedRoles: ["owner", "manager", "accountant"],
         color: "text-emerald-500",
         bg: "bg-emerald-500/15",
       },
@@ -342,7 +327,6 @@ const sections: Section[] = [
         icon: BookOpen,
         key: "nav.daily_journal",
         moduleId: "advanced_accounting",
-        allowedRoles: ["owner", "manager", "accountant"],
         color: "text-emerald-500",
         bg: "bg-emerald-500/15",
       },
@@ -351,7 +335,6 @@ const sections: Section[] = [
         icon: Scale,
         key: "nav.trial_balance",
         moduleId: "advanced_accounting",
-        allowedRoles: ["owner", "manager", "accountant"],
         color: "text-cyan-400",
         bg: "bg-cyan-500/15",
       },
@@ -360,7 +343,6 @@ const sections: Section[] = [
         icon: PieChart,
         key: "nav.income_statement",
         moduleId: "advanced_accounting",
-        allowedRoles: ["owner", "manager", "accountant"],
         color: "text-lime-500",
         bg: "bg-lime-500/15",
       },
@@ -369,7 +351,6 @@ const sections: Section[] = [
         icon: Landmark,
         key: "nav.balance_sheet",
         moduleId: "advanced_accounting",
-        allowedRoles: ["owner", "manager", "accountant"],
         color: "text-indigo-400",
         bg: "bg-indigo-500/15",
       },
@@ -377,7 +358,81 @@ const sections: Section[] = [
   },
 
   // ─────────────────────────────
+  // 7) المطحنة والأمانات — يظهر فقط لمن اشترى وحدة المطحنة
+  // ─────────────────────────────
+  {
+    titleKey: "nav.section.milling",
+    items: [
+      {
+        to: "/milling",
+        icon: Scale,
+        key: "nav.milling",
+        moduleId: "milling_operations",
+        allowedRoles: ["owner", "manager", "accountant", "warehouse"],
+        color: "text-amber-500",
+        bg: "bg-amber-500/15",
+      },
+      {
+        to: "/milling/intake",
+        icon: PackagePlus,
+        key: "nav.milling_intake",
+        moduleId: "milling_operations",
+        allowedRoles: ["owner", "manager", "warehouse"],
+        color: "text-amber-400",
+        bg: "bg-amber-500/15",
+      },
+      {
+        to: "/milling/jobs",
+        icon: Cog,
+        key: "nav.milling_jobs",
+        moduleId: "milling_operations",
+        allowedRoles: ["owner", "manager", "warehouse"],
+        color: "text-orange-500",
+        bg: "bg-orange-500/15",
+      },
+      {
+        to: "/milling/delivery",
+        icon: Truck,
+        key: "nav.milling_delivery",
+        moduleId: "milling_operations",
+        allowedRoles: ["owner", "manager", "warehouse"],
+        color: "text-lime-500",
+        bg: "bg-lime-500/15",
+      },
+      {
+        to: "/milling/reports",
+        icon: ChartColumn,
+        key: "nav.milling_reports",
+        moduleId: "milling_operations",
+        allowedRoles: ["owner", "manager", "accountant"],
+        color: "text-amber-500",
+        bg: "bg-amber-500/15",
+      },
+      {
+        to: "/milling/customer-statement",
+        icon: FileText,
+        key: "nav.milling_statement",
+        moduleId: "milling_operations",
+        allowedRoles: ["owner", "manager", "accountant"],
+        color: "text-yellow-500",
+        bg: "bg-yellow-500/15",
+      },
+      {
+        to: "/milling/operations-guide",
+        icon: BookOpen,
+        key: "nav.milling_guide",
+        moduleId: "milling_operations",
+        allowedRoles: ["owner", "manager", "accountant", "warehouse"],
+        color: "text-sky-500",
+        bg: "bg-sky-500/15",
+      },
+    ],
+  },
+
+  // ─────────────────────────────
+  // 8) الإدارة والنظام — الصلاحيات والتهيئة والاشتراك
   // 6) الإدارة والنظام — الموظفين والتهيئة والأمان
+
   // ─────────────────────────────
   {
     titleKey: "nav.section.admin",
@@ -387,7 +442,6 @@ const sections: Section[] = [
         icon: ShieldCheck,
         key: "nav.users",
         moduleId: "core",
-        allowedRoles: ["owner"],
         color: "text-violet-400",
         bg: "bg-violet-500/15",
       },
@@ -404,7 +458,6 @@ const sections: Section[] = [
         icon: History,
         key: "nav.audit",
         moduleId: "audit",
-        allowedRoles: ["owner", "manager"],
         color: "text-orange-400",
         bg: "bg-orange-500/15",
       },
@@ -413,7 +466,6 @@ const sections: Section[] = [
         icon: Settings,
         key: "nav.settings",
         moduleId: "core",
-        allowedRoles: ["owner", "manager"],
         color: "text-slate-400",
         bg: "bg-slate-500/15",
       },
@@ -437,7 +489,6 @@ const sections: Section[] = [
         to: "/platform-admin",
         icon: Crown,
         key: "nav.platform_admin",
-        superadminOnly: true,
         color: "text-amber-500",
         bg: "bg-amber-500/15",
       },
@@ -456,9 +507,8 @@ function SidebarContents({
 }) {
   const { t, dir, lang } = useI18n();
 
-  const { user, signOut, isPlatformAdmin, isPlatformSuperadmin, hasRole, roles } = useAuth();
+  const { user, signOut, isPlatformAdmin, isPlatformSuperadmin, roles } = useAuth();
 
-  const isSuperOrOwner = isPlatformAdmin || isPlatformSuperadmin || hasRole("owner");
 
   const { isModuleEnabled } = useModules();
 
@@ -481,23 +531,14 @@ function SidebarContents({
       .map((sec) => ({
         ...sec,
         items: sec.items.filter((it) => {
-          if (it.superadminOnly && !isSuperOrOwner) {
+          if (!canAccessRoute(it.to, { roles, isPlatformAdmin, isPlatformSuperadmin })) {
             return false;
           }
-
-          if (
-            !isSuperOrOwner &&
-            it.allowedRoles &&
-            !it.allowedRoles.some((role) => roles.includes(role))
-          ) {
-            return false;
-          }
-
           return isModuleEnabled(it.moduleId);
         }),
       }))
       .filter((sec) => sec.items.length > 0);
-  }, [isModuleEnabled, isSuperOrOwner, roles]);
+  }, [isModuleEnabled, isPlatformAdmin, isPlatformSuperadmin, roles]);
 
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden bg-sidebar text-sidebar-foreground">
@@ -635,7 +676,7 @@ function SidebarContents({
                           <div className="flex items-center gap-1.5">
                             <span>{t(it.key)}</span>
 
-                            {it.superadminOnly && (
+                            {getRouteRule(it.to)?.superadminOnly && (
                               <Crown className="h-3 w-3 text-amber-500 shrink-0" />
                             )}
                           </div>
@@ -767,6 +808,28 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   );
 
   useEffect(() => {
+    let active = true;
+    void supabase
+      .from("company_settings")
+      .select("currency, currency_symbol")
+      .order("id")
+      .limit(1)
+      .maybeSingle()
+      .then(({ data, error }) => {
+        if (!active) return;
+        if (error) {
+          console.warn("[AppShell] Could not load company currency settings.", error);
+          return;
+        }
+        if (data) setCompanySettingsCache(data);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useEffect(() => {
     const root = document.documentElement;
 
     root.classList.toggle("dark", theme === "dark");
@@ -880,7 +943,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
             <button
               className="relative grid h-10 w-10 place-items-center rounded-full border border-border/60 bg-surface text-muted-foreground hover:text-foreground hover:border-ring/40 transition-colors"
-              title={t("nav.notifications")}
+              title={
+                checkBackupReminderStatus().isDue
+                  ? "تنبيه: حان موعد تنزيل نسخة احتياطية محلية للجهاز!"
+                  : t("nav.notifications")
+              }
               aria-label={t("nav.notifications")}
               onClick={() =>
                 navigate({
@@ -890,7 +957,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             >
               <Bell className="h-4 w-4" />
 
-              <span className="absolute top-2 end-2 h-1.5 w-1.5 rounded-full bg-primary ring-2 ring-background" />
+              {checkBackupReminderStatus().isDue ? (
+                <span className="absolute top-1.5 end-1.5 flex h-2.5 w-2.5">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
+                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-500" />
+                </span>
+              ) : (
+                <span className="absolute top-2 end-2 h-1.5 w-1.5 rounded-full bg-primary ring-2 ring-background" />
+              )}
             </button>
           </div>
         </header>

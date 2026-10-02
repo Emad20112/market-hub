@@ -30,6 +30,7 @@ import {
   SkipForward,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { posOfflineService, productsRepo, warehousesRepo, customersRepo, categoriesRepo, brandsRepo, unitsRepo } from "@/lib/offline";
 import { useI18n } from "@/lib/i18n";
 import { money } from "@/lib/format";
 import { PageHeader } from "@/components/page-header";
@@ -73,6 +74,10 @@ interface Product {
   unit_id?: string | null;
   origin_id?: string | null;
   quality_grade_id?: string | null;
+  /** تُستعلم في addToCart لتحديد مسار الخدمة؛ بدونها لا يمكن بيع أجرة الطحن. */
+  is_service?: boolean | null;
+  item_nature?: string | null;
+  inventory_policy?: string | null;
   unit?: { short_name: string; name_ar: string | null; name: string } | null;
   category?: { name: string; name_ar: string | null } | null;
   brand?: { name: string; name_ar: string | null } | null;
@@ -87,6 +92,8 @@ interface CartLine {
   tax_rate: number;
   quantity: number;
   is_service?: boolean;
+  item_nature?: string;
+  inventory_policy?: string;
 }
 
 interface Warehouse {
@@ -463,23 +470,23 @@ function POSPage() {
   async function loadAll() {
     try {
       const [
-        { data: ws },
-        { data: cs },
-        { data: ps },
-        { data: cats },
-        { data: brs },
-        { data: uns },
-        { data: origs },
-        { data: quals },
-        { data: vMakes },
-        { data: vModels },
-        { data: compats },
-      ] = await Promise.all([
+        wsRes,
+        csRes,
+        psRes,
+        catsRes,
+        brsRes,
+        unsRes,
+        origsRes,
+        qualsRes,
+        vMakesRes,
+        vModelsRes,
+        compatsRes,
+      ] = await Promise.allSettled([
         supabase.from("warehouses").select("id,name,name_ar").eq("is_active", true).order("name"),
         supabase.from("customers").select("id,name,phone,balance,credit_limit").eq("is_active", true).order("name"),
         (supabase.from("products") as any)
           .select(
-            "id,sku,barcode,name,name_ar,sale_price,tax_rate,image_url,category_id,brand_id,unit_id,origin_id,quality_grade_id,is_active",
+            "id,sku,barcode,name,name_ar,sale_price,tax_rate,image_url,category_id,brand_id,unit_id,origin_id,quality_grade_id,is_active,is_service,item_nature,inventory_policy",
           )
           .neq("is_active", false)
           .order("name")
@@ -496,6 +503,34 @@ function POSPage() {
         (supabase as any).from("vehicle_models").select("id,name,name_ar,make_id").order("name"),
         (supabase as any).from("product_compatibilities").select("product_id,vehicle_model_id"),
       ]);
+
+      let ws = wsRes.status === "fulfilled" ? wsRes.value.data : null;
+      let cs = csRes.status === "fulfilled" ? csRes.value.data : null;
+      let ps = psRes.status === "fulfilled" ? psRes.value.data : null;
+      let cats = catsRes.status === "fulfilled" ? catsRes.value.data : null;
+      let brs = brsRes.status === "fulfilled" ? brsRes.value.data : null;
+      let uns = unsRes.status === "fulfilled" ? unsRes.value.data : null;
+      let origs = origsRes.status === "fulfilled" ? origsRes.value.data : [];
+      let quals = qualsRes.status === "fulfilled" ? qualsRes.value.data : [];
+      let vMakes = vMakesRes.status === "fulfilled" ? vMakesRes.value.data : [];
+      let vModels = vModelsRes.status === "fulfilled" ? vModelsRes.value.data : [];
+      let compats = compatsRes.status === "fulfilled" ? compatsRes.value.data : [];
+
+      // Offline fallbacks from local repositories
+      if (!ws || ws.length === 0) ws = (await warehousesRepo.getAll()) as any;
+      if (!cs || cs.length === 0) cs = (await customersRepo.getAll()) as any;
+      if (!ps || ps.length === 0) ps = (await productsRepo.getAll()) as any;
+      if (!cats || cats.length === 0) cats = (await categoriesRepo.getAll()) as any;
+      if (!brs || brs.length === 0) brs = (await brandsRepo.getAll()) as any;
+      if (!uns || uns.length === 0) uns = (await unitsRepo.getAll()) as any;
+
+      // Seed local repositories for future offline usage when fetch succeeds
+      if (ws && ws.length > 0) ws.forEach((w) => warehousesRepo.create(w as any).catch(() => {}));
+      if (cs && cs.length > 0) cs.forEach((c) => customersRepo.create(c as any).catch(() => {}));
+      if (ps && ps.length > 0) ps.forEach((p) => productsRepo.create(p as any).catch(() => {}));
+      if (cats && cats.length > 0) cats.forEach((c) => categoriesRepo.create(c as any).catch(() => {}));
+      if (brs && brs.length > 0) brs.forEach((b) => brandsRepo.create(b as any).catch(() => {}));
+      if (uns && uns.length > 0) uns.forEach((u) => unitsRepo.create(u as any).catch(() => {}));
 
       const loadedWarehouses = ws ?? [];
       setWarehouses(loadedWarehouses);
@@ -700,25 +735,56 @@ function POSPage() {
   ]);
 
   function addToCart(p: Product) {
-    const stock = stockMap[p.id] ?? 0;
     const prodName = lang === "ar" && p.name_ar ? p.name_ar : p.name;
-    if (stock <= 0) {
-      return toast.error(
-        lang === "ar" ? `نفد المخزون من: ${prodName}` : `${p.name} ${t("pos.out_of_stock")}`,
-      );
+    // الخدمات (SERVICE) لا مخزون لها إطلاقاً — item_nature = SERVICE يعني
+    // inventory_policy = UNTRACKED. فحص "نفد المخزون" كان يرفضها لأن
+    // stockMap لا يحملها، فيستحيل بيع أجرة الطحن من نقطة البيع.
+    const isService = p.is_service === true;
+
+    if (!isService) {
+      const stock = stockMap[p.id] ?? 0;
+      if (stock <= 0) {
+        return toast.error(
+          lang === "ar" ? `نفد المخزون من: ${prodName}` : `${p.name} ${t("pos.out_of_stock")}`,
+        );
+      }
+      setCart((c) => {
+        const existing = c.find((l) => l.product_id === p.id);
+        if (existing) {
+          if (existing.quantity >= stock) {
+            toast.error(
+              lang === "ar"
+                ? `الحد الأقصى المتاح في المخزون: ${stock}`
+                : `${t("pos.max_stock")}: ${stock}`,
+            );
+            return c;
+          }
+          return c.map((l) =>
+            l.product_id === p.id ? { ...l, quantity: l.quantity + 1 } : l,
+          );
+        }
+        return [
+          ...c,
+          {
+            product_id: p.id,
+            name: prodName,
+            unit_price: Number(p.sale_price),
+            tax_rate: Number(p.tax_rate ?? 0),
+            quantity: 1,
+            is_service: false,
+          },
+        ];
+      });
+      return;
     }
+
+    // مسار الخدمة: بلا فحص مخزون، والحمولة تحمل is_service = true.
     setCart((c) => {
       const existing = c.find((l) => l.product_id === p.id);
       if (existing) {
-        if (existing.quantity >= stock) {
-          toast.error(
-            lang === "ar"
-              ? `الحد الأقصى المتاح في المخزون: ${stock}`
-              : `${t("pos.max_stock")}: ${stock}`,
-          );
-          return c;
-        }
-        return c.map((l) => (l.product_id === p.id ? { ...l, quantity: l.quantity + 1 } : l));
+        return c.map((l) =>
+          l.product_id === p.id ? { ...l, quantity: l.quantity + 1 } : l,
+        );
       }
       return [
         ...c,
@@ -728,6 +794,7 @@ function POSPage() {
           unit_price: Number(p.sale_price),
           tax_rate: Number(p.tax_rate ?? 0),
           quantity: 1,
+          is_service: true,
         },
       ];
     });
@@ -1044,37 +1111,101 @@ function POSPage() {
           : note.trim()
         : splitNote || null;
 
-      const { data, error } = await supabase.rpc("create_sale", {
-        _warehouse_id: warehouseId,
-        _customer_id: (customerId || null) as any,
-        _payment_method: finalMethod as any,
-        _paid: Math.min(Math.max(effectivePaid, 0), total),
-        _discount: discountN,
-        _note: finalNote as any,
-        _sale_date: saleDate,
-        _payment_splits: paymentSplits as any,
-        _items: cart.map((l) => ({
-          product_id: l.product_id,
-          quantity: l.quantity,
-          unit_price: l.unit_price,
-          tax_rate: l.tax_rate,
-          is_service: !!l.is_service,
-          name: l.name,
-        })),
-      });
-      if (error) throw error;
-      const invoiceId = data as string;
-      const { data: inv } = await supabase
-        .from("sales_invoices")
-        .select("invoice_number")
-        .eq("id", invoiceId)
-        .maybeSingle();
-      setLastInvoice({ id: invoiceId, number: inv?.invoice_number ?? "" });
-      toast.success(
-        lang === "ar"
-          ? `تمت عملية البيع بنجاح — فاتورة #${inv?.invoice_number ?? ""}`
-          : `${t("pos.sale_complete")} — #${inv?.invoice_number ?? ""}`,
-      );
+      let invoiceId: string;
+      let invoiceNumber: string;
+
+      const isOfflineMode = typeof navigator !== "undefined" && !navigator.onLine;
+
+      if (isOfflineMode) {
+        const offlineResult = await posOfflineService.processOfflineSale({
+          warehouse_id: warehouseId,
+          customer_id: customerId || null,
+          items: cart.map((l) => ({
+            product_id: l.product_id,
+            product_name: l.name,
+            quantity: l.quantity,
+            unit_price: l.unit_price,
+            subtotal: l.quantity * l.unit_price,
+          })),
+          subtotal,
+          discount: discountN,
+          tax: 0,
+          total,
+          paid: Math.min(Math.max(effectivePaid, 0), total),
+          payment_method: finalMethod as any,
+          notes: finalNote as any,
+        });
+        invoiceId = offlineResult.invoice_id;
+        invoiceNumber = offlineResult.local_document_ref;
+        setLastInvoice({ id: invoiceId, number: invoiceNumber });
+        toast.success(
+          lang === "ar"
+            ? `تم حفظ الفاتورة محلياً (Offline) — مرجع #${invoiceNumber}`
+            : `Invoice saved offline — Ref #${invoiceNumber}`,
+        );
+      } else {
+        try {
+          const { data, error } = await supabase.rpc("create_sale", {
+            _warehouse_id: warehouseId,
+            _customer_id: (customerId || null) as any,
+            _payment_method: finalMethod as any,
+            _paid: Math.min(Math.max(effectivePaid, 0), total),
+            _discount: discountN,
+            _note: finalNote as any,
+            _sale_date: saleDate,
+            _payment_splits: paymentSplits as any,
+            _items: cart.map((l) => ({
+              product_id: l.product_id,
+              quantity: l.quantity,
+              unit_price: l.unit_price,
+              tax_rate: l.tax_rate,
+              is_service: !!l.is_service,
+              name: l.name,
+            })),
+          });
+          if (error) throw error;
+          invoiceId = data as string;
+          const { data: inv } = await supabase
+            .from("sales_invoices")
+            .select("invoice_number")
+            .eq("id", invoiceId)
+            .maybeSingle();
+          invoiceNumber = inv?.invoice_number ?? invoiceId.slice(0, 8);
+          setLastInvoice({ id: invoiceId, number: invoiceNumber });
+          toast.success(
+            lang === "ar"
+              ? `تمت عملية البيع بنجاح — فاتورة #${invoiceNumber}`
+              : `${t("pos.sale_complete")} — #${invoiceNumber}`,
+          );
+        } catch (netErr: any) {
+          const offlineResult = await posOfflineService.processOfflineSale({
+            warehouse_id: warehouseId,
+            customer_id: customerId || null,
+            items: cart.map((l) => ({
+              product_id: l.product_id,
+              product_name: l.name,
+              quantity: l.quantity,
+              unit_price: l.unit_price,
+              subtotal: l.quantity * l.unit_price,
+            })),
+            subtotal,
+            discount: discountN,
+            tax: 0,
+            total,
+            paid: Math.min(Math.max(effectivePaid, 0), total),
+            payment_method: finalMethod as any,
+            notes: finalNote as any,
+          });
+          invoiceId = offlineResult.invoice_id;
+          invoiceNumber = offlineResult.local_document_ref;
+          setLastInvoice({ id: invoiceId, number: invoiceNumber });
+          toast.success(
+            lang === "ar"
+              ? `تعذر الاتصال بالخادم، تم حفظ الفاتورة محلياً — مرجع #${invoiceNumber}`
+              : `Connection error, saved offline — Ref #${invoiceNumber}`,
+          );
+        }
+      }
 
       // Build invoice doc for printing
       const customer = customers.find((c) => c.id === customerId);
@@ -1082,7 +1213,7 @@ function POSPage() {
       const cur = companySettings?.currency_symbol ?? companySettings?.currency ?? "";
       const invoiceDoc: InvoiceDoc = {
         title: lang === "ar" ? "فاتورة بيع" : "Sales Invoice",
-        number: inv?.invoice_number ?? invoiceId.slice(0, 8),
+        number: invoiceNumber,
         date: saleDate,
         partyLabel: lang === "ar" ? "العميل" : "Bill To",
         partyName: customer?.name ?? (lang === "ar" ? "عميل نقدي" : "Walk-in Customer"),
@@ -1519,10 +1650,13 @@ function POSPage() {
                 lang === "ar"
                   ? p.category?.name_ar || p.category?.name
                   : p.category?.name || p.category?.name_ar;
+              // العرض العربي يجب أن يفضّل التسمية العربية دائماً. كان الرمز
+              // الإنجليزي (short_name) يُعرض كبديل عن name_ar الغائب، فيظهر
+              // "kg" وسط واجهة عربية — وهذا ما يُفسد قراءة الشاشة للقبّان.
               const unitLabel =
                 lang === "ar"
-                  ? p.unit?.name_ar || p.unit?.short_name
-                  : p.unit?.short_name || p.unit?.name_ar;
+                  ? p.unit?.name_ar || p.unit?.name || p.unit?.short_name || ""
+                  : p.unit?.short_name || p.unit?.name || p.unit?.name_ar || "";
               const originLabel =
                 lang === "ar"
                   ? p.origin?.name_ar || p.origin?.name
@@ -2062,10 +2196,8 @@ function POSPage() {
                       placeholder={
                         isPaidEmpty
                           ? paymentMethod === "credit"
-                            ? lang === "ar"
-                              ? "آجل بالكامل (0 ﷼)"
-                              : "Full credit (0)"
-                            : `${lang === "ar" ? "مدفوع بالكامل" : "Full paid"} (${formatWithCommas(total)} ﷼)`
+                            ? `${lang === "ar" ? "آجل بالكامل" : "Full credit"} (${money(0)})`
+                            : `${lang === "ar" ? "مدفوع بالكامل" : "Full paid"} (${money(total)})`
                           : `${t("pos.paid")}`
                       }
                       className={`h-9 w-full rounded-2xl border px-3 text-xs font-mono outline-none transition ${
@@ -2076,7 +2208,7 @@ function POSPage() {
                     />
                     {paid.trim() !== "" && !isNaN(Number(paid)) && (
                       <span className="absolute end-3 top-1/2 -translate-y-1/2 text-[11px] font-mono text-muted-foreground pointer-events-none">
-                        = {formatWithCommas(paid)} ﷼
+                        = {money(Number(paid))}
                       </span>
                     )}
                   </div>

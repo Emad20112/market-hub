@@ -87,7 +87,11 @@ interface Line {
   unit_price: number;
   tax: number;
   total: number;
-  products: { name: string; sku: string | null } | null;
+  /** SERVICE = بند أجرة (طحن/تعبئة)، GOOD = بضاعة. يميّز بنود المطحنة
+   *  التي لا يخصم منها مخزون عن بضاعة مخزنية. */
+  line_type?: string | null;
+  stock_effect?: string | null;
+  products: { name: string; name_ar?: string | null; sku: string | null } | null;
 }
 
 type StatusTab = "all" | "paid" | "partial" | "unpaid" | "cancelled";
@@ -140,7 +144,7 @@ export function SalesPage() {
       const { data, error } = await supabase
         .from("sales_invoices")
         .select(
-          "id,invoice_number,status,subtotal,discount,tax,total,paid,payment_method,note,created_at,customer_id,warehouse_id,customers(id,name,phone),warehouses(name,name_ar)",
+          "id,invoice_number,status,subtotal,discount,tax,total,paid,payment_method,note,created_at,customer_id,warehouse_id,milling_job_id,customers(id,name,phone),warehouses(name,name_ar)",
         )
         .order("created_at", { ascending: false })
         .limit(300);
@@ -166,7 +170,7 @@ export function SalesPage() {
     try {
       const { data, error } = await supabase
         .from("sales_invoice_items")
-        .select("id,quantity,unit_price,tax,total,products(name,sku)")
+        .select("id,quantity,unit_price,tax,total,line_type,stock_effect,products(name,name_ar,sku)")
         .eq("invoice_id", inv.id);
 
       if (!error) {
@@ -326,9 +330,10 @@ export function SalesPage() {
   }) => {
     if (!collectionTarget) return;
 
+    // `transfer` و`cheque` يُحفظان في القاعدة تحت طريقة واحدة (bank_transfer).
     const dbMethodMap: Record<PaymentMethod, string> = {
       cash: "cash",
-      bank_transfer: "bank_transfer",
+      card: "card",
       cheque: "bank_transfer",
       transfer: "bank_transfer",
     };
@@ -408,7 +413,7 @@ export function SalesPage() {
       payment: pmLabel(selected.payment_method, selected.note),
       status: statusLabel(selected.status),
       lines: lines.map((l) => ({
-        product: l.products?.name ?? "—",
+        product: l.products?.name_ar || l.products?.name || "—",
         qty: Number(l.quantity),
         price: Number(l.unit_price),
         total: Number(l.total),
@@ -420,13 +425,15 @@ export function SalesPage() {
       paid: Number(selected.paid),
       company: cs
         ? {
-            name: (cs as any).company_name,
-            address: (cs as any).address,
-            phone: (cs as any).phone,
-            vat: (cs as any).vat_number,
+            name: (cs as any).name || "طاحونتي",
+            phone: (cs as any).phone || "772217218",
+            logo: (cs as any).logo_url || undefined,
           }
         : undefined,
-      currency: (cs as any)?.currency ?? (isRtl ? "ريال" : ""),
+      currency:
+        (cs as any)?.currency_symbol?.trim() ||
+        (cs as any)?.currency ||
+        (isRtl ? "ريال" : ""),
     };
   }
 
@@ -1399,7 +1406,18 @@ export function SalesPage() {
                         lines.map((l) => (
                           <tr key={l.id} className="hover:bg-surface-2/30">
                             <td className="px-3 py-2.5">
-                              <div className="font-medium text-foreground">{l.products?.name ?? "—"}</div>
+                              {/* الاسم العربي أولاً — أسماء المنتجات الإنجليزية
+                                  كانت تظهر في واجهة عربية عند غياب name_ar. */}
+                              <div className="font-medium text-foreground">
+                                {l.products?.name_ar || l.products?.name || "—"}
+                              </div>
+                              {/* بند خدمة الطحن (line_type = SERVICE) لا يخصم مخزوناً؛
+                                  إظهاره يمنع افتراض أنه بضاعة مخزنية. */}
+                              {l.line_type === "SERVICE" && (
+                                <div className="mt-0.5 text-[10px] font-bold text-amber-600 dark:text-amber-400">
+                                  {isRtl ? "بند خدمة — لا يخصم مخزوناً" : "Service line — no stock impact"}
+                                </div>
+                              )}
                               {l.products?.sku && (
                                 <div className="text-[10px] font-mono text-muted-foreground">
                                   SKU: {l.products.sku}
@@ -1609,7 +1627,16 @@ export function SalesPage() {
               }
             : null
         }
-        onSavePayment={handleSaveCollection}
+        onSavePayment={(data) =>
+          // المكوّن المشترك يمرّر `method` ويعيد رقم وصل التحصيل.
+          // المعالج الداخلي يتوقع `payment_method` ويعيد void.
+          handleSaveCollection({
+            amount: data.amount,
+            payment_method: data.method,
+            payment_date: new Date().toISOString(),
+            note: data.notes ?? "",
+          }).then(() => ({ receiptNumber: collectionTarget?.invoiceId ?? "" }))
+        }
         onSuccess={() => {
           void load();
         }}

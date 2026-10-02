@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { PageHeader } from "@/components/page-header";
 import { useI18n } from "@/lib/i18n";
 import { supabase } from "@/integrations/supabase/client";
-import { money } from "@/lib/format";
+import { getCompanyCurrencySymbol, money } from "@/lib/format";
 import { printReport } from "@/lib/pdf";
 import { exportToCSV } from "@/lib/excel-export";
 import { Button } from "@/components/ui/button";
@@ -158,7 +158,7 @@ function TrialBalancePage() {
           : "Variance Detected",
       date: new Date().toLocaleDateString(lang === "ar" ? "ar-YE" : "en-US"),
       periodLabel: lang === "ar" ? "مطابقة أرصدة الشجرة الحسابية" : "General Ledger Verification",
-      currency: "﷼",
+      currency: getCompanyCurrencySymbol(),
       summaryCards: [
         {
           label: lang === "ar" ? "إجمالي المدين (Debit)" : "Total Debit",
@@ -209,7 +209,7 @@ function TrialBalancePage() {
     exportToCSV({
       filename: `ميزان_المراجعة_${new Date().toISOString().slice(0, 10)}`,
       title: "ميزان المراجعة المحاسبي العام",
-      currency: "﷼",
+      currency: getCompanyCurrencySymbol(),
       columns: [
         { key: "accountCode", header: "رمز الحساب" },
         { key: "accountName", header: "اسم الحساب المحاسبي" },

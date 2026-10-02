@@ -38,10 +38,9 @@ export function renderElegantTemplate(
     ...doc.options,
   };
 
-  const companyName = doc.company?.name || "مؤسسة فورتكس للتجارة والمحركات";
-  const companyAddress = doc.company?.address || "صنعاء - اليمن";
-  const companyPhone = doc.company?.phone || "772217218 / 734567-01";
-  const companyVat = doc.company?.vat || "1009826764";
+  const companyName = doc.company?.name || "طاحونتي";
+  const companyPhone = doc.company?.phone || "772217218";
+  const companyVat = doc.company?.vat || "";
 
   const rows = doc.lines
     .map((l, i) => {
@@ -74,7 +73,7 @@ export function renderElegantTemplate(
   <style>
     @page { size: A4 portrait; margin: 0; }
     * { box-sizing: border-box; }
-    
+
     :root {
       --gold-primary: #b8860b;
       --gold-dark: #8c6205;
@@ -106,7 +105,7 @@ export function renderElegantTemplate(
       margin: 0 auto;
       background: var(--bg-page);
       position: relative;
-      padding: 14mm 16mm 14mm 16mm;
+      padding: 13mm 14mm 10mm;
       display: flex;
       flex-direction: column;
       justify-content: space-between;
@@ -146,24 +145,26 @@ export function renderElegantTemplate(
 
     /* Header Structure */
     header {
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-start;
+      display: grid;
+      grid-template-columns: 1fr 1.45fr;
+      align-items: start;
+      gap: 22px;
       position: relative;
       z-index: 3;
-      padding-bottom: 12px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--gold-border);
     }
 
     .brand-section {
       display: flex;
       align-items: center;
-      gap: 12px;
+      gap: 10px;
     }
 
     .logo-container {
-      width: 48px;
-      height: 48px;
-      border-radius: 10px;
+      width: 58px;
+      height: 58px;
+      border-radius: 14px;
       background: var(--gold-light);
       border: 1px solid var(--gold-border);
       display: flex;
@@ -181,7 +182,7 @@ export function renderElegantTemplate(
     }
 
     .company-title-group h1 {
-      font-size: 20px;
+      font-size: 18px;
       font-weight: 800;
       color: var(--text-dark);
       margin: 0 0 2px 0;
@@ -196,16 +197,22 @@ export function renderElegantTemplate(
     .company-contacts {
       display: flex;
       flex-direction: column;
-      gap: 4px;
-      font-size: 10.5px;
+      gap: 5px;
+      font-size: 10px;
       color: var(--text-muted);
-      text-align: ${rtl ? "left" : "right"};
+      text-align: ${rtl ? "right" : "left"};
+      justify-self: stretch;
+      padding: 9px 12px;
+      border: 1px solid var(--gold-border);
+      border-radius: 12px;
+      background: linear-gradient(135deg, rgba(255,255,255,.9), rgba(252,249,240,.78));
+      box-shadow: 0 4px 12px rgba(140,98,5,.07);
     }
     .contact-item {
       display: flex;
       align-items: center;
       gap: 6px;
-      justify-content: ${rtl ? "flex-end" : "flex-start"};
+      justify-content: flex-start;
     }
     .contact-item svg {
       color: var(--gold-primary);
@@ -216,19 +223,21 @@ export function renderElegantTemplate(
     .invoice-title-banner {
       position: relative;
       z-index: 3;
-      margin: 10px 0 16px 0;
-      background: var(--gold-light);
+      margin: 12px 0 13px;
+      background: linear-gradient(110deg, rgba(252,249,240,.95), rgba(255,255,255,.85));
       border: 1px solid var(--gold-border);
-      border-radius: 12px;
-      padding: 12px 18px;
-      display: flex;
+      border-right: 4px solid var(--gold-primary);
+      border-radius: 9px;
+      padding: 9px 14px;
+      display: grid;
+      grid-template-columns: 1fr auto;
       align-items: center;
-      justify-content: space-between;
-      box-shadow: inset 0 1px 3px rgba(200, 158, 55, 0.08);
+      gap: 10px;
+      box-shadow: 0 4px 14px rgba(140,98,5,.08);
     }
 
     .inv-heading-title {
-      font-size: 20px;
+      font-size: 18px;
       font-weight: 900;
       color: var(--gold-dark);
       margin: 0;
@@ -263,17 +272,17 @@ export function renderElegantTemplate(
     .cards-grid {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
-      gap: 10px;
+      gap: 8px;
       position: relative;
       z-index: 3;
-      margin-bottom: 16px;
+      margin-bottom: 12px;
     }
 
     .info-card {
       background: var(--card-bg);
       border: 1px solid var(--gold-border);
       border-radius: 10px;
-      padding: 10px 12px;
+      padding: 8px 10px;
       display: flex;
       align-items: flex-start;
       gap: 10px;
@@ -328,7 +337,7 @@ export function renderElegantTemplate(
       border: 1px solid var(--gold-border);
       border-radius: 10px;
       overflow: hidden;
-      margin-bottom: 16px;
+      margin-bottom: 12px;
       background: #fff;
     }
 
@@ -343,8 +352,8 @@ export function renderElegantTemplate(
     }
 
     table.items-table thead th {
-      padding: 10px 12px;
-      font-size: 11px;
+      padding: 8px 10px;
+      font-size: 10px;
       font-weight: 800;
       letter-spacing: 0.3px;
       border: none;
@@ -357,9 +366,9 @@ export function renderElegantTemplate(
     .col-total { width: 120px; text-align: ${rtl ? "left" : "right"}; font-weight: 800; }
 
     table.items-table tbody td {
-      padding: 9px 12px;
+      padding: 7px 10px;
       border-bottom: 1px solid #f2edd9;
-      font-size: 11.5px;
+      font-size: 10.5px;
       vertical-align: middle;
     }
 
@@ -381,7 +390,7 @@ export function renderElegantTemplate(
       gap: 14px;
       position: relative;
       z-index: 3;
-      margin-bottom: 16px;
+      margin-bottom: 12px;
       align-items: start;
     }
 
@@ -389,7 +398,7 @@ export function renderElegantTemplate(
       background: var(--card-bg);
       border: 1px solid var(--gold-border);
       border-radius: 10px;
-      padding: 12px 14px;
+      padding: 10px 12px;
       height: 100%;
     }
 
@@ -428,7 +437,7 @@ export function renderElegantTemplate(
       background: var(--card-bg);
       border: 1px solid var(--gold-border);
       border-radius: 10px;
-      padding: 12px 16px;
+      padding: 10px 14px;
       display: flex;
       flex-direction: column;
       gap: 6px;
@@ -592,10 +601,6 @@ export function renderElegantTemplate(
         opts.showCompanyInfo
           ? `
       <div class="company-contacts">
-        <div class="contact-item">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
-          <span>${esc(companyAddress)}</span>
-        </div>
         <div class="contact-item">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
           <span>${esc(companyPhone)}</span>
