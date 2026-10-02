@@ -31,7 +31,7 @@ export class CustomersRepository extends BaseRepository<Customer> {
   async searchCustomers(query: string): Promise<Customer[]> {
     const term = query.trim().toLowerCase();
     if (!term) return this.getAll();
-    return this.getAll(c => c.name.toLowerCase().includes(term) || (c.phone && c.phone.includes(term)));
+    return this.getAll(c => Boolean(c.name.toLowerCase().includes(term) || (c.phone && c.phone.includes(term))));
   }
 }
 
@@ -43,7 +43,7 @@ export class SuppliersRepository extends BaseRepository<Supplier> {
   async searchSuppliers(query: string): Promise<Supplier[]> {
     const term = query.trim().toLowerCase();
     if (!term) return this.getAll();
-    return this.getAll(s => s.name.toLowerCase().includes(term) || (s.phone && s.phone.includes(term)));
+    return this.getAll(s => Boolean(s.name.toLowerCase().includes(term) || (s.phone && s.phone.includes(term))));
   }
 }
 

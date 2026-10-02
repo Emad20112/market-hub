@@ -123,3 +123,13 @@ export interface SyncEngineStatus {
   last_error: string | null;
   device_id: string;
 }
+
+
+export interface AuthSnapshot {
+  user_id: string;
+  email?: string;
+  role?: string;
+  cached_at: string;
+  session_token?: string;
+  user_metadata?: Record<string, any>;
+}

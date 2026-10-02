@@ -53,7 +53,7 @@ function NotFoundComponent() {
   );
 }
 
-function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
+function ErrorComponent({ error, reset }: { error: any; reset: () => void }) {
   // `reset` يُستدعى من زر "إعادة المحاولة" بالأسفل.
   console.error(error);
   const router = useRouter();

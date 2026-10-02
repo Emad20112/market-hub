@@ -45,12 +45,12 @@ export class ProductsRepository extends BaseRepository<Product> {
     const term = query.trim().toLowerCase();
     if (!term) return this.getAll();
 
-    return this.getAll(p => 
+    return this.getAll(p => Boolean(
       p.name.toLowerCase().includes(term) ||
       (p.name_ar && p.name_ar.toLowerCase().includes(term)) ||
       (p.sku && p.sku.toLowerCase().includes(term)) ||
       (p.barcode && p.barcode.includes(term))
-    );
+    ));
   }
 }
 
