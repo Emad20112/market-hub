@@ -587,6 +587,7 @@ function DashboardPage() {
 
             <Link
               to="/products"
+              search={{}}
               className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-border/80 bg-surface/70 px-3 text-xs font-semibold text-foreground hover:bg-surface-2 transition-all active:scale-95"
             >
               <Package className="size-3.5 text-muted-foreground" />
