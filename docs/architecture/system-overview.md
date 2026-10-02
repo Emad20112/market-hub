@@ -30,32 +30,33 @@
 
 # 4. المكدس التقني (Technical Stack)
 
-| التصنيف | التقنيات المستخدمة |
-| :--- | :--- |
-| **لغات البرمجة** | TypeScript, SQL |
-| **الفرونت إند (Frontend)** | React 19, TanStack Start, TanStack Router |
-| **بيئة تشغيل الباك إند** | TanStack Start server runtime, Nitro |
-| **قاعدة البيانات** | PostgreSQL مُدارة عبر Supabase |
-| **طبقة الاتصال بالبيانات** | Supabase JavaScript Client، واستدعاء دوال PostgreSQL RPC |
-| **المصادقة (Authentication)** | Supabase Auth |
+| التصنيف                                | التقنيات المستخدمة                                                                          |
+| :------------------------------------- | :------------------------------------------------------------------------------------------ |
+| **لغات البرمجة**                       | TypeScript, SQL                                                                             |
+| **الفرونت إند (Frontend)**             | React 19, TanStack Start, TanStack Router                                                   |
+| **بيئة تشغيل الباك إند**               | TanStack Start server runtime, Nitro                                                        |
+| **قاعدة البيانات**                     | PostgreSQL مُدارة عبر Supabase                                                              |
+| **طبقة الاتصال بالبيانات**             | Supabase JavaScript Client، واستدعاء دوال PostgreSQL RPC                                    |
+| **المصادقة (Authentication)**          | Supabase Auth                                                                               |
 | **التفويض والصلاحيات (Authorization)** | PostgreSQL Row Level Security (RLS)، ودوال فحص الأدوار البرمجية، وصلاحيات RPC للمصادق عليهم |
-| **إدارة الحالة (State Management)** | TanStack Query (React Query)، والحالة المحلية لـ React |
-| **التحقق من البيانات (Validation)** | Zod |
-| **مكتبات الواجهة (UI Libraries)** | shadcn/ui, Radix UI Primitives, Lucide React Icons |
-| **التنسيق والأنماط (Styling)** | Tailwind CSS v4, متغيّرات CSS المخصصة (CSS Custom Properties Tokens) |
-| **الرسوم البيانية (Charts)** | Recharts |
-| **الطباعة والمستندات** | طباعة مخصصة عبر المتصفح (Browser Print Layouts)، jsPDF، jspdf-autotable |
-| **الباركود والمسح الضوئي** | JsBarcode، html5-qrcode |
-| **أدوات البناء (Build Tools)** | Vite, Nitro |
-| **أدوات جودة الكود** | ESLint, Prettier |
-| **الاستضافة السحابية** | Supabase للبيانات، و Vercel للاستضافة الحية |
-| **أدوات التطوير** | npm, Bun runtime configuration, TypeScript Compiler |
+| **إدارة الحالة (State Management)**    | TanStack Query (React Query)، والحالة المحلية لـ React                                      |
+| **التحقق من البيانات (Validation)**    | Zod                                                                                         |
+| **مكتبات الواجهة (UI Libraries)**      | shadcn/ui, Radix UI Primitives, Lucide React Icons                                          |
+| **التنسيق والأنماط (Styling)**         | Tailwind CSS v4, متغيّرات CSS المخصصة (CSS Custom Properties Tokens)                        |
+| **الرسوم البيانية (Charts)**           | Recharts                                                                                    |
+| **الطباعة والمستندات**                 | طباعة مخصصة عبر المتصفح (Browser Print Layouts)، jsPDF، jspdf-autotable                     |
+| **الباركود والمسح الضوئي**             | JsBarcode، html5-qrcode                                                                     |
+| **أدوات البناء (Build Tools)**         | Vite, Nitro                                                                                 |
+| **أدوات جودة الكود**                   | ESLint, Prettier                                                                            |
+| **الاستضافة السحابية**                 | Supabase للبيانات، و Vercel للاستضافة الحية                                                 |
+| **أدوات التطوير**                      | npm, Bun runtime configuration, TypeScript Compiler                                         |
 
 ---
 
 # 5. التحليل المعماري للنظام (Architecture Analysis)
 
 يعتمد نظام Vortex ERP نمط **المونوليث الموحد والمنظم (Modular Monolith)**:
+
 - مسارات TanStack Start المبنية على الملفات (`src/routes`) تفصل بين الشاشات والنطاقات التشغيلية (POS، المخزون، المشتريات، المبيعات، المالية، والتحليلات).
 - المكونات المشتركة (`src/components`) تحتوي على إطار التطبيق الأساسي (App Shell)، وشريط التنقل، وقارئ الباركود، ولوحة الأوامر السريعة (Command Palette ⌘K)، والعناصر الأساسية للواجهة.
 - طبقة الخدمات المشتركة (`src/lib`) تجمع منطق المصادقة، والتعريب، وتنسيق الأرقام والعملات، وقوالب الطباعة، ومعالجة الأخطاء.

@@ -1198,7 +1198,7 @@ function NewTransferDialog({ onClose, onSaved }: { onClose: () => void; onSaved:
                   onChange={(e) => handleFromChange(e.target.value)}
                   className={fieldSurfaceClass}
                 >
-                  <option value="">—</option>
+                  <option value="">{lang === "ar" ? "اختر..." : "Select..."}</option>
                   {warehouses.map((w) => (
                     <option key={w.id} value={w.id}>
                       {lang === "ar" ? w.name_ar || w.name : w.name || w.name_ar}
@@ -1217,7 +1217,7 @@ function NewTransferDialog({ onClose, onSaved }: { onClose: () => void; onSaved:
                   onChange={(e) => setTo(e.target.value)}
                   className={fieldSurfaceClass}
                 >
-                  <option value="">—</option>
+                  <option value="">{lang === "ar" ? "اختر..." : "Select..."}</option>
                   {warehouses
                     .filter((w) => w.id !== from)
                     .map((w) => (

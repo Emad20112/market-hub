@@ -9,7 +9,8 @@ export interface VortexNumberInputProps extends Omit<
   "value" | "onChange"
 > {
   value: number | null | undefined;
-  onValueChange: (val: number | null) => void;
+  onValueChange?: (val: number | null) => void;
+  onChange?: any;
   min?: number;
   max?: number;
   step?: number;
@@ -24,6 +25,7 @@ export const VortexNumberInput = React.forwardRef<HTMLInputElement, VortexNumber
     {
       value,
       onValueChange,
+      onChange,
       min = 0,
       max,
       step = 1,
@@ -48,16 +50,23 @@ export const VortexNumberInput = React.forwardRef<HTMLInputElement, VortexNumber
       setRawText(value == null ? "" : String(value));
     }, [value]);
 
+    const notify = (num: number | null) => {
+      onValueChange?.(num);
+      if (typeof onChange === "function") {
+        onChange(num);
+      }
+    };
+
     const updateValue = (num: number | null) => {
       if (num === null) {
-        onValueChange(null);
+        notify(null);
         setRawText("");
         return;
       }
       let clamped = num;
       if (min !== undefined && clamped < min) clamped = min;
       if (max !== undefined && clamped > max) clamped = max;
-      onValueChange(clamped);
+      notify(clamped);
       setRawText(String(clamped));
     };
 
@@ -80,12 +89,12 @@ export const VortexNumberInput = React.forwardRef<HTMLInputElement, VortexNumber
       setRawText(text);
 
       if (text === "" || text === "-") {
-        onValueChange(null);
+        notify(null);
       } else {
         const parsed = decimals ? parseFloat(text) : parseInt(text, 10);
         if (!isNaN(parsed)) {
           if (max !== undefined && parsed > max) return;
-          onValueChange(parsed);
+          notify(parsed);
         }
       }
     };

@@ -315,8 +315,8 @@
 
   html.light body::before {
     background:
-      radial-gradient(60rem 40rem at 80% -10%, oklch(0.56 0.20 258 / 0.035), transparent 60%),
-      radial-gradient(50rem 30rem at -10% 100%, oklch(0.70 0.18 180 / 0.025), transparent 60%);
+      radial-gradient(60rem 40rem at 80% -10%, oklch(0.56 0.2 258 / 0.035), transparent 60%),
+      radial-gradient(50rem 30rem at -10% 100%, oklch(0.7 0.18 180 / 0.025), transparent 60%);
   }
 
   ::selection {
@@ -586,7 +586,9 @@
 }
 
 /* Universal sleek minimalist scrollbar: track completely transparent everywhere */
-*, *::before, *::after {
+*,
+*::before,
+*::after {
   scrollbar-width: thin;
   scrollbar-color: hsl(var(--muted-foreground) / 0.25) transparent;
 }
@@ -621,7 +623,9 @@
   border-radius: 1.25rem;
   border: 1px solid var(--border);
   background: var(--card);
-  box-shadow: 0 1px 3px 0 oklch(0 0 0 / 0.04), 0 4px 16px -4px oklch(0 0 0 / 0.06);
+  box-shadow:
+    0 1px 3px 0 oklch(0 0 0 / 0.04),
+    0 4px 16px -4px oklch(0 0 0 / 0.06);
   transition: all 0.2s cubic-bezier(0.32, 0.72, 0, 1);
 }
 
@@ -634,7 +638,7 @@
 
 .card-mullak:hover {
   border-color: color-mix(in oklab, var(--primary) 35%, transparent);
-  box-shadow: 0 8px 24px -4px oklch(0 0 0 / 0.10);
+  box-shadow: 0 8px 24px -4px oklch(0 0 0 / 0.1);
   transform: translateY(-1px);
 }
 

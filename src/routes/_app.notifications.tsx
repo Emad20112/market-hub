@@ -211,6 +211,7 @@ function NotificationsPage() {
           <VortexMetricCard
             title={isAr ? "تنبيهات حرجة" : "Critical Alerts"}
             value={num(counts.danger)}
+            currency=""
             subtitle={isAr ? "تحتاج تدخل فوري" : "Requires urgent action"}
             badge={isAr ? "عاجل" : "Urgent"}
             currency=""
@@ -224,6 +225,7 @@ function NotificationsPage() {
           <VortexMetricCard
             title={isAr ? "نواقص المخزون" : "Stock Warnings"}
             value={num(counts.stock)}
+            currency=""
             subtitle={isAr ? "أصناف نفدت أو قاربت" : "Low or out of stock"}
             currency=""
             icon={<PackageX className="size-5" />}
@@ -236,6 +238,7 @@ function NotificationsPage() {
           <VortexMetricCard
             title={isAr ? "الذمم والديون" : "Financial Debts"}
             value={num(counts.finance)}
+            currency=""
             subtitle={isAr ? "مستحقات عملاء وموردين" : "Receivables & payables"}
             currency=""
             icon={<Users className="size-5" />}
@@ -248,6 +251,7 @@ function NotificationsPage() {
           <VortexMetricCard
             title={isAr ? "إجمالي التنبيهات" : "Total Alerts"}
             value={num(counts.total)}
+            currency=""
             subtitle={isAr ? "جميع الإخطارات النشطة" : "All active notices"}
             currency=""
             icon={<Bell className="size-5" />}

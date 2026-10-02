@@ -9,7 +9,9 @@ export interface VortexCurrencyInputProps extends Omit<
   "value" | "onChange"
 > {
   value: number | null | undefined;
-  onValueChange: (val: number | null) => void;
+  onValueChange?: (val: number | null) => void;
+  onChange?: any;
+  currency?: string;
   currencySymbol?: string;
   decimals?: number;
   min?: number;
@@ -41,6 +43,8 @@ export const VortexCurrencyInput = React.forwardRef<HTMLInputElement, VortexCurr
     {
       value,
       onValueChange,
+      onChange,
+      currency,
       currencySymbol = "﷼",
       decimals = 2,
       min = 0,
@@ -97,13 +101,20 @@ export const VortexCurrencyInput = React.forwardRef<HTMLInputElement, VortexCurr
             .slice(0, decimals);
       }
 
+      const notifyChange = (val: number | null) => {
+        onValueChange?.(val);
+        if (typeof onChange === "function") {
+          onChange(val);
+        }
+      };
+
       // Compute number
       const numVal = cleaned ? parseFloat(cleaned) : null;
       if (numVal !== null && !isNaN(numVal)) {
         if (max !== undefined && numVal > max) return;
-        onValueChange(numVal);
+        notifyChange(numVal);
       } else {
-        onValueChange(null);
+        notifyChange(null);
       }
 
       // Format with commas
@@ -122,16 +133,21 @@ export const VortexCurrencyInput = React.forwardRef<HTMLInputElement, VortexCurr
 
     const handleClear = () => {
       setDisplayVal("");
-      onValueChange(null);
+      onValueChange?.(null);
+      if (typeof onChange === "function") {
+        onChange(null);
+      }
       inputRef.current?.focus();
     };
+
+    const activeCurrency = currency || currencySymbol;
 
     return (
       <div className="group relative flex items-center w-full">
         {/* Leading Currency Icon / Symbol */}
         <div className="pointer-events-none absolute start-3 z-10 flex items-center justify-center text-muted-foreground group-focus-within:text-primary transition-colors">
           <span className="flex items-center gap-1 text-xs font-bold px-1.5 py-0.5 rounded-md bg-muted/70 group-focus-within:bg-primary/10 border border-border/40 group-focus-within:border-primary/20">
-            {currencySymbol}
+            {activeCurrency}
           </span>
         </div>
 

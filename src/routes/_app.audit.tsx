@@ -807,7 +807,7 @@ function AuditPage() {
         <div className="w-full sm:flex-1">
           <VortexSearchInput
             value={search}
-            onChange={setSearch}
+            onValueChange={setSearch}
             placeholder="ابحث باسم المستخدم، الكيان، الإجراء، أو المعرف..."
             className="w-full"
           />
@@ -1251,7 +1251,7 @@ function AuditPage() {
                     <span className="text-xs font-bold text-foreground">
                       {formatLuxuryDate(selectedLog.created_at, { showDayName: true }).full}
                       {" - "}
-                      {new Date(selectedLog.created_at).toLocaleTimeString("ar-SA")}
+                      {new Date(selectedLog.created_at).toLocaleTimeString("ar-YE")}
                     </span>
                   </div>
                 </div>

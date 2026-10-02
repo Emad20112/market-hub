@@ -20,14 +20,14 @@
 
 ## 2. أنواع النسخ الاحتياطي (Backup Types)
 
-| ميزة المقارنة | النسخة الاحتياطية المحلية (Local Snapshot) | النسخة الاحتياطية السحابية (Cloud Snapshot) |
-| :--- | :--- | :--- |
-| **مكان الحفظ** | جهاز المستخدم (الملفات المحلية / التنزيلات) | Supabase Storage Bucket المخصص للشركة |
-| **درجة الأوتوماتيكية** | تنزل بطلب يدوّي أو حفظ عبر المتصفح | آلية بالكامل وفق جدول محدد (يومي/أسبوعي) |
-| **الاعتمادية** | تعتمد على وجود الجهاز المحلي وتأمين المستخدم له | مستقلة تماماً وتعمل في الخلفية السحابية (24/7) |
-| **طريقة التشفير** | تشفير Server-Side / Edge-Side قبل التنزيل (`.vortexbak`) | تشفير AES-256-GCM قبل الرفع إلى الـ Bucket |
-| **طريقة الاستعادة** | رفع الملف المشفّر من جهاز المستخدم إلى الواجهة | اختيار النسخة السحابية المحددة من القائمة مباشرة |
-| **الاستخدام الأمثل** | الاحتفاظ بنسخة فورية سرية في يد المالك قبل إجراء تغييرات | الحماية المستمرة ضد الكوارث والأخطاء دون تدخل يدوي |
+| ميزة المقارنة          | النسخة الاحتياطية المحلية (Local Snapshot)               | النسخة الاحتياطية السحابية (Cloud Snapshot)        |
+| :--------------------- | :------------------------------------------------------- | :------------------------------------------------- |
+| **مكان الحفظ**         | جهاز المستخدم (الملفات المحلية / التنزيلات)              | Supabase Storage Bucket المخصص للشركة              |
+| **درجة الأوتوماتيكية** | تنزل بطلب يدوّي أو حفظ عبر المتصفح                       | آلية بالكامل وفق جدول محدد (يومي/أسبوعي)           |
+| **الاعتمادية**         | تعتمد على وجود الجهاز المحلي وتأمين المستخدم له          | مستقلة تماماً وتعمل في الخلفية السحابية (24/7)     |
+| **طريقة التشفير**      | تشفير Server-Side / Edge-Side قبل التنزيل (`.vortexbak`) | تشفير AES-256-GCM قبل الرفع إلى الـ Bucket         |
+| **طريقة الاستعادة**    | رفع الملف المشفّر من جهاز المستخدم إلى الواجهة           | اختيار النسخة السحابية المحددة من القائمة مباشرة   |
+| **الاستخدام الأمثل**   | الاحتفاظ بنسخة فورية سرية في يد المالك قبل إجراء تغييرات | الحماية المستمرة ضد الكوارث والأخطاء دون تدخل يدوي |
 
 ---
 
@@ -62,18 +62,21 @@
 ## 4. التشفير وإدارة المفاتيح (Encryption & Key Management Architecture)
 
 ### 1. معيار التشفير المقترح (AES-256-GCM)
-* التشفير يتم بواسطة **AES-256-GCM** (Galois/Counter Mode)، وهو نظام تشفير مشفوع بالتوثيق (AEAD - Authenticated Encryption with Associated Data).
-* يوفر AES-256-GCM تشفيراً للبيانات مع توليد **Authentication Tag (Auth Tag)** بسعة 128-bit يضمن كشف أي تلاعب بالملف تلقائياً.
+
+- التشفير يتم بواسطة **AES-256-GCM** (Galois/Counter Mode)، وهو نظام تشفير مشفوع بالتوثيق (AEAD - Authenticated Encryption with Associated Data).
+- يوفر AES-256-GCM تشفيراً للبيانات مع توليد **Authentication Tag (Auth Tag)** بسعة 128-bit يضمن كشف أي تلاعب بالملف تلقائياً.
 
 ### 2. سلامة البيانات (AES-GCM vs HMAC)
-* **AES-256-GCM كافٍ بمفرده** للتحقق من سلامة وصحة الملف المشفّر دون الحاجة لإضافة HMAC-SHA256 إضافي فوق المحتوى المشفّر؛ لأن GCM يضم ميزة التوثيق الرقمي المدمج (AEAD).
-* تُستخدم الـ Auth Tag والـ SHA256 Checksum المرفقة بالترويسة للتحقق المبدئي والسرعة قبل فك التشفير.
+
+- **AES-256-GCM كافٍ بمفرده** للتحقق من سلامة وصحة الملف المشفّر دون الحاجة لإضافة HMAC-SHA256 إضافي فوق المحتوى المشفّر؛ لأن GCM يضم ميزة التوثيق الرقمي المدمج (AEAD).
+- تُستخدم الـ Auth Tag والـ SHA256 Checksum المرفقة بالترويسة للتحقق المبدئي والسرعة قبل فك التشفير.
 
 ### 3. إدارة المفاتيح وإصداراتها (Key Management & Key Versioning)
-* **مكان التشفير وحفظ المفاتيح:**
+
+- **مكان التشفير وحفظ المفاتيح:**
   - يتم التشفير وفك التشفير حصراً في جانب الخادم (Server-Side via Supabase Edge Functions / Vault).
   - **حظر المفاتيح على الواجهة:** يُمنع حظراً باتاً وضع مفاتيح التشفير داخل كود الـ Frontend أو داخل ملف النسخة الاحتياطية بنص صريح.
-* **إدارة إصدارات المفاتيح (Key Versioning Strategy):**
+- **إدارة إصدارات المفاتيح (Key Versioning Strategy):**
   - تُخزن المفاتيح داخل **Supabase Vault / Environment Secrets** بأسماء محددة الإصدار (مثل `BACKUP_KEY_V1`, `BACKUP_KEY_V2`).
   - يُسجّل رقم إصدار المفتاح (`key_version: "v1"`) في ترويسة الـ Metadata للنسخة الاحتياطية.
   - عند تدوير المفاتيح (Key Rotation) إلى `v2` مستقبلاً، يحتفظ النظام بالمفاتيح القديمة في Vault بشكل آمن. عند طلب استعادة نسخة قديمة، يقرأ المحرك `key_version` من الـ Metadata ويطلب المفتاح المناسب فك تشفيره من الخادم.
@@ -98,30 +101,32 @@ graph TD
 graph TD
     A[بيانات المتجر والنسخ الاحتياطي] --> B[بيانات مضافة ومشمولة بالكامل]
     A --> C[بيانات مستبعدة حصراً]
-    
+
     B --> B1[إعدادات المتجر والمستودعات: company_settings, warehouses]
     B --> B2[الفهرس والمنتجات: categories, brands, units, products, batches, inventory]
     B --> B3[الحركات التجارية والمالية: sales, purchases, returns, payments, expenses]
     B --> B4[حسابات الأطراف: customers, suppliers, loyalty_transactions]
     B --> B5[هيكل المستخدمين المحلي: profiles, user_roles]
     B --> B6[سجلات تدقيق المتجر: tenant-specific audit_logs]
-    
+
     C --> C1[كلمات المرور وتوكنز المصادقة: auth.users]
     C --> C2[إعدادات وباقات المنصة المركزية: platform_plans, tenant_subscriptions]
     C --> C3[سجلات مسؤولي المنصة: platform_admins audit logs]
 ```
 
 ### 1. بيانات مشمولة في النسخة (Included Data):
-* **إعدادات ومستودعات المتجر:** `company_settings`, `warehouses`.
-* **الفهرس والمنتجات والمخزون:** `categories`, `brands`, `units`, `products`, `product_batches`, `inventory`.
-* **الحسابات والذمم والأطراف:** `customers`, `suppliers`, `customer_payments`, `customer_payment_splits`, `loyalty_transactions`.
-* **المبيعات والمشتريات والمرتجعات والمصروفات:** `sales_invoices`, `sales_invoice_items`, `sales_returns`, `sales_return_items`, `purchase_invoices`, `purchase_invoice_items`, `purchase_returns`, `purchase_return_items`, `stock_movements`, `stock_transfers`, `stock_transfer_items`, `expenses`, `expense_categories`.
-* **الهيكل الإداري الداخلي وسجلات المتجر:** `profiles`, `user_roles` بالإضافة إلى **`audit_logs` الخاصة بالـ Tenant** للحفاظ على السجل التشغيلي والتاريخي للمتجر.
+
+- **إعدادات ومستودعات المتجر:** `company_settings`, `warehouses`.
+- **الفهرس والمنتجات والمخزون:** `categories`, `brands`, `units`, `products`, `product_batches`, `inventory`.
+- **الحسابات والذمم والأطراف:** `customers`, `suppliers`, `customer_payments`, `customer_payment_splits`, `loyalty_transactions`.
+- **المبيعات والمشتريات والمرتجعات والمصروفات:** `sales_invoices`, `sales_invoice_items`, `sales_returns`, `sales_return_items`, `purchase_invoices`, `purchase_invoice_items`, `purchase_returns`, `purchase_return_items`, `stock_movements`, `stock_transfers`, `stock_transfer_items`, `expenses`, `expense_categories`.
+- **الهيكل الإداري الداخلي وسجلات المتجر:** `profiles`, `user_roles` بالإضافة إلى **`audit_logs` الخاصة بالـ Tenant** للحفاظ على السجل التشغيلي والتاريخي للمتجر.
 
 ### 2. بيانات مستبعدة حصراً (Excluded Data):
-* **بيانات المصادقة الحساسة (`auth.users`):** حماية أمنية ومنع تسريب التجزئات الرمزية.
-* **بيانات باقات واشتراكات المنصة (`platform_plans`, `tenant_subscriptions`, `platform_modules`):** تُدار مركزياً لحظر التلاعب بالباقات.
-* **سجلات التدقيق الخاصة بإدارة المنصة المركزية (Platform Superadmin Audit Logs):** لعدم شمول بيانات لا تخص المتجر.
+
+- **بيانات المصادقة الحساسة (`auth.users`):** حماية أمنية ومنع تسريب التجزئات الرمزية.
+- **بيانات باقات واشتراكات المنصة (`platform_plans`, `tenant_subscriptions`, `platform_modules`):** تُدار مركزياً لحظر التلاعب بالباقات.
+- **سجلات التدقيق الخاصة بإدارة المنصة المركزية (Platform Superadmin Audit Logs):** لعدم شمول بيانات لا تخص المتجر.
 
 ---
 
@@ -136,7 +141,7 @@ sequenceDiagram
     participant Engine as محرك الاستعادة Restore Engine
     participant Vault as Key Vault / Secrets
     participant DB as قاعدة البيانات PostgreSQL
-    
+
     Owner->>Engine: طلب استعادة ملف نسخة احتياطية
     Engine->>Engine: 1. فحص سلامة الملف وتكامل البيانات (AES-GCM Auth Tag Check)
     Engine->>Engine: 2. مطابقة إصدار السكيما وتحديد الـ Tenant ID
@@ -160,6 +165,7 @@ sequenceDiagram
 ```
 
 ### المراحل الـ 9 لمعمارية الاستعادة الآمنة:
+
 1. **المرحلة 1: التحقق التكاملي من الملف (Validate File & Integrity):** فحص الترويسة و Auth Tag والـ Checksum والتأكد من سلامة الملف قبل أي معالجة.
 2. **المرحلة 2: التحقق من التوافقية (Verify Schema Compatibility):** التأكد من مطابقة `schema_version` لإصدار قاعدة البيانات الحالي.
 3. **المرحلة 3: التوثيق والتأكيد (Authorization & Authentication):** التأكد من دور المالك (`owner`) وإعادة طلب كلمة المرور / OTP.
@@ -186,6 +192,7 @@ graph LR
 ```
 
 ### خطوات الفحص الميداني:
+
 1. استخراج القائمة الكاملة للجداول الفعلية وقواعد البيانات المحدثة.
 2. رسم شجرة التبعيات المرجعية (Directed Acyclic Graph - DAG) للجداول لترتيب عملية التصدير والاستعادة.
 3. مراجعة محفزات التحديث التلقائي (`Triggers`) مثل تحديث المخزون أو الأرصدة لمنع تكرار الحركات أثناء الاستعادة.
@@ -231,8 +238,8 @@ graph LR
 
 تنفيذ النسخ المجدول بدون الحاجة لبقاء متصفح المستخدم مفتوحاً:
 
-* **Supabase Edge Function (`scheduled-backup`):** تعمل في الخلفية عبر بيئة خادمة مستقلة.
-* **مُشغّل الجدولة (Cron Trigger):** ربط الـ Edge Function بواسطة `pg_cron` أو مُشغّل جدولة سحابي لتنفيذ النسخ المجدول للمشتركين المستحقين بحسب باقاتهم في أوقات الخمول.
+- **Supabase Edge Function (`scheduled-backup`):** تعمل في الخلفية عبر بيئة خادمة مستقلة.
+- **مُشغّل الجدولة (Cron Trigger):** ربط الـ Edge Function بواسطة `pg_cron` أو مُشغّل جدولة سحابي لتنفيذ النسخ المجدول للمشتركين المستحقين بحسب باقاتهم في أوقات الخمول.
 
 ---
 
@@ -255,6 +262,7 @@ graph LR
 > **تنبيه حازم:** الملفات أدناه هي الملفات المتوقع التعامل معها لاحقاً **بعد الموافقة على الخطة**، ولم يتم تعديلها أو إضافتها في هذه المرحلة:
 
 ### ملفات متوقع إنشاؤها لاحقاً (New Files):
+
 - `supabase/migrations/20260929000000_backup_system_tables.sql`
 - `supabase/functions/scheduled-backup/index.ts`
 - `src/components/backup-settings-card.tsx`
@@ -263,5 +271,6 @@ graph LR
 - `src/lib/backup/crypto-utils.ts`
 
 ### ملفات متوقع تعديلها لاحقاً (Files to Update):
+
 - [`src/routes/_app.settings.tsx`](file:///c:/Users/ahmed/Desktop/market-hub/src/routes/_app.settings.tsx)
 - [`src/integrations/supabase/types.ts`](file:///c:/Users/ahmed/Desktop/market-hub/src/integrations/supabase/types.ts)

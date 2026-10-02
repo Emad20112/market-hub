@@ -3,13 +3,18 @@
 import * as React from "react";
 import { cn } from "@/lib/utils";
 import { TrendingUp, TrendingDown, Minus } from "lucide-react";
+import { useCompanyCurrency } from "@/hooks/use-company-currency";
 
 export interface VortexMetricCardProps {
-  title: string;
+  title?: string;
+  label?: string;
   value: string | number;
   subtitle?: string;
-  icon?: React.ReactNode;
+  description?: string;
+  icon?: React.ReactNode | React.ComponentType<{ className?: string }>;
   iconClassName?: string;
+  tone?: "default" | "warning" | "success" | "danger" | "info" | string;
+  variant?: "default" | "warning" | "success" | "danger" | "info" | string;
   trend?: {
     value: string | number;
     direction?: "up" | "down" | "neutral";
@@ -23,20 +28,38 @@ export interface VortexMetricCardProps {
   onClick?: () => void;
 }
 
+const toneStyles: Record<string, string> = {
+  warning: "bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20",
+  success: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20",
+  danger: "bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20",
+  info: "bg-sky-500/10 text-sky-600 dark:text-sky-400 border border-sky-500/20",
+  default: "bg-primary/10 text-primary",
+};
+
 export function VortexMetricCard({
   title,
+  label,
   value,
   subtitle,
+  description,
   icon,
-  iconClassName = "bg-primary/10 text-primary",
+  iconClassName,
+  tone,
+  variant,
   trend,
   highlight = false,
-  currency = "ر.س",
+  currency,
   badge,
   className,
   onClick,
 }: VortexMetricCardProps) {
+  const { currencySymbol } = useCompanyCurrency();
   const isClickable = Boolean(onClick);
+  const displayTitle = title ?? label ?? "";
+  const displaySubtitle = subtitle ?? description;
+  const appliedTone = tone ?? variant;
+  const resolvedIconClass =
+    iconClassName || (appliedTone && toneStyles[appliedTone]) || "bg-primary/10 text-primary";
 
   return (
     <div
@@ -56,7 +79,7 @@ export function VortexMetricCard({
         <div className="min-w-0 flex-1 space-y-0.5 sm:space-y-1">
           <div className="flex items-center gap-1.5 flex-wrap">
             <span className="text-[11px] sm:text-xs font-semibold text-muted-foreground truncate">
-              {title}
+              {displayTitle}
             </span>
             {badge && (
               <span className="rounded-full bg-primary/15 px-1.5 py-0.2 sm:px-2 sm:py-0.5 text-[9px] sm:text-[10px] font-bold text-primary">
@@ -66,11 +89,11 @@ export function VortexMetricCard({
           </div>
           <div className="flex items-baseline gap-1 pt-0.5">
             <span className="text-base sm:text-2xl font-black tracking-tight text-foreground font-mono truncate">
-              {typeof value === "number" ? value.toLocaleString("ar-SA") : value}
+              {typeof value === "number" ? value.toLocaleString("ar-YE") : value}
             </span>
-            {currency && (
+            {(currency ?? currencySymbol) && (
               <span className="text-[10px] sm:text-xs font-bold text-muted-foreground shrink-0">
-                {currency}
+                {currency ?? currencySymbol}
               </span>
             )}
           </div>
@@ -80,7 +103,7 @@ export function VortexMetricCard({
           <div
             className={cn(
               "grid size-8 sm:size-11 shrink-0 place-items-center rounded-xl sm:rounded-2xl shadow-sm transition-transform duration-200 group-hover:scale-105",
-              iconClassName,
+              resolvedIconClass,
             )}
           >
             {React.isValidElement(icon)
@@ -89,15 +112,18 @@ export function VortexMetricCard({
                 })
               : typeof icon === "function" ||
                   (typeof icon === "object" && icon !== null && "$$typeof" in icon)
-                ? React.createElement(icon as React.ComponentType<{ className?: string }>, {
-                    className: "size-4 sm:size-5",
-                  })
+                ? React.createElement(
+                    icon as unknown as React.ComponentType<{ className?: string }>,
+                    {
+                      className: "size-4 sm:size-5",
+                    },
+                  )
                 : (icon as React.ReactNode)}
           </div>
         )}
       </div>
 
-      {(subtitle || trend) && (
+      {(displaySubtitle || trend) && (
         <div className="mt-2 sm:mt-3 flex items-center justify-between text-xs pt-1.5 sm:pt-2 border-t border-border/40 gap-1">
           {trend ? (
             <div

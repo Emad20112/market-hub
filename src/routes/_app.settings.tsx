@@ -1,5 +1,6 @@
 ﻿import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { PageHeader } from "@/components/page-header";
 import { useI18n } from "@/lib/i18n";
 import { useAuth } from "@/lib/auth";
@@ -16,6 +17,7 @@ export const Route = createFileRoute("/_app/settings")({
 });
 
 function SettingsPage() {
+  const queryClient = useQueryClient();
   const { t, lang } = useI18n();
   const { hasRole } = useAuth();
   const canEdit = hasRole("owner") || hasRole("manager");
@@ -23,8 +25,8 @@ function SettingsPage() {
     name: "",
     legal_name: "",
     tax_number: "",
-    currency: "USD",
-    currency_symbol: "$",
+    currency: "YER",
+    currency_symbol: "ر.ي",
     tax_rate: 0,
     address: "",
     phone: "",
@@ -80,6 +82,7 @@ function SettingsPage() {
       currency: payload.currency,
       currency_symbol: payload.currency_symbol,
     });
+    await queryClient.invalidateQueries({ queryKey: ["company-settings", "currency"] });
     toast.success(
       lang === "ar" ? "تم حفظ الإعدادات بنجاح" : t("common.saved") || t("common.success"),
     );
