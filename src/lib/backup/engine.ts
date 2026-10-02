@@ -1,11 +1,12 @@
 /**
- * Market Hub (Vortex ERP) — Backup Engine & Multi-Stage Validation Pipeline
+ * Market Hub (Vortex ERP) — Backup Engine & Multi-Stage Validation Pipeline v2.0
  *
- * Handles safe read-only data export, local .vortexbak package generation,
- * file downloading, and multi-stage dry-run validation prior to restore.
+ * Handles safe read-only data export for ALL system tables (Core, Inventory, Sales,
+ * Purchases, Ledgers, Milling Module, Expense ERP, POS Services), local .vortexbak package
+ * generation, file downloading, database log recording, and multi-stage dry-run validation.
  *
  * SAFETY GUARANTEES:
- * - Read-only database operations ONLY. Zero writes, zero mutations.
+ * - Read-only database operations ONLY during export. Zero writes, zero mutations.
  * - Multi-stage validation catches invalid tenant IDs, corrupt ciphers, and broken DAG relations.
  */
 
@@ -17,6 +18,7 @@ import {
   BackupMetadata,
   BackupSettingsConfig,
   BackupValidationResult,
+  TableCategorySummary,
   BACKUP_ENGINE_VERSION,
   CURRENT_SCHEMA_VERSION,
   DEFAULT_KEY_VERSION,
@@ -30,35 +32,24 @@ const LOGS_STORAGE_KEY = "vortex_backup_history_logs";
  * Get Saved Backup Preferences from LocalStorage (Fallback client store)
  */
 export function getBackupSettings(): BackupSettingsConfig {
-  if (typeof window === "undefined") {
-    return {
-      enabled: true,
-      destination: "local",
-      frequency: "weekly",
-      execution_time: "03:00",
-      retention_count: 15,
-    };
-  }
+  const defaultConfig: BackupSettingsConfig = {
+    enabled: true,
+    destination: "local",
+    frequency: "twice_daily",
+    execution_time: "09:00",
+    retention_count: 15,
+    reminder_enabled: true,
+    reminder_frequency: "twice_daily",
+  };
+
+  if (typeof window === "undefined") return defaultConfig;
+
   try {
     const raw = localStorage.getItem(SETTINGS_STORAGE_KEY);
-    if (!raw) {
-      return {
-        enabled: true,
-        destination: "local",
-        frequency: "weekly",
-        execution_time: "03:00",
-        retention_count: 15,
-      };
-    }
-    return JSON.parse(raw);
+    if (!raw) return defaultConfig;
+    return { ...defaultConfig, ...JSON.parse(raw) };
   } catch {
-    return {
-      enabled: true,
-      destination: "local",
-      frequency: "weekly",
-      execution_time: "03:00",
-      retention_count: 15,
-    };
+    return defaultConfig;
   }
 }
 
@@ -71,9 +62,37 @@ export function saveBackupSettings(config: BackupSettingsConfig): void {
 }
 
 /**
- * Get Historical Backup Logs
+ * Get Historical Backup Logs from LocalStorage & Supabase
  */
-export function getBackupLogHistory(): BackupLogRecord[] {
+export async function getBackupLogHistoryFromDB(): Promise<BackupLogRecord[]> {
+  try {
+    const { data, error } = await supabase
+      .from("backup_logs" as any)
+      .select("*")
+      .order("created_at", { ascending: false })
+      .limit(50);
+
+    if (!error && data && data.length > 0) {
+      return data.map((d: any) => ({
+        id: d.id,
+        tenant_id: d.tenant_id,
+        actor_name: d.actor_name,
+        action_type: d.action_type,
+        storage_type: d.storage_type,
+        status: d.status,
+        file_name: d.file_name,
+        file_size_bytes: Number(d.file_size_bytes ?? 0),
+        created_at: d.created_at,
+        error_message: d.error_message,
+      }));
+    }
+  } catch {
+    // Fallback to local logs below
+  }
+  return getBackupLogHistoryLocal();
+}
+
+export function getBackupLogHistoryLocal(): BackupLogRecord[] {
   if (typeof window === "undefined") return [];
   try {
     const raw = localStorage.getItem(LOGS_STORAGE_KEY);
@@ -85,18 +104,42 @@ export function getBackupLogHistory(): BackupLogRecord[] {
 }
 
 /**
- * Record a new Log Entry in Client History
+ * Record a new Log Entry in Client History & Supabase DB
  */
-export function recordBackupLog(entry: Omit<BackupLogRecord, "id" | "created_at">): void {
-  if (typeof window === "undefined") return;
-  const history = getBackupLogHistory();
+export async function recordBackupLog(
+  entry: Omit<BackupLogRecord, "id" | "created_at">,
+): Promise<void> {
+  const created_at = new Date().toISOString();
+  const id = `log_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
   const newRecord: BackupLogRecord = {
     ...entry,
-    id: `log_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
-    created_at: new Date().toISOString(),
+    id,
+    created_at,
   };
-  const updated = [newRecord, ...history].slice(0, 50); // Keep last 50 logs
-  localStorage.setItem(LOGS_STORAGE_KEY, JSON.stringify(updated));
+
+  // 1) Save to local storage
+  if (typeof window !== "undefined") {
+    const history = getBackupLogHistoryLocal();
+    const updated = [newRecord, ...history].slice(0, 50);
+    localStorage.setItem(LOGS_STORAGE_KEY, JSON.stringify(updated));
+  }
+
+  // 2) Save to Supabase DB table if available
+  try {
+    await supabase.from("backup_logs" as any).insert({
+      tenant_id: entry.tenant_id || "default",
+      actor_name: entry.actor_name,
+      action_type: entry.action_type,
+      storage_type: entry.storage_type,
+      status: entry.status,
+      file_name: entry.file_name,
+      file_size_bytes: entry.file_size_bytes,
+      error_message: entry.error_message,
+      created_at,
+    });
+  } catch (err) {
+    console.warn("Could not insert backup log into DB table:", err);
+  }
 }
 
 function getDefaultMockLogs(): BackupLogRecord[] {
@@ -107,113 +150,276 @@ function getDefaultMockLogs(): BackupLogRecord[] {
       action_type: "manual_local",
       storage_type: "local",
       status: "success",
-      file_name: "backup_manual_20260928_143000.vortexbak",
+      file_name: "vortex_backup_20261003_090000.vortexbak",
       file_size_bytes: 4210542,
-      created_at: new Date(Date.now() - 3600000 * 24).toISOString(),
+      created_at: new Date(Date.now() - 3600000 * 12).toISOString(),
     },
   ];
 }
 
 /**
- * SAFE READ-ONLY Export: Fetches tenant data using existing SELECT queries
+ * Helper to safely query a database table with fallback to empty array
+ */
+async function safeSelectTable(tableName: string, queryModifier?: (q: any) => any): Promise<any[]> {
+  try {
+    let query = supabase.from(tableName as any).select("*");
+    if (queryModifier) {
+      query = queryModifier(query);
+    }
+    const res = await query;
+    if (res.error) {
+      console.warn(`Safe backup query warning for table '${tableName}':`, res.error.message);
+      return [];
+    }
+    return res.data ?? [];
+  } catch (e) {
+    console.warn(`Exception reading table '${tableName}':`, e);
+    return [];
+  }
+}
+
+/**
+ * Calculate categorised summary statistics for metadata & UI preview
+ */
+export function calculateCategoryStats(tables: BackupDataPayload["tables"]): TableCategorySummary {
+  const count = (arr?: any[]) => arr?.length ?? 0;
+
+  const core =
+    count(tables.company_settings) +
+    count(tables.warehouses) +
+    count(tables.categories) +
+    count(tables.brands) +
+    count(tables.units) +
+    count(tables.profiles) +
+    count(tables.user_roles);
+
+  const productsAndStock =
+    count(tables.products) +
+    count(tables.product_batches) +
+    count(tables.inventory) +
+    count(tables.product_shelves) +
+    count(tables.pos_services);
+
+  const salesAndPurchases =
+    count(tables.sales_invoices) +
+    count(tables.sales_invoice_items) +
+    count(tables.sales_returns) +
+    count(tables.sales_return_items) +
+    count(tables.purchase_invoices) +
+    count(tables.purchase_invoice_items) +
+    count(tables.purchase_returns) +
+    count(tables.purchase_return_items) +
+    count(tables.stock_movements) +
+    count(tables.stock_transfers) +
+    count(tables.stock_transfer_items);
+
+  const financeAndLedgers =
+    count(tables.customers) +
+    count(tables.suppliers) +
+    count(tables.customer_payments) +
+    count(tables.customer_payment_splits) +
+    count(tables.customer_ledger) +
+    count(tables.loyalty_transactions);
+
+  const millingModule =
+    count(tables.milling_intake_receipts) +
+    count(tables.milling_jobs) +
+    count(tables.milling_job_inputs) +
+    count(tables.milling_job_outputs) +
+    count(tables.milling_delivery_notes) +
+    count(tables.milling_delivery_items) +
+    count(tables.milling_byproduct_rates) +
+    count(tables.milling_grain_grades) +
+    count(tables.milling_service_agreements);
+
+  const expenseModule =
+    count(tables.expenses) +
+    count(tables.expense_categories) +
+    count(tables.expense_approvals) +
+    count(tables.expense_attachments);
+
+  const systemAndAudit =
+    count(tables.audit_logs) + count(tables.idempotency_keys) + count(tables.backup_logs);
+
+  const totalRecords =
+    core +
+    productsAndStock +
+    salesAndPurchases +
+    financeAndLedgers +
+    millingModule +
+    expenseModule +
+    systemAndAudit;
+
+  const totalTables = Object.keys(tables).filter((k) => (tables as any)[k] !== undefined).length;
+
+  return {
+    core,
+    productsAndStock,
+    salesAndPurchases,
+    financeAndLedgers,
+    millingModule,
+    expenseModule,
+    systemAndAudit,
+    totalRecords,
+    totalTables,
+  };
+}
+
+/**
+ * SAFE READ-ONLY Export: Fetches ALL tenant data across 40+ system tables
  */
 export async function extractTenantDataReadOnly(
   tenantId: string = "default",
   actorId?: string,
 ): Promise<BackupDataPayload> {
   const [
-    companyRes,
-    warehousesRes,
-    categoriesRes,
-    brandsRes,
-    unitsRes,
-    productsRes,
-    batchesRes,
-    inventoryRes,
-    customersRes,
-    suppliersRes,
-    salesInvoicesRes,
-    salesItemsRes,
-    salesReturnsRes,
-    salesReturnItemsRes,
-    purchaseInvoicesRes,
-    purchaseItemsRes,
-    purchaseReturnsRes,
-    purchaseReturnItemsRes,
-    paymentsRes,
-    splitsRes,
-    movementsRes,
-    transfersRes,
-    transferItemsRes,
-    expensesRes,
-    expenseCatsRes,
-    loyaltyRes,
-    profilesRes,
-    rolesRes,
-    auditLogsRes,
+    company_settings,
+    warehouses,
+    categories,
+    brands,
+    units,
+    products,
+    product_batches,
+    inventory,
+    product_shelves,
+    pos_services,
+    customers,
+    suppliers,
+    sales_invoices,
+    sales_invoice_items,
+    sales_returns,
+    sales_return_items,
+    purchase_invoices,
+    purchase_invoice_items,
+    purchase_returns,
+    purchase_return_items,
+    customer_payments,
+    customer_payment_splits,
+    customer_ledger,
+    stock_movements,
+    stock_transfers,
+    stock_transfer_items,
+    milling_intake_receipts,
+    milling_jobs,
+    milling_job_inputs,
+    milling_job_outputs,
+    milling_delivery_notes,
+    milling_delivery_items,
+    milling_byproduct_rates,
+    milling_grain_grades,
+    milling_service_agreements,
+    expenses,
+    expense_categories,
+    expense_approvals,
+    expense_attachments,
+    loyalty_transactions,
+    profiles,
+    user_roles,
+    audit_logs,
+    idempotency_keys,
+    backup_logs,
   ] = await Promise.all([
-    supabase.from("company_settings").select("*"),
-    supabase.from("warehouses").select("*"),
-    supabase.from("categories").select("*"),
-    supabase.from("brands").select("*"),
-    supabase.from("units").select("*"),
-    supabase.from("products").select("*"),
-    supabase.from("product_batches").select("*"),
-    supabase.from("inventory").select("*"),
-    supabase.from("customers").select("*"),
-    supabase.from("suppliers").select("*"),
-    supabase.from("sales_invoices").select("*"),
-    supabase.from("sales_invoice_items").select("*"),
-    supabase.from("sales_returns").select("*"),
-    supabase.from("sales_return_items").select("*"),
-    supabase.from("purchase_invoices").select("*"),
-    supabase.from("purchase_invoice_items").select("*"),
-    supabase.from("purchase_returns").select("*"),
-    supabase.from("purchase_return_items").select("*"),
-    supabase.from("customer_payments").select("*"),
-    supabase.from("customer_payment_splits").select("*"),
-    supabase.from("stock_movements").select("*"),
-    supabase.from("stock_transfers").select("*"),
-    supabase.from("stock_transfer_items").select("*"),
-    supabase.from("expenses").select("*"),
-    supabase.from("expense_categories").select("*"),
-    supabase.from("loyalty_transactions").select("*"),
-    supabase.from("profiles").select("*"),
-    supabase.from("user_roles").select("*"),
-    supabase.from("audit_logs").select("*").limit(1000),
+    safeSelectTable("company_settings"),
+    safeSelectTable("warehouses"),
+    safeSelectTable("categories"),
+    safeSelectTable("brands"),
+    safeSelectTable("units"),
+    safeSelectTable("products"),
+    safeSelectTable("product_batches"),
+    safeSelectTable("inventory"),
+    safeSelectTable("product_shelves"),
+    safeSelectTable("pos_services"),
+    safeSelectTable("customers"),
+    safeSelectTable("suppliers"),
+    safeSelectTable("sales_invoices"),
+    safeSelectTable("sales_invoice_items"),
+    safeSelectTable("sales_returns"),
+    safeSelectTable("sales_return_items"),
+    safeSelectTable("purchase_invoices"),
+    safeSelectTable("purchase_invoice_items"),
+    safeSelectTable("purchase_returns"),
+    safeSelectTable("purchase_return_items"),
+    safeSelectTable("customer_payments"),
+    safeSelectTable("customer_payment_splits"),
+    safeSelectTable("customer_ledger"),
+    safeSelectTable("stock_movements"),
+    safeSelectTable("stock_transfers"),
+    safeSelectTable("stock_transfer_items"),
+    safeSelectTable("milling_intake_receipts"),
+    safeSelectTable("milling_jobs"),
+    safeSelectTable("milling_job_inputs"),
+    safeSelectTable("milling_job_outputs"),
+    safeSelectTable("milling_delivery_notes"),
+    safeSelectTable("milling_delivery_items"),
+    safeSelectTable("milling_byproduct_rates"),
+    safeSelectTable("milling_grain_grades"),
+    safeSelectTable("milling_service_agreements"),
+    safeSelectTable("expenses"),
+    safeSelectTable("expense_categories"),
+    safeSelectTable("expense_approvals"),
+    safeSelectTable("expense_attachments"),
+    safeSelectTable("loyalty_transactions"),
+    safeSelectTable("profiles"),
+    safeSelectTable("user_roles"),
+    safeSelectTable("audit_logs", (q) => q.limit(1000)),
+    safeSelectTable("idempotency_keys", (q) => q.limit(500)),
+    safeSelectTable("backup_logs", (q) => q.limit(200)),
   ]);
 
-  const tablesSummary: Record<string, number> = {
-    company_settings: companyRes.data?.length ?? 0,
-    warehouses: warehousesRes.data?.length ?? 0,
-    categories: categoriesRes.data?.length ?? 0,
-    brands: brandsRes.data?.length ?? 0,
-    units: unitsRes.data?.length ?? 0,
-    products: productsRes.data?.length ?? 0,
-    product_batches: batchesRes.data?.length ?? 0,
-    inventory: inventoryRes.data?.length ?? 0,
-    customers: customersRes.data?.length ?? 0,
-    suppliers: suppliersRes.data?.length ?? 0,
-    sales_invoices: salesInvoicesRes.data?.length ?? 0,
-    sales_invoice_items: salesItemsRes.data?.length ?? 0,
-    sales_returns: salesReturnsRes.data?.length ?? 0,
-    sales_return_items: salesReturnItemsRes.data?.length ?? 0,
-    purchase_invoices: purchaseInvoicesRes.data?.length ?? 0,
-    purchase_invoice_items: purchaseItemsRes.data?.length ?? 0,
-    purchase_returns: purchaseReturnsRes.data?.length ?? 0,
-    purchase_return_items: purchaseReturnItemsRes.data?.length ?? 0,
-    customer_payments: paymentsRes.data?.length ?? 0,
-    customer_payment_splits: splitsRes.data?.length ?? 0,
-    stock_movements: movementsRes.data?.length ?? 0,
-    stock_transfers: transfersRes.data?.length ?? 0,
-    stock_transfer_items: transferItemsRes.data?.length ?? 0,
-    expenses: expensesRes.data?.length ?? 0,
-    expense_categories: expenseCatsRes.data?.length ?? 0,
-    loyalty_transactions: loyaltyRes.data?.length ?? 0,
-    profiles: profilesRes.data?.length ?? 0,
-    user_roles: rolesRes.data?.length ?? 0,
-    audit_logs: auditLogsRes.data?.length ?? 0,
+  const tablesPayload = {
+    company_settings,
+    warehouses,
+    categories,
+    brands,
+    units,
+    products,
+    product_batches,
+    inventory,
+    product_shelves,
+    pos_services,
+    customers,
+    suppliers,
+    sales_invoices,
+    sales_invoice_items,
+    sales_returns,
+    sales_return_items,
+    purchase_invoices,
+    purchase_invoice_items,
+    purchase_returns,
+    purchase_return_items,
+    customer_payments,
+    customer_payment_splits,
+    customer_ledger,
+    stock_movements,
+    stock_transfers,
+    stock_transfer_items,
+    milling_intake_receipts,
+    milling_jobs,
+    milling_job_inputs,
+    milling_job_outputs,
+    milling_delivery_notes,
+    milling_delivery_items,
+    milling_byproduct_rates,
+    milling_grain_grades,
+    milling_service_agreements,
+    expenses,
+    expense_categories,
+    expense_approvals,
+    expense_attachments,
+    loyalty_transactions,
+    profiles,
+    user_roles,
+    audit_logs,
+    idempotency_keys,
+    backup_logs,
   };
+
+  const tablesSummary: Record<string, number> = {};
+  Object.entries(tablesPayload).forEach(([key, val]) => {
+    tablesSummary[key] = val.length;
+  });
+
+  const catStats = calculateCategoryStats(tablesPayload);
 
   const metadata: BackupMetadata = {
     backup_id: `bak_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`,
@@ -230,41 +436,20 @@ export async function extractTenantDataReadOnly(
     checksum_sha256: "",
     status: "success",
     tables_summary: tablesSummary,
+    categories_summary: {
+      core: catStats.core,
+      productsAndStock: catStats.productsAndStock,
+      salesAndPurchases: catStats.salesAndPurchases,
+      financeAndLedgers: catStats.financeAndLedgers,
+      millingModule: catStats.millingModule,
+      expenseModule: catStats.expenseModule,
+      systemAndAudit: catStats.systemAndAudit,
+    },
   };
 
   return {
     metadata,
-    tables: {
-      company_settings: companyRes.data ?? [],
-      warehouses: warehousesRes.data ?? [],
-      categories: categoriesRes.data ?? [],
-      brands: brandsRes.data ?? [],
-      units: unitsRes.data ?? [],
-      products: productsRes.data ?? [],
-      product_batches: batchesRes.data ?? [],
-      inventory: inventoryRes.data ?? [],
-      customers: customersRes.data ?? [],
-      suppliers: suppliersRes.data ?? [],
-      sales_invoices: salesInvoicesRes.data ?? [],
-      sales_invoice_items: salesItemsRes.data ?? [],
-      sales_returns: salesReturnsRes.data ?? [],
-      sales_return_items: salesReturnItemsRes.data ?? [],
-      purchase_invoices: purchaseInvoicesRes.data ?? [],
-      purchase_invoice_items: purchaseItemsRes.data ?? [],
-      purchase_returns: purchaseReturnsRes.data ?? [],
-      purchase_return_items: purchaseReturnItemsRes.data ?? [],
-      customer_payments: paymentsRes.data ?? [],
-      customer_payment_splits: splitsRes.data ?? [],
-      stock_movements: movementsRes.data ?? [],
-      stock_transfers: transfersRes.data ?? [],
-      stock_transfer_items: transferItemsRes.data ?? [],
-      expenses: expensesRes.data ?? [],
-      expense_categories: expenseCatsRes.data ?? [],
-      loyalty_transactions: loyaltyRes.data ?? [],
-      profiles: profilesRes.data ?? [],
-      user_roles: rolesRes.data ?? [],
-      audit_logs: auditLogsRes.data ?? [],
-    },
+    tables: tablesPayload,
   };
 }
 
@@ -310,7 +495,7 @@ export async function createBackupPackage(
 }
 
 /**
- * Trigger File Download in Web Browser
+ * Trigger File Download in Web Browser & Update Local Backup Preferences
  */
 export function downloadFileToDevice(content: string, fileName: string): void {
   const blob = new Blob([content], { type: "application/json;charset=utf-8" });
@@ -322,6 +507,17 @@ export function downloadFileToDevice(content: string, fileName: string): void {
   link.click();
   document.body.removeChild(link);
   URL.revokeObjectURL(url);
+
+  // Update Settings timestamp for local download reminder schedule
+  const settings = getBackupSettings();
+  saveBackupSettings({
+    ...settings,
+    last_backup_at: new Date().toISOString(),
+    last_local_download_at: new Date().toISOString(),
+    last_backup_status: "success",
+    last_backup_file_name: fileName,
+    last_backup_size_bytes: new Blob([content]).size,
+  });
 }
 
 /**
@@ -399,6 +595,7 @@ export async function validateBackupFile(
   try {
     payload = JSON.parse(decryptedJson);
     result.payload = payload;
+    result.categoryStats = calculateCategoryStats(payload.tables || {});
   } catch {
     result.isValid = false;
     result.stageFailed = "HEADER_PARSE";
@@ -406,15 +603,38 @@ export async function validateBackupFile(
     return result;
   }
 
-  // Stage 6: Referential DAG Sanity Check
+  // Stage 6: Extended Referential DAG Sanity Checks across modules
   if (payload.tables) {
+    // 6.1 Sales Invoice Items -> Products check
     const productIds = new Set((payload.tables.products ?? []).map((p: any) => p.id));
     const invalidItems = (payload.tables.sales_invoice_items ?? []).filter(
-      (item: any) => !productIds.has(item.product_id),
+      (item: any) => item.product_id && !productIds.has(item.product_id),
     );
     if (invalidItems.length > 0) {
       result.warnings.push(
         `تنبيه مرجعي: يوجد ${invalidItems.length} عنصر فاتورة مبيعات يشير إلى منتجات غير موجودة داخل كبسولة النسخة.`,
+      );
+    }
+
+    // 6.2 Milling Jobs -> Milling Intake Receipts check
+    const intakeIds = new Set((payload.tables.milling_intake_receipts ?? []).map((i: any) => i.id));
+    const orphanMillingJobs = (payload.tables.milling_jobs ?? []).filter(
+      (j: any) => j.intake_receipt_id && !intakeIds.has(j.intake_receipt_id),
+    );
+    if (orphanMillingJobs.length > 0) {
+      result.warnings.push(
+        `تنبيه مطاحن: يوجد ${orphanMillingJobs.length} أمر طحن يشير إلى إيصالات استلام غير مدرجة.`,
+      );
+    }
+
+    // 6.3 Customer Ledger -> Customers check
+    const customerIds = new Set((payload.tables.customers ?? []).map((c: any) => c.id));
+    const orphanLedger = (payload.tables.customer_ledger ?? []).filter(
+      (l: any) => l.customer_id && !customerIds.has(l.customer_id),
+    );
+    if (orphanLedger.length > 0) {
+      result.warnings.push(
+        `تنبيه ذمم: يوجد ${orphanLedger.length} قيد دفتر حساب عملاء غير مرتبطة بعملاء موجودين.`,
       );
     }
   }
