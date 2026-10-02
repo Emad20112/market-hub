@@ -54,6 +54,7 @@ import { Route as AppMillingCustomerStatementRouteImport } from './routes/_app.m
 import { Route as AppMillingDeliveryRouteImport } from './routes/_app.milling.delivery'
 import { Route as AppMillingIntakeRouteImport } from './routes/_app.milling.intake'
 import { Route as AppMillingJobsRouteImport } from './routes/_app.milling.jobs'
+import { Route as AppMillingOperationsGuideRouteImport } from './routes/_app.milling.operations-guide'
 import { Route as AppMillingReportsRouteImport } from './routes/_app.milling.reports'
 
 const IndexRoute = IndexRouteImport.update({
@@ -281,6 +282,12 @@ const AppMillingJobsRoute = AppMillingJobsRouteImport.update({
   path: '/jobs',
   getParentRoute: () => AppMillingRoute,
 } as any)
+const AppMillingOperationsGuideRoute =
+  AppMillingOperationsGuideRouteImport.update({
+    id: '/operations-guide',
+    path: '/operations-guide',
+    getParentRoute: () => AppMillingRoute,
+  } as any)
 const AppMillingReportsRoute = AppMillingReportsRouteImport.update({
   id: '/reports',
   path: '/reports',
@@ -332,6 +339,7 @@ export interface FileRoutesByFullPath {
   '/milling/delivery': typeof AppMillingDeliveryRoute
   '/milling/intake': typeof AppMillingIntakeRoute
   '/milling/jobs': typeof AppMillingJobsRoute
+  '/milling/operations-guide': typeof AppMillingOperationsGuideRoute
   '/milling/reports': typeof AppMillingReportsRoute
 }
 export interface FileRoutesByTo {
@@ -379,6 +387,7 @@ export interface FileRoutesByTo {
   '/milling/delivery': typeof AppMillingDeliveryRoute
   '/milling/intake': typeof AppMillingIntakeRoute
   '/milling/jobs': typeof AppMillingJobsRoute
+  '/milling/operations-guide': typeof AppMillingOperationsGuideRoute
   '/milling/reports': typeof AppMillingReportsRoute
 }
 export interface FileRoutesById {
@@ -428,6 +437,7 @@ export interface FileRoutesById {
   '/_app/milling/delivery': typeof AppMillingDeliveryRoute
   '/_app/milling/intake': typeof AppMillingIntakeRoute
   '/_app/milling/jobs': typeof AppMillingJobsRoute
+  '/_app/milling/operations-guide': typeof AppMillingOperationsGuideRoute
   '/_app/milling/reports': typeof AppMillingReportsRoute
 }
 export interface FileRouteTypes {
@@ -477,6 +487,7 @@ export interface FileRouteTypes {
     | '/milling/delivery'
     | '/milling/intake'
     | '/milling/jobs'
+    | '/milling/operations-guide'
     | '/milling/reports'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -524,6 +535,7 @@ export interface FileRouteTypes {
     | '/milling/delivery'
     | '/milling/intake'
     | '/milling/jobs'
+    | '/milling/operations-guide'
     | '/milling/reports'
   id:
     | '__root__'
@@ -572,6 +584,7 @@ export interface FileRouteTypes {
     | '/_app/milling/delivery'
     | '/_app/milling/intake'
     | '/_app/milling/jobs'
+    | '/_app/milling/operations-guide'
     | '/_app/milling/reports'
   fileRoutesById: FileRoutesById
 }
@@ -898,6 +911,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppMillingJobsRouteImport
       parentRoute: typeof AppMillingRoute
     }
+    '/_app/milling/operations-guide': {
+      id: '/_app/milling/operations-guide'
+      path: '/operations-guide'
+      fullPath: '/milling/operations-guide'
+      preLoaderRoute: typeof AppMillingOperationsGuideRouteImport
+      parentRoute: typeof AppMillingRoute
+    }
     '/_app/milling/reports': {
       id: '/_app/milling/reports'
       path: '/reports'
@@ -913,6 +933,7 @@ interface AppMillingRouteChildren {
   AppMillingDeliveryRoute: typeof AppMillingDeliveryRoute
   AppMillingIntakeRoute: typeof AppMillingIntakeRoute
   AppMillingJobsRoute: typeof AppMillingJobsRoute
+  AppMillingOperationsGuideRoute: typeof AppMillingOperationsGuideRoute
   AppMillingReportsRoute: typeof AppMillingReportsRoute
 }
 
@@ -921,6 +942,7 @@ const AppMillingRouteChildren: AppMillingRouteChildren = {
   AppMillingDeliveryRoute: AppMillingDeliveryRoute,
   AppMillingIntakeRoute: AppMillingIntakeRoute,
   AppMillingJobsRoute: AppMillingJobsRoute,
+  AppMillingOperationsGuideRoute: AppMillingOperationsGuideRoute,
   AppMillingReportsRoute: AppMillingReportsRoute,
 }
 
