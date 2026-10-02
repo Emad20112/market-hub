@@ -134,6 +134,7 @@ export function ExpenseFormDialog({
 
   const [header, setHeader] = useState<ExpenseFormHeader>(blankHeader);
   const [lines, setLines] = useState<ExpenseLineDraft[]>([blankLine()]);
+  const [activeTab, setActiveTab] = useState<"details" | "payment" | "advanced">("details");
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [showPayment, setShowPayment] = useState(true);
   const [payNow, setPayNow] = useState(false);
@@ -192,6 +193,7 @@ export function ExpenseFormDialog({
     }
 
     setDirty(false);
+    setActiveTab("details");
     setShowPayment(true);
     // Focus the date field so the form is usable from the keyboard the moment
     // it opens — this form is used dozens of times a day by the same people.
@@ -402,7 +404,7 @@ export function ExpenseFormDialog({
     <VortexDrawerDialog
       open={open}
       onOpenChange={onOpenChange}
-      size="lg"
+      size="xl"
       // A half-typed expense is worth protecting: the drawer asks before it
       // throws away unsaved input.
       dismissible={!dirty || !saving}
@@ -434,481 +436,567 @@ export function ExpenseFormDialog({
         </div>
       }
     >
-      <div className="space-y-5">
-        {/* ------------------------------------------------ basic */}
-        <Section
-          icon={<CalendarDays className="size-4" />}
-          title={t("expenses.tab.basic")}
-          hint={
-            ar
-              ? "التاريخ والمبلغ والتصنيف — هذا كل ما يلزم عادة"
-              : "Date, amount and category — usually all you need"
-          }
-        >
-          <div className="grid gap-3 sm:grid-cols-2">
-            <Field label={t("expenses.field.date")} required error={validation.errors.expense_date}>
-              <FieldInput
-                ref={firstFieldRef}
-                type="date"
-                value={header.expense_date}
-                onValueChange={(value) => setHeaderField("expense_date", value)}
-              />
-            </Field>
-
-            <Field
-              label={t("expenses.field.category")}
-              hint={ar ? "يُقترح على البنود تلقائيًا" : "Carried to the lines automatically"}
-            >
-              <select
-                value={lines[0]?.category_id ?? ""}
-                onChange={(event) => {
-                  const value = event.target.value;
-                  // Applying the category to every line that has not been given
-                  // its own keeps the single-line case a one-click form.
-                  setLines((prev) =>
-                    prev.map((line) => (line.category_id ? line : { ...line, category_id: value })),
-                  );
-                  setDirty(true);
-                }}
-                className={selectClass}
-              >
-                <option value="">{ar ? "اختر..." : "Select..."}</option>
-                {(lookups?.categories ?? []).map((category) => (
-                  <option key={category.id} value={category.id}>
-                    {ar ? category.name_ar || category.name : category.name}
-                  </option>
-                ))}
-              </select>
-            </Field>
-
-            <Field label={t("expenses.field.description")} className="sm:col-span-2">
-              <FieldInput
-                value={header.description}
-                onValueChange={(value) => setHeaderField("description", value)}
-                placeholder={ar ? "مثال: فاتورة كهرباء شهر يوليو" : "e.g. July electricity bill"}
-              />
-            </Field>
-
-            <Field label={ar ? "الجهة المستفيدة" : "Payee"} className="sm:col-span-2">
-              <div className="flex flex-wrap gap-1.5">
-                {(["NONE", "SUPPLIER", "EMPLOYEE", "OTHER"] as ExpensePayeeType[]).map((type) => (
-                  <button
-                    key={type}
-                    type="button"
-                    onClick={() => setHeaderField("payee_type", type)}
-                    className={cn(
-                      "rounded-full border px-3 py-1 text-[11px] font-medium transition",
-                      header.payee_type === type
-                        ? "border-primary bg-primary text-primary-foreground"
-                        : "border-border/70 bg-surface text-muted-foreground hover:text-foreground",
-                    )}
-                  >
-                    {t(`expenses.payee.${type}`)}
-                  </button>
-                ))}
+      <div className="flex flex-col gap-5">
+        {/* Product-style live summary card */}
+        <div className="relative overflow-hidden rounded-2xl border border-border/60 bg-gradient-to-br from-card via-card/90 to-primary/5 p-4 shadow-xs sm:p-5">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0 flex-1 space-y-1.5">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="inline-flex items-center gap-1 rounded-md bg-primary/10 px-2 py-0.5 text-[11px] font-semibold text-primary">
+                  <CalendarDays className="size-3" />
+                  {header.expense_date || (ar ? "تاريخ المصروف" : "Expense date")}
+                </span>
+                <span className="inline-flex items-center rounded-md bg-muted/80 px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+                  {ar
+                    ? `${lines.length} بنود`
+                    : `${lines.length} ${lines.length === 1 ? "line" : "lines"}`}
+                </span>
               </div>
-            </Field>
+              <h3 className="truncate text-base font-bold text-foreground sm:text-lg">
+                {header.description.trim() || t("expenses.new_title")}
+              </h3>
+              <p className="text-xs text-muted-foreground">
+                {ar ? "ملخص مباشر للمصروف قبل الحفظ" : "Live expense summary before saving"}
+              </p>
+            </div>
 
-            {header.payee_type === "SUPPLIER" ? (
-              <Field label={t("common.supplier")} required error={validation.errors.supplier_id}>
-                <select
-                  value={header.supplier_id}
-                  onChange={(event) => setHeaderField("supplier_id", event.target.value)}
-                  className={selectClass}
-                >
-                  <option value="">{ar ? "اختر..." : "Select..."}</option>
-                  {(lookups?.suppliers ?? []).map((supplier) => (
-                    <option key={supplier.id} value={supplier.id}>
-                      {supplier.name}
-                    </option>
-                  ))}
-                </select>
-              </Field>
-            ) : null}
-
-            {header.payee_type === "EMPLOYEE" ? (
-              <Field
-                label={ar ? "الموظف" : "Staff member"}
-                required
-                error={validation.errors.employee_id}
-              >
-                <select
-                  value={header.employee_id}
-                  onChange={(event) => setHeaderField("employee_id", event.target.value)}
-                  className={selectClass}
-                >
-                  <option value="">{ar ? "اختر..." : "Select..."}</option>
-                  {(lookups?.employees ?? []).map((employee) => (
-                    <option key={employee.id} value={employee.id}>
-                      {employee.name ?? "—"}
-                    </option>
-                  ))}
-                </select>
-              </Field>
-            ) : null}
-
-            {header.payee_type === "OTHER" ? (
-              <Field label={ar ? "اسم الجهة" : "Payee name"}>
-                <FieldInput
-                  value={header.payee_name}
-                  onValueChange={(value) => setHeaderField("payee_name", value)}
-                />
-              </Field>
-            ) : null}
+            <div className="rounded-xl border border-border/40 bg-background/80 p-3 text-start backdrop-blur-xs sm:min-w-48 sm:text-end">
+              <div className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                {t("common.total")}
+              </div>
+              <div className="mt-1 font-mono text-lg font-bold tabular-nums text-foreground">
+                {money(totals.gross)}
+              </div>
+            </div>
           </div>
-        </Section>
+        </div>
 
-        {/* ------------------------------------------------ lines */}
-        <Section
-          icon={<Layers className="size-4" />}
-          title={t("expenses.tab.lines")}
-          hint={
-            lines.length === 1
-              ? ar
-                ? "بند واحد يكفي — أضف بنودًا لتقسيم المصروف"
-                : "One line is enough — add more to split the expense"
-              : t("expenses.line_count", lines.length)
-          }
-          error={validation.errors.lines}
-          action={
-            <Button type="button" variant="outline" size="sm" onClick={addLine}>
-              <Plus className="size-3.5" />
-              {t("expenses.add_line")}
-            </Button>
-          }
-        >
-          <div className="space-y-2">
-            {lines.map((line, index) => {
-              const gross = lineGross(line);
-              return (
-                <div
-                  key={line.key}
-                  className="rounded-xl border border-border/70 bg-surface/60 p-3 transition hover:border-border"
+        {/* Segmented navigation, matching the product dialog */}
+        <div className="flex items-center gap-1.5 overflow-x-auto rounded-xl border border-border/50 bg-muted/30 p-1 text-xs">
+          {(
+            [
+              { id: "details", label: ar ? "البيانات والبنود" : "Details & lines", icon: Receipt },
+              { id: "payment", label: t("expenses.tab.payment"), icon: Wallet },
+              { id: "advanced", label: t("expenses.tab.advanced"), icon: Landmark },
+            ] as const
+          ).map(({ id, label, icon: Icon }) => (
+            <button
+              key={id}
+              type="button"
+              aria-pressed={activeTab === id}
+              onClick={() => {
+                setActiveTab(id);
+                if (id === "advanced") setShowAdvanced(true);
+              }}
+              className={cn(
+                "flex flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-2 font-medium transition-all duration-150 whitespace-nowrap",
+                activeTab === id
+                  ? "bg-card text-foreground shadow-xs font-semibold"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              <Icon className="size-3.5" />
+              <span>{label}</span>
+            </button>
+          ))}
+        </div>
+
+        {activeTab === "details" && (
+          <>
+            {/* ------------------------------------------------ basic */}
+            <Section
+              icon={<CalendarDays className="size-4" />}
+              title={t("expenses.tab.basic")}
+              hint={
+                ar
+                  ? "التاريخ والمبلغ والتصنيف — هذا كل ما يلزم عادة"
+                  : "Date, amount and category — usually all you need"
+              }
+            >
+              <div className="grid gap-3 sm:grid-cols-2">
+                <Field
+                  label={t("expenses.field.date")}
+                  required
+                  error={validation.errors.expense_date}
                 >
-                  <div className="flex items-end gap-2">
-                    <div className="min-w-0 flex-1">
-                      <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-                        {ar ? `بند ${index + 1}` : `Line ${index + 1}`}
-                      </span>
-                      <FieldInput
-                        size="sm"
-                        className="mt-1"
-                        value={line.description}
-                        onValueChange={(value) => patchLine(line.key, { description: value })}
-                        placeholder={ar ? "وصف البند" : "Line description"}
-                      />
-                    </div>
+                  <FieldInput
+                    ref={firstFieldRef}
+                    type="date"
+                    value={header.expense_date}
+                    onValueChange={(value) => setHeaderField("expense_date", value)}
+                  />
+                </Field>
 
-                    <div className="w-28 shrink-0">
-                      <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-                        {t("common.qty")}
-                      </span>
-                      <FieldInput
-                        size="sm"
-                        type="decimal"
-                        className="mt-1 text-center"
-                        value={line.quantity}
-                        onValueChange={(value) => patchLine(line.key, { quantity: value })}
-                      />
-                    </div>
+                <Field
+                  label={t("expenses.field.category")}
+                  hint={ar ? "يُقترح على البنود تلقائيًا" : "Carried to the lines automatically"}
+                >
+                  <select
+                    value={lines[0]?.category_id ?? ""}
+                    onChange={(event) => {
+                      const value = event.target.value;
+                      // Applying the category to every line that has not been given
+                      // its own keeps the single-line case a one-click form.
+                      setLines((prev) =>
+                        prev.map((line) =>
+                          line.category_id ? line : { ...line, category_id: value },
+                        ),
+                      );
+                      setDirty(true);
+                    }}
+                    className={selectClass}
+                  >
+                    <option value="">{ar ? "اختر..." : "Select..."}</option>
+                    {(lookups?.categories ?? []).map((category) => (
+                      <option key={category.id} value={category.id}>
+                        {ar ? category.name_ar || category.name : category.name}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
 
-                    <div className="w-32 shrink-0">
-                      <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-                        {t("expenses.field.unit_price")}
-                      </span>
-                      <FieldInput
-                        size="sm"
-                        type="decimal"
-                        className="mt-1 text-end"
-                        value={line.unit_price}
-                        onValueChange={(value) => patchLine(line.key, { unit_price: value })}
-                        placeholder="0.00"
-                      />
-                    </div>
+                <Field label={t("expenses.field.description")} className="sm:col-span-2">
+                  <FieldInput
+                    value={header.description}
+                    onValueChange={(value) => setHeaderField("description", value)}
+                    placeholder={
+                      ar ? "مثال: فاتورة كهرباء شهر يوليو" : "e.g. July electricity bill"
+                    }
+                  />
+                </Field>
 
-                    <div className="w-24 shrink-0 text-end">
-                      <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-                        {t("common.total")}
-                      </span>
-                      <div className="mt-1 h-8 font-mono text-sm font-semibold leading-8 tabular-nums">
-                        {gross == null ? "—" : money(gross)}
-                      </div>
-                    </div>
-
-                    <button
-                      type="button"
-                      onClick={() => removeLine(line.key)}
-                      aria-label={t("expenses.remove_line")}
-                      className="mb-0.5 grid size-8 shrink-0 place-items-center rounded-full text-muted-foreground transition hover:bg-destructive/10 hover:text-destructive"
-                    >
-                      <Trash2 className="size-3.5" />
-                    </button>
+                <Field label={ar ? "الجهة المستفيدة" : "Payee"} className="sm:col-span-2">
+                  <div className="flex flex-wrap gap-1.5">
+                    {(["NONE", "SUPPLIER", "EMPLOYEE", "OTHER"] as ExpensePayeeType[]).map(
+                      (type) => (
+                        <button
+                          key={type}
+                          type="button"
+                          onClick={() => setHeaderField("payee_type", type)}
+                          className={cn(
+                            "rounded-full border px-3 py-1 text-[11px] font-medium transition",
+                            header.payee_type === type
+                              ? "border-primary bg-primary text-primary-foreground"
+                              : "border-border/70 bg-surface text-muted-foreground hover:text-foreground",
+                          )}
+                        >
+                          {t(`expenses.payee.${type}`)}
+                        </button>
+                      ),
+                    )}
                   </div>
+                </Field>
 
-                  {/* Per-line detail appears only when the operator is actually
+                {header.payee_type === "SUPPLIER" ? (
+                  <Field
+                    label={t("common.supplier")}
+                    required
+                    error={validation.errors.supplier_id}
+                  >
+                    <select
+                      value={header.supplier_id}
+                      onChange={(event) => setHeaderField("supplier_id", event.target.value)}
+                      className={selectClass}
+                    >
+                      <option value="">{ar ? "اختر..." : "Select..."}</option>
+                      {(lookups?.suppliers ?? []).map((supplier) => (
+                        <option key={supplier.id} value={supplier.id}>
+                          {supplier.name}
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
+                ) : null}
+
+                {header.payee_type === "EMPLOYEE" ? (
+                  <Field
+                    label={ar ? "الموظف" : "Staff member"}
+                    required
+                    error={validation.errors.employee_id}
+                  >
+                    <select
+                      value={header.employee_id}
+                      onChange={(event) => setHeaderField("employee_id", event.target.value)}
+                      className={selectClass}
+                    >
+                      <option value="">{ar ? "اختر..." : "Select..."}</option>
+                      {(lookups?.employees ?? []).map((employee) => (
+                        <option key={employee.id} value={employee.id}>
+                          {employee.name ?? "—"}
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
+                ) : null}
+
+                {header.payee_type === "OTHER" ? (
+                  <Field label={ar ? "اسم الجهة" : "Payee name"}>
+                    <FieldInput
+                      value={header.payee_name}
+                      onValueChange={(value) => setHeaderField("payee_name", value)}
+                    />
+                  </Field>
+                ) : null}
+              </div>
+            </Section>
+
+            {/* ------------------------------------------------ lines */}
+            <Section
+              icon={<Layers className="size-4" />}
+              title={t("expenses.tab.lines")}
+              hint={
+                lines.length === 1
+                  ? ar
+                    ? "بند واحد يكفي — أضف بنودًا لتقسيم المصروف"
+                    : "One line is enough — add more to split the expense"
+                  : t("expenses.line_count", lines.length)
+              }
+              error={validation.errors.lines}
+              action={
+                <Button type="button" variant="outline" size="sm" onClick={addLine}>
+                  <Plus className="size-3.5" />
+                  {t("expenses.add_line")}
+                </Button>
+              }
+            >
+              <div className="space-y-2">
+                {lines.map((line, index) => {
+                  const gross = lineGross(line);
+                  return (
+                    <div
+                      key={line.key}
+                      className="rounded-xl border border-border/70 bg-surface/60 p-3 transition hover:border-border"
+                    >
+                      <div className="grid grid-cols-2 items-end gap-2 sm:grid-cols-[minmax(0,1fr)_5rem_7rem_6rem_auto]">
+                        <div className="col-span-2 min-w-0 sm:col-span-1">
+                          <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                            {ar ? `بند ${index + 1}` : `Line ${index + 1}`}
+                          </span>
+                          <FieldInput
+                            size="sm"
+                            className="mt-1"
+                            value={line.description}
+                            onValueChange={(value) => patchLine(line.key, { description: value })}
+                            placeholder={ar ? "وصف البند" : "Line description"}
+                          />
+                        </div>
+
+                        <div className="min-w-0">
+                          <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                            {t("common.qty")}
+                          </span>
+                          <FieldInput
+                            size="sm"
+                            type="decimal"
+                            className="mt-1 text-center"
+                            value={line.quantity}
+                            onValueChange={(value) => patchLine(line.key, { quantity: value })}
+                          />
+                        </div>
+
+                        <div className="min-w-0">
+                          <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                            {t("expenses.field.unit_price")}
+                          </span>
+                          <FieldInput
+                            size="sm"
+                            type="decimal"
+                            className="mt-1 text-end"
+                            value={line.unit_price}
+                            onValueChange={(value) => patchLine(line.key, { unit_price: value })}
+                            placeholder="0.00"
+                          />
+                        </div>
+
+                        <div className="min-w-0 text-end">
+                          <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                            {t("common.total")}
+                          </span>
+                          <div className="mt-1 h-8 font-mono text-sm font-semibold leading-8 tabular-nums">
+                            {gross == null ? "—" : money(gross)}
+                          </div>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => removeLine(line.key)}
+                          aria-label={t("expenses.remove_line")}
+                          className="col-span-2 ms-auto mb-0.5 grid size-8 place-items-center rounded-full text-muted-foreground transition hover:bg-destructive/10 hover:text-destructive sm:col-span-1"
+                        >
+                          <Trash2 className="size-3.5" />
+                        </button>
+                      </div>
+
+                      {/* Per-line detail appears only when the operator is actually
                       splitting an expense, so the single-line form stays short. */}
-                  {showLineDetails ? (
-                    <div className="mt-2 grid gap-2 border-t border-border/50 pt-2 sm:grid-cols-4">
-                      <select
-                        value={line.category_id}
-                        onChange={(event) =>
-                          patchLine(line.key, { category_id: event.target.value })
-                        }
-                        className={cn(selectClass, "h-8 text-[12px]")}
-                        aria-label={t("expenses.field.category")}
-                      >
-                        <option value="">{t("expenses.field.category")}</option>
-                        {(lookups?.categories ?? []).map((category) => (
-                          <option key={category.id} value={category.id}>
-                            {ar ? category.name_ar || category.name : category.name}
-                          </option>
-                        ))}
-                      </select>
+                      {showLineDetails ? (
+                        <div className="mt-2 grid gap-2 border-t border-border/50 pt-2 sm:grid-cols-4">
+                          <select
+                            value={line.category_id}
+                            onChange={(event) =>
+                              patchLine(line.key, { category_id: event.target.value })
+                            }
+                            className={cn(selectClass, "h-8 text-[12px]")}
+                            aria-label={t("expenses.field.category")}
+                          >
+                            <option value="">{t("expenses.field.category")}</option>
+                            {(lookups?.categories ?? []).map((category) => (
+                              <option key={category.id} value={category.id}>
+                                {ar ? category.name_ar || category.name : category.name}
+                              </option>
+                            ))}
+                          </select>
 
-                      <select
-                        value={line.cost_center_id}
-                        onChange={(event) =>
-                          patchLine(line.key, { cost_center_id: event.target.value })
-                        }
-                        className={cn(selectClass, "h-8 text-[12px]")}
-                        aria-label={t("expenses.field.cost_center")}
-                      >
-                        <option value="">{t("expenses.field.cost_center")}</option>
-                        {(lookups?.cost_centers ?? []).map((center) => (
-                          <option key={center.id} value={center.id}>
-                            {ar ? center.name_ar || center.name : center.name}
-                          </option>
-                        ))}
-                      </select>
+                          <select
+                            value={line.cost_center_id}
+                            onChange={(event) =>
+                              patchLine(line.key, { cost_center_id: event.target.value })
+                            }
+                            className={cn(selectClass, "h-8 text-[12px]")}
+                            aria-label={t("expenses.field.cost_center")}
+                          >
+                            <option value="">{t("expenses.field.cost_center")}</option>
+                            {(lookups?.cost_centers ?? []).map((center) => (
+                              <option key={center.id} value={center.id}>
+                                {ar ? center.name_ar || center.name : center.name}
+                              </option>
+                            ))}
+                          </select>
 
-                      <select
-                        value={line.project_id}
-                        onChange={(event) =>
-                          patchLine(line.key, { project_id: event.target.value })
-                        }
-                        className={cn(selectClass, "h-8 text-[12px]")}
-                        aria-label={t("expenses.field.project")}
-                      >
-                        <option value="">{t("expenses.field.project")}</option>
-                        {(lookups?.projects ?? []).map((project) => (
-                          <option key={project.id} value={project.id}>
-                            {ar ? project.name_ar || project.name : project.name}
-                          </option>
-                        ))}
-                      </select>
+                          <select
+                            value={line.project_id}
+                            onChange={(event) =>
+                              patchLine(line.key, { project_id: event.target.value })
+                            }
+                            className={cn(selectClass, "h-8 text-[12px]")}
+                            aria-label={t("expenses.field.project")}
+                          >
+                            <option value="">{t("expenses.field.project")}</option>
+                            {(lookups?.projects ?? []).map((project) => (
+                              <option key={project.id} value={project.id}>
+                                {ar ? project.name_ar || project.name : project.name}
+                              </option>
+                            ))}
+                          </select>
 
-                      <FieldInput
-                        size="sm"
-                        type="percent"
-                        value={line.tax_rate}
-                        onValueChange={(value) => patchLine(line.key, { tax_rate: value })}
-                        aria-label={t("expenses.field.tax_rate")}
-                      />
+                          <FieldInput
+                            size="sm"
+                            type="percent"
+                            value={line.tax_rate}
+                            onValueChange={(value) => patchLine(line.key, { tax_rate: value })}
+                            aria-label={t("expenses.field.tax_rate")}
+                          />
+                        </div>
+                      ) : null}
                     </div>
-                  ) : null}
-                </div>
-              );
-            })}
-          </div>
-        </Section>
+                  );
+                })}
+              </div>
+            </Section>
+          </>
+        )}
 
         {/* ------------------------------------------------ payment */}
-        <Section
-          icon={<Wallet className="size-4" />}
-          title={t("expenses.tab.payment")}
-          collapsible
-          open={showPayment}
-          onToggle={() => setShowPayment((prev) => !prev)}
-          hint={ar ? "سُدّد الآن، أم سيُسجَّل لاحقًا؟" : "Settled now, or recorded later?"}
-        >
-          <div className="grid gap-2 sm:grid-cols-2">
-            <button
-              type="button"
-              onClick={() => setPayNow(false)}
-              className={cn(
-                "rounded-xl border p-3 text-start transition",
-                !payNow
-                  ? "border-primary/60 bg-primary/10"
-                  : "border-border bg-surface hover:border-primary/30",
-              )}
-            >
-              <span className="block text-sm font-medium text-foreground">
-                {ar ? "يُسجَّل كمستحق" : "Record as unpaid"}
-              </span>
-              <span className="mt-0.5 block text-[11px] text-muted-foreground">
-                {ar
-                  ? "يبقى في قائمة غير المسدّد حتى تُسجّل الدفعة"
-                  : "Stays in the outstanding list until a payment is recorded"}
-              </span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setPayNow(true)}
-              className={cn(
-                "rounded-xl border p-3 text-start transition",
-                payNow
-                  ? "border-primary/60 bg-primary/10"
-                  : "border-border bg-surface hover:border-primary/30",
-              )}
-            >
-              <span className="block text-sm font-medium text-foreground">
-                {ar ? "سُدّد الآن" : "Paid now"}
-              </span>
-              <span className="mt-0.5 block text-[11px] text-muted-foreground">
-                {ar ? "يُرحَّل ويُسدَّد في خطوة واحدة" : "Posted and settled in a single step"}
-              </span>
-            </button>
-          </div>
+        {activeTab === "payment" && (
+          <Section
+            icon={<Wallet className="size-4" />}
+            title={t("expenses.tab.payment")}
+            collapsible
+            open={showPayment}
+            onToggle={() => setShowPayment((prev) => !prev)}
+            hint={ar ? "سُدّد الآن، أم سيُسجَّل لاحقًا؟" : "Settled now, or recorded later?"}
+          >
+            <div className="grid gap-2 sm:grid-cols-2">
+              <button
+                type="button"
+                onClick={() => setPayNow(false)}
+                className={cn(
+                  "rounded-xl border p-3 text-start transition",
+                  !payNow
+                    ? "border-primary/60 bg-primary/10"
+                    : "border-border bg-surface hover:border-primary/30",
+                )}
+              >
+                <span className="block text-sm font-medium text-foreground">
+                  {ar ? "يُسجَّل كمستحق" : "Record as unpaid"}
+                </span>
+                <span className="mt-0.5 block text-[11px] text-muted-foreground">
+                  {ar
+                    ? "يبقى في قائمة غير المسدّد حتى تُسجّل الدفعة"
+                    : "Stays in the outstanding list until a payment is recorded"}
+                </span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setPayNow(true)}
+                className={cn(
+                  "rounded-xl border p-3 text-start transition",
+                  payNow
+                    ? "border-primary/60 bg-primary/10"
+                    : "border-border bg-surface hover:border-primary/30",
+                )}
+              >
+                <span className="block text-sm font-medium text-foreground">
+                  {ar ? "سُدّد الآن" : "Paid now"}
+                </span>
+                <span className="mt-0.5 block text-[11px] text-muted-foreground">
+                  {ar ? "يُرحَّل ويُسدَّد في خطوة واحدة" : "Posted and settled in a single step"}
+                </span>
+              </button>
+            </div>
 
-          {payNow ? (
-            <div className="mt-3 grid gap-3 sm:grid-cols-2">
-              <Field label={t("common.method")}>
+            {payNow ? (
+              <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                <Field label={t("common.method")}>
+                  <select
+                    value={paymentMethod}
+                    onChange={(event) => setPaymentMethod(event.target.value)}
+                    className={selectClass}
+                  >
+                    <option value="cash">{t("pos.pm.cash")}</option>
+                    <option value="bank_transfer">{t("pos.pm.bank_transfer")}</option>
+                    <option value="card">{t("pos.pm.card")}</option>
+                    <option value="mobile_money">{t("pos.pm.mobile_money")}</option>
+                  </select>
+                </Field>
+                <Field
+                  label={ar ? "المصدر" : "Source"}
+                  hint={ar ? "مثال: صندوق المصروفات النقدية" : "e.g. Petty cash box"}
+                >
+                  <FieldInput
+                    value={accountLabel}
+                    onValueChange={setAccountLabel}
+                    placeholder={ar ? "اختياري" : "Optional"}
+                  />
+                </Field>
+              </div>
+            ) : null}
+          </Section>
+        )}
+
+        {/* ------------------------------------------------ advanced */}
+        {activeTab === "advanced" && (
+          <Section
+            icon={<Landmark className="size-4" />}
+            title={t("expenses.tab.advanced")}
+            collapsible
+            open={showAdvanced}
+            onToggle={() => setShowAdvanced((prev) => !prev)}
+            hint={ar ? "الضريبة، النوع، والأبعاد المحاسبية" : "Tax treatment, type and dimensions"}
+          >
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Field
+                label={t("expenses.field.tax_mode")}
+                hint={
+                  ar
+                    ? "اختر «الضريبة ضمن المبلغ» إذا كان المبلغ المكتوب يشملها"
+                    : "Choose “included” when the amount you typed already contains tax"
+                }
+              >
                 <select
-                  value={paymentMethod}
-                  onChange={(event) => setPaymentMethod(event.target.value)}
+                  value={header.tax_mode}
+                  onChange={(event) =>
+                    setHeaderField("tax_mode", event.target.value as ExpenseTaxMode)
+                  }
                   className={selectClass}
                 >
-                  <option value="cash">{t("pos.pm.cash")}</option>
-                  <option value="bank_transfer">{t("pos.pm.bank_transfer")}</option>
-                  <option value="card">{t("pos.pm.card")}</option>
-                  <option value="mobile_money">{t("pos.pm.mobile_money")}</option>
+                  {EXPENSE_TAX_MODES.map((mode) => (
+                    <option key={mode} value={mode}>
+                      {t(`expenses.tax.${mode}`)}
+                    </option>
+                  ))}
                 </select>
               </Field>
+
+              <Field label={t("expenses.field.type")}>
+                <select
+                  value={header.entry_type}
+                  onChange={(event) =>
+                    setHeaderField("entry_type", event.target.value as ExpenseEntryType)
+                  }
+                  className={selectClass}
+                >
+                  {EXPENSE_ENTRY_TYPES.map((type) => (
+                    <option key={type} value={type}>
+                      {t(`expenses.type.${type}`)}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+
               <Field
-                label={ar ? "المصدر" : "Source"}
-                hint={ar ? "مثال: صندوق المصروفات النقدية" : "e.g. Petty cash box"}
+                label={t("expenses.field.due_date")}
+                error={validation.errors.due_date}
+                hint={ar ? "يستخدم في تقرير المتأخرات" : "Drives the overdue report"}
               >
                 <FieldInput
-                  value={accountLabel}
-                  onValueChange={setAccountLabel}
-                  placeholder={ar ? "اختياري" : "Optional"}
+                  type="date"
+                  value={header.due_date}
+                  onValueChange={(value) => setHeaderField("due_date", value)}
+                />
+              </Field>
+
+              <Field label={t("expenses.field.warehouse")}>
+                <select
+                  value={header.warehouse_id}
+                  onChange={(event) => setHeaderField("warehouse_id", event.target.value)}
+                  className={selectClass}
+                >
+                  <option value="">{ar ? "اختر..." : "Select..."}</option>
+                  {(lookups?.warehouses ?? []).map((warehouse) => (
+                    <option key={warehouse.id} value={warehouse.id}>
+                      {ar ? warehouse.name_ar || warehouse.name : warehouse.name}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+
+              <Field label={t("expenses.field.cost_center")}>
+                <select
+                  value={header.cost_center_id}
+                  onChange={(event) => setHeaderField("cost_center_id", event.target.value)}
+                  className={selectClass}
+                >
+                  <option value="">{ar ? "اختر..." : "Select..."}</option>
+                  {(lookups?.cost_centers ?? []).map((center) => (
+                    <option key={center.id} value={center.id}>
+                      {ar ? center.name_ar || center.name : center.name}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+
+              <Field label={t("expenses.field.project")}>
+                <select
+                  value={header.project_id}
+                  onChange={(event) => setHeaderField("project_id", event.target.value)}
+                  className={selectClass}
+                >
+                  <option value="">{ar ? "اختر..." : "Select..."}</option>
+                  {(lookups?.projects ?? []).map((project) => (
+                    <option key={project.id} value={project.id}>
+                      {ar ? project.name_ar || project.name : project.name}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+
+              <Field label={t("expenses.field.notes")} className="sm:col-span-2">
+                <textarea
+                  value={header.note}
+                  onChange={(event) => setHeaderField("note", event.target.value)}
+                  rows={2}
+                  className={cn(selectClass, "h-auto py-2")}
+                  placeholder={
+                    ar
+                      ? "ملاحظة داخلية لا تظهر للجهة المستفيدة"
+                      : "Internal note, not shown to the payee"
+                  }
                 />
               </Field>
             </div>
-          ) : null}
-        </Section>
-
-        {/* ------------------------------------------------ advanced */}
-        <Section
-          icon={<Landmark className="size-4" />}
-          title={t("expenses.tab.advanced")}
-          collapsible
-          open={showAdvanced}
-          onToggle={() => setShowAdvanced((prev) => !prev)}
-          hint={ar ? "الضريبة، النوع، والأبعاد المحاسبية" : "Tax treatment, type and dimensions"}
-        >
-          <div className="grid gap-3 sm:grid-cols-2">
-            <Field
-              label={t("expenses.field.tax_mode")}
-              hint={
-                ar
-                  ? "اختر «الضريبة ضمن المبلغ» إذا كان المبلغ المكتوب يشملها"
-                  : "Choose “included” when the amount you typed already contains tax"
-              }
-            >
-              <select
-                value={header.tax_mode}
-                onChange={(event) =>
-                  setHeaderField("tax_mode", event.target.value as ExpenseTaxMode)
-                }
-                className={selectClass}
-              >
-                {EXPENSE_TAX_MODES.map((mode) => (
-                  <option key={mode} value={mode}>
-                    {t(`expenses.tax.${mode}`)}
-                  </option>
-                ))}
-              </select>
-            </Field>
-
-            <Field label={t("expenses.field.type")}>
-              <select
-                value={header.entry_type}
-                onChange={(event) =>
-                  setHeaderField("entry_type", event.target.value as ExpenseEntryType)
-                }
-                className={selectClass}
-              >
-                {EXPENSE_ENTRY_TYPES.map((type) => (
-                  <option key={type} value={type}>
-                    {t(`expenses.type.${type}`)}
-                  </option>
-                ))}
-              </select>
-            </Field>
-
-            <Field
-              label={t("expenses.field.due_date")}
-              error={validation.errors.due_date}
-              hint={ar ? "يستخدم في تقرير المتأخرات" : "Drives the overdue report"}
-            >
-              <FieldInput
-                type="date"
-                value={header.due_date}
-                onValueChange={(value) => setHeaderField("due_date", value)}
-              />
-            </Field>
-
-            <Field label={t("expenses.field.warehouse")}>
-              <select
-                value={header.warehouse_id}
-                onChange={(event) => setHeaderField("warehouse_id", event.target.value)}
-                className={selectClass}
-              >
-                <option value="">{ar ? "اختر..." : "Select..."}</option>
-                {(lookups?.warehouses ?? []).map((warehouse) => (
-                  <option key={warehouse.id} value={warehouse.id}>
-                    {ar ? warehouse.name_ar || warehouse.name : warehouse.name}
-                  </option>
-                ))}
-              </select>
-            </Field>
-
-            <Field label={t("expenses.field.cost_center")}>
-              <select
-                value={header.cost_center_id}
-                onChange={(event) => setHeaderField("cost_center_id", event.target.value)}
-                className={selectClass}
-              >
-                <option value="">{ar ? "اختر..." : "Select..."}</option>
-                {(lookups?.cost_centers ?? []).map((center) => (
-                  <option key={center.id} value={center.id}>
-                    {ar ? center.name_ar || center.name : center.name}
-                  </option>
-                ))}
-              </select>
-            </Field>
-
-            <Field label={t("expenses.field.project")}>
-              <select
-                value={header.project_id}
-                onChange={(event) => setHeaderField("project_id", event.target.value)}
-                className={selectClass}
-              >
-                <option value="">{ar ? "اختر..." : "Select..."}</option>
-                {(lookups?.projects ?? []).map((project) => (
-                  <option key={project.id} value={project.id}>
-                    {ar ? project.name_ar || project.name : project.name}
-                  </option>
-                ))}
-              </select>
-            </Field>
-
-            <Field label={t("expenses.field.notes")} className="sm:col-span-2">
-              <textarea
-                value={header.note}
-                onChange={(event) => setHeaderField("note", event.target.value)}
-                rows={2}
-                className={cn(selectClass, "h-auto py-2")}
-                placeholder={
-                  ar
-                    ? "ملاحظة داخلية لا تظهر للجهة المستفيدة"
-                    : "Internal note, not shown to the payee"
-                }
-              />
-            </Field>
-          </div>
-        </Section>
+          </Section>
+        )}
       </div>
     </VortexDrawerDialog>
   );
