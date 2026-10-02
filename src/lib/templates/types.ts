@@ -1,3 +1,5 @@
+import type { PaperProfileId } from "./paper-profiles";
+
 export type DocumentType =
   | "customer_invoice" // فاتورة العميل
   | "inventory_document" // مستند حركة المخزون
@@ -134,8 +136,17 @@ export interface PrintTemplateMeta {
   nameAr: string;
   nameEn: string;
   category: "thermal" | "standard" | "custom";
+  /** Legacy metadata retained for persisted settings compatibility. */
   paperSize: PaperSize;
+  supportedPaperProfiles: PaperProfileId[];
   supportedDocTypes?: DocumentType[];
+}
+
+export interface PrintProfile {
+  documentType: DocumentType;
+  templateId: InvoiceTemplateId;
+  paperProfileId: PaperProfileId;
+  options?: CustomFieldOptions;
 }
 
 export type TemplateRenderer = (
@@ -148,6 +159,9 @@ export type TemplateRenderer = (
 export interface PrintSettings extends CustomFieldOptions {
   defaultCustomerTemplate: InvoiceTemplateId;
   defaultInventoryTemplate: InvoiceTemplateId;
+  /** New profile defaults; paperSize remains legacy compatibility data. */
+  defaultCustomerPaperProfile?: PaperProfileId;
+  defaultInventoryPaperProfile?: PaperProfileId;
   paperSize: PaperSize;
   autoPrintCustomerInvoice: boolean;
   autoPrintInventoryDocument: boolean;

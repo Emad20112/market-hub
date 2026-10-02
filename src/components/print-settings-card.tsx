@@ -1,31 +1,24 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import {
   Printer,
   Eye,
   ScrollText,
-  Sparkles,
   Layers,
   Sliders,
-  CheckCircle2,
   ShieldCheck,
+  Check,
 } from "lucide-react";
 import {
   getPrintSettings,
   savePrintSettings,
   PrintSettings,
   InvoiceTemplateId,
-  PaperSize,
+  type PaperProfileId,
+  PAPER_PROFILES,
+  getTemplateMeta,
 } from "@/lib/templates";
 import { PrintPreviewModal } from "@/components/print-preview";
 import { toast } from "sonner";
@@ -37,6 +30,7 @@ interface PrintSettingsCardProps {
 export function PrintSettingsCard({ canEdit = true }: PrintSettingsCardProps) {
   const [settings, setSettings] = useState<PrintSettings>(() => getPrintSettings());
   const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewDocType, setPreviewDocType] = useState<"customer_invoice" | "inventory_document">("customer_invoice");
 
   useEffect(() => {
     setSettings(getPrintSettings());
@@ -48,10 +42,14 @@ export function PrintSettingsCard({ canEdit = true }: PrintSettingsCardProps) {
     toast.success("تم تحديث إعدادات الطباعة");
   }
 
-  function handleSelect(key: keyof PrintSettings, value: any) {
-    const updated = savePrintSettings({ [key]: value });
+  function saveProfile(documentType: "customer" | "inventory", templateId: InvoiceTemplateId, paperProfileId: PaperProfileId) {
+    const updated = savePrintSettings(
+      documentType === "customer"
+        ? { defaultCustomerTemplate: templateId, defaultCustomerPaperProfile: paperProfileId }
+        : { defaultInventoryTemplate: templateId, defaultInventoryPaperProfile: paperProfileId },
+    );
     setSettings(updated);
-    toast.success("تم التحديث بنجاح");
+    toast.success("تم حفظ إعداد الطباعة الافتراضي");
   }
 
   return (
@@ -61,7 +59,7 @@ export function PrintSettingsCard({ canEdit = true }: PrintSettingsCardProps) {
           <div className="flex flex-wrap items-center justify-between gap-3">
             <CardTitle className="text-base font-bold flex items-center gap-2">
               <Printer className="h-5 w-5 text-primary" />
-              إعدادات نظام الفواتير والطباعة الشاملة (Printing Architecture & Templates)
+              الطباعة والقوالب
             </CardTitle>
             <Button
               type="button"
@@ -76,82 +74,41 @@ export function PrintSettingsCard({ canEdit = true }: PrintSettingsCardProps) {
         </CardHeader>
 
         <CardContent className="space-y-6 pt-5">
-          {/* Section 1: Default Templates Per Document Type */}
-          <div>
-            <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-3 flex items-center gap-1.5">
-              <ScrollText className="h-4 w-4 text-primary" />
-              1. القوالب الافتراضية لكل نوع مستند (Default Templates)
-            </h4>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {/* Customer Invoice Default Template */}
-              <div className="space-y-1.5 p-3.5 rounded-2xl border bg-surface/80">
-                <Label className="text-xs font-semibold">قالب فاتورة العميل الافتراضي</Label>
-                <Select
-                  value={settings.defaultCustomerTemplate}
-                  onValueChange={(val: InvoiceTemplateId) =>
-                    handleSelect("defaultCustomerTemplate", val)
-                  }
-                  disabled={!canEdit}
-                >
-                  <SelectTrigger className="rounded-xl bg-background">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="thermal">حراري (Thermal POS 80mm)</SelectItem>
-                    <SelectItem value="standard">قياسي (Standard A4)</SelectItem>
-                    <SelectItem value="elegant">فاخر (Gold Luxury A4)</SelectItem>
-                  </SelectContent>
-                </Select>
-                <p className="text-[11px] text-muted-foreground mt-1">
-                  القالب الذي يتم اعتماده تلقائياً عند طباعة فواتير المبيعات للعملاء.
-                </p>
-              </div>
-
-              {/* Inventory Document Default Template */}
-              <div className="space-y-1.5 p-3.5 rounded-2xl border bg-surface/80">
-                <Label className="text-xs font-semibold">قالب مستند حركة المخزون</Label>
-                <Select
-                  value={settings.defaultInventoryTemplate}
-                  onValueChange={(val: InvoiceTemplateId) =>
-                    handleSelect("defaultInventoryTemplate", val)
-                  }
-                  disabled={!canEdit}
-                >
-                  <SelectTrigger className="rounded-xl bg-background">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="thermal">مخزني حراري (POS 80mm)</SelectItem>
-                    <SelectItem value="standard">مخزني قياسي (A4 Stock Issue)</SelectItem>
-                  </SelectContent>
-                </Select>
-                <p className="text-[11px] text-muted-foreground mt-1">
-                  المستند الداخلي المخصص لتوثيق حركة المخزون وأمناء المخازن.
-                </p>
-              </div>
-
-              {/* Paper Size Setting */}
-              <div className="space-y-1.5 p-3.5 rounded-2xl border bg-surface/80">
-                <Label className="text-xs font-semibold">حجم ورق الطباعة الافتراضي</Label>
-                <Select
-                  value={settings.paperSize}
-                  onValueChange={(val: PaperSize) => handleSelect("paperSize", val)}
-                  disabled={!canEdit}
-                >
-                  <SelectTrigger className="rounded-xl bg-background">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="80mm">طابعة حرارية (80mm POS)</SelectItem>
-                    <SelectItem value="58mm">طابعة حرارية صغيرة (58mm POS)</SelectItem>
-                    <SelectItem value="A4">ورق قياسي A4</SelectItem>
-                    <SelectItem value="A5">ورق صغير A5</SelectItem>
-                  </SelectContent>
-                </Select>
-                <p className="text-[11px] text-muted-foreground mt-1">
-                  المقاس المعتمد لضبط هوامش الصفحة وعرض المستند.
-                </p>
-              </div>
+          <div className="space-y-3">
+            <div>
+              <h4 className="text-sm font-bold flex items-center gap-2">
+                <ScrollText className="h-4 w-4 text-primary" />
+                إعدادات الطباعة
+              </h4>
+              <p className="mt-1 text-xs text-muted-foreground">اختر القالب وPaper Profile لكل نوع مستند، ثم عاين واحفظ الإعداد الافتراضي.</p>
+            </div>
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+              <PrintProfileCard
+                documentType="customer_invoice"
+                title="فاتورة المبيعات"
+                description="الفاتورة التي يستلمها العميل"
+                templateId={settings.defaultCustomerTemplate}
+                paperProfileId={settings.defaultCustomerPaperProfile ?? "thermal-80"}
+                canEdit={canEdit}
+                onSave={(templateId, paperProfileId) => saveProfile("customer", templateId, paperProfileId)}
+                onPreview={() => {
+                  setPreviewDocType("customer_invoice");
+                  setPreviewOpen(true);
+                }}
+              />
+              <PrintProfileCard
+                documentType="inventory_document"
+                title="مستند حركة المخزون"
+                description="مستند الصرف والاستلام والتحويل الداخلي"
+                templateId={settings.defaultInventoryTemplate}
+                paperProfileId={settings.defaultInventoryPaperProfile ?? "thermal-80"}
+                canEdit={canEdit}
+                onSave={(templateId, paperProfileId) => saveProfile("inventory", templateId, paperProfileId)}
+                onPreview={() => {
+                  setPreviewDocType("inventory_document");
+                  setPreviewOpen(true);
+                }}
+              />
             </div>
           </div>
 
@@ -286,7 +243,11 @@ export function PrintSettingsCard({ canEdit = true }: PrintSettingsCardProps) {
         </CardContent>
       </Card>
 
-      <PrintPreviewModal open={previewOpen} onOpenChange={setPreviewOpen} />
+      <PrintPreviewModal
+        open={previewOpen}
+        onOpenChange={setPreviewOpen}
+        initialDocType={previewDocType}
+      />
     </>
   );
 }
@@ -311,6 +272,118 @@ function ToggleOption({
         disabled={disabled}
         className="scale-90"
       />
+    </div>
+  );
+}
+
+
+interface PrintProfileCardProps {
+  documentType: "customer_invoice" | "inventory_document";
+  title: string;
+  description: string;
+  templateId: InvoiceTemplateId;
+  paperProfileId: PaperProfileId;
+  canEdit: boolean;
+  onSave: (templateId: InvoiceTemplateId, paperProfileId: PaperProfileId) => void;
+  onPreview: () => void;
+}
+
+function PrintProfileCard({
+  documentType,
+  title,
+  description,
+  templateId: initialTemplateId,
+  paperProfileId: initialPaperProfileId,
+  canEdit,
+  onSave,
+  onPreview,
+}: PrintProfileCardProps) {
+  const [templateId, setTemplateId] = useState<InvoiceTemplateId>(initialTemplateId);
+  const [paperProfileId, setPaperProfileId] = useState<PaperProfileId>(initialPaperProfileId);
+  const templateMeta = getTemplateMeta(templateId);
+  const supportedPapers = templateMeta?.supportedPaperProfiles ?? [];
+  const templates = (["thermal", "standard", "elegant"] as InvoiceTemplateId[]).filter((id) => {
+    const meta = getTemplateMeta(id);
+    return meta && (!meta.supportedDocTypes || meta.supportedDocTypes.includes(documentType));
+  });
+  const isDirty = templateId !== initialTemplateId || paperProfileId !== initialPaperProfileId;
+  const selectedPaper = supportedPapers.includes(paperProfileId) ? paperProfileId : supportedPapers[0];
+
+  function handleTemplateChange(nextTemplateId: InvoiceTemplateId) {
+    setTemplateId(nextTemplateId);
+    const nextPapers = getTemplateMeta(nextTemplateId)?.supportedPaperProfiles ?? [];
+    if (!nextPapers.includes(paperProfileId)) {
+      setPaperProfileId(nextPapers[0]);
+    }
+  }
+
+  return (
+    <div className="rounded-2xl border-border/80 bg-surface/70 p-4 shadow-xs transition hover:border-primary/30 hover:shadow-sm">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <h5 className="text-sm font-bold truncate">{title}</h5>
+            <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary">
+              <Check className="h-3 w-3" /> الافتراضي
+            </span>
+          </div>
+          <p className="mt-1 text-xs text-muted-foreground">{description}</p>
+        </div>
+        <div className="rounded-xl bg-primary/10 p-2 text-primary shrink-0">
+          <Printer className="h-4 w-4" />
+        </div>
+      </div>
+
+      <div className="mt-4 grid gap-3 sm:grid-cols-2">
+        <label className="space-y-1.5 text-xs font-semibold">
+          <span className="text-muted-foreground">القالب</span>
+          <select
+            value={templateId}
+            disabled={!canEdit}
+            onChange={(event) => handleTemplateChange(event.target.value)}
+            className="h-10 w-full rounded-xl border-border bg-background px-3 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:opacity-60"
+          >
+            {templates.map((id) => {
+              const meta = getTemplateMeta(id)!;
+              return <option key={id} value={id}>{meta.nameAr}</option>;
+            })}
+          </select>
+        </label>
+        <label className="space-y-1.5 text-xs font-semibold">
+          <span className="text-muted-foreground">Paper Profile</span>
+          <select
+            value={selectedPaper}
+            disabled={!canEdit}
+            onChange={(event) => setPaperProfileId(event.target.value as PaperProfileId)}
+            className="h-10 w-full rounded-xl border-border bg-background px-3 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:opacity-60"
+          >
+            {supportedPapers.map((id) => {
+              const paper = PAPER_PROFILES[id];
+              return <option key={id} value={id}>{paper.nameAr}</option>;
+            })}
+          </select>
+        </label>
+      </div>
+
+      <div className="mt-3 flex-wrap items-center justify-between gap-2 border-t border-border/60 pt-3">
+        <span className="text-[11px] text-muted-foreground">
+          {templateMeta?.nameAr} · {PAPER_PROFILES[selectedPaper]?.nameAr}
+        </span>
+        <div className="flex gap-2">
+          <Button type="button" variant="ghost" size="sm" onClick={onPreview} className="h-8 rounded-lg gap-1.5 text-xs">
+            <Eye className="h-3.5 w-3.5" /> معاينة
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            disabled={!canEdit || !isDirty || !selectedPaper}
+            onClick={() => selectedPaper && onSave(templateId, selectedPaper)}
+            className="h-8 rounded-lg gap-1.5 text-xs"
+          >
+            <Check className="h-3.5 w-3.5" /> حفظ
+          </Button>
+        </div>
+      </div>
     </div>
   );
 }

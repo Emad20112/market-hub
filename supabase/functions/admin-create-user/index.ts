@@ -183,9 +183,9 @@ Deno.serve(async (req: Request): Promise<Response> => {
     auth: { persistSession: false, autoRefreshToken: false },
   });
 
-  const { data: claimsData, error: claimsError } = await admin.auth.getClaims(token);
-  const callerId = (claimsData?.claims?.sub as string | undefined) ?? undefined;
-  if (claimsError || !callerId) {
+  const { data: userData, error: userError } = await admin.auth.getUser(token);
+  const callerId = userData?.user?.id;
+  if (userError || !callerId) {
     return fail("unauthorized", "جلسة الدخول غير صالحة أو منتهية. يرجى إعادة تسجيل الدخول.", 401);
   }
 
