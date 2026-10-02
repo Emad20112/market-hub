@@ -73,6 +73,10 @@ interface Product {
   unit_id?: string | null;
   origin_id?: string | null;
   quality_grade_id?: string | null;
+  /** تُستعلم في addToCart لتحديد مسار الخدمة؛ بدونها لا يمكن بيع أجرة الطحن. */
+  is_service?: boolean | null;
+  item_nature?: string | null;
+  inventory_policy?: string | null;
   unit?: { short_name: string; name_ar: string | null; name: string } | null;
   category?: { name: string; name_ar: string | null } | null;
   brand?: { name: string; name_ar: string | null } | null;
@@ -87,6 +91,8 @@ interface CartLine {
   tax_rate: number;
   quantity: number;
   is_service?: boolean;
+  item_nature?: string;
+  inventory_policy?: string;
 }
 
 interface Warehouse {
@@ -479,7 +485,7 @@ function POSPage() {
         supabase.from("customers").select("id,name,phone,balance,credit_limit").eq("is_active", true).order("name"),
         (supabase.from("products") as any)
           .select(
-            "id,sku,barcode,name,name_ar,sale_price,tax_rate,image_url,category_id,brand_id,unit_id,origin_id,quality_grade_id,is_active",
+            "id,sku,barcode,name,name_ar,sale_price,tax_rate,image_url,category_id,brand_id,unit_id,origin_id,quality_grade_id,is_active,is_service,item_nature,inventory_policy",
           )
           .neq("is_active", false)
           .order("name")
@@ -700,25 +706,56 @@ function POSPage() {
   ]);
 
   function addToCart(p: Product) {
-    const stock = stockMap[p.id] ?? 0;
     const prodName = lang === "ar" && p.name_ar ? p.name_ar : p.name;
-    if (stock <= 0) {
-      return toast.error(
-        lang === "ar" ? `نفد المخزون من: ${prodName}` : `${p.name} ${t("pos.out_of_stock")}`,
-      );
+    // الخدمات (SERVICE) لا مخزون لها إطلاقاً — item_nature = SERVICE يعني
+    // inventory_policy = UNTRACKED. فحص "نفد المخزون" كان يرفضها لأن
+    // stockMap لا يحملها، فيستحيل بيع أجرة الطحن من نقطة البيع.
+    const isService = p.is_service === true;
+
+    if (!isService) {
+      const stock = stockMap[p.id] ?? 0;
+      if (stock <= 0) {
+        return toast.error(
+          lang === "ar" ? `نفد المخزون من: ${prodName}` : `${p.name} ${t("pos.out_of_stock")}`,
+        );
+      }
+      setCart((c) => {
+        const existing = c.find((l) => l.product_id === p.id);
+        if (existing) {
+          if (existing.quantity >= stock) {
+            toast.error(
+              lang === "ar"
+                ? `الحد الأقصى المتاح في المخزون: ${stock}`
+                : `${t("pos.max_stock")}: ${stock}`,
+            );
+            return c;
+          }
+          return c.map((l) =>
+            l.product_id === p.id ? { ...l, quantity: l.quantity + 1 } : l,
+          );
+        }
+        return [
+          ...c,
+          {
+            product_id: p.id,
+            name: prodName,
+            unit_price: Number(p.sale_price),
+            tax_rate: Number(p.tax_rate ?? 0),
+            quantity: 1,
+            is_service: false,
+          },
+        ];
+      });
+      return;
     }
+
+    // مسار الخدمة: بلا فحص مخزون، والحمولة تحمل is_service = true.
     setCart((c) => {
       const existing = c.find((l) => l.product_id === p.id);
       if (existing) {
-        if (existing.quantity >= stock) {
-          toast.error(
-            lang === "ar"
-              ? `الحد الأقصى المتاح في المخزون: ${stock}`
-              : `${t("pos.max_stock")}: ${stock}`,
-          );
-          return c;
-        }
-        return c.map((l) => (l.product_id === p.id ? { ...l, quantity: l.quantity + 1 } : l));
+        return c.map((l) =>
+          l.product_id === p.id ? { ...l, quantity: l.quantity + 1 } : l,
+        );
       }
       return [
         ...c,
@@ -728,6 +765,7 @@ function POSPage() {
           unit_price: Number(p.sale_price),
           tax_rate: Number(p.tax_rate ?? 0),
           quantity: 1,
+          is_service: true,
         },
       ];
     });
@@ -1519,10 +1557,13 @@ function POSPage() {
                 lang === "ar"
                   ? p.category?.name_ar || p.category?.name
                   : p.category?.name || p.category?.name_ar;
+              // العرض العربي يجب أن يفضّل التسمية العربية دائماً. كان الرمز
+              // الإنجليزي (short_name) يُعرض كبديل عن name_ar الغائب، فيظهر
+              // "kg" وسط واجهة عربية — وهذا ما يُفسد قراءة الشاشة للقبّان.
               const unitLabel =
                 lang === "ar"
-                  ? p.unit?.name_ar || p.unit?.short_name
-                  : p.unit?.short_name || p.unit?.name_ar;
+                  ? p.unit?.name_ar || p.unit?.name || p.unit?.short_name || ""
+                  : p.unit?.short_name || p.unit?.name || p.unit?.name_ar || "";
               const originLabel =
                 lang === "ar"
                   ? p.origin?.name_ar || p.origin?.name

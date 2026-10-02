@@ -65,6 +65,9 @@ type Item = {
   moduleId?: string;
   color?: string;
   bg?: string;
+  /** يقصر ظهور العنصر على أدوار محددة. كان مستخدماً في عناصر القائمة
+   *  دون أن يكون معرَّفاً في النوع، فيرفضه TypeScript. */
+  allowedRoles?: string[];
 };
 
 type Section = {

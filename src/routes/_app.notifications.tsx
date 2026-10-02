@@ -213,8 +213,7 @@ function NotificationsPage() {
             value={num(counts.danger)}
             currency=""
             subtitle={isAr ? "تحتاج تدخل فوري" : "Requires urgent action"}
-            badge={isAr ? "عاجل" : "Urgent"}
-            currency=""
+            badge={isAr ? "عاجل" : "Urgent"}
             icon={<ShieldAlert className="size-5" />}
             iconClassName="bg-rose-500/10 text-rose-600 dark:text-rose-400"
             highlight={activeTab === "danger"}
@@ -226,8 +225,7 @@ function NotificationsPage() {
             title={isAr ? "نواقص المخزون" : "Stock Warnings"}
             value={num(counts.stock)}
             currency=""
-            subtitle={isAr ? "أصناف نفدت أو قاربت" : "Low or out of stock"}
-            currency=""
+            subtitle={isAr ? "أصناف نفدت أو قاربت" : "Low or out of stock"}
             icon={<PackageX className="size-5" />}
             iconClassName="bg-amber-500/10 text-amber-600 dark:text-amber-400"
             highlight={activeTab === "stock"}
@@ -239,8 +237,7 @@ function NotificationsPage() {
             title={isAr ? "الذمم والديون" : "Financial Debts"}
             value={num(counts.finance)}
             currency=""
-            subtitle={isAr ? "مستحقات عملاء وموردين" : "Receivables & payables"}
-            currency=""
+            subtitle={isAr ? "مستحقات عملاء وموردين" : "Receivables & payables"}
             icon={<Users className="size-5" />}
             iconClassName="bg-primary/10 text-primary"
             highlight={activeTab === "finance"}
@@ -252,8 +249,7 @@ function NotificationsPage() {
             title={isAr ? "إجمالي التنبيهات" : "Total Alerts"}
             value={num(counts.total)}
             currency=""
-            subtitle={isAr ? "جميع الإخطارات النشطة" : "All active notices"}
-            currency=""
+            subtitle={isAr ? "جميع الإخطارات النشطة" : "All active notices"}
             icon={<Bell className="size-5" />}
             iconClassName="bg-cyan-500/10 text-cyan-600 dark:text-cyan-400"
             highlight={activeTab === "all"}
