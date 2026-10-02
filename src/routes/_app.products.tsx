@@ -1556,7 +1556,6 @@ function ProductsPage() {
                   <span className="text-muted-foreground">{lang === "ar" ? "وحدة القياس" : "Unit"}</span>
                   <span className="font-semibold text-foreground">
                     {selectedProductDetail.unit.name_ar || selectedProductDetail.unit.name}
-                    }
                   </span>
                 </div>
               )}
