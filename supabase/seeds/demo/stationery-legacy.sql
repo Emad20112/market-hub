@@ -1,31 +1,27 @@
 -- ============================================================================
--- supabase/seeds/demo.sql
+-- supabase/seeds/demo/stationery-legacy.sql
 --
--- ⚠️ DEMO BUSINESS DATA — NOT AUTO-RUN. NEVER EXECUTE ON A CUSTOMER DATABASE.
+-- ⚠️ SUPERSEDED — kept for reference only. Prefer demo/stationery.sql.
 --
--- This file used to be supabase/seeds/seed.sql and was wired into config.toml,
--- so it ran automatically on every `supabase db reset`. It contains another
--- company's operational data:
+-- This is the ORIGINAL stationery demo dataset: the one that was wired into
+-- config.toml as ./seeds/seed.sql and therefore ran on every `supabase db reset`.
+-- It is byte-for-byte the older, less safe version of demo/stationery.sql:
 --
---     * company_settings          — overwrites the company's name, currency,
---                                   tax rate, address and invoice prefix
---     * 56 products, 12 categories, 7 brands, 8 suppliers, 20 customers
---     * 4 purchase invoices + items, 1 purchase return
---     * 6 sales invoices + items, 1 sales return
---     * inventory, product batches, 2 stock transfers, ~50 stock movements
---     * loyalty transactions, 7 expenses, 4 audit-log rows
+--   * it has NO ON CONFLICT on most blocks, so it aborts with 23505 whenever a
+--     reference row already exists
+--   * its auth.users block is missing the five token columns and its
+--     ON CONFLICT does not repair rows written by the older variant, which is
+--     exactly the defect that produced
+--     "sql: Scan error on column index 3, name confirmation_token"
+--   * it carries created_by / actor_id foreign keys into auth.users
 --
--- On a customer project that is not demo data, it is CORRUPTION: fabricated
--- invoices in their books and their company identity replaced. It is therefore
--- no longer referenced by config.toml. See supabase/seeds/reference.sql for the
--- safe defaults that do run automatically.
+-- demo/stationery.sql is the corrected version of the same dataset and should be
+-- used instead. This file is retained only so the previous generation of the
+-- dataset stays auditable.
 --
--- HOW TO RUN (local development or a throwaway project ONLY)
---   psql "$DATABASE_URL" -f supabase/seeds/demo_users.sql   # MUST run first
---   psql "$DATABASE_URL" -f supabase/seeds/demo.sql
---
---   demo_users.sql must run first: these rows carry created_by / actor_id
---   foreign keys pointing at its user ids.
+-- RUN (local development or a throwaway project ONLY)
+--   supabase/seeds/demo/accounts.sql      # MUST run first
+--   supabase/seeds/demo/stationery-legacy.sql
 --
 -- The whole file is wrapped in BEGIN/COMMIT, so a failure leaves nothing behind.
 -- ============================================================================
@@ -122,7 +118,7 @@ INSERT INTO expense_categories (id, name, name_ar, created_at) VALUES
 --      would create them in a customer project too.
 --
 -- The block has been moved verbatim to:
---     supabase/seeds/demo_users.sql      (opt-in, never auto-run)
+--     supabase/seeds/demo/accounts.sql   (opt-in, never auto-run)
 --
 -- Real accounts are provisioned through Supabase Auth, not through SQL.
 -- See docs/database/migration-safety-notes.md.

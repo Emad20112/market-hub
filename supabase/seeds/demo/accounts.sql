@@ -1,13 +1,15 @@
 -- ============================================================================
--- supabase/seeds/demo_users.sql
+-- supabase/seeds/demo/accounts.sql
 --
 -- ⚠️ DEMO ONLY — NOT AUTO-RUN. NEVER EXECUTE AGAINST A CUSTOMER DATABASE.
 --
--- This file was extracted verbatim from the old supabase/seeds/seed.sql, which
--- was the file wired into supabase/config.toml and therefore ran automatically on
--- `supabase db reset`. Identity rows must not live there: a seed that creates
+-- Renamed from supabase/seeds/demo_users.sql; see supabase/seeds/README.md.
+-- Creates four demo staff accounts (owner, manager, cashier, warehouse) with
+-- their profiles and roles.
+--
+-- Identity rows must never live in the auto-run seed: a seed that creates
 -- accounts creates them on every developer machine and would create them in a
--- customer project too. The auto-run file is now supabase/seeds/reference.sql,
+-- customer project too. The auto-run file is supabase/seeds/reference.sql,
 -- which contains no identities at all.
 --
 -- WHY THESE ACCOUNTS CANNOT SIGN IN
@@ -18,15 +20,17 @@
 --   sign in as one of them, create a real user through the Supabase Dashboard
 --   or the Auth Admin API and grant it the role you want.
 --
--- HOW TO RUN (local development only)
---   psql "$DATABASE_URL" -f supabase/seeds/demo_users.sql
---   or paste into Supabase Studio → SQL Editor on a throwaway project.
+-- RUN (local development only)
+--   paste into Supabase Studio → SQL Editor, or
+--   psql "$DATABASE_URL" -f supabase/seeds/demo/accounts.sql
 --
 -- PRE-REQUISITE
---   Run this file BEFORE supabase/seeds/demo.sql.
+--   Run this file BEFORE any demo dataset that references it:
+--     supabase/seeds/demo/stationery.sql
+--     supabase/seeds/demo/stationery-legacy.sql
 --
---   The demo transactions in demo.sql carry created_by / actor_id foreign keys
---   pointing at the user ids created here, so the rows must exist first.
+--   The demo transactions carry created_by / actor_id foreign keys pointing at
+--   the user ids created here, so the rows must exist first.
 --
 -- IDEMPOTENT: every statement uses ON CONFLICT, so re-running is safe.
 --
