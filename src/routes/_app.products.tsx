@@ -1,3 +1,4 @@
+import { cn } from "@/lib/utils";
 import {
   VortexDrawerDialog,
   VortexTextInput,
@@ -21,6 +22,7 @@ import {
   Plus,
   Package,
   Pencil,
+  Eye,
   Trash2,
   Settings,
   ExternalLink,
@@ -40,6 +42,13 @@ import {
   Sparkles,
   Loader2,
   Check,
+  DollarSign,
+  TrendingUp,
+  SlidersHorizontal,
+  ShieldCheck,
+  Percent,
+  X,
+  Copy
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/auth";
@@ -52,7 +61,7 @@ import {
   type ReferenceCounts,
 } from "@/lib/safety";
 import { fuzzySearch, buildSearchIndex } from "@/design/fuzzy";
-import { moneyCell, qtyCell } from "@/lib/format";
+import { getCompanyCurrencySymbol, moneyCell, qtyCell } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import { IconButton } from "@/components/ui/icon-button";
 import { FieldInput, NumberInput, fieldSurfaceClass } from "@/components/ui/input";
@@ -83,6 +92,7 @@ import {
   INVENTORY_POLICY_LABELS,
   ITEM_NATURE_LABELS,
   TRACKING_LABELS,
+  validateItemPolicy,
   type CostingMethod,
   type InventoryPolicy,
   type ItemNature,
@@ -118,7 +128,7 @@ type ProductRow = {
   unit_id: string | null;
   category?: { name: string; name_ar: string | null } | null;
   brand?: { name: string; name_ar: string | null } | null;
-  unit?: { short_name: string; name_ar: string | null } | null;
+  unit?: { name?: string; short_name: string; name_ar: string | null } | null;
   origin?: { id: string; name: string; name_ar: string | null; code: string } | null;
   quality?: {
     id: string;
@@ -191,6 +201,7 @@ function ProductsPage() {
     "all",
   );
   const [viewMode, setViewMode] = useState<"grid" | "list" | "table">("grid");
+  const [selectedProductDetail, setSelectedProductDetail] = useState<ProductRow | null>(null);
   const [copiedBarcode, setCopiedBarcode] = useState<string | null>(null);
 
   const toggleProductActiveMutation = useMutation({
@@ -266,7 +277,7 @@ function ProductsPage() {
       const { data: enrichmentRows, error: enrichmentError } = productIds.length
         ? await (supabase.from("products") as any)
             .select(
-              "id, shelf_location, origin_id, quality_grade_id, category:categories(name, name_ar), brand:brands(name, name_ar), unit:units(short_name, name_ar), origin:countries_of_origin(id, name, name_ar, code), quality:quality_grades(id, name, name_ar, code, sort_order)",
+              "id, shelf_location, origin_id, quality_grade_id, category:categories(name, name_ar), brand:brands(name, name_ar), unit:units(name, short_name, name_ar), origin:countries_of_origin(id, name, name_ar, code), quality:quality_grades(id, name, name_ar, code, sort_order)",
             )
             .in("id", productIds)
         : { data: [], error: null };
@@ -754,7 +765,7 @@ function ProductsPage() {
       <PageHeader
         title={t("products.title")}
         subtitle={t("products.subtitle")}
-        action={
+        actions={
           <div className="flex items-center gap-2">
             <Button
               variant="outline"
@@ -976,9 +987,7 @@ function ProductsPage() {
                     <div
                       key={p.id}
                       onClick={() => {
-                        setEditing(p);
-                        setPrefillBarcode(undefined);
-                        setOpen(true);
+                        setSelectedProductDetail(p);
                       }}
                       className={`card-mullak group relative overflow-hidden rounded-2xl p-3 sm:p-4.5 flex flex-col justify-between cursor-pointer border transition-all duration-200 hover:shadow-md ${
                         !p.is_active
@@ -1020,10 +1029,6 @@ function ProductsPage() {
                               )}
                               <span className="truncate max-w-[65px] sm:max-w-[85px]">{p.barcode}</span>
                             </button>
-                          ) : p.sku ? (
-                            <span className="rounded-md bg-surface-2 px-1.5 py-0.5 font-mono text-[9px] sm:text-[10px] text-muted-foreground truncate max-w-[70px]">
-                              {p.sku}
-                            </span>
                           ) : null}
 
                           <span
@@ -1047,14 +1052,7 @@ function ProductsPage() {
                         >
                           {primary}
                         </h4>
-                        {secondary && (
-                          <p
-                            className="text-[10px] sm:text-[11px] text-muted-foreground/80 line-clamp-1 mt-0.5"
-                            dir={lang === "ar" ? "ltr" : "rtl"}
-                          >
-                            {secondary}
-                          </p>
-                        )}
+
                       </div>
 
                       {/* Attribute Pills: Brand, Unit, Shelf */}
@@ -1065,8 +1063,8 @@ function ProductsPage() {
                           </span>
                         )}
                         {p.unit && (
-                          <span className="rounded-md bg-surface-2/70 px-1.5 py-0.2 border border-border/50">
-                            {label(p.unit.short_name, p.unit.name_ar)}
+                          <span className="inline-flex items-center gap-1 rounded-md bg-primary/10 text-primary border border-primary/20 px-2 py-0.5 text-[10px] font-bold">
+                            <span>{p.unit.name_ar || p.unit.name || p.unit.short_name}</span>
                           </span>
                         )}
                         {p.shelf_location && (
@@ -1216,9 +1214,7 @@ function ProductsPage() {
                     <div
                       key={p.id}
                       onClick={() => {
-                        setEditing(p);
-                        setPrefillBarcode(undefined);
-                        setOpen(true);
+                        setSelectedProductDetail(p);
                       }}
                       className="card-mullak group relative flex flex-col md:flex-row md:items-center justify-between gap-3 p-3.5 sm:p-4 rounded-2xl cursor-pointer border transition-all duration-200 hover:border-primary/50 hover:shadow-md"
                     >
@@ -1320,6 +1316,18 @@ function ProductsPage() {
                             size="sm"
                             variant="ghost"
                             tooltip
+                            ariaLabel={lang === "ar" ? "عرض التفاصيل" : "View details"}
+                            icon={<Eye className="size-3.5 text-primary" />}
+                            round
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              setSelectedProductDetail(p);
+                            }}
+                          />
+                          <IconButton
+                            size="sm"
+                            variant="ghost"
+                            tooltip
                             ariaLabel={p.is_active ? (lang === "ar" ? "تعطيل المنتج" : "Deactivate") : (lang === "ar" ? "تفعيل المنتج" : "Activate")}
                             icon={<Power className={`size-3.5 ${p.is_active ? "text-emerald-500" : "text-muted-foreground"}`} />}
                             round
@@ -1410,9 +1418,7 @@ function ProductsPage() {
             horizontalScroll={tableUsesHorizontalScroll}
             stickyHeader
             onRowClick={(product) => {
-              setEditing(product);
-              setPrefillBarcode(undefined);
-              setOpen(true);
+              setSelectedProductDetail(product);
             }}
             empty={{
               icon: <Package />,
@@ -1427,6 +1433,210 @@ function ProductsPage() {
           />
         </div>
       )}
+
+
+      {/* ─── Luxury Product Detail Sheet (Drawer) ─── */}
+      {selectedProductDetail && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-end bg-black/65 backdrop-blur-xs animate-in fade-in duration-200"
+          onClick={() => setSelectedProductDetail(null)}
+        >
+          <div
+            className="h-full w-full max-w-lg border-s border-border/80 bg-background/95 backdrop-blur-md p-6 shadow-2xl overflow-y-auto animate-in slide-in-from-left duration-200"
+            onClick={(e) => e.stopPropagation()}
+            dir={lang === "ar" ? "rtl" : "ltr"}
+          >
+            {/* Ambient decorative blur */}
+            <div className="absolute -top-10 -right-10 size-40 rounded-full bg-primary/20 blur-3xl pointer-events-none" />
+
+            {/* Header */}
+            <div className="flex items-start justify-between pb-4 border-b border-border/60">
+              <div className="flex items-center gap-3.5">
+                <div className="grid size-14 place-items-center rounded-2xl bg-primary/10 text-primary font-bold text-xl border border-primary/20 shadow-sm">
+                  <Package className="size-6 text-primary" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-foreground">
+                    {lang === "ar"
+                      ? selectedProductDetail.name_ar || selectedProductDetail.name
+                      : selectedProductDetail.name || selectedProductDetail.name_ar}
+                  </h3>
+                  <div className="mt-0.5 flex items-center gap-2">
+                    <span
+                      className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] font-bold ${
+                        selectedProductDetail.is_active
+                          ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-400"
+                          : "border-border bg-muted text-muted-foreground"
+                      }`}
+                    >
+                      {selectedProductDetail.is_active ? t("common.active") : t("common.inactive")}
+                    </span>
+                    {selectedProductDetail.sku && (
+                      <span className="font-mono text-xs text-muted-foreground">
+                        SKU: {selectedProductDetail.sku}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedProductDetail(null)}
+                className="grid size-9 place-items-center rounded-full bg-surface-2 text-muted-foreground hover:text-foreground transition"
+              >
+                <X className="size-4" />
+              </button>
+            </div>
+
+            {/* Financial Overview Cards */}
+            <div className="mt-5 grid grid-cols-2 gap-3">
+              <div className="rounded-2xl border border-border/70 bg-card p-4">
+                <span className="text-[11px] font-bold text-muted-foreground block mb-1">
+                  {lang === "ar" ? "سعر البيع" : "Sale Price"}
+                </span>
+                <span className="text-xl font-black font-mono text-foreground">
+                  {moneyCell(selectedProductDetail.sale_price)}
+                </span>
+              </div>
+
+              {canViewCost && (
+                <div className="rounded-2xl border border-border/70 bg-card p-4">
+                  <span className="text-[11px] font-bold text-muted-foreground block mb-1">
+                    {lang === "ar" ? "سعر التكلفة" : "Cost Price"}
+                  </span>
+                  <span className="text-xl font-black font-mono text-muted-foreground">
+                    {selectedProductDetail.cost_price != null
+                      ? moneyCell(selectedProductDetail.cost_price)
+                      : "—"}
+                  </span>
+                </div>
+              )}
+
+              <div className="rounded-2xl border border-border/70 bg-card p-4">
+                <span className="text-[11px] font-bold text-muted-foreground block mb-1">
+                  {lang === "ar" ? "حد أدنى المخزون" : "Min Stock Alert"}
+                </span>
+                <span className="text-lg font-black font-mono text-amber-500">
+                  {qtyCell(selectedProductDetail.min_stock)}
+                </span>
+              </div>
+
+              <div className="rounded-2xl border border-border/70 bg-card p-4">
+                <span className="text-[11px] font-bold text-muted-foreground block mb-1">
+                  {lang === "ar" ? "الضريبة" : "Tax Rate"}
+                </span>
+                <span className="text-lg font-black font-mono text-foreground">
+                  {selectedProductDetail.tax_rate ? `${selectedProductDetail.tax_rate}%` : "0%"}
+                </span>
+              </div>
+            </div>
+
+            {/* Attribute & Specifications Grid */}
+            <div className="mt-5 rounded-2xl border border-border/70 bg-card p-4 space-y-3 text-xs">
+              <div className="flex items-center justify-between border-b border-border/40 pb-2">
+                <span className="text-muted-foreground">{lang === "ar" ? "التصنيف" : "Category"}</span>
+                <span className="font-semibold text-foreground">
+                  {selectedProductDetail.category
+                    ? label(selectedProductDetail.category.name, selectedProductDetail.category.name_ar)
+                    : "—"}
+                </span>
+              </div>
+
+              {selectedProductDetail.brand && (
+                <div className="flex items-center justify-between border-b border-border/40 pb-2">
+                  <span className="text-muted-foreground">{lang === "ar" ? "العلامة التجارية" : "Brand"}</span>
+                  <span className="font-semibold text-foreground">
+                    {label(selectedProductDetail.brand.name, selectedProductDetail.brand.name_ar)}
+                  </span>
+                </div>
+              )}
+
+              {selectedProductDetail.unit && (
+                <div className="flex items-center justify-between border-b border-border/40 pb-2">
+                  <span className="text-muted-foreground">{lang === "ar" ? "وحدة القياس" : "Unit"}</span>
+                  <span className="font-semibold text-foreground">
+                    {selectedProductDetail.unit.name_ar || selectedProductDetail.unit.name}
+                  </span>
+                </div>
+              )}
+
+              {selectedProductDetail.barcode && (
+                <div className="flex items-center justify-between border-b border-border/40 pb-2">
+                  <span className="text-muted-foreground">{lang === "ar" ? "الباركود" : "Barcode"}</span>
+                  <div className="flex items-center gap-1.5 font-mono font-bold text-foreground">
+                    <span>{selectedProductDetail.barcode}</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        navigator.clipboard.writeText(selectedProductDetail.barcode!);
+                        toast.success(lang === "ar" ? "تم نسخ الباركود" : "Barcode copied");
+                      }}
+                      className="text-muted-foreground hover:text-foreground"
+                    >
+                      <Copy className="size-3.5" />
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {selectedProductDetail.shelf_location && (
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">{lang === "ar" ? "موقع الرف" : "Shelf Location"}</span>
+                  <span className="font-mono text-foreground font-semibold">
+                    {selectedProductDetail.shelf_location}
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {/* Quick Actions Footer */}
+            <div className="mt-6 flex items-center gap-2 pt-4 border-t border-border/60">
+              <Button
+                variant="outline"
+                className="flex-1 rounded-xl gap-2 font-bold"
+                onClick={() => {
+                  setEditing(selectedProductDetail);
+                  setSelectedProductDetail(null);
+                  setOpen(true);
+                }}
+              >
+                <Pencil className="size-4" />
+                <span>{t("common.edit")}</span>
+              </Button>
+              <Button
+                variant="outline"
+                className="rounded-xl gap-2 font-bold"
+                onClick={() => {
+                  toggleProductActiveMutation.mutate({
+                    id: selectedProductDetail.id,
+                    isActive: !selectedProductDetail.is_active,
+                  });
+                  setSelectedProductDetail({
+                    ...selectedProductDetail,
+                    is_active: !selectedProductDetail.is_active,
+                  });
+                }}
+              >
+                <Power
+                  className={`size-4 ${
+                    selectedProductDetail.is_active ? "text-emerald-500" : "text-muted-foreground"
+                  }`}
+                />
+                <span>
+                  {selectedProductDetail.is_active
+                    ? lang === "ar"
+                      ? "تعطيل"
+                      : "Deactivate"
+                    : lang === "ar"
+                      ? "تفعيل"
+                      : "Activate"}
+                </span>
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
 
       {open && (
         <ProductDialog
@@ -1605,9 +1815,21 @@ function ProductDialog({
   const { config } = useCatalogModules();
   const { isModuleEnabled } = useModules();
   const [scannerOpen, setScannerOpen] = useState(false);
-  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<"general" | "pricing" | "specs" | "policy">("general");
+  const policyFromProduct = (product: ProductRow): UserItemPolicyPreferences => ({
+    item_nature: product.item_nature ?? "GOOD",
+    inventory_policy: product.inventory_policy ?? "TRACKED",
+    tracking: product.tracking ?? "NONE",
+    costing_method: product.costing_method ?? "MOVING_AVERAGE",
+    is_sellable: product.is_sellable ?? true,
+    is_purchasable: product.is_purchasable ?? true,
+  });
   const [policy, setPolicy] = useState<UserItemPolicyPreferences>(() =>
-    userId ? readUserItemPolicyPreferences(userId) : DEFAULT_USER_ITEM_POLICY_PREFERENCES,
+    initial
+      ? policyFromProduct(initial)
+      : userId
+        ? readUserItemPolicyPreferences(userId)
+        : DEFAULT_USER_ITEM_POLICY_PREFERENCES,
   );
   const [form, setForm] = useState({
     name: initial?.name ?? "",
@@ -1617,10 +1839,10 @@ function ProductDialog({
     category_id: initial?.category_id ?? "",
     brand_id: initial?.brand_id ?? "",
     unit_id: initial?.unit_id ?? "",
-    cost_price: initial?.cost_price?.toString() ?? "0",
-    sale_price: initial?.sale_price?.toString() ?? "0",
-    tax_rate: initial?.tax_rate?.toString() ?? "0",
-    min_stock: initial?.min_stock?.toString() ?? "1",
+    cost_price: initial?.cost_price != null ? String(initial.cost_price) : "",
+    sale_price: initial?.sale_price != null ? String(initial.sale_price) : "",
+    tax_rate: initial?.tax_rate != null ? String(initial.tax_rate) : "",
+    min_stock: initial?.min_stock != null ? String(initial.min_stock) : "",
     shelf_location: initial?.shelf_location ?? "",
     origin_id: initial?.origin_id ?? "",
     quality_grade_id: initial?.quality_grade_id ?? "",
@@ -1629,9 +1851,13 @@ function ProductDialog({
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    if (!initial && userId) {
-      setPolicy(readUserItemPolicyPreferences(userId));
-    }
+    setPolicy(
+      initial
+        ? policyFromProduct(initial)
+        : userId
+          ? readUserItemPolicyPreferences(userId)
+          : DEFAULT_USER_ITEM_POLICY_PREFERENCES,
+    );
   }, [initial, userId]);
 
   useKeyboardWedge({
@@ -1642,20 +1868,31 @@ function ProductDialog({
     disabled: !isModuleEnabled("barcode") || scannerOpen,
   });
 
+  const costNum = Number(form.cost_price) || 0;
+  const saleNum = Number(form.sale_price) || 0;
+  const profitNum = saleNum - costNum;
+  const marginPercent = saleNum > 0 ? Math.round((profitNum / saleNum) * 100) : 0;
+
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (saving) return;
-    if (!form.name_ar.trim() && !form.name.trim()) {
-      toast.error(lang === "ar" ? "اسم المنتج مطلوب" : t("products.name_required"));
-      return;
-    }
-    if (!policy.is_sellable && !policy.is_purchasable) {
+    if (!form.name_ar.trim()) {
       toast.error(
         lang === "ar"
-          ? "يجب أن يكون المنتج متاحًا للبيع أو الشراء على الأقل."
-          : "The product must be available for sales or purchases.",
+          ? "اسم المنتج بالعربية مطلوب لظهوره بشكل صحيح في بطاقات النظام."
+          : "An Arabic product name is required for the Yemen catalogue.",
       );
-      setSettingsOpen(true);
+      setActiveTab("general");
+      return;
+    }
+    const policyCheck = validateItemPolicy(policy);
+    if (!policyCheck.valid) {
+      toast.error(
+        lang === "ar"
+          ? policyCheck.errors[0]
+          : "The selected item policy is not valid.",
+      );
+      setActiveTab("policy");
       return;
     }
     setSaving(true);
@@ -1675,6 +1912,12 @@ function ProductDialog({
       origin_id: config.enableOrigins ? form.origin_id || null : null,
       quality_grade_id: config.enableQualityGrades ? form.quality_grade_id || null : null,
       is_active: form.is_active,
+      item_nature: policy.item_nature,
+      inventory_policy: policy.inventory_policy,
+      tracking: policy.tracking,
+      costing_method: policy.costing_method,
+      is_sellable: policy.is_sellable,
+      is_purchasable: policy.is_purchasable,
     };
     const request: any = initial
       ? (supabase.from("products") as any)
@@ -1715,6 +1958,7 @@ function ProductDialog({
   }
 
   const labelOf = (en: string, ar: string | null) => (lang === "ar" ? ar || en : en || ar || "");
+  const currentCategory = meta.categories.find((c) => c.id === form.category_id);
 
   return (
     <VortexDrawerDialog
@@ -1722,121 +1966,266 @@ function ProductDialog({
       onOpenChange={(isOpen) => {
         if (!isOpen) onClose();
       }}
-      size="lg"
-      title={initial ? t("products.edit_product") : t("products.new_product")}
-      description={
+      size="xl"
+      title={
+        <div className="flex items-center gap-2">
+          <span className="flex size-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
+            <Package className="size-4" />
+          </span>
+          <span>{initial ? t("products.edit_product") : t("products.new_product")}</span>
+        </div>
+      }
+      subtitle={
         initial
           ? lang === "ar"
-            ? "تعديل تفاصيل المنتج والأسعار والمخزون"
-            : "Edit product details, pricing, and stock"
+            ? "تعديل مواصفات الصنف وهوامش التسعير والسياسات"
+            : "Update product specs, margins, and policies"
           : lang === "ar"
-            ? "إضافة منتج جديد وتحديد الأسعار والمخزون"
-            : "Create a new product with pricing and stock"
+            ? "تعريف صنف جديد بأسلوب بطاقة المكونات الأنيقة"
+            : "Define a new catalog item with luxury details"
       }
       footer={
-        <div className="flex w-full items-center justify-end gap-3">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={onClose}
-            className="flex-1 sm:flex-initial min-w-[110px] rounded-xl font-medium"
-          >
-            {t("common.cancel")}
-          </Button>
-          <Button
-            type="submit"
-            form="product-form"
-            loading={saving}
-            className="flex-1 sm:flex-initial min-w-[140px] rounded-xl bg-primary font-semibold text-primary-foreground shadow-sm hover:bg-primary/90"
-          >
-            {t("common.save")}
-          </Button>
+        <div className="flex w-full items-center justify-between gap-3 border-t border-border/40 pt-3">
+          <div className="flex items-center gap-2">
+            <label className="relative inline-flex cursor-pointer items-center gap-2">
+              <input
+                type="checkbox"
+                checked={form.is_active}
+                onChange={(e) => setForm({ ...form, is_active: e.target.checked })}
+                className="size-4 rounded border-border accent-primary"
+              />
+              <span className="text-xs font-semibold text-foreground/80">
+                {form.is_active ? (lang === "ar" ? "صنف نشط" : "Active") : (lang === "ar" ? "صنف معطل" : "Inactive")}
+              </span>
+            </label>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={onClose}
+              className="min-w-[90px] rounded-xl text-xs font-medium"
+            >
+              {t("common.cancel")}
+            </Button>
+            <Button
+              type="submit"
+              form="product-form"
+              loading={saving}
+              className="min-w-[130px] rounded-xl bg-primary text-xs font-semibold text-primary-foreground shadow-sm hover:bg-primary/95"
+            >
+              <Check className="me-1 size-3.5" />
+              {t("common.save")}
+            </Button>
+          </div>
         </div>
       }
     >
-      <form id="product-form" onSubmit={submit} className="flex flex-col gap-6">
-        <FormSection
-          title={lang === "ar" ? "بيانات المنتج" : "Product details"}
-          actions={
-            <IconButton
-              type="button"
-              size="md"
-              variant="outline"
-              tooltip
-              ariaLabel={lang === "ar" ? "إعدادات المنتج" : "Product settings"}
-              icon={<Settings className="size-4" />}
-              onClick={() => setSettingsOpen(true)}
-            />
-          }
-        >
-          <FormGrid cols={3}>
-            <FormField label={t("products.name_ar")} required>
-              {(p) => (
-                <VortexTextInput
-                  id={p.id}
-                  aria-describedby={p["aria-describedby"]}
-                  dir="rtl"
-                  clearable
-                  value={form.name_ar}
-                  onChange={(e) => setForm({ ...form, name_ar: e.target.value })}
-                  placeholder={
-                    lang === "ar" ? "أدخل اسم المنتج بالعربية..." : "Product name in Arabic..."
-                  }
-                />
-              )}
-            </FormField>
-
-            <FormField label={t("products.name_en")}>
-              {(p) => (
-                <VortexTextInput
-                  id={p.id}
-                  aria-describedby={p["aria-describedby"]}
-                  dir="ltr"
-                  clearable
-                  value={form.name}
-                  onChange={(e) => setForm({ ...form, name: e.target.value })}
-                  placeholder={lang === "ar" ? "Product name in English..." : "Product name..."}
-                />
-              )}
-            </FormField>
-
-            <FormField label={t("products.category")}>
-              {(p) => (
-                <select
-                  id={p.id}
-                  aria-describedby={p["aria-describedby"]}
-                  value={form.category_id}
-                  onChange={(e) => setForm({ ...form, category_id: e.target.value })}
-                  className={fieldSurfaceClass}
+      <form id="product-form" onSubmit={submit} className="flex flex-col gap-5">
+        {/* Luxury Product Showcase Card */}
+        <div className="relative overflow-hidden rounded-2xl border border-border/60 bg-gradient-to-br from-card via-card/90 to-primary/5 p-4 shadow-xs sm:p-5">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0 flex-1 space-y-1.5">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="inline-flex items-center rounded-md bg-primary/10 px-2 py-0.5 text-[11px] font-semibold text-primary">
+                  {currentCategory ? labelOf(currentCategory.name, currentCategory.name_ar) : (lang === "ar" ? "بدون تصنيف" : "Uncategorized")}
+                </span>
+                {form.barcode && (
+                  <span className="inline-flex items-center gap-1 rounded-md bg-muted/80 px-2 py-0.5 text-[11px] font-mono text-muted-foreground">
+                    <Barcode className="size-3" />
+                    {toSystemDigits(form.barcode)}
+                  </span>
+                )}
+                <span
+                  className={cn(
+                    "inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-medium",
+                    form.is_active
+                      ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                      : "bg-muted text-muted-foreground",
+                  )}
                 >
-                  <option value="">—</option>
-                  {meta.categories.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {labelOf(c.name, c.name_ar)}
-                    </option>
-                  ))}
-                </select>
+                  <span className={cn("size-1.5 rounded-full", form.is_active ? "bg-emerald-500" : "bg-muted-foreground")} />
+                  {form.is_active ? (lang === "ar" ? "نشط" : "Active") : (lang === "ar" ? "معطل" : "Inactive")}
+                </span>
+              </div>
+              <h3 className="truncate text-base font-bold text-foreground sm:text-lg">
+                {form.name_ar.trim() || form.name.trim() || (lang === "ar" ? "اسم المنتج الجديد..." : "New Product Name...")}
+              </h3>
+              {form.name_ar.trim() && form.name.trim() && (
+                <p className="truncate text-xs text-muted-foreground">{form.name}</p>
               )}
-            </FormField>
+            </div>
 
-            <FormField
-              label={t("products.sku")}
-              hint={lang === "ar" ? "معرّف داخلي فريد" : "Unique internal identifier"}
-            >
-              {(p) => (
-                <VortexTextInput
-                  id={p.id}
-                  aria-describedby={p["aria-describedby"]}
-                  clearable
-                  value={form.sku}
-                  onChange={(e) => setForm({ ...form, sku: e.target.value })}
-                  placeholder={lang === "ar" ? "مثال: PRD-001" : "e.g. PRD-001"}
-                />
-              )}
-            </FormField>
+            {/* Live Financial Metrics preview */}
+            {canViewCost && (
+              <div className="flex items-center gap-3 rounded-xl border border-border/40 bg-background/80 p-3 backdrop-blur-xs">
+                <div className="text-center sm:text-end">
+                  <div className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                    {lang === "ar" ? "هامش الربح المتوقع" : "Expected Margin"}
+                  </div>
+                  <div className="flex items-center justify-center gap-1 font-mono text-sm font-bold text-foreground sm:justify-end">
+                    <span className={cn(profitNum >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400")}>
+                      {profitNum > 0 ? "+" : ""}{toSystemDigits(profitNum.toFixed(2))} {getCompanyCurrencySymbol()}
+                    </span>
+                  </div>
+                </div>
+                <div
+                  className={cn(
+                    "flex flex-col items-center justify-center rounded-lg px-2.5 py-1 text-center font-mono text-xs font-bold",
+                    profitNum >= 0
+                      ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
+                      : "bg-rose-500/10 text-rose-700 dark:text-rose-300",
+                  )}
+                >
+                  <span className="text-[10px] font-normal opacity-80">{lang === "ar" ? "العائد" : "ROI"}</span>
+                  <span>{marginPercent}%</span>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Sleek Segmented Tabs */}
+        <div className="flex items-center gap-1.5 overflow-x-auto rounded-xl border border-border/50 bg-muted/30 p-1 text-xs">
+          <button
+            type="button"
+            onClick={() => setActiveTab("general")}
+            className={cn(
+              "flex flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-2 font-medium transition-all duration-150 whitespace-nowrap",
+              activeTab === "general"
+                ? "bg-card text-foreground shadow-xs font-semibold"
+                : "text-muted-foreground hover:text-foreground",
+            )}
+          >
+            <Package className="size-3.5" />
+            <span>{lang === "ar" ? "البيانات الأساسية" : "Basic Info"}</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab("pricing")}
+            className={cn(
+              "flex flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-2 font-medium transition-all duration-150 whitespace-nowrap",
+              activeTab === "pricing"
+                ? "bg-card text-foreground shadow-xs font-semibold"
+                : "text-muted-foreground hover:text-foreground",
+            )}
+          >
+            <DollarSign className="size-3.5" />
+            <span>{lang === "ar" ? "التسعير والربحية" : "Pricing & Margins"}</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab("specs")}
+            className={cn(
+              "flex flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-2 font-medium transition-all duration-150 whitespace-nowrap",
+              activeTab === "specs"
+                ? "bg-card text-foreground shadow-xs font-semibold"
+                : "text-muted-foreground hover:text-foreground",
+            )}
+          >
+            <Layers className="size-3.5" />
+            <span>{lang === "ar" ? "المخزون والمواصفات" : "Stock & Specs"}</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab("policy")}
+            className={cn(
+              "flex flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-2 font-medium transition-all duration-150 whitespace-nowrap",
+              activeTab === "policy"
+                ? "bg-card text-foreground shadow-xs font-semibold"
+                : "text-muted-foreground hover:text-foreground",
+            )}
+          >
+            <SlidersHorizontal className="size-3.5" />
+            <span>{lang === "ar" ? "طبيعة وسياسة الصنف" : "Policies"}</span>
+          </button>
+        </div>
+
+        {/* Tab 1: General Info */}
+        {activeTab === "general" && (
+          <div className="space-y-4 pt-1">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <FormField label={t("products.name_ar")} required>
+                {(p) => (
+                  <VortexTextInput
+                    id={p.id}
+                    aria-describedby={p["aria-describedby"]}
+                    dir="rtl"
+                    clearable
+                    value={form.name_ar}
+                    onChange={(e) => setForm({ ...form, name_ar: e.target.value })}
+                    placeholder={lang === "ar" ? "أدخل اسم الصنف بالعربية..." : "Arabic product name..."}
+                  />
+                )}
+              </FormField>
+
+              <FormField label={t("products.name_en")}>
+                {(p) => (
+                  <VortexTextInput
+                    id={p.id}
+                    aria-describedby={p["aria-describedby"]}
+                    dir="ltr"
+                    clearable
+                    value={form.name}
+                    onChange={(e) => setForm({ ...form, name: e.target.value })}
+                    placeholder={lang === "ar" ? "English product name..." : "English product name..."}
+                  />
+                )}
+              </FormField>
+            </div>
+
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <FormField label={t("products.category")}>
+                {(p) => (
+                  <select
+                    id={p.id}
+                    aria-describedby={p["aria-describedby"]}
+                    value={form.category_id}
+                    onChange={(e) => setForm({ ...form, category_id: e.target.value })}
+                    className={cn(fieldSurfaceClass, "text-sm font-medium")}
+                  >
+                    <option value="">{lang === "ar" ? "اختر التصنيف..." : "Select category..."}</option>
+                    {meta.categories.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {labelOf(c.name, c.name_ar)}
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </FormField>
+
+              <FormField
+                label={t("products.sku")}
+                hint={lang === "ar" ? "معرّف الصنف الفريد" : "Unique SKU code"}
+              >
+                {(p) => (
+                  <VortexTextInput
+                    id={p.id}
+                    aria-describedby={p["aria-describedby"]}
+                    clearable
+                    value={form.sku}
+                    onChange={(e) => setForm({ ...form, sku: e.target.value })}
+                    placeholder="PRD-001"
+                  />
+                )}
+              </FormField>
+
+              <FormField label={lang === "ar" ? "موقع الرف / المستودع" : "Shelf location"}>
+                {(p) => (
+                  <VortexTextInput
+                    id={p.id}
+                    aria-describedby={p["aria-describedby"]}
+                    clearable
+                    value={form.shelf_location}
+                    onChange={(e) => setForm({ ...form, shelf_location: e.target.value })}
+                    placeholder={lang === "ar" ? "رف A-12" : "Shelf A-12"}
+                  />
+                )}
+              </FormField>
+            </div>
 
             {isModuleEnabled("barcode") && (
-              <FormField label={t("products.barcode")}>
+              <FormField label={t("products.barcode")} hint={lang === "ar" ? "رمز الباركود للمسح السريع" : "Fast scan barcode"}>
                 {(p) => (
                   <div className="flex items-center gap-2">
                     <VortexTextInput
@@ -1847,44 +2236,116 @@ function ProductDialog({
                       value={form.barcode}
                       onChange={(e) => setForm({ ...form, barcode: e.target.value })}
                       placeholder="628100..."
-                      className="min-w-0 flex-1"
+                      className="min-w-0 flex-1 font-mono"
                     />
                     <IconButton
                       type="button"
                       size="md"
                       variant="outline"
-                      ariaLabel={
-                        lang === "ar" ? "مسح الباركود بالكاميرا" : "Scan barcode with camera"
-                      }
-                      icon={<Camera />}
+                      ariaLabel={lang === "ar" ? "مسح الباركود بالكاميرا" : "Scan barcode"}
+                      icon={<Camera className="size-4" />}
                       onClick={() => setScannerOpen(true)}
                     />
                   </div>
                 )}
               </FormField>
             )}
+          </div>
+        )}
 
-            <FormField label={lang === "ar" ? "موقع الرف / المستودع" : "Shelf location"}>
-              {(p) => (
-                <VortexTextInput
-                  id={p.id}
-                  aria-describedby={p["aria-describedby"]}
-                  clearable
-                  value={form.shelf_location}
-                  onChange={(e) => setForm({ ...form, shelf_location: e.target.value })}
-                  placeholder={lang === "ar" ? "مثال: رف A - 03" : "e.g. Shelf A - 03"}
-                />
+        {/* Tab 2: Pricing & Margins */}
+        {activeTab === "pricing" && (
+          <div className="space-y-4 pt-1">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <FormField label={t("common.price")} required hint={lang === "ar" ? "سعر البيع النهائي للعميل" : "Retail sale price"}>
+                {(p) => (
+                  <VortexCurrencyInput
+                    id={p.id}
+                    aria-describedby={p["aria-describedby"]}
+                    value={form.sale_price === "" ? null : Number(form.sale_price)}
+                    onValueChange={(num) => setForm({ ...form, sale_price: num == null ? "" : String(num) })}
+                    min={0}
+                    currencySymbol={getCompanyCurrencySymbol()}
+                    placeholder="0.00"
+                  />
+                )}
+              </FormField>
+
+              {canViewCost && (
+                <FormField
+                  label={t("common.cost")}
+                  hint={lang === "ar" ? "تكلفة الشراء الأساسية" : "Unit cost price"}
+                >
+                  <VortexCurrencyInput
+                    value={form.cost_price === "" ? null : Number(form.cost_price)}
+                    onValueChange={(num) => setForm({ ...form, cost_price: num == null ? "" : String(num) })}
+                    min={0}
+                    currencySymbol={getCompanyCurrencySymbol()}
+                    placeholder="0.00"
+                  />
+                </FormField>
               )}
-            </FormField>
-          </FormGrid>
-        </FormSection>
-        {/* Catalog attributes */}
-        {(config.enableBrands ||
-          config.enableOrigins ||
-          config.enableQualityGrades ||
-          config.enableUnits) && (
-          <FormSection title={lang === "ar" ? "خصائص الفهرس" : "Catalog attributes"}>
-            <FormGrid cols={3}>
+            </div>
+
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <FormField label={t("products.tax_rate")}>
+                {(p) => (
+                  <NumberInput
+                    {...p}
+                    value={form.tax_rate === "" ? null : Number(form.tax_rate)}
+                    onValueChange={(v) => setForm({ ...form, tax_rate: v == null ? "" : String(v) })}
+                    min={0}
+                    max={100}
+                    suffix="%"
+                    placeholder="0"
+                  />
+                )}
+              </FormField>
+
+              {config.enableUnits && (
+                <FormField label={t("products.unit")}>
+                  {(p) => (
+                    <select
+                      id={p.id}
+                      aria-describedby={p["aria-describedby"]}
+                      value={form.unit_id}
+                      onChange={(e) => setForm({ ...form, unit_id: e.target.value })}
+                      className={cn(fieldSurfaceClass, "text-sm font-medium")}
+                    >
+                      <option value="">{lang === "ar" ? "اختر وحدة القياس..." : "Select unit..."}</option>
+                      {meta.units.map((u) => (
+                        <option key={u.id} value={u.id}>
+                          {labelOf(u.name, u.name_ar)} 
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                </FormField>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Tab 3: Specs & Inventory */}
+        {activeTab === "specs" && (
+          <div className="space-y-4 pt-1">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <FormField
+                label={t("products.min")}
+                hint={lang === "ar" ? "حد التنبيه عند وصول المخزون لهذه الكمية" : "Low-stock alert threshold"}
+              >
+                {(p) => (
+                  <NumberInput
+                    {...p}
+                    value={form.min_stock === "" ? null : Number(form.min_stock)}
+                    onValueChange={(v) => setForm({ ...form, min_stock: v == null ? "" : String(v) })}
+                    min={0}
+                    decimal={false}
+                    placeholder="1"
+                  />
+                )}
+              </FormField>
+
               {config.enableBrands && (
                 <FormField label={t("products.brand")}>
                   {(p) => (
@@ -1893,9 +2354,9 @@ function ProductDialog({
                       aria-describedby={p["aria-describedby"]}
                       value={form.brand_id}
                       onChange={(e) => setForm({ ...form, brand_id: e.target.value })}
-                      className={fieldSurfaceClass}
+                      className={cn(fieldSurfaceClass, "text-sm font-medium")}
                     >
-                      <option value="">—</option>
+                      <option value="">{lang === "ar" ? "اختر العلامة التجارية..." : "Select brand..."}</option>
                       {meta.brands.map((b) => (
                         <option key={b.id} value={b.id}>
                           {labelOf(b.name, b.name_ar)}
@@ -1905,7 +2366,9 @@ function ProductDialog({
                   )}
                 </FormField>
               )}
+            </div>
 
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               {config.enableOrigins && (
                 <FormField label={lang === "ar" ? "بلد المنشأ" : "Country of origin"}>
                   {(p) => (
@@ -1914,12 +2377,12 @@ function ProductDialog({
                       aria-describedby={p["aria-describedby"]}
                       value={form.origin_id}
                       onChange={(e) => setForm({ ...form, origin_id: e.target.value })}
-                      className={fieldSurfaceClass}
+                      className={cn(fieldSurfaceClass, "text-sm font-medium")}
                     >
-                      <option value="">—</option>
+                      <option value="">{lang === "ar" ? "اختر بلد المنشأ..." : "Select origin..."}</option>
                       {meta.origins.map((o) => (
                         <option key={o.id} value={o.id}>
-                          {lang === "ar" ? o.name_ar : o.name} ({o.code})
+                          {lang === "ar" ? o.name_ar : o.name} 
                         </option>
                       ))}
                     </select>
@@ -1935,9 +2398,9 @@ function ProductDialog({
                       aria-describedby={p["aria-describedby"]}
                       value={form.quality_grade_id}
                       onChange={(e) => setForm({ ...form, quality_grade_id: e.target.value })}
-                      className={fieldSurfaceClass}
+                      className={cn(fieldSurfaceClass, "text-sm font-medium")}
                     >
-                      <option value="">—</option>
+                      <option value="">{lang === "ar" ? "اختر درجة الجودة..." : "Select quality grade..."}</option>
                       {meta.qualities.map((q) => (
                         <option key={q.id} value={q.id}>
                           {lang === "ar" ? q.name_ar : q.name}
@@ -1947,249 +2410,99 @@ function ProductDialog({
                   )}
                 </FormField>
               )}
-
-              {config.enableUnits && (
-                <FormField label={t("products.unit")}>
-                  {(p) => (
-                    <select
-                      id={p.id}
-                      aria-describedby={p["aria-describedby"]}
-                      value={form.unit_id}
-                      onChange={(e) => setForm({ ...form, unit_id: e.target.value })}
-                      className={fieldSurfaceClass}
-                    >
-                      <option value="">—</option>
-                      {meta.units.map((u) => (
-                        <option key={u.id} value={u.id}>
-                          {labelOf(u.name, u.name_ar)} ({u.short_name})
-                        </option>
-                      ))}
-                    </select>
-                  )}
-                </FormField>
-              )}
-            </FormGrid>
-          </FormSection>
+            </div>
+          </div>
         )}
 
-        {/* Pricing & stock */}
-        <FormSection title={lang === "ar" ? "التسعير والمخزون" : "Pricing & stock"}>
-          <FormGrid cols={3}>
-            {canViewCost && (
-              <FormField
-                label={t("common.cost")}
-                hint={lang === "ar" ? "سعر الشراء" : "Purchase price"}
-              >
-                <VortexCurrencyInput
-                  value={form.cost_price === "" ? 0 : Number(form.cost_price)}
-                  onValueChange={(num) => setForm({ ...form, cost_price: String(num) })}
-                  min={0}
-                  currencySymbol="﷼"
-                  placeholder="0.00"
-                />
-              </FormField>
-            )}
+        {/* Tab 4: Item Nature & Policies */}
+        {activeTab === "policy" && (
+          <div className="space-y-4 rounded-xl border border-border/60 bg-muted/20 p-4 pt-3">
+            <div className="space-y-4">
+              <SettingsChoice
+                label={lang === "ar" ? "طبيعة الصنف" : "Item nature"}
+                value={policy.item_nature}
+                options={[
+                  { value: "GOOD", label: ITEM_NATURE_LABELS.GOOD[lang === "ar" ? "ar" : "en"] },
+                  { value: "SERVICE", label: ITEM_NATURE_LABELS.SERVICE[lang === "ar" ? "ar" : "en"] },
+                ]}
+                onChange={(value) =>
+                  setPolicy((current) => ({
+                    ...current,
+                    item_nature: value as ItemNature,
+                    inventory_policy: value === "SERVICE" ? "UNTRACKED" : current.inventory_policy,
+                    tracking: value === "SERVICE" ? "NONE" : current.tracking,
+                    costing_method: value === "SERVICE" ? "NONE" : current.costing_method,
+                  }))
+                }
+              />
 
-            <FormField label={t("common.price")} required>
-              {(p) => (
-                <VortexCurrencyInput
-                  id={p.id}
-                  aria-describedby={p["aria-describedby"]}
-                  value={form.sale_price === "" ? 0 : Number(form.sale_price)}
-                  onValueChange={(num) => setForm({ ...form, sale_price: String(num) })}
-                  min={0}
-                  currencySymbol="﷼"
-                  placeholder="0.00"
-                />
-              )}
-            </FormField>
-
-            <FormField label={t("products.tax_rate")}>
-              {(p) => (
-                <NumberInput
-                  {...p}
-                  value={form.tax_rate === "" ? null : Number(form.tax_rate)}
-                  onValueChange={(v) => setForm({ ...form, tax_rate: v == null ? "" : String(v) })}
-                  min={0}
-                  max={100}
-                  suffix="%"
+              {policy.item_nature === "GOOD" && (
+                <SettingsChoice
+                  label={lang === "ar" ? "سياسة المخزون" : "Inventory policy"}
+                  value={policy.inventory_policy}
+                  options={( ["TRACKED", "UNTRACKED", "CUSTOMER_OWNED"] as InventoryPolicy[]).map(
+                    (value) => ({
+                      value,
+                      label: INVENTORY_POLICY_LABELS[value][lang === "ar" ? "ar" : "en"],
+                    }),
+                  )}
+                  onChange={(value) =>
+                    setPolicy((current) => ({
+                      ...current,
+                      inventory_policy: value as InventoryPolicy,
+                      tracking: value === "TRACKED" ? current.tracking : "NONE",
+                    }))
+                  }
                 />
               )}
-            </FormField>
 
-            <FormField
-              label={t("products.min")}
-              hint={lang === "ar" ? "حد التنبيه للمخزون" : "Low-stock alert level"}
-            >
-              {(p) => (
-                <NumberInput
-                  {...p}
-                  value={form.min_stock === "" ? null : Number(form.min_stock)}
-                  onValueChange={(v) => setForm({ ...form, min_stock: v == null ? "" : String(v) })}
-                  min={0}
-                  decimal={false}
+              {policy.item_nature === "GOOD" && policy.inventory_policy === "TRACKED" && (
+                <SettingsChoice
+                  label={lang === "ar" ? "طريقة التتبع" : "Tracking method"}
+                  value={policy.tracking}
+                  options={( ["NONE", "BATCH", "SERIAL"] as ItemTracking[]).map((value) => ({
+                    value,
+                    label: TRACKING_LABELS[value][lang === "ar" ? "ar" : "en"],
+                  }))}
+                  onChange={(value) =>
+                    setPolicy((current) => ({
+                      ...current,
+                      tracking: value as ItemTracking,
+                    }))
+                  }
                 />
               )}
-            </FormField>
 
-            <FormField label={t("common.status")}>
-              {(p) => (
-                <label
-                  htmlFor={p.id}
-                  className="flex h-9 cursor-pointer items-center gap-2 rounded-[10px] border-input bg-surface px-3 text-sm"
-                >
-                  <input
-                    id={p.id}
-                    type="checkbox"
-                    checked={form.is_active}
-                    onChange={(e) => setForm({ ...form, is_active: e.target.checked })}
-                    className="size-4 rounded border-border accent-[var(--primary)]"
-                  />
-                  <span className="text-xs font-medium text-muted-foreground">
-                    {t("common.active")}
-                  </span>
-                </label>
-              )}
-            </FormField>
-          </FormGrid>
-        </FormSection>
+              <div className="grid grid-cols-1 gap-2 pt-2 sm:grid-cols-2">
+                <SettingsToggle
+                  label={lang === "ar" ? "متاح للبيع" : "Available for sales"}
+                  description={lang === "ar" ? "إظهار الصنف في نقطة البيع وفواتير المبيعات" : "Show in sales & POS"}
+                  checked={policy.is_sellable}
+                  onChange={(checked) => setPolicy((c) => ({ ...c, is_sellable: checked }))}
+                />
+                <SettingsToggle
+                  label={lang === "ar" ? "متاح للشراء" : "Available for purchase"}
+                  description={lang === "ar" ? "إظهار الصنف في فواتير المشتريات والتوريد" : "Show in purchases & supply"}
+                  checked={policy.is_purchasable}
+                  onChange={(checked) => setPolicy((c) => ({ ...c, is_purchasable: checked }))}
+                />
+              </div>
+            </div>
+          </div>
+        )}
       </form>
 
-      <Modal
-        open={settingsOpen}
-        onClose={() => setSettingsOpen(false)}
-        size="md"
-        mobile="sheet"
-        title={lang === "ar" ? "إعدادات المنتج" : "Product settings"}
-        eyebrow={lang === "ar" ? "تخصيص" : "Customize"}
-        description={
-          lang === "ar"
-            ? "حدد طبيعة المنتج وسياسة المخزون وطريقة استخدامه."
-            : "Define the product nature, inventory policy, and how it is used."
-        }
-        footer={
-          <Button type="button" onClick={() => setSettingsOpen(false)} block>
-            {lang === "ar" ? "تم" : "Done"}
-          </Button>
-        }
-      >
-        <div className="space-y-5">
-          <SettingsChoice
-            label={lang === "ar" ? "طبيعة المنتج" : "Product nature"}
-            value={policy.item_nature}
-            options={[
-              { value: "GOOD", label: ITEM_NATURE_LABELS.GOOD[lang === "ar" ? "ar" : "en"] },
-              { value: "SERVICE", label: ITEM_NATURE_LABELS.SERVICE[lang === "ar" ? "ar" : "en"] },
-            ]}
-            onChange={(value) =>
-              setPolicy((current) => ({
-                ...current,
-                item_nature: value as ItemNature,
-                inventory_policy: value === "SERVICE" ? "UNTRACKED" : current.inventory_policy,
-                tracking: value === "SERVICE" ? "NONE" : current.tracking,
-                costing_method: value === "SERVICE" ? "NONE" : current.costing_method,
-              }))
-            }
-          />
-          {policy.item_nature === "GOOD" && (
-            <SettingsChoice
-              label={lang === "ar" ? "سياسة المخزون" : "Inventory policy"}
-              value={policy.inventory_policy}
-              options={(["TRACKED", "UNTRACKED", "CUSTOMER_OWNED"] as InventoryPolicy[]).map(
-                (value) => ({
-                  value,
-                  label: INVENTORY_POLICY_LABELS[value][lang === "ar" ? "ar" : "en"],
-                }),
-              )}
-              onChange={(value) =>
-                setPolicy((current) => ({
-                  ...current,
-                  inventory_policy: value as InventoryPolicy,
-                  tracking: value === "TRACKED" ? current.tracking : "NONE",
-                  costing_method: value === "TRACKED" ? current.costing_method : "NONE",
-                }))
-              }
-            />
-          )}
-          {policy.item_nature === "GOOD" && policy.inventory_policy === "TRACKED" && (
-            <div className="grid gap-4 sm:grid-cols-2">
-              <SettingsChoice
-                label={lang === "ar" ? "التتبع الدقيق" : "Detailed tracking"}
-                value={policy.tracking}
-                options={(["NONE", "BATCH", "SERIAL"] as ItemTracking[]).map((value) => ({
-                  value,
-                  label: TRACKING_LABELS[value][lang === "ar" ? "ar" : "en"],
-                }))}
-                onChange={(value) =>
-                  setPolicy((current) => ({ ...current, tracking: value as ItemTracking }))
-                }
-              />
-              <SettingsChoice
-                label={lang === "ar" ? "طريقة التكلفة" : "Costing method"}
-                value={policy.costing_method}
-                options={(["MOVING_AVERAGE", "FIFO", "STANDARD"] as CostingMethod[]).map(
-                  (value) => ({
-                    value,
-                    label: COSTING_METHOD_LABELS[value][lang === "ar" ? "ar" : "en"],
-                  }),
-                )}
-                onChange={(value) =>
-                  setPolicy((current) => ({ ...current, costing_method: value as CostingMethod }))
-                }
-              />
-            </div>
-          )}
-          <div className="grid gap-3 sm:grid-cols-2">
-            <SettingsToggle
-              label={lang === "ar" ? "يظهر في المبيعات" : "Available for sales"}
-              checked={policy.is_sellable}
-              onChange={(checked) => setPolicy((current) => ({ ...current, is_sellable: checked }))}
-            />
-            <SettingsToggle
-              label={lang === "ar" ? "يظهر في المشتريات" : "Available for purchases"}
-              checked={policy.is_purchasable}
-              onChange={(checked) =>
-                setPolicy((current) => ({ ...current, is_purchasable: checked }))
-              }
-            />
-          </div>
-          <p className="rounded-xl border-primary/20 bg-primary/5 p-3 text-xs leading-6 text-muted-foreground">
-            {policy.item_nature === "SERVICE"
-              ? lang === "ar"
-                ? "الخدمة تظهر كسطر خدمة ولا تنشئ حركة مخزون."
-                : "A service appears as a service line and never creates stock movements."
-              : policy.inventory_policy === "TRACKED"
-                ? lang === "ar"
-                  ? "السلعة المتتبعة تُخصم عند البيع وتزداد عند الشراء."
-                  : "A tracked good is issued on sale and received on purchase."
-                : policy.inventory_policy === "CUSTOMER_OWNED"
-                  ? lang === "ar"
-                    ? "مادة مملوكة للعميل: تحفظ في موقعك ولا تدخل قيمة مخزون الشركة."
-                    : "Customer-owned material is held at your site but excluded from company stock valuation."
-                  : lang === "ar"
-                    ? "السلعة غير المتتبعة تظهر في الفواتير بلا رصيد مخزني."
-                    : "An untracked good appears on invoices without a managed stock balance."}
-          </p>
-        </div>
-      </Modal>
-
-      <div
-        className="flex items-center gap-1.5 text-caption text-muted-foreground"
-        aria-live="polite"
-      >
-        <ScanBarcode className="size-3.5 text-primary" aria-hidden />
-        <span>
-          {lang === "ar"
-            ? "يمكنك إدخال الباركود أو مسحه بالكاميرا أو قارئ USB."
-            : "Enter, scan with the camera, or use a USB barcode reader."}
-        </span>
-      </div>
-
-      <BarcodeScanner
-        open={scannerOpen}
-        onClose={() => setScannerOpen(false)}
-        onDetected={(barcode) => setForm((current) => ({ ...current, barcode }))}
-      />
+      {scannerOpen && (
+        <BarcodeScanner
+          open={scannerOpen}
+          onClose={() => setScannerOpen(false)}
+          onDetected={(detected) => {
+            setForm((c) => ({ ...c, barcode: detected }));
+            setScannerOpen(false);
+            toast.success(lang === "ar" ? "تم مسح الباركود بنجاح" : "Barcode scanned");
+          }}
+        />
+      )}
     </VortexDrawerDialog>
   );
 }
@@ -2225,22 +2538,30 @@ function SettingsChoice({
 
 function SettingsToggle({
   label,
+  description,
   checked,
   onChange,
 }: {
   label: string;
+  /** نص توضيحي تحت العنوان. اختياري — يخفيه ركن التبديل إن لم يُمرَّر. */
+  description?: string;
   checked: boolean;
   onChange: (checked: boolean) => void;
 }) {
   return (
-    <label className="flex cursor-pointer items-center gap-3 rounded-xl border-border bg-surface p-3 text-sm">
+    <label className="flex cursor-pointer items-start gap-3 rounded-xl border-border bg-surface p-3 text-sm">
       <input
         type="checkbox"
         checked={checked}
         onChange={(event) => onChange(event.target.checked)}
-        className="size-4 accent-[var(--primary)]"
+        className="mt-0.5 size-4 accent-[var(--primary)]"
       />
-      <span>{label}</span>
+      <span>
+        <span>{label}</span>
+        {description && (
+          <span className="mt-0.5 block text-[11px] text-muted-foreground">{description}</span>
+        )}
+      </span>
     </label>
   );
 }

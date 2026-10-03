@@ -186,7 +186,9 @@ function isPostgresAdminSyntax(stmt) {
   // that is already applied in production, so it is a known parser gap, not a
   // defect in the SQL being checked.
   if (/^update\b[\s\S]*?\bset\b[\s\S]*?\bfrom\b/.test(head)) {
-    const hasAliasedTarget = /^update\s+[^\s,]+\s+[a-z_][a-z0-9_]*\s*(set|\n)/i.test(head.replace(/\s+/g, " "));
+    const hasAliasedTarget = /^update\s+[^\s,]+\s+[a-z_][a-z0-9_]*\s*(set|\n)/i.test(
+      head.replace(/\s+/g, " "),
+    );
     if (hasAliasedTarget) return true;
   }
 
@@ -213,7 +215,9 @@ for (const file of files) {
   const name = basename(file);
 
   if (errors.length === 0) {
-    console.log(`PASS  ${name}  (${checked} parsed, ${skipped} admin-syntax skipped of ${statements})`);
+    console.log(
+      `PASS  ${name}  (${checked} parsed, ${skipped} admin-syntax skipped of ${statements})`,
+    );
   } else {
     console.log(`FAIL  ${name}  (${errors.length} error(s) in ${checked} parsed statements)`);
     for (const error of errors) {

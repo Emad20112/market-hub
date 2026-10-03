@@ -15,13 +15,13 @@ mismatch is the root cause of nearly every problem below.
 
 ### The five real problems, in order of severity
 
-| # | Problem | Severity | Status |
-|---|---|---|---|
-| 1 | **Plaintext password committed in migrations**, targeting a personal email | 🔴 Critical | **Repaired** (rotation still manual) |
-| 2 | **Destructive `TRUNCATE ... CASCADE` of 25 business tables + `DELETE FROM auth.users`** sitting in the replayable chain | 🔴 Critical | **Documented**, guard proposed, not applied |
-| 3 | `supabase/.temp/` (project ref, pooler URL) **tracked in Git** | 🟠 High | **Repaired** |
-| 4 | Seed file **mixes reference + demo + auth** data and is auto-run | 🟠 High | **Documented**, split proposed |
-| 5 | Payment methods / statuses **hardcoded as string literals** across the frontend, duplicating the DB enum | 🟠 Medium | **Documented** |
+| #   | Problem                                                                                                                 | Severity    | Status                                      |
+| --- | ----------------------------------------------------------------------------------------------------------------------- | ----------- | ------------------------------------------- |
+| 1   | **Plaintext password committed in migrations**, targeting a personal email                                              | 🔴 Critical | **Repaired** (rotation still manual)        |
+| 2   | **Destructive `TRUNCATE ... CASCADE` of 25 business tables + `DELETE FROM auth.users`** sitting in the replayable chain | 🔴 Critical | **Documented**, guard proposed, not applied |
+| 3   | `supabase/.temp/` (project ref, pooler URL) **tracked in Git**                                                          | 🟠 High     | **Repaired**                                |
+| 4   | Seed file **mixes reference + demo + auth** data and is auto-run                                                        | 🟠 High     | **Documented**, split proposed              |
+| 5   | Payment methods / statuses **hardcoded as string literals** across the frontend, duplicating the DB enum                | 🟠 Medium   | **Documented**                              |
 
 ### What was actually changed in this session
 
@@ -42,13 +42,13 @@ behaviour. Those need your decision — see §15.
 
 ### Verification performed
 
-| Check | Result |
-|---|---|
-| Plaintext password present anywhere in repo | **None** ✅ |
-| `npx tsc --noEmit` | exit 0 ✅ |
-| `npm run lint` | 0 errors, 26 pre-existing warnings ✅ |
-| `.temp` files still on disk | 11/11 ✅ |
-| Destructive commands executed | **Zero** ✅ |
+| Check                                       | Result                                |
+| ------------------------------------------- | ------------------------------------- |
+| Plaintext password present anywhere in repo | **None** ✅                           |
+| `npx tsc --noEmit`                          | exit 0 ✅                             |
+| `npm run lint`                              | 0 errors, 26 pre-existing warnings ✅ |
+| `.temp` files still on disk                 | 11/11 ✅                              |
+| Destructive commands executed               | **Zero** ✅                           |
 
 ---
 
@@ -104,22 +104,22 @@ mobile_money, split`.
 Full chain, classified. Files not individually quoted are structurally similar
 to their neighbours in the same phase.
 
-| Version | Purpose | Class | Contains data? | Idempotent? | Risk on new project |
-|---|---|---|---|---|---|
-| `20260706121000_blackbox_reset_and_seed_yemen.sql` | Reset + Yemen seed | `DEMO_DATA` | ➕ seed | ❌ | 🔴 **TRUNCATE** |
-| `20260707021000_yemen_seed_enum_compatibility.sql` | Enum compat patch | `HOTFIX` | — | partial | 🟡 |
-| `20260911150300_blackbox_reset_and_seed` | Reset + personal user | `DEMO_DATA` + `AUTH_BOOTSTRAP` | ➕ + auth | ❌ | 🔴 **TRUNCATE + personal identity** |
-| `20260912111000_reset_for_meters_shop.sql` | Reset for meters shop | `DEMO_DATA` | ➕ | ❌ | 🔴 **TRUNCATE 25 tables CASCADE + DELETE auth.users** |
-| `20260912172000_seed_meters_shop_users.sql` | Shop users | `AUTH_BOOTSTRAP` | ➕ auth | partial | 🔴 **personal identity** |
-| `20260916000000_reset_and_recreate_superadmin_user.sql` | Recreate superadmin | `AUTH_BOOTSTRAP` | ➕ auth | ❌ | 🔴 **password (now removed)** |
-| `20260917200000_link_superadmin_user_and_permissions.sql` | Link + permissions | `AUTH_BOOTSTRAP` + `CORE_SCHEMA` | ➕ | partial | 🟡 |
-| `20260918000000_referential_safety_and_product_search.sql` | Guards + indexes + RPC | `CORE_SCHEMA` | — | ✅ | 🟢 Low |
-| `20260926000000_update_superadmin_password.sql` | Password reset | `AUTH_BOOTSTRAP` | ➕ auth | ❌ | 🔴 **password (now no-op)** |
-| `20260928000000_split_payment_and_payment_method_integrity.sql` | Split payments | `CORE_SCHEMA` | — | ✅ | 🟢 Low |
+| Version                                                         | Purpose                | Class                            | Contains data? | Idempotent? | Risk on new project                                   |
+| --------------------------------------------------------------- | ---------------------- | -------------------------------- | -------------- | ----------- | ----------------------------------------------------- |
+| `20260706121000_blackbox_reset_and_seed_yemen.sql`              | Reset + Yemen seed     | `DEMO_DATA`                      | ➕ seed        | ❌          | 🔴 **TRUNCATE**                                       |
+| `20260707021000_yemen_seed_enum_compatibility.sql`              | Enum compat patch      | `HOTFIX`                         | —              | partial     | 🟡                                                    |
+| `20260911150300_blackbox_reset_and_seed`                        | Reset + personal user  | `DEMO_DATA` + `AUTH_BOOTSTRAP`   | ➕ + auth      | ❌          | 🔴 **TRUNCATE + personal identity**                   |
+| `20260912111000_reset_for_meters_shop.sql`                      | Reset for meters shop  | `DEMO_DATA`                      | ➕             | ❌          | 🔴 **TRUNCATE 25 tables CASCADE + DELETE auth.users** |
+| `20260912172000_seed_meters_shop_users.sql`                     | Shop users             | `AUTH_BOOTSTRAP`                 | ➕ auth        | partial     | 🔴 **personal identity**                              |
+| `20260916000000_reset_and_recreate_superadmin_user.sql`         | Recreate superadmin    | `AUTH_BOOTSTRAP`                 | ➕ auth        | ❌          | 🔴 **password (now removed)**                         |
+| `20260917200000_link_superadmin_user_and_permissions.sql`       | Link + permissions     | `AUTH_BOOTSTRAP` + `CORE_SCHEMA` | ➕             | partial     | 🟡                                                    |
+| `20260918000000_referential_safety_and_product_search.sql`      | Guards + indexes + RPC | `CORE_SCHEMA`                    | —              | ✅          | 🟢 Low                                                |
+| `20260926000000_update_superadmin_password.sql`                 | Password reset         | `AUTH_BOOTSTRAP`                 | ➕ auth        | ❌          | 🔴 **password (now no-op)**                           |
+| `20260928000000_split_payment_and_payment_method_integrity.sql` | Split payments         | `CORE_SCHEMA`                    | —              | ✅          | 🟢 Low                                                |
 
 ### Classification rationale
 
-- **`CORE_SCHEMA`** — `20260918000000` and `20260928000000` are the *good*
+- **`CORE_SCHEMA`** — `20260918000000` and `20260928000000` are the _good_
   examples: guarded with `IF NOT EXISTS` / `IF EXISTS`, one purpose each, no
   data, no credentials, non-destructive (the latter states so explicitly in its
   header). **These are the template for the future.**
@@ -140,38 +140,38 @@ to their neighbours in the same phase.
 
 ## 4. Migration Conflict Matrix
 
-| Migration A | Migration B | Contested element | Nature | Impact | Suggested resolution |
-|---|---|---|---|---|---|
-| `20260916000000` | `20260926000000` | superadmin password | **A creates the user with password P; B re-hashes the same password P.** Two migrations to accomplish one change. | Password written to VCS twice | B neutralized; A credential removed. Rotation manual. |
-| `20260911150300` | `20260912111000` | `public.*` business tables | **Both `TRUNCATE` overlapping table sets.** Second one includes tables the first already cleared. | Data destruction on replay | Add emptiness guard (§7.3 notes). Do not delete. |
-| `20260911150300` / `20260912172000` / `20260916000000` | each other | `auth.users` personal account | **Three migrations independently create/delete/rewrite the same personal account.** | Repeated identity churn; each references the same email | Consolidate into one operator action *outside* migrations (§9). |
-| `20260912111000` | `20260912172000` | `auth.users` | **A deletes all auth users; B re-creates shop users.** Ordering dependency — B is meaningless without A, A is destructive without B. | Fragile ordering; a partial failure leaves no accounts | Keep order; move both out of the replayable path. |
-| `20260912111000` | `20260706121000` | `categories`, `units`, `warehouses` | **A truncates and re-inserts the same rows B seeded**, with different values (meters shop vs grocery). | Last writer wins; earlier seed silently discarded | Intentional here, but proves these belong in `seeds/demo.sql`, not migrations. |
-| `20260706121000` | `20260707021000` | enum values | **B exists to fix enum incompatibility introduced by A's inserts.** | Seed/schema disagreement | Enum values belong in their own migration; seed must not depend on ordering (already the case now). |
-| `20260928000000` | `20260918000000` | indexes / RPC | **None — both guarded and additive.** | None | ✅ Reference pattern. |
+| Migration A                                            | Migration B      | Contested element                   | Nature                                                                                                                               | Impact                                                  | Suggested resolution                                                                                |
+| ------------------------------------------------------ | ---------------- | ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| `20260916000000`                                       | `20260926000000` | superadmin password                 | **A creates the user with password P; B re-hashes the same password P.** Two migrations to accomplish one change.                    | Password written to VCS twice                           | B neutralized; A credential removed. Rotation manual.                                               |
+| `20260911150300`                                       | `20260912111000` | `public.*` business tables          | **Both `TRUNCATE` overlapping table sets.** Second one includes tables the first already cleared.                                    | Data destruction on replay                              | Add emptiness guard (§7.3 notes). Do not delete.                                                    |
+| `20260911150300` / `20260912172000` / `20260916000000` | each other       | `auth.users` personal account       | **Three migrations independently create/delete/rewrite the same personal account.**                                                  | Repeated identity churn; each references the same email | Consolidate into one operator action _outside_ migrations (§9).                                     |
+| `20260912111000`                                       | `20260912172000` | `auth.users`                        | **A deletes all auth users; B re-creates shop users.** Ordering dependency — B is meaningless without A, A is destructive without B. | Fragile ordering; a partial failure leaves no accounts  | Keep order; move both out of the replayable path.                                                   |
+| `20260912111000`                                       | `20260706121000` | `categories`, `units`, `warehouses` | **A truncates and re-inserts the same rows B seeded**, with different values (meters shop vs grocery).                               | Last writer wins; earlier seed silently discarded       | Intentional here, but proves these belong in `seeds/demo.sql`, not migrations.                      |
+| `20260706121000`                                       | `20260707021000` | enum values                         | **B exists to fix enum incompatibility introduced by A's inserts.**                                                                  | Seed/schema disagreement                                | Enum values belong in their own migration; seed must not depend on ordering (already the case now). |
+| `20260928000000`                                       | `20260918000000` | indexes / RPC                       | **None — both guarded and additive.**                                                                                                | None                                                    | ✅ Reference pattern.                                                                               |
 
 **No conflicting enum definitions, no duplicate `CREATE TABLE` for the same
 table, and no opposing RLS policies were found.** The tangle is historical, not
-structural: the schema itself is coherent, the *history around it* is not.
+structural: the schema itself is coherent, the _history around it_ is not.
 
 ---
 
 ## 5. Reference Data Inventory
 
-| Concept | Storage | Verdict | Where it belongs |
-|---|---|---|---|
-| `payment_method` | PG enum | **Fixed** | Migration (schema) |
-| invoice / payment statuses | PG enum | **Fixed** | Migration (schema) |
-| roles (`owner`, `manager`, `accountant`, `cashier`, `warehouse`) | `user_roles` + check | **Fixed (system)** | Migration (schema) + RLS |
-| platform roles (`superadmin`) | `platform_admins` | **Fixed (system)** | Migration (schema) |
-| permissions | RLS predicates / role checks | **Fixed (system)** | Migration (schema) |
-| `units` | table | **Tenant Default** | `seeds/reference.sql` (starter rows) + editable in-app |
-| `expense_categories` | table | **Tenant Default** | `seeds/reference.sql` (starter rows) + editable in-app |
-| `categories`, `brands` | table | **Optional / Tenant** | `seeds/demo.sql` only, or customer-created |
-| `warehouses` | table | **Tenant Default** | Created per tenant, **not** a global seed |
-| `company_settings` | single row | **Configurable** | In-app Settings screen |
-| currency, tax rate, logo, prefix | columns | **Configurable** | In-app Settings screen |
-| products, customers, suppliers, invoices | tables | **Transaction Data** | Never seeded in production |
+| Concept                                                          | Storage                      | Verdict               | Where it belongs                                       |
+| ---------------------------------------------------------------- | ---------------------------- | --------------------- | ------------------------------------------------------ |
+| `payment_method`                                                 | PG enum                      | **Fixed**             | Migration (schema)                                     |
+| invoice / payment statuses                                       | PG enum                      | **Fixed**             | Migration (schema)                                     |
+| roles (`owner`, `manager`, `accountant`, `cashier`, `warehouse`) | `user_roles` + check         | **Fixed (system)**    | Migration (schema) + RLS                               |
+| platform roles (`superadmin`)                                    | `platform_admins`            | **Fixed (system)**    | Migration (schema)                                     |
+| permissions                                                      | RLS predicates / role checks | **Fixed (system)**    | Migration (schema)                                     |
+| `units`                                                          | table                        | **Tenant Default**    | `seeds/reference.sql` (starter rows) + editable in-app |
+| `expense_categories`                                             | table                        | **Tenant Default**    | `seeds/reference.sql` (starter rows) + editable in-app |
+| `categories`, `brands`                                           | table                        | **Optional / Tenant** | `seeds/demo.sql` only, or customer-created             |
+| `warehouses`                                                     | table                        | **Tenant Default**    | Created per tenant, **not** a global seed              |
+| `company_settings`                                               | single row                   | **Configurable**      | In-app Settings screen                                 |
+| currency, tax rate, logo, prefix                                 | columns                      | **Configurable**      | In-app Settings screen                                 |
+| products, customers, suppliers, invoices                         | tables                       | **Transaction Data**  | Never seeded in production                             |
 
 **Key point:** `units`, `expense_categories` and `warehouses` are the three
 things most often mistaken for schema. They are **per-tenant rows**, not
@@ -183,6 +183,7 @@ from the same table.
 ## 6. Seed Strategy
 
 ### Current state
+
 `config.toml` → `db.seed.sql_paths = ["./seeds/seed.sql"]`, and that single file
 contains reference rows, demo business data, **and** `auth.users` inserts.
 
@@ -236,14 +237,14 @@ leaving them wrong.
 
 ## 7. Demo / Test Data Audit
 
-| Data | Location | Should exist? | Recurring? |
-|---|---|---|---|
-| Yemen grocery seed rows | `20260706121000` | ❌ No | ✅ Yes — replays on every new DB |
-| Meters-shop catalogue | `20260912111000` | ❌ No | ✅ Yes |
-| Shop users | `20260912172000` | ❌ No | ✅ Yes |
-| Superadmin account | `20260916000000` | ❌ No | ✅ Yes |
-| `seeds/seed.sql` business rows | `supabase/seeds/` | ❌ No (in production) | ✅ On every `db reset` |
-| `docs/seed/yemen_*.sql` | `docs/seed/` | ❌ Not needed | ❌ Not executed (verified) |
+| Data                           | Location          | Should exist?         | Recurring?                       |
+| ------------------------------ | ----------------- | --------------------- | -------------------------------- |
+| Yemen grocery seed rows        | `20260706121000`  | ❌ No                 | ✅ Yes — replays on every new DB |
+| Meters-shop catalogue          | `20260912111000`  | ❌ No                 | ✅ Yes                           |
+| Shop users                     | `20260912172000`  | ❌ No                 | ✅ Yes                           |
+| Superadmin account             | `20260916000000`  | ❌ No                 | ✅ Yes                           |
+| `seeds/seed.sql` business rows | `supabase/seeds/` | ❌ No (in production) | ✅ On every `db reset`           |
+| `docs/seed/yemen_*.sql`        | `docs/seed/`      | ❌ Not needed         | ❌ Not executed (verified)       |
 
 **Nothing was deleted.** All of the above are either already applied (so
 removal causes history drift) or are the developer's local bootstrap. The audit
@@ -259,25 +260,25 @@ chain**, and that is what must stop going forward.
 The system tried to make user provisioning a database migration. That creates
 five distinct breakages:
 
-| Symptom | Root cause |
-|---|---|
-| Super admin exists in DB but cannot log in | User row written directly into `auth.users`; GoTrue's `auth.identities` entry missing or malformed. Login requires the identity row, not just the user row. |
-| Email "unconfirmed", login refused | `email_confirmed_at` not set, or set in a way GoTrue does not accept as a confirmation event. |
-| Migration fails on a fresh project | It targets a specific email; the row it expects does not exist, or a `DELETE ... WHERE email = ...` silently matches nothing and the following `INSERT` collides. |
-| Duplicated super admin | Each reset-style migration deletes and re-creates the same account; any partial run leaves both. |
-| New customer inherits a stranger's account | The email is hardcoded. |
-| Credential leak | The password is in the SQL file. |
+| Symptom                                    | Root cause                                                                                                                                                        |
+| ------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Super admin exists in DB but cannot log in | User row written directly into `auth.users`; GoTrue's `auth.identities` entry missing or malformed. Login requires the identity row, not just the user row.       |
+| Email "unconfirmed", login refused         | `email_confirmed_at` not set, or set in a way GoTrue does not accept as a confirmation event.                                                                     |
+| Migration fails on a fresh project         | It targets a specific email; the row it expects does not exist, or a `DELETE ... WHERE email = ...` silently matches nothing and the following `INSERT` collides. |
+| Duplicated super admin                     | Each reset-style migration deletes and re-creates the same account; any partial run leaves both.                                                                  |
+| New customer inherits a stranger's account | The email is hardcoded.                                                                                                                                           |
+| Credential leak                            | The password is in the SQL file.                                                                                                                                  |
 
 ### What belongs where
 
-| Task | Belongs in |
-|---|---|
-| `profiles`, `user_roles`, `platform_admins` **table structure** | Migration ✅ |
-| `profiles` auto-creation **trigger** on `auth.users` insert | Migration ✅ |
-| Naming a specific email / UUID | **Nowhere in the repo** ❌ |
-| Writing a password | **Nowhere in the repo** ❌ |
-| Creating the first user | Supabase Dashboard or Auth Admin API — §9 of the safety notes |
-| Granting super-admin role | One explicit SQL snippet, run by a human |
+| Task                                                            | Belongs in                                                    |
+| --------------------------------------------------------------- | ------------------------------------------------------------- |
+| `profiles`, `user_roles`, `platform_admins` **table structure** | Migration ✅                                                  |
+| `profiles` auto-creation **trigger** on `auth.users` insert     | Migration ✅                                                  |
+| Naming a specific email / UUID                                  | **Nowhere in the repo** ❌                                    |
+| Writing a password                                              | **Nowhere in the repo** ❌                                    |
+| Creating the first user                                         | Supabase Dashboard or Auth Admin API — §9 of the safety notes |
+| Granting super-admin role                                       | One explicit SQL snippet, run by a human                      |
 
 ### RLS concern
 
@@ -307,22 +308,22 @@ verifying explicitly** that neither table exposes `INSERT`/`UPDATE` to
 
 ### Open items
 
-| # | Item | Why it matters |
-|---|---|---|
-| 1 | `platform_admins` write policies unverified | Privilege escalation path if a tenant user can insert |
-| 2 | `user_roles` write policies unverified | Same |
-| 3 | RLS performance — `is_staff()` / `is_platform_admin()` called per row | Should be `STABLE` and, if possible, join-based rather than subquery-per-row |
-| 4 | No automated RLS test harness in the repo | A policy regression ships silently |
+| #   | Item                                                                  | Why it matters                                                               |
+| --- | --------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| 1   | `platform_admins` write policies unverified                           | Privilege escalation path if a tenant user can insert                        |
+| 2   | `user_roles` write policies unverified                                | Same                                                                         |
+| 3   | RLS performance — `is_staff()` / `is_platform_admin()` called per row | Should be `STABLE` and, if possible, join-based rather than subquery-per-row |
+| 4   | No automated RLS test harness in the repo                             | A policy regression ships silently                                           |
 
-### Role matrix that *should* be exercised
+### Role matrix that _should_ be exercised
 
-| Role | Read own tenant | Write transactions | Manage catalogue | Manage users | Cross-tenant |
-|---|---|---|---|---|---|
-| `anonymous` | ❌ | ❌ | ❌ |
-| `authenticated` (cashier) | ✅ | limited | ❌ | ❌ | ❌ |
-| `manager` | ✅ | ✅ | ✅ | partial | ❌ |
-| `owner` | ✅ | ✅ | ✅ | ✅ | ❌ |
-| `superadmin` | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Role                      | Read own tenant | Write transactions | Manage catalogue | Manage users | Cross-tenant |
+| ------------------------- | --------------- | ------------------ | ---------------- | ------------ | ------------ |
+| `anonymous`               | ❌              | ❌                 | ❌               |
+| `authenticated` (cashier) | ✅              | limited            | ❌               | ❌           | ❌           |
+| `manager`                 | ✅              | ✅                 | ✅               | partial      | ❌           |
+| `owner`                   | ✅              | ✅                 | ✅               | ✅           | ❌           |
+| `superadmin`              | ✅              | ✅                 | ✅               | ✅           | ✅           |
 
 ---
 
@@ -331,20 +332,20 @@ verifying explicitly** that neither table exposes `INSERT`/`UPDATE` to
 This table states what can be determined **from the repository**. Items marked
 ⚪ require live SQL against your database and are listed in §15.
 
-| Element | Issues found | Example | Risk | Fix |
-|---|---|---|---|---|
-| Duplicate migrations | 0 | — | — | — |
-| Conflicting enums | 0 | — | — | — |
-| Duplicate `CREATE TABLE` | 0 | — | — | — |
-| Overlapping `TRUNCATE` sets | 2 | `20260911150300` vs `20260912111000` | 🔴 Data loss on replay | Emptiness guard |
-| Repeated personal identity | 5 migrations | same email in all | 🔴 | Move to §9 procedure |
-| Committed credentials | 2 files | password literal | 🔴 | **Fixed** |
-| Reference rows without business key | ⚪ unknown | `units`, `categories` | 🟠 Re-seed duplicates | Add `UNIQUE(code)` |
-| Duplicate payment methods / statuses / roles | ⚪ unknown | — | 🟠 | Deduplicate, then constrain |
-| Orphan rows (FK violations) | ⚪ unknown | — | 🟠 | Integrity query in §15 |
-| Inconsistent casing (`Cash` vs `cash`) | ⚪ unknown | — | 🟠 | Normalize to enum |
-| Missing `created_at` / `updated_at` | ⚪ unknown | — | 🟡 | Additive migration |
-| Missing `created_by` | ⚪ unknown | — | 🟡 | Additive migration |
+| Element                                      | Issues found | Example                              | Risk                   | Fix                         |
+| -------------------------------------------- | ------------ | ------------------------------------ | ---------------------- | --------------------------- |
+| Duplicate migrations                         | 0            | —                                    | —                      | —                           |
+| Conflicting enums                            | 0            | —                                    | —                      | —                           |
+| Duplicate `CREATE TABLE`                     | 0            | —                                    | —                      | —                           |
+| Overlapping `TRUNCATE` sets                  | 2            | `20260911150300` vs `20260912111000` | 🔴 Data loss on replay | Emptiness guard             |
+| Repeated personal identity                   | 5 migrations | same email in all                    | 🔴                     | Move to §9 procedure        |
+| Committed credentials                        | 2 files      | password literal                     | 🔴                     | **Fixed**                   |
+| Reference rows without business key          | ⚪ unknown   | `units`, `categories`                | 🟠 Re-seed duplicates  | Add `UNIQUE(code)`          |
+| Duplicate payment methods / statuses / roles | ⚪ unknown   | —                                    | 🟠                     | Deduplicate, then constrain |
+| Orphan rows (FK violations)                  | ⚪ unknown   | —                                    | 🟠                     | Integrity query in §15      |
+| Inconsistent casing (`Cash` vs `cash`)       | ⚪ unknown   | —                                    | 🟠                     | Normalize to enum           |
+| Missing `created_at` / `updated_at`          | ⚪ unknown   | —                                    | 🟡                     | Additive migration          |
+| Missing `created_by`                         | ⚪ unknown   | —                                    | 🟡                     | Additive migration          |
 
 **Integrity query to run (read-only, safe):**
 
@@ -375,18 +376,18 @@ WHERE u.id IS NULL;
 
 ## 11. Database Missing Pieces
 
-| # | Missing | Why it matters | Effort |
-|---|---|---|---|
-| 1 | `UNIQUE(code)` on `units`, `expense_categories`, `categories` | Prerequisite for safe idempotent seeding | Small |
-| 2 | `updated_at` auto-touch trigger on mutable tables | Silent staleness in reports | Small |
-| 3 | `created_by uuid` on transactional tables | No accountability trail on manual rows | Medium |
-| 4 | Soft delete (`deleted_at`) on products/customers | Hard delete destroys financial history | Medium |
-| 5 | `ON DELETE RESTRICT` instead of `CASCADE` on `inventory`/`stock_movements` → `products` | Already flagged in the existing notes; cascade can erase history | Small |
-| 6 | Composite indexes on `(status, created_at)` for invoice lists | Full scans as data grows | Small |
-| 7 | `CHECK` constraints on money columns (`>= 0`) | Negative totals currently representable | Small |
-| 8 | RLS test suite | Policy regressions ship silently | Medium |
-| 9 | `seeds/reference.sql` + `seeds/demo.sql` split | Core of this audit | Small |
-| 10 | `payment_method` labels in one shared TS module | Duplication with DB enum | Medium |
+| #   | Missing                                                                                 | Why it matters                                                   | Effort |
+| --- | --------------------------------------------------------------------------------------- | ---------------------------------------------------------------- | ------ |
+| 1   | `UNIQUE(code)` on `units`, `expense_categories`, `categories`                           | Prerequisite for safe idempotent seeding                         | Small  |
+| 2   | `updated_at` auto-touch trigger on mutable tables                                       | Silent staleness in reports                                      | Small  |
+| 3   | `created_by uuid` on transactional tables                                               | No accountability trail on manual rows                           | Medium |
+| 4   | Soft delete (`deleted_at`) on products/customers                                        | Hard delete destroys financial history                           | Medium |
+| 5   | `ON DELETE RESTRICT` instead of `CASCADE` on `inventory`/`stock_movements` → `products` | Already flagged in the existing notes; cascade can erase history | Small  |
+| 6   | Composite indexes on `(status, created_at)` for invoice lists                           | Full scans as data grows                                         | Small  |
+| 7   | `CHECK` constraints on money columns (`>= 0`)                                           | Negative totals currently representable                          | Small  |
+| 8   | RLS test suite                                                                          | Policy regressions ship silently                                 | Medium |
+| 9   | `seeds/reference.sql` + `seeds/demo.sql` split                                          | Core of this audit                                               | Small  |
+| 10  | `payment_method` labels in one shared TS module                                         | Duplication with DB enum                                         | Medium |
 
 ---
 
@@ -394,17 +395,17 @@ WHERE u.id IS NULL;
 
 Surfaced from the project's `.env` usage (values withheld deliberately).
 
-| Variable | Required | Location | Secret | Status |
-|---|---|---|---|---|
-| `VITE_SUPABASE_URL` | ✅ | client bundle | ❌ public | ✅ present |
-| `VITE_SUPABASE_PUBLISHABLE_KEY` | ✅ | client bundle | ❌ public (RLS is the control) | ✅ present |
-| `VITE_SUPABASE_PROJECT_ID` | ✅ | client bundle | ❌ public | ✅ present |
-| `SUPABASE_URL` | ✅ | server / edge functions | ❌ | ✅ present |
-| `SUPABASE_PUBLISHABLE_KEY` | ✅ | server | ❌ | ✅ present |
-| `SUPABASE_SECRET_KEY` | ✅ | **server only** | 🔴 **YES** | ⚠️ present, must never reach the browser |
-| `SUPABASE_JWKS_URL` | optional | server | ❌ | ✅ present |
-| `DATABASE_URL` (direct Postgres) | optional | CLI / migrations | 🔴 YES | not required — CLI uses `link` |
-| `MIGRATION_DB_PASSWORD` | optional | CLI `db push` | 🔴 YES | prompt-based; do not commit |
+| Variable                         | Required | Location                | Secret                         | Status                                   |
+| -------------------------------- | -------- | ----------------------- | ------------------------------ | ---------------------------------------- |
+| `VITE_SUPABASE_URL`              | ✅       | client bundle           | ❌ public                      | ✅ present                               |
+| `VITE_SUPABASE_PUBLISHABLE_KEY`  | ✅       | client bundle           | ❌ public (RLS is the control) | ✅ present                               |
+| `VITE_SUPABASE_PROJECT_ID`       | ✅       | client bundle           | ❌ public                      | ✅ present                               |
+| `SUPABASE_URL`                   | ✅       | server / edge functions | ❌                             | ✅ present                               |
+| `SUPABASE_PUBLISHABLE_KEY`       | ✅       | server                  | ❌                             | ✅ present                               |
+| `SUPABASE_SECRET_KEY`            | ✅       | **server only**         | 🔴 **YES**                     | ⚠️ present, must never reach the browser |
+| `SUPABASE_JWKS_URL`              | optional | server                  | ❌                             | ✅ present                               |
+| `DATABASE_URL` (direct Postgres) | optional | CLI / migrations        | 🔴 YES                         | not required — CLI uses `link`           |
+| `MIGRATION_DB_PASSWORD`          | optional | CLI `db push`           | 🔴 YES                         | prompt-based; do not commit              |
 
 **Rules:** `.env` is gitignored ✅. `.env.example` must list names with empty
 values — never real ones. `SUPABASE_SECRET_KEY` bypasses RLS entirely; if it is
@@ -419,13 +420,13 @@ ever exposed to a browser bundle, the whole permission model is void.
 
 ## 13. Existing Project Repair
 
-| Change | File | Reversible? |
-|---|---|---|
-| Removed committed credential; set password var to NULL | `20260916000000_reset_and_recreate_superadmin_user.sql` | ✅ via git |
-| Neutralized password-reset migration to `SELECT 1` | `20260926000000_update_superadmin_password.sql` | ✅ via git |
-| Added `supabase/.temp/` ignore rule | `.gitignore` | ✅ |
-| Untracked 11 local CLI files (**kept on disk**) | `supabase/.temp/*` | ✅ re-add if wanted |
-| Documented rules, findings, bootstrap, commands | `docs/database/migration-safety-notes.md` | ✅ |
+| Change                                                 | File                                                    | Reversible?         |
+| ------------------------------------------------------ | ------------------------------------------------------- | ------------------- |
+| Removed committed credential; set password var to NULL | `20260916000000_reset_and_recreate_superadmin_user.sql` | ✅ via git          |
+| Neutralized password-reset migration to `SELECT 1`     | `20260926000000_update_superadmin_password.sql`         | ✅ via git          |
+| Added `supabase/.temp/` ignore rule                    | `.gitignore`                                            | ✅                  |
+| Untracked 11 local CLI files (**kept on disk**)        | `supabase/.temp/*`                                      | ✅ re-add if wanted |
+| Documented rules, findings, bootstrap, commands        | `docs/database/migration-safety-notes.md`               | ✅                  |
 
 **Migration versions were preserved in every case**, so
 `supabase_migrations.schema_migrations` does not drift and `db push` keeps
@@ -455,13 +456,14 @@ No database connection was made.**
 when the chain is genuinely clean.**
 
 Reasoning, from what was actually found: the chain contains destructive resets
-and personal-identity provisioning. A baseline would capture the *current*
+and personal-identity provisioning. A baseline would capture the _current_
 schema, after which those files could be dropped — attractive, but the baseline
 must be produced by `db pull` against the live database and then reconciled
 against the repo, which is a substantial, review-heavy operation. The chain
 works today; the problems are contained and now documented.
 
 **Recommended sequence:**
+
 1. Now — keep the chain, rotate the leaked password, apply the guards.
 2. Next — split the seed into `reference.sql` / `demo.sql`.
 3. Then — once no migration contains data or identity, squash the historical
@@ -479,7 +481,7 @@ decision only you can make.
 
 1. **What:** change the password of the personal super-admin account.
 2. **Where:** Supabase Dashboard → Authentication → Users → select the account →
-   *Reset password*.
+   _Reset password_.
 3. **Why:** the old value sat in a committed SQL file and remains in Git
    history. Removing it from the file does not invalidate it.
 4. **Value:** a new strong password you choose. Do **not** put it in any file.
@@ -603,11 +605,11 @@ npm run lint
 npx supabase db reset
 ```
 
-> If `db push` reports *"remote migration versions not found in local
-> migrations directory"*, **do not** delete local files and **do not** edit
+> If `db push` reports _"remote migration versions not found in local
+> migrations directory"_, **do not** delete local files and **do not** edit
 > `schema_migrations` by hand. First `git pull` and confirm the file exists
 > locally. If it genuinely does not, `npx supabase migration repair --status
-> reverted <version>` is the surgical tool — use it only after confirming the
+reverted <version>` is the surgical tool — use it only after confirming the
 > object it creates already exists remotely.
 
 ---
@@ -615,6 +617,7 @@ npx supabase db reset
 ## 17. Verification Checklist
 
 ### Database
+
 - [ ] `npx supabase migration list --linked` shows no unexpected diff
 - [ ] `npx supabase db diff --linked` reports no unmanaged schema drift
 - [ ] `tsc --noEmit` exits 0
@@ -622,23 +625,27 @@ npx supabase db reset
 - [ ] RLS policies on `platform_admins`, `user_roles` verified (§15.4)
 
 ### Data
+
 - [ ] Integrity queries (§10) return zero rows
 - [ ] `units` / `expense_categories` rows carry distinct `code` values
 - [ ] No orphan `inventory` rows
 - [ ] No `user_roles` rows without a matching profile
 
 ### Auth
+
 - [ ] Rotated password signs in successfully
 - [ ] Super-admin screens reachable
 - [ ] A newly created user receives a `profiles` row automatically
 - [ ] A non-privileged user cannot reach platform-admin screens
 
 ### Seed re-run safety
+
 - [ ] `reference.sql` run twice → no duplicate rows
 - [ ] `reference.sql` run twice → no duplicate roles or units
 - [ ] No `auth.users` insert exists in any auto-run seed
 
 ### Security
+
 - [ ] No plaintext credential anywhere in the repo
 - [ ] Rotated secret key reflected in `.env` and Vercel
 - [ ] `supabase/.temp/` not tracked
@@ -698,16 +705,16 @@ Vortex ERP — target database architecture
 
 ## 19. Immediate Next Steps
 
-| Priority | Action | Who | Reference |
-|---|---|---|---|
-| 🔴 1 | Rotate leaked super-admin password | You | §15.1 |
-| 🔴 2 | Rotate leaked `SUPABASE_SECRET_KEY` | You | §15.2 |
-| 🟠 3 | Decide on guards for destructive migrations | You | §15.3 |
-| 🟠 4 | Verify RLS on `platform_admins` / `user_roles` | You | §15.4 |
-| 🟡 5 | Run integrity queries | You | §15.5 |
-| 🟡 6 | Split seed → `reference.sql` + `demo.sql` | Agent, on approval | §6 |
-| 🟡 7 | Add `UNIQUE(code)` to reference tables | Agent, after §15.5 | §6 |
-| 🟡 8 | Extract shared payment-method module | Agent, on approval | §7.7 |
+| Priority | Action                                         | Who                | Reference |
+| -------- | ---------------------------------------------- | ------------------ | --------- |
+| 🔴 1     | Rotate leaked super-admin password             | You                | §15.1     |
+| 🔴 2     | Rotate leaked `SUPABASE_SECRET_KEY`            | You                | §15.2     |
+| 🟠 3     | Decide on guards for destructive migrations    | You                | §15.3     |
+| 🟠 4     | Verify RLS on `platform_admins` / `user_roles` | You                | §15.4     |
+| 🟡 5     | Run integrity queries                          | You                | §15.5     |
+| 🟡 6     | Split seed → `reference.sql` + `demo.sql`      | Agent, on approval | §6        |
+| 🟡 7     | Add `UNIQUE(code)` to reference tables         | Agent, after §15.5 | §6        |
+| 🟡 8     | Extract shared payment-method module           | Agent, on approval | §7.7      |
 
 Items 6–8 were **not** applied in this session because each changes behaviour
 (dev seeding, constraint enforcement, or a wide code sweep) and should be

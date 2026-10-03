@@ -14,6 +14,7 @@ import {
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Printer, Eye, ScrollText, Sparkles, Layers, Check } from "lucide-react";
+import { getCompanyCurrencySymbol } from "@/lib/format";
 
 const SAMPLE_CUSTOMER_INVOICE: UnifiedDocumentData = {
   docType: "customer_invoice",
@@ -59,7 +60,7 @@ const SAMPLE_CUSTOMER_INVOICE: UnifiedDocumentData = {
   total: 700,
   paid: 700,
   balance: 0,
-  currency: "USD",
+  currency: "ر.ي",
   company: {
     name: "طاحونتي",
     phone: "772217218",
@@ -121,7 +122,9 @@ export function PrintPreviewModal({ open, onOpenChange, customDoc, initialDocTyp
 
   const doc = useMemo(() => {
     if (customDoc) return customDoc;
-    return docType === "inventory_document" ? SAMPLE_INVENTORY_DOC : SAMPLE_CUSTOMER_INVOICE;
+    return docType === "inventory_document"
+      ? SAMPLE_INVENTORY_DOC
+      : { ...SAMPLE_CUSTOMER_INVOICE, currency: getCompanyCurrencySymbol() };
   }, [customDoc, docType]);
 
   const previewHtml = useMemo(() => {

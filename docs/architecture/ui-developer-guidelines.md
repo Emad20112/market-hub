@@ -21,23 +21,24 @@ Layer 3: Pages        → src/routes/_app.*.tsx (منطق البيانات وا�
 
 ## 2. جدول أماكن التعديل والتخصيص المركزي
 
-| لتعديل ما يلي... | عدّل في هذا الملف |
-| :--- | :--- |
-| ارتفاع حقول الإدخال، نصف القطر (Radius)، حلقة التركيز (Focus Ring) | `src/design/styles.ts` → `fieldSize`, `fieldSurface` |
-| أحجام الأزرار أو المتغيرات (`primary`, `outline`, `ghost`, ...) | `src/components/ui/button.tsx` → `buttonVariants` |
-| الألوان، مقياس نصف القطر، الظلال، الحركات، و Z-Index | `src/styles.css` → `@theme inline` |
-| شارات الحالة الملونة (Status Badges) في كافة الشاشات | `src/styles.css` → المتغيرات `--tone-*` (لكلا الوضعين) |
-| مظهر حالات التحميل والفراغ والخطأ (Empty / Loading / Error) | `src/components/ui/feedback.tsx` |
-| كثافة الجداول، الهيدر الثابت، والترقيم التلقائي (Pagination) | `src/components/ui/data-table.tsx` |
-| شريط الأدوات، البحث، الفلاتر، وتجاوب الشاشات الصغيرة | `src/components/ui/table-toolbar.tsx` |
-| سلوك النوافذ المنبثقة بين الحاسوب والجوال (Desktop Dialog ↔ Mobile Drawer) | `src/components/ui/modal.tsx` |
-| معالجة وتطبيع الأرقام والأرقام الهندية/العربية | `src/design/number.ts` |
+| لتعديل ما يلي...                                                           | عدّل في هذا الملف                                      |
+| :------------------------------------------------------------------------- | :----------------------------------------------------- |
+| ارتفاع حقول الإدخال، نصف القطر (Radius)، حلقة التركيز (Focus Ring)         | `src/design/styles.ts` → `fieldSize`, `fieldSurface`   |
+| أحجام الأزرار أو المتغيرات (`primary`, `outline`, `ghost`, ...)            | `src/components/ui/button.tsx` → `buttonVariants`      |
+| الألوان، مقياس نصف القطر، الظلال، الحركات، و Z-Index                       | `src/styles.css` → `@theme inline`                     |
+| شارات الحالة الملونة (Status Badges) في كافة الشاشات                       | `src/styles.css` → المتغيرات `--tone-*` (لكلا الوضعين) |
+| مظهر حالات التحميل والفراغ والخطأ (Empty / Loading / Error)                | `src/components/ui/feedback.tsx`                       |
+| كثافة الجداول، الهيدر الثابت، والترقيم التلقائي (Pagination)               | `src/components/ui/data-table.tsx`                     |
+| شريط الأدوات، البحث، الفلاتر، وتجاوب الشاشات الصغيرة                       | `src/components/ui/table-toolbar.tsx`                  |
+| سلوك النوافذ المنبثقة بين الحاسوب والجوال (Desktop Dialog ↔ Mobile Drawer) | `src/components/ui/modal.tsx`                          |
+| معالجة وتطبيع الأرقام والأرقام الهندية/العربية                             | `src/design/number.ts`                                 |
 
 ---
 
 ## 3. منظومة الجداول وعرض البيانات (`DataTable` & `TableToolbar`)
 
 ### أ. القواعد الإلزامية لتثبيت الهيدر والبحث (Sticky Header & Toolbar)
+
 1. **ممنوع منعاً باتاً استخدام `overflow-hidden`** على أي حاوية أب تضم جدول بيانات (`panel-elevated`). استخدام `overflow-hidden` يكسر خاصية `position: sticky` في المتصفح ويمنع تثبيت رأس الجدول وشريط الأدوات عند التمرير.
 2. الحاوية المعتمدة للجدول هي:
    ```tsx
@@ -47,6 +48,7 @@ Layer 3: Pages        → src/routes/_app.*.tsx (منطق البيانات وا�
    ```
 
 ### ب. التجاوب وتفادي الفراغات الوهمية والتمرير المفرط
+
 1. عند استخدام خاصية الإخفاء التجاوبي للأعمدة (`hideBelow: "sm"` أو `"md"` أو `"lg"`):
    - يجب ألا يُعطى الجدول `minWidth` ثابتاً وضخماً (مثل 900px) في الشاشات الصغيرة؛ لأن إخفاء الأعمدة يقلص المحتوى بينما يجبر العرض الثابت الجدول على التمدد مما يخلق فراغاً هائلاً يسمح للأزرار بالتمرير لمنتصف الشاشة.
    - اجعل `minWidth` متجاوباً حسب نقطة التوقف:

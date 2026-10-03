@@ -86,7 +86,11 @@ interface Line {
   unit_price: number;
   tax: number;
   total: number;
-  products: { name: string; sku: string | null } | null;
+  /** SERVICE = بند أجرة (طحن/تعبئة)، GOOD = بضاعة. يميّز بنود المطحنة
+   *  التي لا يخصم منها مخزون عن بضاعة مخزنية. */
+  line_type?: string | null;
+  stock_effect?: string | null;
+  products: { name: string; name_ar?: string | null; sku: string | null } | null;
 }
 
 type StatusTab = "all" | "paid" | "partial" | "unpaid" | "cancelled";
@@ -139,7 +143,7 @@ export function SalesPage() {
       const { data, error } = await supabase
         .from("sales_invoices")
         .select(
-          "id,invoice_number,status,subtotal,discount,tax,total,paid,payment_method,note,created_at,customer_id,warehouse_id,customers(id,name,phone),warehouses(name,name_ar)",
+          "id,invoice_number,status,subtotal,discount,tax,total,paid,payment_method,note,created_at,customer_id,warehouse_id,milling_job_id,customers(id,name,phone),warehouses(name,name_ar)",
         )
         .order("created_at", { ascending: false })
         .limit(300);
@@ -165,7 +169,7 @@ export function SalesPage() {
     try {
       const { data, error } = await supabase
         .from("sales_invoice_items")
-        .select("id,quantity,unit_price,tax,total,products(name,sku)")
+        .select("id,quantity,unit_price,tax,total,line_type,stock_effect,products(name,name_ar,sku)")
         .eq("invoice_id", inv.id);
 
       if (!error) {
@@ -325,11 +329,11 @@ export function SalesPage() {
   }) => {
     if (!collectionTarget) throw new Error("No collection target selected");
 
-    const dbMethodMap: Record<PaymentMethod, string> = {
+    const dbMethodMap: Record<PaymentMethod, "cash" | "bank_transfer"> = {
       cash: "cash",
       transfer: "bank_transfer",
     };
-    const dbMethod = dbMethodMap[payment.method] || "cash";
+    const dbMethod = dbMethodMap[payment.method];
 
     // 1. Record customer payment if customer exists
     if (collectionTarget.customerId) {
@@ -365,7 +369,7 @@ export function SalesPage() {
       if (invErr) {
         console.error("Failed to update invoice:", invErr);
         toast.error(isRtl ? "تعذر تحديث حالة الفاتورة" : "Failed to update invoice status");
-        return;
+        throw invErr;
       }
     }
 
@@ -406,7 +410,7 @@ export function SalesPage() {
       payment: pmLabel(selected.payment_method, selected.note),
       status: statusLabel(selected.status),
       lines: lines.map((l) => ({
-        product: l.products?.name ?? "—",
+        product: l.products?.name_ar || l.products?.name || "—",
         qty: Number(l.quantity),
         price: Number(l.unit_price),
         total: Number(l.total),
@@ -418,12 +422,15 @@ export function SalesPage() {
       paid: Number(selected.paid),
       company: cs
         ? {
-            name: "طاحونتي",
+            name: (cs as any).name || "طاحونتي",
             phone: (cs as any).phone || "772217218",
-            logo: "/inama-soft-logo.ico",
+            logo: (cs as any).logo_url || undefined,
           }
         : undefined,
-      currency: (cs as any)?.currency ?? (isRtl ? "ريال" : ""),
+      currency:
+        (cs as any)?.currency_symbol?.trim() ||
+        (cs as any)?.currency ||
+        (isRtl ? "ريال" : ""),
     };
   }
 
@@ -621,27 +628,7 @@ export function SalesPage() {
             <span className="hidden sm:inline">{isRtl ? "تحديث" : "Refresh"}</span>
           </button>
 
-          {/* View mode toggle */}
-          <div className="flex items-center rounded-lg border border-border bg-surface p-0.5">
-            <button
-              onClick={() => setViewMode("table")}
-              className={`rounded-md p-1.5 transition ${
-                viewMode === "table" ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
-              }`}
-              title={isRtl ? "عرض الجدول" : "Table View"}
-            >
-              <List className="h-4 w-4" />
-            </button>
-            <button
-              onClick={() => setViewMode("grid")}
-              className={`rounded-md p-1.5 transition ${
-                viewMode === "grid" ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
-              }`}
-              title={isRtl ? "عرض البطاقات" : "Grid Cards View"}
-            >
-              <LayoutGrid className="h-4 w-4" />
-            </button>
-          </div>
+
 
           <Link
             to="/pos"
@@ -1267,10 +1254,19 @@ export function SalesPage() {
         </VortexFilterSection>
       </VortexFilterSheet>
 
-      {/* Invoice Details Modal */}
+      {/* Luxury Invoice Details Drawer */}
       {selected && (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-background/80 backdrop-blur-sm p-4 overflow-y-auto">
-          <div className="panel-elevated my-8 flex max-h-[92vh] w-full max-w-3xl flex-col overflow-hidden p-0 shadow-2xl border border-border/80">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-end bg-black/65 backdrop-blur-xs animate-in fade-in duration-200"
+          onClick={() => setSelected(null)}
+        >
+          <div
+            className="h-full w-full max-w-2xl border-s border-border/80 bg-background/95 backdrop-blur-md p-6 shadow-2xl overflow-y-auto animate-in slide-in-from-left duration-200 relative flex flex-col justify-between"
+            onClick={(e) => e.stopPropagation()}
+            dir={isRtl ? "rtl" : "ltr"}
+          >
+            {/* Ambient decorative glow */}
+            <div className="absolute -top-12 -right-12 size-48 rounded-full bg-primary/20 blur-3xl pointer-events-none" />
             {/* Modal Header */}
             <div className="flex items-center justify-between border-b border-border/80 bg-surface-2/40 px-6 py-4">
               <div className="flex items-center gap-3">
@@ -1407,7 +1403,18 @@ export function SalesPage() {
                         lines.map((l) => (
                           <tr key={l.id} className="hover:bg-surface-2/30">
                             <td className="px-3 py-2.5">
-                              <div className="font-medium text-foreground">{l.products?.name ?? "—"}</div>
+                              {/* الاسم العربي أولاً — أسماء المنتجات الإنجليزية
+                                  كانت تظهر في واجهة عربية عند غياب name_ar. */}
+                              <div className="font-medium text-foreground">
+                                {l.products?.name_ar || l.products?.name || "—"}
+                              </div>
+                              {/* بند خدمة الطحن (line_type = SERVICE) لا يخصم مخزوناً؛
+                                  إظهاره يمنع افتراض أنه بضاعة مخزنية. */}
+                              {l.line_type === "SERVICE" && (
+                                <div className="mt-0.5 text-[10px] font-bold text-amber-600 dark:text-amber-400">
+                                  {isRtl ? "بند خدمة — لا يخصم مخزوناً" : "Service line — no stock impact"}
+                                </div>
+                              )}
                               {l.products?.sku && (
                                 <div className="text-[10px] font-mono text-muted-foreground">
                                   SKU: {l.products.sku}
@@ -1622,6 +1629,40 @@ export function SalesPage() {
           void load();
         }}
       />
+
+      {/* Bottom Floating/Docked View Switcher & Record Counter */}
+      <div className="sticky bottom-4 z-20 mx-auto mt-6 flex max-w-fit items-center gap-3 rounded-2xl border border-border/80 bg-background/90 px-4 py-2 shadow-lg backdrop-blur-md">
+        <span className="text-xs font-medium text-muted-foreground">
+          {isRtl ? `إجمالي الفواتير: ${filteredRows.length}` : `Total Invoices: ${filteredRows.length}`}
+        </span>
+        <div className="h-4 w-px bg-border" />
+        <div className="flex items-center rounded-xl border border-border bg-muted/40 p-0.5">
+          <button
+            type="button"
+            onClick={() => setViewMode("table")}
+            className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-semibold transition ${
+              viewMode === "table"
+                ? "bg-primary text-primary-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <List className="h-3.5 w-3.5" />
+            <span>{isRtl ? "جدول" : "Table"}</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setViewMode("grid")}
+            className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-semibold transition ${
+              viewMode === "grid"
+                ? "bg-primary text-primary-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <LayoutGrid className="h-3.5 w-3.5" />
+            <span>{isRtl ? "بطاقات" : "Grid"}</span>
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

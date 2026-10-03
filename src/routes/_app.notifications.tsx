@@ -18,9 +18,18 @@ import {
   Filter,
   RefreshCw,
   ShieldAlert,
+  HardDriveDownload,
+  Download,
+  Database,
+  Loader2,
 } from "lucide-react";
 import { VortexMetricCard } from "@/components/vortex-ui/finance/vortex-metric-card";
 import { formatLuxuryDate } from "@/lib/format-preferences";
+import {
+  checkBackupReminderStatus,
+  triggerInstantLocalBackupDownload,
+} from "@/lib/backup/reminder";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/_app/notifications")({
   head: () => ({ meta: [{ title: "Notifications — Vortex ERP" }] }),
@@ -29,20 +38,22 @@ export const Route = createFileRoute("/_app/notifications")({
 
 interface AlertItem {
   id: string;
-  kind: "out" | "low" | "debt_c" | "debt_s";
+  kind: "out" | "low" | "debt_c" | "debt_s" | "backup_due";
   title: string;
   sub: string;
   meta?: string;
   severity: "danger" | "warn" | "info";
   actionUrl: string;
   actionLabel: string;
+  isBackupReminder?: boolean;
 }
 
 function NotificationsPage() {
   const { t, lang } = useI18n();
   const isAr = lang === "ar";
-  const [activeTab, setActiveTab] = useState<"all" | "danger" | "stock" | "finance">("all");
+  const [activeTab, setActiveTab] = useState<"all" | "danger" | "stock" | "finance" | "backup">("all");
   const [searchQuery, setSearchQuery] = useState("");
+  const [isDownloadingBackup, setIsDownloadingBackup] = useState(false);
 
   // Ultra-fast cached React Query with 60s stale time
   const {
@@ -83,7 +94,30 @@ function NotificationsPage() {
 
       const items: AlertItem[] = [];
 
-      // Stock alerts
+      // 0) Local Backup Download Reminder Alert
+      const backupStatus = checkBackupReminderStatus();
+      if (backupStatus.isDue) {
+        const freqLabel =
+          backupStatus.frequency === "twice_daily"
+            ? isAr ? "مرتين يومياً" : "Twice Daily"
+            : backupStatus.frequency === "daily"
+              ? isAr ? "يومياً" : "Daily"
+              : isAr ? "أسبوعياً" : "Weekly";
+
+        items.push({
+          id: "backup-local-reminder",
+          kind: "backup_due",
+          title: isAr ? "تنبيه النسخ الاحتياطي الدوري (تحميل محلي)" : "Periodic Local Backup Reminder",
+          sub: backupStatus.messageAr,
+          meta: freqLabel,
+          severity: "warn",
+          actionUrl: "/settings",
+          actionLabel: isAr ? "تحميل النسخة الآن" : "Download Now",
+          isBackupReminder: true,
+        });
+      }
+
+      // 1) Stock alerts
       (prodsRes.data ?? []).forEach((p: any) => {
         const q = stock.get(p.id) ?? 0;
         const min = Number(p.min_stock ?? 0);
@@ -113,7 +147,7 @@ function NotificationsPage() {
         }
       });
 
-      // Customer debts
+      // 2) Customer debts
       (custsRes.data ?? []).forEach((c: any) => {
         const over = Number(c.credit_limit) > 0 && Number(c.balance) > Number(c.credit_limit);
         items.push({
@@ -134,7 +168,7 @@ function NotificationsPage() {
         });
       });
 
-      // Supplier payables
+      // 3) Supplier payables
       (suppsRes.data ?? []).forEach((s: any) => {
         items.push({
           id: `supp-${s.id}`,
@@ -152,12 +186,35 @@ function NotificationsPage() {
     },
   });
 
+  const handleInstantDownload = async () => {
+    setIsDownloadingBackup(true);
+    toast.info(isAr ? "جاري تجميع البيانات وتشفير النسخة الاحتياطية..." : "Encrypting backup snapshot...");
+    try {
+      const res = await triggerInstantLocalBackupDownload();
+      if (res.success) {
+        toast.success(
+          isAr
+            ? `تم تحميل النسخة الاحتياطية (${res.fileName}) بنجاح في مجلد التنزيلات!`
+            : `Backup (${res.fileName}) downloaded successfully!`,
+        );
+        refetch();
+      } else {
+        toast.error(res.error || (isAr ? "حدث خطأ أثناء تحميل النسخة الاحتياطية" : "Download failed"));
+      }
+    } catch (err: any) {
+      toast.error(err?.message || "Error generating backup");
+    } finally {
+      setIsDownloadingBackup(false);
+    }
+  };
+
   const counts = useMemo(() => {
     return {
       total: alerts.length,
       danger: alerts.filter((a) => a.severity === "danger").length,
       stock: alerts.filter((a) => a.kind === "out" || a.kind === "low").length,
       finance: alerts.filter((a) => a.kind === "debt_c" || a.kind === "debt_s").length,
+      backup: alerts.filter((a) => a.kind === "backup_due").length,
     };
   }, [alerts]);
 
@@ -168,6 +225,7 @@ function NotificationsPage() {
       if (activeTab === "stock" && alert.kind !== "out" && alert.kind !== "low") return false;
       if (activeTab === "finance" && alert.kind !== "debt_c" && alert.kind !== "debt_s")
         return false;
+      if (activeTab === "backup" && alert.kind !== "backup_due") return false;
 
       // Search query
       if (searchQuery.trim()) {
@@ -188,8 +246,8 @@ function NotificationsPage() {
         title={t("notifications.title")}
         subtitle={
           isAr
-            ? "مركز التنبيهات الذكي لرصد المخزون الحرج والذمم المالية المستحقة"
-            : "Smart alert hub for critical stock and outstanding balances"
+            ? "مركز التنبيهات الذكي لرصد المخزون الحرج، الذمم المالية، ومواعيد النسخ الاحتياطي المحلي"
+            : "Smart alert hub for critical stock, outstanding balances, and local backup reminders"
         }
         actions={
           <button
@@ -205,15 +263,15 @@ function NotificationsPage() {
         }
       />
 
-      {/* KPI Cards Grid - Mobile 2-cols */}
+      {/* KPI Cards Grid */}
       <div className="grid grid-cols-2 gap-2.5 sm:gap-4 lg:grid-cols-4">
         <div onClick={() => setActiveTab("danger")} className="cursor-pointer">
           <VortexMetricCard
             title={isAr ? "تنبيهات حرجة" : "Critical Alerts"}
             value={num(counts.danger)}
+            currency=""
             subtitle={isAr ? "تحتاج تدخل فوري" : "Requires urgent action"}
             badge={isAr ? "عاجل" : "Urgent"}
-            currency=""
             icon={<ShieldAlert className="size-5" />}
             iconClassName="bg-rose-500/10 text-rose-600 dark:text-rose-400"
             highlight={activeTab === "danger"}
@@ -224,8 +282,8 @@ function NotificationsPage() {
           <VortexMetricCard
             title={isAr ? "نواقص المخزون" : "Stock Warnings"}
             value={num(counts.stock)}
-            subtitle={isAr ? "أصناف نفدت أو قاربت" : "Low or out of stock"}
             currency=""
+            subtitle={isAr ? "أصناف نفدت أو قاربت" : "Low or out of stock"}
             icon={<PackageX className="size-5" />}
             iconClassName="bg-amber-500/10 text-amber-600 dark:text-amber-400"
             highlight={activeTab === "stock"}
@@ -236,23 +294,23 @@ function NotificationsPage() {
           <VortexMetricCard
             title={isAr ? "الذمم والديون" : "Financial Debts"}
             value={num(counts.finance)}
-            subtitle={isAr ? "مستحقات عملاء وموردين" : "Receivables & payables"}
             currency=""
+            subtitle={isAr ? "مستحقات عملاء وموردين" : "Receivables & payables"}
             icon={<Users className="size-5" />}
             iconClassName="bg-primary/10 text-primary"
             highlight={activeTab === "finance"}
           />
         </div>
 
-        <div onClick={() => setActiveTab("all")} className="cursor-pointer">
+        <div onClick={() => setActiveTab("backup")} className="cursor-pointer">
           <VortexMetricCard
-            title={isAr ? "إجمالي التنبيهات" : "Total Alerts"}
-            value={num(counts.total)}
-            subtitle={isAr ? "جميع الإخطارات النشطة" : "All active notices"}
+            title={isAr ? "نسخ احتياطي محلي" : "Local Backup"}
+            value={num(counts.backup)}
             currency=""
-            icon={<Bell className="size-5" />}
-            iconClassName="bg-cyan-500/10 text-cyan-600 dark:text-cyan-400"
-            highlight={activeTab === "all"}
+            subtitle={isAr ? "مواعيد التحميل للجهاز" : "Device download schedule"}
+            icon={<HardDriveDownload className="size-5" />}
+            iconClassName="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+            highlight={activeTab === "backup"}
           />
         </div>
       </div>
@@ -287,6 +345,22 @@ function NotificationsPage() {
             {counts.danger > 0 && (
               <span className="rounded-full bg-rose-500/20 text-rose-500 dark:text-rose-300 px-1.5 py-0.2 text-[10px] font-mono">
                 {num(counts.danger)}
+              </span>
+            )}
+          </button>
+
+          <button
+            onClick={() => setActiveTab("backup")}
+            className={`inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-bold transition-all ${
+              activeTab === "backup"
+                ? "bg-emerald-600 text-white shadow-sm"
+                : "text-muted-foreground hover:bg-surface-2 hover:text-foreground"
+            }`}
+          >
+            <span>{isAr ? "النسخ الاحتياطي" : "Backup"}</span>
+            {counts.backup > 0 && (
+              <span className="rounded-full bg-white/20 text-white px-1.5 py-0.2 text-[10px] font-mono">
+                {num(counts.backup)}
               </span>
             )}
           </button>
@@ -352,8 +426,8 @@ function NotificationsPage() {
             </h3>
             <p className="mt-1 text-xs text-muted-foreground max-w-sm">
               {isAr
-                ? "كافة مؤشرات المخزون والذمم المالية ضمن الحدود الطبيعية المستقرة."
-                : "All stock and receivables indicators are operating within normal limits."}
+                ? "كافة مؤشرات المخزون والذمم والنسخ الاحتياطي ضمن الحدود المستقرة."
+                : "All indicators are operating within normal limits."}
             </p>
           </div>
         ) : (
@@ -361,24 +435,33 @@ function NotificationsPage() {
             {filteredAlerts.map((alert) => {
               const isDanger = alert.severity === "danger";
               const isWarn = alert.severity === "warn";
+              const isBackup = alert.kind === "backup_due";
 
               return (
                 <div
                   key={alert.id}
-                  className="group flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 sm:p-4 hover:bg-surface-2/50 transition-all duration-150"
+                  className={`group flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 sm:p-4 transition-all duration-150 ${
+                    isBackup
+                      ? "bg-amber-500/5 hover:bg-amber-500/10 border-s-4 border-s-amber-500"
+                      : "hover:bg-surface-2/50"
+                  }`}
                 >
                   <div className="flex items-start gap-3 min-w-0 flex-1">
                     {/* Severity Icon */}
                     <div
                       className={`grid size-10 shrink-0 place-items-center rounded-2xl shadow-xs transition-transform duration-200 group-hover:scale-105 ${
-                        isDanger
-                          ? "bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20"
-                          : isWarn
-                            ? "bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20"
-                            : "bg-primary/10 text-primary border border-primary/20"
+                        isBackup
+                          ? "bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30"
+                          : isDanger
+                            ? "bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20"
+                            : isWarn
+                              ? "bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20"
+                              : "bg-primary/10 text-primary border border-primary/20"
                       }`}
                     >
-                      {alert.kind === "out" ? (
+                      {isBackup ? (
+                        <HardDriveDownload className="size-5 animate-pulse" />
+                      ) : alert.kind === "out" ? (
                         <PackageX className="size-5" />
                       ) : alert.kind === "low" ? (
                         <AlertTriangle className="size-5" />
@@ -397,28 +480,34 @@ function NotificationsPage() {
                         </span>
                         <span
                           className={`rounded-full px-2 py-0.5 text-[9px] sm:text-[10px] font-bold ${
-                            isDanger
-                              ? "bg-rose-500/15 text-rose-600 dark:text-rose-400"
-                              : isWarn
-                                ? "bg-amber-500/15 text-amber-700 dark:text-amber-300"
-                                : "bg-primary/15 text-primary"
+                            isBackup
+                              ? "bg-amber-500/20 text-amber-700 dark:text-amber-300"
+                              : isDanger
+                                ? "bg-rose-500/15 text-rose-600 dark:text-rose-400"
+                                : isWarn
+                                  ? "bg-amber-500/15 text-amber-700 dark:text-amber-300"
+                                  : "bg-primary/15 text-primary"
                           }`}
                         >
-                          {alert.kind === "out"
+                          {isBackup
                             ? isAr
-                              ? "نفاد مخزون"
-                              : "Out of stock"
-                            : alert.kind === "low"
+                              ? "نسخة محلية مجدولة"
+                              : "Scheduled Local Download"
+                            : alert.kind === "out"
                               ? isAr
-                                ? "حد أمان"
-                                : "Low stock"
-                              : alert.kind === "debt_c"
+                                ? "نفاد مخزون"
+                                : "Out of stock"
+                              : alert.kind === "low"
                                 ? isAr
-                                  ? "ذمم عملاء"
-                                  : "Customer Debt"
-                                : isAr
-                                  ? "ذمم موردين"
-                                  : "Supplier Payable"}
+                                  ? "حد أمان"
+                                  : "Low stock"
+                                : alert.kind === "debt_c"
+                                  ? isAr
+                                    ? "ذمم عملاء"
+                                    : "Customer Debt"
+                                  : isAr
+                                    ? "ذمم موردين"
+                                    : "Supplier Payable"}
                         </span>
                       </div>
                       <p className="text-xs text-muted-foreground leading-relaxed">{alert.sub}</p>
@@ -433,13 +522,36 @@ function NotificationsPage() {
                       </span>
                     )}
 
-                    <Link
-                      to={alert.actionUrl}
-                      className="inline-flex h-8 items-center gap-1.5 rounded-xl border border-border/80 bg-surface px-3 text-xs font-semibold text-foreground hover:bg-primary hover:text-primary-foreground hover:border-primary transition-all active:scale-95 shadow-xs"
-                    >
-                      <span>{alert.actionLabel}</span>
-                      <ArrowUpRight className="size-3.5" />
-                    </Link>
+                    {isBackup ? (
+                      <button
+                        onClick={handleInstantDownload}
+                        disabled={isDownloadingBackup}
+                        className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white px-3.5 text-xs font-bold transition-all shadow-md active:scale-95 disabled:opacity-50"
+                      >
+                        {isDownloadingBackup ? (
+                          <Loader2 className="size-3.5 animate-spin" />
+                        ) : (
+                          <Download className="size-3.5" />
+                        )}
+                        <span>
+                          {isDownloadingBackup
+                            ? isAr
+                              ? "جاري التجميع..."
+                              : "Downloading..."
+                            : isAr
+                              ? "تحميل للـ Downloads الآن"
+                              : "Download to Device"}
+                        </span>
+                      </button>
+                    ) : (
+                      <Link
+                        to={alert.actionUrl}
+                        className="inline-flex h-8 items-center gap-1.5 rounded-xl border border-border/80 bg-surface px-3 text-xs font-semibold text-foreground hover:bg-primary hover:text-primary-foreground hover:border-primary transition-all active:scale-95 shadow-xs"
+                      >
+                        <span>{alert.actionLabel}</span>
+                        <ArrowUpRight className="size-3.5" />
+                      </Link>
+                    )}
                   </div>
                 </div>
               );

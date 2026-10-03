@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { PageHeader } from "@/components/page-header";
 import { useI18n } from "@/lib/i18n";
 import { supabase } from "@/integrations/supabase/client";
-import { money } from "@/lib/format";
+import { getCompanyCurrencySymbol, money } from "@/lib/format";
 import { printFinancialStatement } from "@/lib/pdf";
 import { exportToCSV } from "@/lib/excel-export";
 import { Button } from "@/components/ui/button";
@@ -145,7 +145,7 @@ function IncomeStatementPage() {
         lang === "ar"
           ? `الفترة من ${range.from} إلى ${range.to}`
           : `Period ${range.from} to ${range.to}`,
-      currency: "﷼",
+      currency: getCompanyCurrencySymbol(),
       sections: [
         {
           title: lang === "ar" ? "1. إيرادات المبيعات والنشاط" : "1. Sales Revenue",
@@ -206,10 +206,10 @@ function IncomeStatementPage() {
     exportToCSV({
       filename: `قائمة_الدخل_${range.from}_إلى_${range.to}`,
       title: `قائمة الدخل والأرباح والخسائر للفترة ${range.from} - ${range.to}`,
-      currency: "﷼",
+      currency: getCompanyCurrencySymbol(),
       columns: [
         { key: "item", header: "بند قائمة الدخل" },
-        { key: "amount", header: "المبلغ بالريال اليمني", format: "money" },
+        { key: "amount", header: "المبلغ بالعملة المحددة", format: "money" },
       ],
       rows: [
         { item: "إجمالي إيرادات المبيعات", amount: pnl.salesTotal },

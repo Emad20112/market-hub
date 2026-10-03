@@ -1,14 +1,16 @@
 # توثيق إعادة تصميم وتطوير واجهة الإعدادات (Settings UI Architecture Documentation)
+
 **المشروع:** market-hub (فورتيكس ERP)  
 **الفرع:** `yunis-fixes`  
 **المطور:** يونس (Senior Software & ERP Engineer)  
-**الحالة:** تم التنفيذ والتوثيق بنجاح ✅  
+**الحالة:** تم التنفيذ والتوثيق بنجاح ✅
 
 ---
 
 ## 1. ما تم تغييره وتطويره (Overview of Accomplishments)
 
 تمت إعادة هيكلة واجهة صفحة الإعدادات (`/_app/settings`) وتصميمها من الصفر لتتحول من صفحة بطاقات متراكمة بطول رأسي إلى **ERP Master-Detail Navigation System** محترف وجاهز للتوسع، مع الحفاظ التام على:
+
 - جميع الإعدادات الموجودة دون زيادة أو نقصان.
 - قاعدة البيانات و DB Schema والجدول `company_settings` دون أي تغيير.
 - منطق الحفظ و LocalStorage و Supabase API دون أي تعديل في الـ Logic.
@@ -55,7 +57,9 @@
 ## 4. دليل المطورين المستقبلي (Developer Expansion Guide)
 
 ### أ. كيف يضيف مبرمج مستقبلاً قسماً جديداً (مثلاً: إعدادات المخزون)؟
+
 بسطر واحد فقط في `src/components/settings/settings-registry.ts`:
+
 ```ts
 registerSettingsSection({
   id: "inventory",
@@ -69,6 +73,7 @@ registerSettingsSection({
 ```
 
 ### ب. كيف يضيف مبرمج مستقبلاً إعداداً جديداً داخل قسم موجود؟
+
 يفتح المكون الخاص بالقسم المستهدف من مجلد `src/components/settings/sections/` ويضيف الحقل مباشرة داخل المكون بنفس نسق الحقول الجاهزة دون الحاجة لتغيير هيكل الصفحة.
 
 ---

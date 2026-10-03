@@ -294,8 +294,16 @@ function ViewDialog({
   const wh = invoice.warehouses;
   const whLabel = !wh ? "—" : lang === "ar" ? wh.name_ar || wh.name : wh.name || wh.name_ar || "—";
   return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-background/80 backdrop-blur-sm p-4">
-      <div className="panel-elevated w-full max-w-2xl p-6">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-end bg-black/65 backdrop-blur-xs animate-in fade-in duration-200"
+      onClick={onClose}
+    >
+      <div
+        className="h-full w-full max-w-2xl border-s border-border/80 bg-background/95 backdrop-blur-md p-6 shadow-2xl overflow-y-auto animate-in slide-in-from-left duration-200 relative flex flex-col justify-between"
+        onClick={(e) => e.stopPropagation()}
+        dir={lang === "ar" ? "rtl" : "ltr"}
+      >
+        <div className="absolute -top-12 -right-12 size-48 rounded-full bg-primary/20 blur-3xl pointer-events-none" />
         <div className="mb-4 flex items-center justify-between">
           <div>
             <h3 className="font-mono text-lg font-semibold">{invoice.invoice_number}</h3>

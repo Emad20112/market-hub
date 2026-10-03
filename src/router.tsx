@@ -44,12 +44,12 @@ export function createQueryClient() {
         // Keep the previous page visible while the next one loads instead of
         // flashing a skeleton on every filter change.
         placeholderData: (previous: unknown) => previous,
-        networkMode: "online",
+        networkMode: "offlineFirst",
       },
       mutations: {
-        // Mutations are not idempotent — never auto-retry.
+        // Mutations retry handling managed by offline SyncEngine.
         retry: 0,
-        networkMode: "online",
+        networkMode: "offlineFirst",
       },
     },
   });

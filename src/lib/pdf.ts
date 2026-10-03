@@ -44,7 +44,7 @@ export interface InvoiceDoc {
   discount: number;
   total: number;
   paid?: number;
-  company?: { name?: string; address?: string; phone?: string; vat?: string };
+  company?: { name?: string; address?: string; phone?: string; vat?: string; logo?: string };
   currency?: string;
   brandingText?: string;
 }
@@ -270,7 +270,7 @@ async function generateInvoicePdfDoc(doc: InvoiceDoc) {
 
 export function printReport(data: ReportPrintData) {
   const rtl = data.rtl ?? true;
-  const cur = data.currency ?? "﷼";
+  const cur = data.currency ?? "ر.ي";
 
   const formatCell = (val: string | number, col: ReportColumn) => {
     if (col.format === "money" && typeof val === "number") return fmtMoney(val, cur);
@@ -449,7 +449,7 @@ export interface FinancialStatementData {
 
 export function printFinancialStatement(data: FinancialStatementData) {
   const rtl = data.rtl ?? true;
-  const cur = data.currency ?? "﷼";
+  const cur = data.currency ?? "ر.ي";
   const m = (n: number) => fmtMoney(n, cur);
 
   const renderSection = (sec: FinancialStatementSection) => `

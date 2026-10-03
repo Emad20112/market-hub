@@ -472,7 +472,7 @@ export function ExpenseFormDialog({
                 }}
                 className={selectClass}
               >
-                <option value="">—</option>
+                <option value="">{ar ? "اختر..." : "Select..."}</option>
                 {(lookups?.categories ?? []).map((category) => (
                   <option key={category.id} value={category.id}>
                     {ar ? category.name_ar || category.name : category.name}
@@ -516,7 +516,7 @@ export function ExpenseFormDialog({
                   onChange={(event) => setHeaderField("supplier_id", event.target.value)}
                   className={selectClass}
                 >
-                  <option value="">—</option>
+                  <option value="">{ar ? "اختر..." : "Select..."}</option>
                   {(lookups?.suppliers ?? []).map((supplier) => (
                     <option key={supplier.id} value={supplier.id}>
                       {supplier.name}
@@ -537,7 +537,7 @@ export function ExpenseFormDialog({
                   onChange={(event) => setHeaderField("employee_id", event.target.value)}
                   className={selectClass}
                 >
-                  <option value="">—</option>
+                  <option value="">{ar ? "اختر..." : "Select..."}</option>
                   {(lookups?.employees ?? []).map((employee) => (
                     <option key={employee.id} value={employee.id}>
                       {employee.name ?? "—"}
@@ -855,7 +855,7 @@ export function ExpenseFormDialog({
                 onChange={(event) => setHeaderField("warehouse_id", event.target.value)}
                 className={selectClass}
               >
-                <option value="">—</option>
+                <option value="">{ar ? "اختر..." : "Select..."}</option>
                 {(lookups?.warehouses ?? []).map((warehouse) => (
                   <option key={warehouse.id} value={warehouse.id}>
                     {ar ? warehouse.name_ar || warehouse.name : warehouse.name}
@@ -870,7 +870,7 @@ export function ExpenseFormDialog({
                 onChange={(event) => setHeaderField("cost_center_id", event.target.value)}
                 className={selectClass}
               >
-                <option value="">—</option>
+                <option value="">{ar ? "اختر..." : "Select..."}</option>
                 {(lookups?.cost_centers ?? []).map((center) => (
                   <option key={center.id} value={center.id}>
                     {ar ? center.name_ar || center.name : center.name}
@@ -885,7 +885,7 @@ export function ExpenseFormDialog({
                 onChange={(event) => setHeaderField("project_id", event.target.value)}
                 className={selectClass}
               >
-                <option value="">—</option>
+                <option value="">{ar ? "اختر..." : "Select..."}</option>
                 {(lookups?.projects ?? []).map((project) => (
                   <option key={project.id} value={project.id}>
                     {ar ? project.name_ar || project.name : project.name}

@@ -9,7 +9,7 @@ import {
   CreditCard,
   MessageSquareText,
   Copy,
-  Check
+  Check,
 } from "lucide-react";
 import { VortexDrawerDialog } from "../form/vortex-drawer-dialog";
 import { VortexDateBadge } from "../display/vortex-date-badge";
@@ -40,6 +40,7 @@ export function VortexTransactionDetailSheet({
   transaction,
 }: VortexTransactionDetailSheetProps) {
   const [copied, setCopied] = React.useState(false);
+  const { currencySymbol } = useCompanyCurrency();
 
   if (!transaction) return null;
 
@@ -48,10 +49,10 @@ export function VortexTransactionDetailSheet({
   const generateMessage = () => {
     return `مرحباً أستاذ/ة ${transaction.customerName}،
 إشعار بعملية: ${transaction.title}
-المبلغ: ${formatSystemNumber(transaction.amount, { currency: "ر.س" })}
+المبلغ: ${formatSystemNumber(transaction.amount, { currency: currencySymbol })}
 رقم المرجع: #${transaction.referenceNumber || transaction.id.slice(-6)}
 التاريخ: ${transaction.date}
-${transaction.remainingBalance !== undefined ? `المتبقي في الحساب: ${formatSystemNumber(transaction.remainingBalance, { currency: "ر.س" })}` : ""}
+${transaction.remainingBalance !== undefined ? `المتبقي في الحساب: ${formatSystemNumber(transaction.remainingBalance, { currency: currencySymbol })}` : ""}
 شاكرين لكم ومقدرين حسن تعاونكم.`;
   };
 
@@ -90,7 +91,11 @@ ${transaction.remainingBalance !== undefined ? `المتبقي في الحساب
       subtitle={transaction.title}
       icon={
         <div className="grid size-10 place-items-center rounded-2xl bg-foreground text-background shadow-md">
-          {isPayment ? <CheckCircle2 className="size-5 text-emerald-500" /> : <Receipt className="size-5" />}
+          {isPayment ? (
+            <CheckCircle2 className="size-5 text-emerald-500" />
+          ) : (
+            <Receipt className="size-5" />
+          )}
         </div>
       }
     >
@@ -99,7 +104,7 @@ ${transaction.remainingBalance !== undefined ? `المتبقي في الحساب
           <span className="text-xs font-bold text-muted-foreground">قيمة العملية</span>
           <div className="text-3xl sm:text-4xl font-black text-foreground font-mono tracking-tight">
             {formatSystemNumber(transaction.amount)}{" "}
-            <span className="text-sm font-bold text-muted-foreground">ر.س</span>
+            <span className="text-sm font-bold text-muted-foreground">{currencySymbol}</span>
           </div>
           <div className="pt-2">
             <VortexDateBadge date={transaction.date} showWeekday size="sm" />
@@ -125,7 +130,7 @@ ${transaction.remainingBalance !== undefined ? `المتبقي في الحساب
             <div className="flex items-center justify-between text-xs pb-2 border-b border-border/50">
               <span className="text-muted-foreground font-bold">الرصيد المتبقي:</span>
               <span className="font-mono font-bold text-rose-600 dark:text-rose-400">
-                {formatSystemNumber(transaction.remainingBalance, { currency: "ر.س" })}
+                {formatSystemNumber(transaction.remainingBalance, { currency: currencySymbol })}
               </span>
             </div>
           )}
@@ -133,7 +138,9 @@ ${transaction.remainingBalance !== undefined ? `المتبقي في الحساب
           {transaction.notes && (
             <div className="text-xs pt-1">
               <span className="text-muted-foreground font-bold block mb-1">ملاحظات:</span>
-              <p className="rounded-xl bg-muted/60 p-2 text-foreground font-medium">{transaction.notes}</p>
+              <p className="rounded-xl bg-muted/60 p-2 text-foreground font-medium">
+                {transaction.notes}
+              </p>
             </div>
           )}
         </div>

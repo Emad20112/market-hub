@@ -14,6 +14,7 @@ export const Route = createFileRoute("/_app/settings")({
 });
 
 function SettingsPage() {
+  const queryClient = useQueryClient();
   const { t, lang } = useI18n();
   const { hasRole } = useAuth();
   const canEdit = hasRole("owner") || hasRole("manager");
@@ -21,13 +22,17 @@ function SettingsPage() {
     name: "",
     legal_name: "",
     tax_number: "",
-    currency: "USD",
-    currency_symbol: "$",
+    currency: "YER",
+    currency_symbol: "ر.ي",
     tax_rate: 0,
     address: "",
     phone: "",
     email: "",
-    invoice_prefix: "INV",
+    invoice_prefix: "INV-",
+    purchase_invoice_prefix: "PO-",
+    invoice_number_period: "year_month",
+    invoice_number_digits: 4,
+    logo_url: null,
     barcode_enabled: true,
   });
   const [hasLoadedSettings, setHasLoadedSettings] = useState(false);

@@ -31,6 +31,10 @@ import {
   Clock,
   ArrowLeft,
   ChevronLeft,
+  Radio,
+  Activity,
+  Zap,
+  CheckCircle2,
 } from "lucide-react";
 import {
   AreaChart,
@@ -196,7 +200,7 @@ function DashboardPage() {
   const roleMeta = getRoleMeta(isPlatformSuperadmin, isPlatformAdmin, hasRole, isAr);
 
   // Elegant Date formatting
-  const formattedDate = now.toLocaleDateString(isAr ? "ar-SA" : "en-US", {
+  const formattedDate = now.toLocaleDateString(isAr ? "ar-YE" : "en-US", {
     weekday: "long",
     day: "numeric",
     month: "long",
@@ -331,93 +335,99 @@ function DashboardPage() {
         }
       />
 
-      {/* Executive Luxury Greeting & Calendar Masterpiece */}
-      <div className="relative mb-6 overflow-hidden rounded-3xl border border-border/80 bg-gradient-to-br from-card/90 via-card to-surface-2/40 p-4 sm:p-6 shadow-sm backdrop-blur-xl">
-        <div className="pointer-events-none absolute -end-16 -top-16 size-60 rounded-full bg-primary/10 blur-3xl opacity-60" />
+      {/* Executive Command Center / Hero Card — Reimagined as an Integrated Business Command Deck */}
+      <div className="relative mb-6 overflow-hidden rounded-3xl border border-border/80 bg-gradient-to-b from-card via-card/95 to-surface-2/40 shadow-panel backdrop-blur-xl">
+        {/* Subtle Architectural Ambient Accents */}
+        <div className="pointer-events-none absolute -top-32 -end-24 size-96 rounded-full bg-primary/10 blur-3xl opacity-60" />
+        <div className="pointer-events-none absolute -bottom-32 -start-24 size-80 rounded-full bg-emerald-500/10 blur-3xl opacity-40" />
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/30 to-transparent" />
 
-        <div className="relative flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          {/* Left / Start: Smart Greeting with Avatar & Role */}
-          <div className="flex items-center gap-3.5">
+        {/* ─── Layer 1: Identity Horizon & Chronos Capsule ─── */}
+        <div className="relative flex flex-col gap-4 p-3.5 sm:p-6 lg:flex-row lg:items-center lg:justify-between border-b border-border/50 overflow-hidden w-full">
+          {/* Executive Identity & Status */}
+          <div className="flex items-center gap-4">
             <div className="relative shrink-0">
               {profile?.avatar_url ? (
                 <img
                   src={profile.avatar_url}
                   alt={userName}
-                  className="size-12 sm:size-14 rounded-2xl object-cover border-2 border-primary/20 shadow-md"
+                  className="size-14 sm:size-16 rounded-2xl object-cover ring-2 ring-primary/20 shadow-md shadow-primary/10"
                 />
               ) : (
-                <div className="grid size-12 sm:size-14 place-items-center rounded-2xl bg-gradient-to-tr from-primary to-primary/80 text-primary-foreground font-black text-xl sm:text-2xl shadow-md shadow-primary/20 border border-primary/30">
-                  {userName ? userName.charAt(0).toUpperCase() : "م"}
+                <div className="grid size-14 sm:size-16 place-items-center rounded-2xl bg-gradient-to-tr from-primary/90 via-primary to-primary/75 text-primary-foreground font-black text-xl sm:text-2xl shadow-md shadow-primary/20 ring-1 ring-primary/40">
+                  {userName ? userName.charAt(0).toUpperCase() : "V"}
                 </div>
               )}
-              {/* Online pulse dot */}
-              <span className="absolute -bottom-0.5 -end-0.5 flex size-3.5 items-center justify-center">
-                <span className="absolute inline-flex size-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-                <span className="relative inline-flex size-2.5 rounded-full bg-emerald-500 border-2 border-card" />
+              {/* Telemetry Radar Ping */}
+              <span className="absolute -bottom-1 -end-1 flex size-4 items-center justify-center" title={isAr ? "متصل ومباشر" : "Live"}>
+                <span className="absolute inline-flex size-full animate-ping rounded-full bg-emerald-400 opacity-70" />
+                <span className="relative inline-flex size-3 rounded-full bg-emerald-500 ring-2 ring-card" />
               </span>
             </div>
 
             <div className="space-y-1">
               <div className="flex flex-wrap items-center gap-2">
-                <span className="inline-flex items-center gap-1.5 rounded-full border border-primary/25 bg-primary/10 px-2.5 py-0.5 text-xs font-bold text-primary">
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-primary/20 bg-primary/10 px-2.5 py-0.5 text-[11px] font-bold text-primary">
                   <GreetingIcon className={`size-3.5 ${greeting.color}`} />
                   <span>{greeting.badge}</span>
                 </span>
-                <span
-                  className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[11px] font-bold shadow-xs ${roleMeta.badgeCls}`}
-                >
+                <span className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[11px] font-bold ${roleMeta.badgeCls}`}>
                   <span>{roleMeta.label}</span>
+                </span>
+                <span className="hidden sm:inline-flex items-center gap-1.5 text-[11px] font-medium text-emerald-600 dark:text-emerald-400">
+                  <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                  <span>{isAr ? "نظام فورتكس مباشر ومتزامن" : "Vortex Live & Synced"}</span>
                 </span>
               </div>
 
-              <h2 className="text-xl sm:text-2xl font-black tracking-tight text-foreground flex items-center gap-1.5">
+              <h2 className="text-xl sm:text-2xl lg:text-3xl font-black tracking-tight text-foreground flex items-center gap-2">
                 <span>{greeting.title}،</span>
-                <span className="bg-gradient-to-l from-primary via-primary/90 to-foreground bg-clip-text text-transparent">
+                <span className="text-primary">
                   {userName}
                 </span>
-                <span className="text-lg select-none">✨</span>
               </h2>
 
-              <p className="text-xs text-muted-foreground flex items-center gap-1.5">
-                <span className="inline-block size-1.5 rounded-full bg-emerald-500" />
-                <span>
-                  {isAr ? "نظام فورتكس يعمل بكفاءة ومباشر" : "Vortex ERP connected & live"}
-                </span>
+              <p className="text-xs text-muted-foreground font-medium">
+                {isAr
+                  ? "مركز القيادة المباشر • ملخص الإيرادات والسيولة وتنبيهات المنشأة"
+                  : "Command Center • Real-time revenue, liquidity & operational alerts"}
               </p>
             </div>
           </div>
 
-          {/* Right / End: The Calendar Masterpiece Card (تحفة تقويمية فاخرة) */}
-          <div className="self-end sm:self-auto shrink-0">
+          {/* Architectural Chronos Horizon Widget */}
+          <div className="flex items-center self-stretch sm:self-auto justify-between sm:justify-end">
             {(() => {
               const luxuryDate = formatLuxuryDate(now, { showDayName: true, showYear: true });
               return (
-                <div className="group relative overflow-hidden rounded-2xl border border-border/80 bg-card shadow-sm transition-all hover:border-primary/40 hover:shadow-md">
-                  {/* Calendar Top Accent Header Bar */}
-                  <div className="flex items-center justify-between gap-3 bg-gradient-to-r from-primary via-primary/95 to-primary/90 px-3.5 py-1 text-primary-foreground">
-                    <span className="text-[11px] font-black tracking-wider uppercase">
-                      {luxuryDate.month}
-                    </span>
-                    <span className="text-[10px] font-bold opacity-90 font-mono">
-                      {luxuryDate.year}
-                    </span>
-                  </div>
-
-                  {/* Calendar Body */}
-                  <div className="flex items-center gap-3 px-3.5 py-2 bg-gradient-to-b from-card via-card to-surface-2/30">
-                    <div className="text-center min-w-[2.2rem]">
-                      <span className="block text-2xl sm:text-3xl font-black text-foreground font-mono leading-none tracking-tight">
-                        {luxuryDate.day}
-                      </span>
+                <div className="flex flex-wrap sm:flex-nowrap w-full sm:w-auto items-stretch rounded-2xl border border-border/80 bg-surface/70 shadow-xs backdrop-blur-md overflow-hidden">
+                  {/* Date Pillar */}
+                  <div className="flex items-center gap-3 px-3.5 py-2.5">
+                    <div className="grid place-items-center min-w-[2.4rem] h-10 rounded-xl bg-primary/10 text-primary font-mono font-black text-xl leading-none">
+                      {luxuryDate.day}
                     </div>
-                    <div className="h-7 w-px bg-border/60" />
                     <div className="space-y-0.5">
                       <span className="block text-xs font-bold text-foreground">
                         {luxuryDate.weekday}
                       </span>
-                      <span className="block text-[10px] text-muted-foreground">
-                        {isAr ? "اليوم الحالي" : "Today"}
+                      <span className="block text-[11px] text-muted-foreground font-medium font-mono">
+                        {luxuryDate.month} {luxuryDate.year}
                       </span>
+                    </div>
+                  </div>
+
+                  {/* Vertical Hairline Divider */}
+                  <div className="w-px bg-border/60 self-center h-8" />
+
+                  {/* Time & Telemetry Pillar */}
+                  <div className="flex flex-col justify-center px-3.5 py-2.5 space-y-0.5 text-end">
+                    <div className="flex items-center gap-1.5 text-xs font-bold font-mono text-foreground justify-end">
+                      <Clock className="size-3 text-primary" />
+                      <span>{now.toLocaleTimeString(isAr ? "ar-YE" : "en-US", { hour: "2-digit", minute: "2-digit" })}</span>
+                    </div>
+                    <div className="flex items-center gap-1 text-[10px] text-muted-foreground font-medium justify-end">
+                      <Radio className="size-2.5 text-emerald-500 animate-pulse" />
+                      <span>{isAr ? "مزامنة لحظية" : "Realtime"}</span>
                     </div>
                   </div>
                 </div>
@@ -426,36 +436,174 @@ function DashboardPage() {
           </div>
         </div>
 
-        {/* Sleek Quick Action Dock */}
-        <div className="mt-4 flex flex-wrap items-center gap-2 pt-3 border-t border-border/60">
-          <Link
-            to="/pos"
-            className="inline-flex h-8 sm:h-9 items-center gap-1.5 rounded-xl bg-primary px-3 text-xs font-bold text-primary-foreground shadow-sm hover:bg-primary/90 transition-all active:scale-95"
-          >
-            <ShoppingCart className="size-3.5" />
-            <span>{lang === "ar" ? "نقطة البيع (POS)" : "Open POS"}</span>
-          </Link>
-          <Link
-            to="/sales"
-            className="inline-flex h-8 sm:h-9 items-center gap-1.5 rounded-xl border border-border/80 bg-surface/80 px-3 text-xs font-semibold text-foreground hover:bg-surface-2 transition-all active:scale-95"
-          >
-            <Receipt className="size-3.5 text-muted-foreground" />
-            <span>{lang === "ar" ? "فواتير المبيعات" : "Invoices"}</span>
-          </Link>
-          <Link
-            to="/debts"
-            className="inline-flex h-8 sm:h-9 items-center gap-1.5 rounded-xl border border-border/80 bg-surface/80 px-3 text-xs font-semibold text-foreground hover:bg-surface-2 transition-all active:scale-95"
-          >
-            <Wallet className="size-3.5 text-muted-foreground" />
-            <span>{lang === "ar" ? "الديون والتحصيل" : "Debts & Collection"}</span>
-          </Link>
+        {/* ─── Layer 2: Integrated Business Vitals Deck (Single-Surface, No Box Clutter) ─── */}
+        {data && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x sm:divide-x-reverse divide-border/50 bg-surface/30">
+            {(() => {
+              const todayDaily = data.daily ? data.daily[data.daily.length - 1] : null;
+              const todayRev = todayDaily?.revenue ?? 0;
+              const todayOrd = todayDaily?.orders ?? 0;
+              const alerts = data.alerts ?? 0;
+              const rec = data.receivables ?? 0;
+
+              return (
+                <>
+                  {/* Vital 1: Sales Velocity */}
+                  <div className="p-4 sm:p-5 flex flex-col justify-between transition-colors hover:bg-surface/50">
+                    <div className="flex items-center justify-between text-xs text-muted-foreground">
+                      <span className="font-semibold text-foreground flex items-center gap-1.5">
+                        <TrendingUp className="size-3.5 text-primary" />
+                        {isAr ? "مبيعات اليوم المسجلة" : "Today Recorded Sales"}
+                      </span>
+                      <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-bold text-emerald-600 dark:text-emerald-400">
+                        {isAr ? "تدفق حي" : "Live stream"}
+                      </span>
+                    </div>
+                    <div className="mt-2 flex items-baseline justify-between gap-2">
+                      <span className="text-2xl sm:text-3xl font-black font-mono tracking-tight text-foreground">
+                        {money(todayRev)}
+                      </span>
+                    </div>
+                    <div className="mt-1.5 flex items-center justify-between text-xs text-muted-foreground">
+                      <span className="flex items-center gap-1">
+                        <ShoppingCart className="size-3 text-muted-foreground/70" />
+                        <span>{num(todayOrd)} {isAr ? "فواتير اليوم" : "orders today"}</span>
+                      </span>
+                      <Link
+                        to="/sales"
+                        className="text-[11px] font-bold text-primary hover:underline flex items-center gap-0.5"
+                      >
+                        {isAr ? "عرض السجل" : "View log"}
+                        <ChevronLeft className="size-3 rtl:rotate-0 rotate-180" />
+                      </Link>
+                    </div>
+                  </div>
+
+                  {/* Vital 2: Liquidity & Receivables */}
+                  <div className="p-4 sm:p-5 flex flex-col justify-between transition-colors hover:bg-surface/50">
+                    <div className="flex items-center justify-between text-xs text-muted-foreground">
+                      <span className="font-semibold text-foreground flex items-center gap-1.5">
+                        <Wallet className="size-3.5 text-amber-500" />
+                        {isAr ? "المستحقات المفتوحة بالسوق" : "Market Receivables"}
+                      </span>
+                      <span className="rounded-full bg-amber-500/10 px-2 py-0.5 text-[10px] font-bold text-amber-600 dark:text-amber-400">
+                        {isAr ? "تحصيل" : "To collect"}
+                      </span>
+                    </div>
+                    <div className="mt-2 flex items-baseline justify-between gap-2">
+                      <span className="text-2xl sm:text-3xl font-black font-mono tracking-tight text-foreground">
+                        {money(rec)}
+                      </span>
+                    </div>
+                    <div className="mt-1.5 flex items-center justify-between text-xs text-muted-foreground">
+                      <span>{isAr ? "ديون مستحقة على العملاء" : "Outstanding customer balances"}</span>
+                      <Link
+                        to="/debts"
+                        className="text-[11px] font-bold text-amber-600 dark:text-amber-400 hover:underline flex items-center gap-0.5"
+                      >
+                        {isAr ? "متابعة وسندات" : "Collect"}
+                        <ChevronLeft className="size-3 rtl:rotate-0 rotate-180" />
+                      </Link>
+                    </div>
+                  </div>
+
+                  {/* Vital 3: Operational Attention Radar (What Needs Attention Now) */}
+                  <div className="p-4 sm:p-5 flex flex-col justify-between transition-colors hover:bg-surface/50 sm:col-span-2 lg:col-span-1">
+                    <div className="flex items-center justify-between text-xs text-muted-foreground">
+                      <span className="font-semibold text-foreground flex items-center gap-1.5">
+                        <Activity className="size-3.5 text-primary" />
+                        {isAr ? "رادار الانتباه الفوري" : "Attention Radar"}
+                      </span>
+                      <span className="text-[10px] font-mono text-muted-foreground font-semibold">
+                        {isAr ? "المخزون والتشغيل" : "Inventory & Ops"}
+                      </span>
+                    </div>
+                    <div className="mt-2 flex items-center gap-2.5">
+                      {alerts > 0 ? (
+                        <div className="flex items-center gap-2 rounded-xl bg-rose-500/10 border border-rose-500/20 px-3 py-1.5 text-rose-600 dark:text-rose-400">
+                          <AlertTriangle className="size-4 shrink-0 animate-bounce" />
+                          <span className="text-xs sm:text-sm font-bold">
+                            {alerts} {isAr ? "أصناف أوشكت على النفاد" : "items below safety stock"}
+                          </span>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20 px-3 py-1.5 text-emerald-600 dark:text-emerald-400">
+                          <CheckCircle2 className="size-4 shrink-0" />
+                          <span className="text-xs sm:text-sm font-bold">
+                            {isAr ? "المستودعات متزنة ومستقرة تماماً" : "All warehouses at optimal level"}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                    <div className="mt-1.5 flex items-center justify-between text-xs text-muted-foreground">
+                      <span>
+                        {alerts > 0
+                          ? (isAr ? "تحتاج لإصدار أمر شراء سريع" : "Purchase order recommended")
+                          : (isAr ? "لا توجد نواقص حرجة تتطلب تدخلاً" : "No critical stock deficits")}
+                      </span>
+                      <Link
+                        to="/inventory"
+                        className="text-[11px] font-bold text-primary hover:underline flex items-center gap-0.5"
+                      >
+                        {isAr ? "فحص المستودع" : "Inspect"}
+                        <ChevronLeft className="size-3 rtl:rotate-0 rotate-180" />
+                      </Link>
+                    </div>
+                  </div>
+                </>
+              );
+            })()}
+          </div>
+        )}
+
+        {/* ─── Layer 3: Command Flight Deck & Deep Analytics Gateway ─── */}
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 p-3.5 sm:p-4.5 bg-card/80 border-t border-border/60">
+          {/* Fast Operational Launchers */}
+          <div className="flex flex-wrap items-center gap-2">
+            <Link
+              to="/pos"
+              className="inline-flex h-9 items-center gap-2 rounded-xl bg-primary px-3.5 text-xs font-bold text-primary-foreground shadow-sm hover:bg-primary/90 transition-all active:scale-95"
+            >
+              <Zap className="size-3.5" />
+              <span>{lang === "ar" ? "نقطة البيع (POS)" : "Open POS"}</span>
+              <kbd className="hidden md:inline-block rounded bg-primary-foreground/20 px-1 py-0.2 text-[9px] font-mono">F2</kbd>
+            </Link>
+
+            <Link
+              to="/sales"
+              className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-border/80 bg-surface/70 px-3 text-xs font-semibold text-foreground hover:bg-surface-2 transition-all active:scale-95"
+            >
+              <Receipt className="size-3.5 text-muted-foreground" />
+              <span>{lang === "ar" ? "فواتير المبيعات" : "Invoices"}</span>
+            </Link>
+
+            <Link
+              to="/debts"
+              className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-border/80 bg-surface/70 px-3 text-xs font-semibold text-foreground hover:bg-surface-2 transition-all active:scale-95"
+            >
+              <Wallet className="size-3.5 text-muted-foreground" />
+              <span>{lang === "ar" ? "الديون والتحصيل" : "Debts"}</span>
+            </Link>
+
+            <Link
+              to="/products"
+              search={{ barcode: undefined }}
+              className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-border/80 bg-surface/70 px-3 text-xs font-semibold text-foreground hover:bg-surface-2 transition-all active:scale-95"
+            >
+              <Package className="size-3.5 text-muted-foreground" />
+              <span>{lang === "ar" ? "كتالوج المنتجات" : "Products"}</span>
+            </Link>
+          </div>
+
+          {/* Deep Intelligence & Advanced Analytics Portal */}
           {isModuleEnabled("analytics") && (
             <Link
               to="/analytics"
-              className="inline-flex h-8 sm:h-9 items-center gap-1.5 rounded-xl border border-primary/30 bg-primary/10 px-3 text-xs font-semibold text-primary hover:bg-primary/20 transition-all active:scale-95"
+              className="inline-flex h-9 items-center justify-center gap-2 rounded-xl border border-primary/30 bg-primary/10 px-4 text-xs font-bold text-primary hover:bg-primary/20 hover:border-primary/50 transition-all active:scale-95 shadow-xs"
             >
-              <Sparkles className="size-3.5" />
-              <span>{lang === "ar" ? "التحليلات المتقدمة" : "Analytics"}</span>
+              <Sparkles className="size-3.5 text-primary" />
+              <span>{lang === "ar" ? "التحليلات والتوقعات المتقدمة" : "Advanced Analytics & Forecasts"}</span>
+              <ArrowLeft className="size-3.5 rtl:rotate-0 rotate-180" />
             </Link>
           )}
         </div>
@@ -671,7 +819,10 @@ function DashboardPage() {
                     contentStyle={TOOLTIP_STYLE}
                     itemStyle={TOOLTIP_ITEM_STYLE}
                     labelStyle={TOOLTIP_LABEL_STYLE}
-                    formatter={(val: any) => [money(Number(val)), name]}
+                    formatter={(val: any, itemName: any) => [
+                      money(Number(val)),
+                      String(itemName ?? ""),
+                    ]}
                   />
                 </PieChart>
               </ResponsiveContainer>

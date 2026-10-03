@@ -94,7 +94,7 @@ BEGIN
   -- Plan §7: direct purchase vs. staff reimbursement vs. supplier payable vs.
   -- recurring copy. Kept as one enum instead of a lookup table because the set
   -- is closed and the behaviour (not the label) is what branches.
-  IF NOT EXISTS (SELECT 1 FROM pg_type t JOIN pg_namespace n ON n.oid = t.typname
+  IF NOT EXISTS (SELECT 1 FROM pg_type t JOIN pg_namespace n ON n.oid = t.typnamespace
                  WHERE n.nspname = 'public' AND t.typname = 'expense_entry_type') THEN
     CREATE TYPE public.expense_entry_type AS ENUM (
       'DIRECT',           -- paid or payable to an outside party
@@ -134,6 +134,16 @@ END $$;
 -- ---------------------------------------------------------------------------
 -- 2. Small immutable helpers
 -- ---------------------------------------------------------------------------
+
+-- Must be declared before the line-tax helpers below: PostgreSQL resolves
+-- referenced SQL functions when each function is created, not at first use.
+CREATE OR REPLACE FUNCTION public.expense_round(p_value numeric)
+RETURNS numeric
+LANGUAGE sql
+IMMUTABLE
+AS $$
+  SELECT round(coalesce(p_value, 0)::numeric, 2)
+$$;
 
 -- Plan §10: an inclusive-tax line stores the gross figure the operator saw and
 -- the net is derived from it; an exclusive line stores the net and the tax is
