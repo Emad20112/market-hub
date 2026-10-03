@@ -30,6 +30,7 @@ import { Route as AppInventoryRouteImport } from './routes/_app.inventory'
 import { Route as AppLoyaltyRouteImport } from './routes/_app.loyalty'
 import { Route as AppMillingRouteImport } from './routes/_app.milling'
 import { Route as AppNotificationsRouteImport } from './routes/_app.notifications'
+import { Route as AppOpeningBalancesRouteImport } from './routes/_app.opening-balances'
 import { Route as AppPaymentsRouteImport } from './routes/_app.payments'
 import { Route as AppPlansRouteImport } from './routes/_app.plans'
 import { Route as AppPlatformAdminRouteImport } from './routes/_app.platform-admin'
@@ -160,6 +161,11 @@ const AppMillingRoute = AppMillingRouteImport.update({
 const AppNotificationsRoute = AppNotificationsRouteImport.update({
   id: '/notifications',
   path: '/notifications',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppOpeningBalancesRoute = AppOpeningBalancesRouteImport.update({
+  id: '/opening-balances',
+  path: '/opening-balances',
   getParentRoute: () => AppRoute,
 } as any)
 const AppPaymentsRoute = AppPaymentsRouteImport.update({
@@ -321,6 +327,7 @@ export interface FileRoutesByFullPath {
   '/loyalty': typeof AppLoyaltyRoute
   '/milling': typeof AppMillingRouteWithChildren
   '/notifications': typeof AppNotificationsRoute
+  '/opening-balances': typeof AppOpeningBalancesRoute
   '/payments': typeof AppPaymentsRoute
   '/plans': typeof AppPlansRoute
   '/platform-admin': typeof AppPlatformAdminRoute
@@ -370,6 +377,7 @@ export interface FileRoutesByTo {
   '/loyalty': typeof AppLoyaltyRoute
   '/milling': typeof AppMillingRouteWithChildren
   '/notifications': typeof AppNotificationsRoute
+  '/opening-balances': typeof AppOpeningBalancesRoute
   '/payments': typeof AppPaymentsRoute
   '/plans': typeof AppPlansRoute
   '/platform-admin': typeof AppPlatformAdminRoute
@@ -421,6 +429,7 @@ export interface FileRoutesById {
   '/_app/loyalty': typeof AppLoyaltyRoute
   '/_app/milling': typeof AppMillingRouteWithChildren
   '/_app/notifications': typeof AppNotificationsRoute
+  '/_app/opening-balances': typeof AppOpeningBalancesRoute
   '/_app/payments': typeof AppPaymentsRoute
   '/_app/plans': typeof AppPlansRoute
   '/_app/platform-admin': typeof AppPlatformAdminRoute
@@ -472,6 +481,7 @@ export interface FileRouteTypes {
     | '/loyalty'
     | '/milling'
     | '/notifications'
+    | '/opening-balances'
     | '/payments'
     | '/plans'
     | '/platform-admin'
@@ -521,6 +531,7 @@ export interface FileRouteTypes {
     | '/loyalty'
     | '/milling'
     | '/notifications'
+    | '/opening-balances'
     | '/payments'
     | '/plans'
     | '/platform-admin'
@@ -571,6 +582,7 @@ export interface FileRouteTypes {
     | '/_app/loyalty'
     | '/_app/milling'
     | '/_app/notifications'
+    | '/_app/opening-balances'
     | '/_app/payments'
     | '/_app/plans'
     | '/_app/platform-admin'
@@ -753,6 +765,13 @@ declare module '@tanstack/react-router' {
       path: '/notifications'
       fullPath: '/notifications'
       preLoaderRoute: typeof AppNotificationsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/opening-balances': {
+      id: '/_app/opening-balances'
+      path: '/opening-balances'
+      fullPath: '/opening-balances'
+      preLoaderRoute: typeof AppOpeningBalancesRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/payments': {
@@ -988,6 +1007,7 @@ interface AppRouteChildren {
   AppLoyaltyRoute: typeof AppLoyaltyRoute
   AppMillingRoute: typeof AppMillingRouteWithChildren
   AppNotificationsRoute: typeof AppNotificationsRoute
+  AppOpeningBalancesRoute: typeof AppOpeningBalancesRoute
   AppPaymentsRoute: typeof AppPaymentsRoute
   AppPlansRoute: typeof AppPlansRoute
   AppPlatformAdminRoute: typeof AppPlatformAdminRoute
@@ -1030,6 +1050,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppLoyaltyRoute: AppLoyaltyRoute,
   AppMillingRoute: AppMillingRouteWithChildren,
   AppNotificationsRoute: AppNotificationsRoute,
+  AppOpeningBalancesRoute: AppOpeningBalancesRoute,
   AppPaymentsRoute: AppPaymentsRoute,
   AppPlansRoute: AppPlansRoute,
   AppPlatformAdminRoute: AppPlatformAdminRoute,
