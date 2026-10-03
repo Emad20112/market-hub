@@ -33,6 +33,7 @@ import {
   Pill,
   MillingEmpty,
   Cell,
+  QueryErrorGuard,
 } from "@/components/milling/milling-ui";
 import type { PageGuideConfig } from "@/components/page-guide";
 import { cn } from "@/lib/utils";
@@ -131,7 +132,12 @@ function MillingStatementPage() {
   const [customerId, setCustomerId] = useState("");
   const [query, setQuery] = useState("");
 
-  const { data: customers } = useQuery({
+  const {
+    data: customers,
+    isError: customersError,
+    error: customersDetail,
+    refetch: customersRefetch,
+  } = useQuery({
     queryKey: ["milling", "customers"],
     queryFn: async () => {
       const { data } = await supabase
@@ -149,19 +155,34 @@ function MillingStatementPage() {
     }
   }, [customers, customerId]);
 
-  const { data: custody } = useQuery({
+  const {
+    data: custody,
+    isError: custodyError,
+    error: custodyDetail,
+    refetch: custodyRefetch,
+  } = useQuery({
     queryKey: ["milling", "custody", customerId],
     queryFn: () => fetchCustomerCustody(customerId),
     enabled: Boolean(customerId),
   });
 
-  const { data: balances } = useQuery({
+  const {
+    data: balances,
+    isError: balancesError,
+    error: balancesDetail,
+    refetch: balancesRefetch,
+  } = useQuery({
     queryKey: ["milling", "balances", customerId],
     queryFn: () => fetchOutputBalances(customerId),
     enabled: Boolean(customerId),
   });
 
-  const { data: money_ } = useQuery({
+  const {
+    data: money_,
+    isError: money_Error,
+    error: money_Detail,
+    refetch: money_Refetch,
+  } = useQuery({
     queryKey: ["milling", "money", customerId],
     queryFn: () => fetchServiceMoney(customerId),
     enabled: Boolean(customerId),
@@ -201,6 +222,23 @@ function MillingStatementPage() {
   }, [money_, query]);
 
   if (!customerId) {
+    /*
+     * These 4 queries feed the tables and the counters below. A failed
+     * one used to render as an empty table or a row of zeros, which reads as a
+     * quiet day rather than a broken connection. The guard below turns any
+     * failure into a stated error.
+     */
+    const queryStates = [
+      { isError: customersError, error: customersDetail, refetch: customersRefetch },
+      { isError: custodyError, error: custodyDetail, refetch: custodyRefetch },
+      { isError: balancesError, error: balancesDetail, refetch: balancesRefetch },
+      { isError: money_Error, error: money_Detail, refetch: money_Refetch },
+    ];
+
+    if (queryStates.some((q) => q.isError)) {
+      return <QueryErrorGuard what="كشف حساب الأمانات" queries={queryStates} />;
+    }
+
     return (
       <ModuleGuard moduleId="milling_operations">
         <PageHeader

@@ -60,7 +60,7 @@ export async function fetchGrainGrades(activeOnly = true): Promise<GrainGrade[]>
     .select("*")
     .order("grade_name_ar", { ascending: true });
 
-  if (error) return [];
+  if (error) throw error;
   const rows = (data ?? []) as GrainGrade[];
   return activeOnly ? rows.filter((r) => r.is_active) : rows;
 }
@@ -220,7 +220,7 @@ export async function fetchAgreements(
   if (status) q = q.eq("status", status);
 
   const { data, error } = await q.order("agreed_at", { ascending: false });
-  if (error) return [];
+  if (error) throw error;
   return (data ?? []) as MillingAgreement[];
 }
 
@@ -324,7 +324,7 @@ export async function fetchEfficiencyReport(): Promise<EfficiencyRow[]> {
     .from("milling_efficiency_report")
     .select("*")
     .order("job_number", { ascending: false });
-  if (error) return [];
+  if (error) throw error;
   return (data ?? []) as EfficiencyRow[];
 }
 
@@ -369,7 +369,7 @@ export async function fetchIntakeHealth(): Promise<IntakeHealthRow[]> {
     .from("milling_intake_health")
     .select("*")
     .order("created_at", { ascending: false });
-  if (error) return [];
+  if (error) throw error;
   return (data ?? []) as IntakeHealthRow[];
 }
 
@@ -378,6 +378,6 @@ export async function fetchPricingDiagnostics(): Promise<PricingDiagnosticRow[]>
     .from("milling_pricing_diagnostics")
     .select("*")
     .order("job_number", { ascending: false });
-  if (error) return [];
+  if (error) throw error;
   return (data ?? []) as PricingDiagnosticRow[];
 }
