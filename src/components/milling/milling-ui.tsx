@@ -303,9 +303,26 @@ export function MillingTable({
   );
 }
 
-export function MillingRow({ children }: { children: ReactNode }) {
+export function MillingRow({
+  children,
+  onClick,
+  className,
+}: {
+  children: ReactNode;
+  /* Optional: orders and other selectable lists need a clickable row, and
+   * making the caller wrap every cell in a button loses the row highlight. */
+  onClick?: () => void;
+  className?: string;
+}) {
   return (
-    <tr className="border-b border-border/50 transition-colors last:border-0 hover:bg-surface-2/40">
+    <tr
+      onClick={onClick}
+      className={
+        "border-b border-border/50 transition-colors last:border-0 hover:bg-surface-2/40" +
+        (onClick ? " cursor-pointer" : "") +
+        (className ? ` ${className}` : "")
+      }
+    >
       {children}
     </tr>
   );

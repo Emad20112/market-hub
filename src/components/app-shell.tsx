@@ -412,6 +412,15 @@ const sections: Section[] = [
         bg: "bg-amber-500/15",
       },
       {
+        to: "/production",
+        icon: Cog,
+        key: "nav.production",
+        moduleId: "milling_operations",
+        allowedRoles: ["owner", "manager", "warehouse", "accountant"],
+        color: "text-amber-500",
+        bg: "bg-amber-500/15",
+      },
+      {
         to: "/milling/customer-statement",
         icon: FileText,
         key: "nav.milling_statement",
