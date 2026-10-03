@@ -64,6 +64,9 @@ import { RolePermissionsDialog } from "@/components/role-permissions-dialog";
 import { VortexMetricCard, VortexSearchInput, VortexDateBadge } from "@/components/vortex-ui";
 import { toSystemDigits, formatLuxuryDate } from "@/lib/format-preferences";
 import { cn } from "@/lib/utils";
+import { CountrySelector } from "@/components/country-selector";
+import { DEFAULT_COUNTRY, Country } from "@/lib/country-data";
+import { formatPhoneE164, phoneToAuthEmail } from "@/lib/phone-utils";
 
 const STORE_ROLES = ["owner", "manager", "accountant", "cashier", "warehouse"] as const;
 type StoreRole = (typeof STORE_ROLES)[number];
@@ -157,8 +160,9 @@ function UsersPage() {
   // Create-user dialog state
   const [addOpen, setAddOpen] = useState(false);
   const [addName, setAddName] = useState("");
-  const [addEmail, setAddEmail] = useState("");
+  const [addCountry, setAddCountry] = useState<Country>(DEFAULT_COUNTRY);
   const [addPhone, setAddPhone] = useState("");
+  const [addEmail, setAddEmail] = useState("");
   const [addRole, setAddRole] = useState<StoreRole>(DEFAULT_NEW_ROLE);
   const [addPassword, setAddPassword] = useState("");
   const [addConfirmPassword, setAddConfirmPassword] = useState("");
@@ -178,7 +182,9 @@ function UsersPage() {
     setLoading(true);
     try {
       const [profilesRes, rolesRes, platformRes] = await Promise.all([
-        supabase.from("profiles").select("id, full_name, avatar_url, phone, language, created_at, is_active"),
+        supabase
+          .from("profiles")
+          .select("id, full_name, avatar_url, phone, language, created_at, is_active"),
         supabase.from("user_roles").select("id, user_id, role"),
         isSuper
           ? (supabase as any)
@@ -201,9 +207,7 @@ function UsersPage() {
       const profileMap = new Map<string, any>();
       (profiles ?? []).forEach((p) => profileMap.set(p.id, p));
 
-      const platformAdminSet = new Set(
-        (platformAdmins ?? []).map((pa: any) => pa.user_id),
-      );
+      const platformAdminSet = new Set((platformAdmins ?? []).map((pa: any) => pa.user_id));
 
       const storeUsers: any[] = [];
       (profiles ?? []).forEach((p) => {
@@ -378,7 +382,9 @@ function UsersPage() {
       setEditUser(null);
       void load();
     } catch (err: any) {
-      toast.error(err?.message ?? (isAr ? "تعذر تحديث بيانات الموظف" : "Failed to update employee"));
+      toast.error(
+        err?.message ?? (isAr ? "تعذر تحديث بيانات الموظف" : "Failed to update employee"),
+      );
     } finally {
       setEditSaving(false);
     }
@@ -386,25 +392,51 @@ function UsersPage() {
 
   async function createStoreUser() {
     const name = addName.trim();
-    const email = addEmail.trim().toLowerCase();
-    const phone = addPhone.trim();
+    const phoneInput = addPhone.trim();
+    const customEmail = addEmail.trim().toLowerCase();
     const password = addPassword;
     const confirmPassword = addConfirmPassword;
 
     if (name.length < 2) {
       return toast.error(isAr ? "يرجى إدخال اسم المستخدم." : "Please enter the user's name.");
     }
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) {
+
+    if (!phoneInput && !customEmail) {
+      return toast.error(
+        isAr
+          ? "يرجى إدخال رقم الهاتف أو البريد الإلكتروني للموظف."
+          : "Please enter the employee's phone number or email.",
+      );
+    }
+
+    // Determine the authentication email and formatted phone
+    let authEmail = "";
+    let finalPhone = "";
+
+    if (phoneInput) {
+      finalPhone = formatPhoneE164(phoneInput, addCountry.dialCode);
+      authEmail = phoneToAuthEmail(finalPhone);
+    } else {
+      authEmail = customEmail;
+    }
+
+    // If custom email provided and no phone, validate email syntax
+    if (customEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(customEmail)) {
       return toast.error(
         isAr ? "يرجى إدخال بريد إلكتروني صحيح." : "Please enter a valid email address.",
       );
     }
+
     if (STORE_ROLES.indexOf(addRole) === -1) {
       return toast.error(isAr ? "الدور المحدد غير مسموح." : "The selected role is not allowed.");
     }
     if (!useGeneratedPassword) {
       if (password.length < 8) {
-        return toast.error(isAr ? "كلمة المرور يجب أن تحتوي على 8 أحرف على الأقل." : "Password must be at least 8 characters.");
+        return toast.error(
+          isAr
+            ? "كلمة المرور يجب أن تحتوي على 8 أحرف على الأقل."
+            : "Password must be at least 8 characters.",
+        );
       }
       if (password !== confirmPassword) {
         return toast.error(isAr ? "كلمتا المرور غير متطابقتين." : "Passwords do not match.");
@@ -420,17 +452,26 @@ function UsersPage() {
         return;
       }
 
+      console.log("[CreateUser] Invoking admin-create-user...", {
+        email: authEmail,
+        full_name: name,
+        phone: finalPhone || phoneInput || null,
+        role: addRole,
+      });
+
       const { data, error } = await supabase.functions.invoke("admin-create-user", {
         body: {
-          email,
+          email: authEmail,
           full_name: name,
-          phone,
+          phone: finalPhone || phoneInput || null,
           role: addRole,
           language: lang,
           ...(useGeneratedPassword ? {} : { password }),
         },
         headers: { Authorization: `Bearer ${accessToken}` },
       });
+
+      console.log("[CreateUser] Result:", { data, error });
 
       if (error) {
         let errorMsg = error.message;
@@ -447,6 +488,7 @@ function UsersPage() {
         } catch {
           // fallback to error.message
         }
+        console.error("[CreateUser] invoke error detail:", error, errorMsg);
         throw new Error(
           errorMsg ||
             (isAr ? "تعذر إنشاء المستخدم. يرجى المحاولة مرة أخرى." : "Failed to create user."),
@@ -466,7 +508,7 @@ function UsersPage() {
           password: data.password,
           full_name: data.full_name,
           role: data.role,
-          phone,
+          phone: finalPhone || phoneInput || undefined,
         });
         setCopiedField(null);
       } else {
@@ -486,8 +528,9 @@ function UsersPage() {
     setIssued(null);
     setCopiedField(null);
     setAddName("");
-    setAddEmail("");
+    setAddCountry(DEFAULT_COUNTRY);
     setAddPhone("");
+    setAddEmail("");
     setAddRole(DEFAULT_NEW_ROLE);
     setAddPassword("");
     setAddConfirmPassword("");
@@ -540,19 +583,19 @@ function UsersPage() {
 
         <div className="flex items-center gap-2">
           {canManageStore && (
-          <RolePermissionsDialog
-            showPlatformRole={isSuper}
-            trigger={
-              <Button
-                variant="outline"
-                size="sm"
-                className="rounded-2xl gap-2 h-10 px-3.5 border-border/80 hover:bg-muted text-xs font-semibold"
-              >
-                <Sparkles className="size-4 text-primary" />
-                <span>{isAr ? "مصفوفة الصلاحيات" : "Permissions Matrix"}</span>
-              </Button>
-            }
-          />
+            <RolePermissionsDialog
+              showPlatformRole={isSuper}
+              trigger={
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="rounded-2xl gap-2 h-10 px-3.5 border-border/80 hover:bg-muted text-xs font-semibold"
+                >
+                  <Sparkles className="size-4 text-primary" />
+                  <span>{isAr ? "مصفوفة الصلاحيات" : "Permissions Matrix"}</span>
+                </Button>
+              }
+            />
           )}
 
           {canManageStore && (
@@ -1174,8 +1217,12 @@ function UsersPage() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="ar" className="text-xs">العربية</SelectItem>
-                  <SelectItem value="en" className="text-xs">English</SelectItem>
+                  <SelectItem value="ar" className="text-xs">
+                    العربية
+                  </SelectItem>
+                  <SelectItem value="en" className="text-xs">
+                    English
+                  </SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -1198,7 +1245,15 @@ function UsersPage() {
               onClick={() => void saveEditUser()}
             >
               {editSaving && <Loader2 className="size-4 animate-spin" />}
-              <span>{editSaving ? (isAr ? "جارٍ الحفظ..." : "Saving...") : isAr ? "حفظ التغييرات" : "Save Changes"}</span>
+              <span>
+                {editSaving
+                  ? isAr
+                    ? "جارٍ الحفظ..."
+                    : "Saving..."
+                  : isAr
+                    ? "حفظ التغييرات"
+                    : "Save Changes"}
+              </span>
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1263,7 +1318,13 @@ function UsersPage() {
 
               <div className="space-y-3 rounded-2xl border border-border/70 bg-muted/30 p-4">
                 <CredentialRow label={isAr ? "الاسم" : "Name"} value={issued.full_name} />
-                <CredentialRow label={isAr ? "البريد الإلكتروني" : "Email"} value={issued.email} />
+                {issued.phone && (
+                  <CredentialRow label={isAr ? "رقم الهاتف" : "Phone"} value={issued.phone} />
+                )}
+                <CredentialRow
+                  label={isAr ? "معرف الدخول / البريد" : "Login Identifier / Email"}
+                  value={issued.email}
+                />
                 <div className="flex items-center justify-between gap-3 pt-1 border-t border-border/40">
                   <span className="text-[11px] font-bold text-muted-foreground">
                     {isAr ? "كلمة المرور" : "Password"}
@@ -1301,8 +1362,8 @@ function UsersPage() {
                 onClick={() =>
                   void copyToClipboard(
                     isAr
-                      ? `مرحباً بك في نظام فورتاكس!\nبيانات الدخول لحسابك:\nالبريد: ${issued.email}\nكلمة المرور: ${issued.password}\nرابط الدخول: ${window.location.origin}/auth`
-                      : `Welcome to Vortex ERP!\nYour sign-in credentials:\nEmail: ${issued.email}\nPassword: ${issued.password}\nLink: ${window.location.origin}/auth`,
+                      ? `مرحباً بك في نظام فورتكس!\nبيانات الدخول لحسابك:\n${issued.phone ? `الهاتف: ${issued.phone}\n` : ""}معرف الدخول: ${issued.email}\nكلمة المرور: ${issued.password}\nرابط الدخول: ${window.location.origin}/auth`
+                      : `Welcome to Vortex ERP!\nYour sign-in credentials:\n${issued.phone ? `Phone: ${issued.phone}\n` : ""}Login: ${issued.email}\nPassword: ${issued.password}\nLink: ${window.location.origin}/auth`,
                     "all",
                   )
                 }
@@ -1335,7 +1396,35 @@ function UsersPage() {
 
               <div className="space-y-1.5">
                 <label className="text-xs font-bold text-foreground">
-                  {isAr ? "البريد الإلكتروني (لتسجيل الدخول)" : "Email"}
+                  {isAr ? "رقم الهاتف (لتسجيل الدخول الفوري)" : "Phone number (for sign in)"}
+                </label>
+                <div className="flex gap-2">
+                  <CountrySelector
+                    value={addCountry}
+                    onChange={setAddCountry}
+                    disabled={addSaving}
+                  />
+                  <Input
+                    type="tel"
+                    value={addPhone}
+                    onChange={(e) => setAddPhone(e.target.value)}
+                    placeholder={addCountry.placeholder}
+                    className="h-10 text-xs rounded-2xl border-border/70 flex-1 dir-ltr text-right"
+                    maxLength={addCountry.maxLength + 4}
+                  />
+                </div>
+                <p className="text-[11px] text-muted-foreground">
+                  {isAr
+                    ? "يُستخدم رقم الهاتف لتسجيل الدخول مباشرة بدون تعقيد."
+                    : "Used directly to sign in by phone number."}
+                </p>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-foreground">
+                  {isAr
+                    ? "البريد الإلكتروني (اختياري، في حال عدم استخدام الهاتف)"
+                    : "Email (optional, if no phone)"}
                 </label>
                 <Input
                   type="email"
@@ -1345,21 +1434,6 @@ function UsersPage() {
                   className="h-10 text-xs rounded-2xl border-border/70"
                   dir="ltr"
                   maxLength={255}
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold text-foreground">
-                  {isAr ? "رقم الهاتف (اختياري)" : "Phone (optional)"}
-                </label>
-                <Input
-                  type="tel"
-                  value={addPhone}
-                  onChange={(e) => setAddPhone(e.target.value)}
-                  placeholder="7xxxxxxxx"
-                  className="h-10 text-xs rounded-2xl border-border/70"
-                  dir="ltr"
-                  maxLength={40}
                 />
               </div>
 
@@ -1383,18 +1457,45 @@ function UsersPage() {
 
               <div className="rounded-2xl border border-border/60 bg-muted/20 p-3 text-[11px] leading-relaxed text-muted-foreground">
                 <div className="flex items-center justify-between gap-3">
-                  <label className="text-xs font-bold text-foreground">{isAr ? "كلمة المرور" : "Password"}</label>
+                  <label className="text-xs font-bold text-foreground">
+                    {isAr ? "كلمة المرور" : "Password"}
+                  </label>
                   <label className="flex items-center gap-2 text-[11px] text-muted-foreground">
-                    <input type="checkbox" checked={useGeneratedPassword} onChange={(e) => setUseGeneratedPassword(e.target.checked)} className="accent-primary" />
+                    <input
+                      type="checkbox"
+                      checked={useGeneratedPassword}
+                      onChange={(e) => setUseGeneratedPassword(e.target.checked)}
+                      className="accent-primary"
+                    />
                     <span>{isAr ? "توليد تلقائي" : "Generate automatically"}</span>
                   </label>
                 </div>
                 {!useGeneratedPassword && (
                   <>
-                    <label className="block pt-2 text-[11px] font-semibold text-foreground">{isAr ? "كلمة المرور" : "Password"}</label>
-                    <Input type="password" value={addPassword} onChange={(e) => setAddPassword(e.target.value)} placeholder={isAr ? "8 أحرف على الأقل" : "At least 8 characters"} className="h-10 text-xs rounded-2xl border-border/70" autoComplete="new-password" maxLength={128} />
-                    <label className="block pt-2 text-[11px] font-semibold text-foreground">{isAr ? "تأكيد كلمة المرور" : "Confirm Password"}</label>
-                    <Input type="password" value={addConfirmPassword} onChange={(e) => setAddConfirmPassword(e.target.value)} placeholder={isAr ? "أعد كتابة كلمة المرور" : "Re-enter password"} className="h-10 text-xs rounded-2xl border-border/70" autoComplete="new-password" maxLength={128} />
+                    <label className="block pt-2 text-[11px] font-semibold text-foreground">
+                      {isAr ? "كلمة المرور" : "Password"}
+                    </label>
+                    <Input
+                      type="password"
+                      value={addPassword}
+                      onChange={(e) => setAddPassword(e.target.value)}
+                      placeholder={isAr ? "8 أحرف على الأقل" : "At least 8 characters"}
+                      className="h-10 text-xs rounded-2xl border-border/70"
+                      autoComplete="new-password"
+                      maxLength={128}
+                    />
+                    <label className="block pt-2 text-[11px] font-semibold text-foreground">
+                      {isAr ? "تأكيد كلمة المرور" : "Confirm Password"}
+                    </label>
+                    <Input
+                      type="password"
+                      value={addConfirmPassword}
+                      onChange={(e) => setAddConfirmPassword(e.target.value)}
+                      placeholder={isAr ? "أعد كتابة كلمة المرور" : "Re-enter password"}
+                      className="h-10 text-xs rounded-2xl border-border/70"
+                      autoComplete="new-password"
+                      maxLength={128}
+                    />
                   </>
                 )}
                 <p className="text-[11px] leading-relaxed text-muted-foreground">
@@ -1435,7 +1536,7 @@ function UsersPage() {
                 <Button
                   size="sm"
                   className="rounded-2xl h-10 px-5 gap-1.5 font-bold"
-                  disabled={addSaving || !addName.trim() || !addEmail.trim()}
+                  disabled={addSaving || !addName.trim() || (!addPhone.trim() && !addEmail.trim())}
                   onClick={() => void createStoreUser()}
                 >
                   {addSaving && <Loader2 className="size-4 animate-spin" />}
