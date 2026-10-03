@@ -50,7 +50,6 @@ import { useAuth } from "@/lib/auth";
 import { useModules } from "@/lib/modules";
 import { CommandPalette } from "@/components/command-palette";
 import { VortexHeaderOmnisearch } from "@/components/vortex-header-omnisearch";
-import { useQuery } from "@tanstack/react-query";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { ConnectionBanner } from "@/components/ui/connection";
 import { cn } from "@/lib/utils";
@@ -797,7 +796,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [paletteOpen, setPaletteOpen] = useState(false);
 
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [settingsSidebarOpen, setSettingsSidebarOpen] = useState(false);
+
+  // لا يتم تحميل قائمة التنبيهات كاملة داخل الغلاف؛ صفحة التنبيهات هي المسؤولة عن ذلك.
+  // إبقاء الملخص بقيمة آمنة يمنع تعطل الغلاف قبل فتح صفحة التنبيهات، بينما يظل
+  // تنبيه النسخة الاحتياطية الفوري يعمل بشكل مستقل.
+  const alertsSummary = { total: 0, hasDanger: false };
 
   const [collapsed, setCollapsed] = useState<boolean>(() => {
     if (typeof window !== "undefined") {
