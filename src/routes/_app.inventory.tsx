@@ -574,8 +574,13 @@ function InventoryPage() {
                     ? "text-emerald-500"
                     : "text-muted-foreground";
           return (
-            <span className={`font-mono text-xs font-bold tabular-nums ${tone}`}>
-              {qtyCell(qtyFor(r))}
+            <span className={`font-mono text-xs font-bold tabular-nums ${tone} inline-flex items-center gap-1`}>
+              <span>{qtyCell(qtyFor(r))}</span>
+              {(r.unit?.name_ar || r.unit?.name || r.unit?.short_name) && (
+                <span className="text-[10px] font-normal text-muted-foreground">
+                  {r.unit.name_ar || r.unit.name || r.unit.short_name}
+                </span>
+              )}
             </span>
           );
         },
@@ -948,21 +953,28 @@ function InventoryPage() {
                           <p className="text-[10px] font-medium text-muted-foreground">
                             {t("inventory.on_hand")}
                           </p>
-                          <p
-                            className={`font-mono text-lg font-bold tracking-tight ${
-                              s === "out"
-                                ? "text-red-500"
-                                : s === "low"
-                                  ? "text-amber-500"
-                                  : s === "near"
-                                    ? "text-orange-400"
-                                    : s === "healthy"
-                                      ? "text-emerald-500"
-                                      : "text-foreground"
-                            }`}
-                          >
-                            {qtyCell(qty)}
-                          </p>
+                          <div className="flex items-baseline gap-1.5">
+                            <p
+                              className={`font-mono text-lg font-bold tracking-tight ${
+                                s === "out"
+                                  ? "text-red-500"
+                                  : s === "low"
+                                    ? "text-amber-500"
+                                    : s === "near"
+                                      ? "text-orange-400"
+                                      : s === "healthy"
+                                        ? "text-emerald-500"
+                                        : "text-foreground"
+                              }`}
+                            >
+                              {qtyCell(qty)}
+                            </p>
+                            {(r.unit?.name_ar || r.unit?.name || r.unit?.short_name) && (
+                              <span className="text-xs font-semibold text-muted-foreground">
+                                {r.unit.name_ar || r.unit.name || r.unit.short_name}
+                              </span>
+                            )}
+                          </div>
                           {min > 0 && qty < min && (
                             <p className="text-[10px] font-mono text-red-500/80">
                               {t("inventory.diff")}: {qtyCell(min - qty)}
