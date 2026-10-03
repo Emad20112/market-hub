@@ -25,7 +25,7 @@ import {
   CheckCircle2,
   Loader2,
   Sparkles,
-  MessageCircle,
+  MessageSquareText,
   LayoutGrid,
   List,
   ChevronLeft,
@@ -43,6 +43,7 @@ import { useDebtIndex } from "@/hooks/use-debts-overview";
 import { StatementIntegrityBadge } from "@/components/statements/statement-integrity-badge";
 import { VortexCollectionSheet, type PaymentMethod } from "@/components/vortex-ui";
 import { toast } from "sonner";
+import { WhatsAppIcon } from "@/components/whatsapp-icon";
 
 export const Route = createFileRoute("/_app/customers")({
   head: () => ({ meta: [{ title: "العملاء — فورتيكس ERP" }] }),
@@ -65,20 +66,29 @@ interface Customer {
 type FilterType = "all" | "debt" | "credit" | "active";
 type ViewMode = "cards" | "table";
 
+function customerMessage(customer: Customer, lang: "ar" | "en") {
+  const bal = Number(customer.balance);
+  return bal > 0
+    ? debtReminderMessage({
+        name: customer.name,
+        balance: money(bal),
+        lang,
+      })
+    : lang === "ar"
+      ? `مرحباً ${customer.name}، نتواصل معك بخصوص حسابك في فورتكس ERP.`
+      : `Hello ${customer.name}, contacting you regarding your account.`;
+}
+
 function handleCustomerWhatsApp(customer: Customer, lang: "ar" | "en") {
   if (!customer.phone) return;
-  const bal = Number(customer.balance);
-  const msg =
-    bal > 0
-      ? debtReminderMessage({
-          name: customer.name,
-          balance: money(bal),
-          lang,
-        })
-      : lang === "ar"
-        ? `مرحباً ${customer.name}، نتواصل معك بخصوص حسابك في فورتكس ERP.`
-        : `Hello ${customer.name}, contacting you regarding your account.`;
-  openWhatsApp(customer.phone, msg);
+  openWhatsApp(customer.phone, customerMessage(customer, lang));
+}
+
+function handleCustomerSMS(customer: Customer, lang: "ar" | "en") {
+  if (!customer.phone) return;
+  const phone = customer.phone.replace(/[^\d+]/g, "");
+  const message = encodeURIComponent(customerMessage(customer, lang));
+  window.open(`sms:${phone}?body=${message}`, "_blank");
 }
 
 function CustomersPage() {
@@ -253,11 +263,9 @@ function CustomersPage() {
     method: PaymentMethod;
     notes?: string;
   }) => {
-    const dbMethodMap: Record<PaymentMethod, "cash" | "card" | "bank_transfer"> = {
+    const dbMethodMap: Record<PaymentMethod, "cash" | "bank_transfer"> = {
       cash: "cash",
-      card: "card",
       transfer: "bank_transfer",
-      cheque: "bank_transfer",
     };
     const dbMethod = dbMethodMap[data.method] || "cash";
     const receiptNumber = String(Date.now()).slice(-6);
@@ -633,17 +641,6 @@ function CustomersPage() {
               </button>
             </div>
 
-            {/* Subtle Keyboard Shortcuts badge */}
-            <div className="hidden xl:flex items-center gap-1.5 text-[10px] text-muted-foreground/80 bg-surface-2/60 px-2.5 py-2 rounded-xl border border-border/60">
-              <span className="font-mono font-bold text-foreground">F1</span> جديد
-              <span>·</span>
-              <span className="font-mono font-bold text-foreground">F2</span> تعديل
-              <span>·</span>
-              <span className="font-mono font-bold text-foreground">F3</span> تحصيل
-              <span>·</span>
-              <span className="font-mono font-bold text-foreground">F5</span> كشف
-            </div>
-
             {/* New Customer Button */}
             <button
               onClick={() => setEdit({})}
@@ -801,13 +798,24 @@ function CustomersPage() {
                   <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
                     {/* Direct WhatsApp Button */}
                     {r.phone && (
-                      <button
-                        onClick={() => handleCustomerWhatsApp(r, lang)}
-                        title={lang === "ar" ? "مراسلة عبر واتساب" : "Message on WhatsApp"}
-                        className="grid size-8 place-items-center rounded-full bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 border border-emerald-500/20 transition active:scale-95"
-                      >
-                        <MessageCircle className="size-3.5" />
-                      </button>
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => handleCustomerWhatsApp(r, lang)}
+                          title={lang === "ar" ? "مراسلة عبر واتساب" : "Message on WhatsApp"}
+                          className="grid size-8 place-items-center rounded-full bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 border border-emerald-500/20 transition active:scale-95"
+                        >
+                          <WhatsAppIcon className="size-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleCustomerSMS(r, lang)}
+                          title={lang === "ar" ? "إرسال رسالة نصية" : "Send text message"}
+                          className="grid size-8 place-items-center rounded-full bg-sky-500/10 text-sky-400 hover:bg-sky-500/20 border border-sky-500/20 transition active:scale-95"
+                        >
+                          <MessageSquareText className="size-3.5" />
+                        </button>
+                      </>
                     )}
 
                     {/* Quick Payment Button (F3) */}
@@ -914,7 +922,7 @@ function CustomersPage() {
                               className="text-emerald-400 hover:text-emerald-300"
                               title="واتساب"
                             >
-                              <MessageCircle className="size-3.5" />
+                              <WhatsAppIcon className="size-3.5" />
                             </button>
                           </div>
                         ) : (
@@ -959,6 +967,7 @@ function CustomersPage() {
                               title={`${lang === "ar" ? "تحصيل" : "Payment"} (F3)`}
                               className="h-7 px-2.5 rounded-lg bg-primary/10 hover:bg-primary hover:text-primary-foreground border border-primary/20 text-xs font-semibold text-primary transition active:scale-95"
                             >
+                              <Wallet className="size-3" />
                               {lang === "ar" ? "تحصيل" : "Pay"}
                             </button>
                           )}
@@ -1073,13 +1082,24 @@ function CustomersPage() {
             {/* Quick Actions Strip */}
             <div className="mt-5 flex items-center gap-2 flex-wrap">
               {selected.phone && (
-                <button
-                  onClick={() => handleCustomerWhatsApp(selected, lang)}
-                  className="flex items-center gap-1.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 px-3.5 py-1.5 text-xs font-bold text-emerald-400 hover:bg-emerald-500/25 transition active:scale-95"
-                >
-                  <MessageCircle className="size-3.5" />
-                  <span>واتساب</span>
-                </button>
+                <>
+                  <button
+                    type="button"
+                    onClick={() => handleCustomerWhatsApp(selected, lang)}
+                    className="flex items-center gap-1.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 px-3.5 py-1.5 text-xs font-bold text-emerald-400 hover:bg-emerald-500/25 transition active:scale-95"
+                  >
+                    <WhatsAppIcon className="size-3.5" />
+                    <span>{lang === "ar" ? "واتساب" : "WhatsApp"}</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleCustomerSMS(selected, lang)}
+                    className="flex items-center gap-1.5 rounded-full bg-sky-500/15 border border-sky-500/30 px-3.5 py-1.5 text-xs font-bold text-sky-400 hover:bg-sky-500/25 transition active:scale-95"
+                  >
+                    <MessageSquareText className="size-3.5" />
+                    <span>{lang === "ar" ? "رسالة نصية" : "Text message"}</span>
+                  </button>
+                </>
               )}
               {isModuleEnabled("payments") && (
                 <DetailActionBtn
@@ -1396,6 +1416,14 @@ function CustomersPage() {
           </div>
         </div>
       )}
+
+      <VortexCollectionSheet
+        open={collectionOpen}
+        onOpenChange={setCollectionOpen}
+        customer={collectionCustomer}
+        onSavePayment={handleSaveCollection}
+        onSuccess={() => void load()}
+      />
     </div>
   );
 }

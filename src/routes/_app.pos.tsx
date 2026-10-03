@@ -21,9 +21,7 @@ import {
   CheckCircle2,
   CreditCard,
   Banknote,
-  Building2,
   Clock,
-  Wallet,
   Printer,
   Receipt,
   FileText,
@@ -295,9 +293,7 @@ function POSPage() {
   const [cart, setCart] = useState<CartLine[]>([]);
   const [paid, setPaid] = useState<string>("");
   const [discount, setDiscount] = useState<string>("");
-  const [paymentMethod, setPaymentMethod] = useState<
-    "cash" | "card" | "bank_transfer" | "credit" | "mobile_money"
-  >("cash");
+  const [paymentMethod, setPaymentMethod] = useState<"cash" | "card" | "credit">("cash");
   const [note, setNote] = useState("");
   const [saleDate, setSaleDate] = useState(() => new Date().toISOString().slice(0, 10));
 
@@ -333,7 +329,6 @@ function POSPage() {
   const [isSplitPayment, setIsSplitPayment] = useState(false);
   const [splitCash, setSplitCash] = useState("");
   const [splitCard, setSplitCard] = useState("");
-  const [splitBank, setSplitBank] = useState("");
 
   const [newCustomerOpen, setNewCustomerOpen] = useState(false);
   const [creatingCustomer, setCreatingCustomer] = useState(false);
@@ -933,12 +928,11 @@ function POSPage() {
   // Split payment amounts
   const splitCashN = Math.max(0, Number(splitCash || 0));
   const splitCardN = Math.max(0, Number(splitCard || 0));
-  const splitBankN = Math.max(0, Number(splitBank || 0));
-  const splitPaidTotal = Math.round((splitCashN + splitCardN + splitBankN) * 100) / 100;
+  const splitPaidTotal = Math.round((splitCashN + splitCardN) * 100) / 100;
   // عدد وسائل الدفع غير الصفرية في الدفع المجزأ:
   //  0 -> لم يدفع شيء،  1 -> وسيلة واحدة (تُسجل بوسيلتها الحقيقية)،  2+ -> دفع مجزأ حقيقي
   const splitMethodCount =
-    (splitCashN > 0 ? 1 : 0) + (splitCardN > 0 ? 1 : 0) + (splitBankN > 0 ? 1 : 0);
+    (splitCashN > 0 ? 1 : 0) + (splitCardN > 0 ? 1 : 0);
   const isMultiMethodSplit = isSplitPayment && splitMethodCount > 1;
 
   // Auto-Paid & Smart Payment Logic
@@ -1062,9 +1056,7 @@ function POSPage() {
         splitMethodCount === 1
           ? splitCashN > 0
             ? "cash"
-            : splitCardN > 0
-              ? "card"
-              : "bank_transfer"
+            : "card"
           : null;
       let finalMethod: string = isSplitPayment
         ? isMultiMethodSplit
@@ -1089,7 +1081,6 @@ function POSPage() {
         ? [
             splitCashN > 0 ? { method: "cash", amount: splitCashN } : null,
             splitCardN > 0 ? { method: "card", amount: splitCardN } : null,
-            splitBankN > 0 ? { method: "bank_transfer", amount: splitBankN } : null,
           ].filter((part): part is { method: string; amount: number } => part !== null)
         : [];
 
@@ -1099,7 +1090,6 @@ function POSPage() {
         if (splitCashN > 0) parts.push(`${lang === "ar" ? "نقد" : "Cash"}: ${money(splitCashN)}`);
         if (splitCardN > 0)
           parts.push(`${lang === "ar" ? "شبكة/بطاقة" : "Card"}: ${money(splitCardN)}`);
-        if (splitBankN > 0) parts.push(`${lang === "ar" ? "بنك" : "Bank"}: ${money(splitBankN)}`);
         if (remainingDebt > 0)
           parts.push(`${lang === "ar" ? "آجل" : "Debt"}: ${money(remainingDebt)}`);
         splitNote = `[${lang === "ar" ? "دفع مجزأ" : "Split"}: ${parts.join(" | ")}]`;
@@ -1301,7 +1291,6 @@ function POSPage() {
       setIsSplitPayment(false);
       setSplitCash("");
       setSplitCard("");
-      setSplitBank("");
       setSaleDate(new Date().toISOString().slice(0, 10));
       await loadStock(warehouseId);
       searchRef.current?.focus();
@@ -2042,8 +2031,8 @@ function POSPage() {
 
             {/* Payment Method Switcher: Cash | Card | Bank | Credit | Split */}
             <div className="space-y-1.5">
-              <div className="grid grid-cols-6 gap-1">
-                {(["cash", "card", "bank_transfer", "mobile_money", "credit"] as const).map((m) => (
+              <div className="grid grid-cols-4 gap-1">
+                {(["cash", "card", "credit"] as const).map((m) => (
                   <button
                     key={m}
                     type="button"
@@ -2064,10 +2053,14 @@ function POSPage() {
                   >
                     {m === "cash" && <Banknote className="h-3 w-3" />}
                     {m === "card" && <CreditCard className="h-3 w-3" />}
-                    {m === "bank_transfer" && <Building2 className="h-3 w-3" />}
-                    {m === "mobile_money" && <Wallet className="h-3 w-3" />}
                     {m === "credit" && <Clock className="h-3 w-3" />}
-                    <span className="truncate">{t(`pos.pm.${m}`)}</span>
+                    <span className="truncate">
+                      {m === "card"
+                        ? lang === "ar"
+                          ? "بطاقة/حوالة"
+                          : "Card/Transfer"
+                        : t(`pos.pm.${m}`)}
+                    </span>
                   </button>
                 ))}
 
@@ -2092,7 +2085,7 @@ function POSPage() {
                   <div className="flex items-center justify-between text-xs font-semibold text-violet-700 dark:text-violet-300">
                     <span>
                       {lang === "ar"
-                        ? "توزيع الدفعات (شبكة / نقد / بنك / آجل):"
+                        ? "توزيع الدفعات (نقد / بطاقة أو حوالة / آجل):"
                         : "Split Allocation:"}
                     </span>
                     <button
@@ -2100,7 +2093,6 @@ function POSPage() {
                       onClick={() => {
                         setSplitCash(String(total));
                         setSplitCard("");
-                        setSplitBank("");
                       }}
                       className="text-[10px] text-violet-600 underline"
                     >
@@ -2108,7 +2100,7 @@ function POSPage() {
                     </button>
                   </div>
 
-                  <div className="grid grid-cols-3 gap-2">
+                  <div className="grid grid-cols-2 gap-2">
                     <div>
                       <label className="text-[10px] text-muted-foreground block mb-0.5">
                         {lang === "ar" ? "نقدًا:" : "Cash:"}
@@ -2129,7 +2121,7 @@ function POSPage() {
                     </div>
                     <div>
                       <label className="text-[10px] text-muted-foreground block mb-0.5">
-                        {lang === "ar" ? "شبكة/بطاقة:" : "Card:"}
+                        {lang === "ar" ? "بطاقة/حوالة:" : "Card/Transfer:"}
                       </label>
                       <input
                         type="number"
@@ -2142,24 +2134,6 @@ function POSPage() {
                       {splitCard && Number(splitCard) > 0 && (
                         <span className="text-[9px] text-muted-foreground font-mono block text-end">
                           {formatWithCommas(splitCard)}
-                        </span>
-                      )}
-                    </div>
-                    <div>
-                      <label className="text-[10px] text-muted-foreground block mb-0.5">
-                        {lang === "ar" ? "تحويل بنكي:" : "Bank:"}
-                      </label>
-                      <input
-                        type="number"
-                        min="0"
-                        value={splitBank}
-                        onChange={(e) => setSplitBank(e.target.value)}
-                        placeholder="0"
-                        className="h-8 w-full rounded-xl border border-border bg-surface px-2 text-xs font-mono outline-none focus:border-violet-500"
-                      />
-                      {splitBank && Number(splitBank) > 0 && (
-                        <span className="text-[9px] text-muted-foreground font-mono block text-end">
-                          {formatWithCommas(splitBank)}
                         </span>
                       )}
                     </div>

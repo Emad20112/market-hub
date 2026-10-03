@@ -4,12 +4,9 @@ import * as React from "react";
 import { useState, useMemo } from "react";
 import {
   Banknote,
-  CreditCard,
   Building2,
-  FileCheck,
   CheckCircle2,
-  MessageCircle,
-  Send,
+  MessageSquareText,
   Copy,
   Receipt,
   User,
@@ -23,8 +20,9 @@ import { VortexDrawerDialog } from "../form/vortex-drawer-dialog";
 import { money } from "@/lib/format";
 import { toSystemDigits } from "@/lib/format-preferences";
 import { cn } from "@/lib/utils";
+import { WhatsAppIcon } from "@/components/whatsapp-icon";
 
-export type PaymentMethod = "cash" | "card" | "transfer" | "cheque";
+export type PaymentMethod = "cash" | "transfer";
 
 export interface CollectionCustomer {
   id: string;
@@ -96,9 +94,7 @@ export function VortexCollectionSheet({
 
   const paymentMethods = [
     { id: "cash", label: "نقداً (كاش)", icon: Banknote },
-    { id: "card", label: "بطاقة مدى / شبكة", icon: CreditCard },
-    { id: "transfer", label: "حوالة بنكية", icon: Building2 },
-    { id: "cheque", label: "شيك مصرفي", icon: FileCheck },
+    { id: "transfer", label: "حوالة/بطاقة", icon: Building2 },
   ] as const;
 
   const methodLabel =
@@ -348,7 +344,7 @@ export function VortexCollectionSheet({
                 onClick={shareWhatsApp}
                 className="h-12 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-md shadow-emerald-600/20 active:scale-98 transition cursor-pointer"
               >
-                <MessageCircle className="size-4" />
+                <WhatsAppIcon className="size-4" />
                 <span>إرسال عبر واتساب</span>
               </button>
 
@@ -357,7 +353,7 @@ export function VortexCollectionSheet({
                 onClick={shareSMS}
                 className="h-12 rounded-2xl bg-sky-600 hover:bg-sky-700 text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-md shadow-sky-600/20 active:scale-98 transition cursor-pointer"
               >
-                <Send className="size-4" />
+                <MessageSquareText className="size-4" />
                 <span>إرسال رسالة SMS</span>
               </button>
             </div>

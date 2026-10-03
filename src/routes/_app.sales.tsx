@@ -19,14 +19,12 @@ import {
   RefreshCw,
   LayoutGrid,
   List,
-  MessageCircle,
   Share2,
   Copy,
   Check,
   Phone,
   Building2,
   Coins,
-  HandCoins,
   ChevronRight,
   TrendingUp,
   SlidersHorizontal,
@@ -51,6 +49,7 @@ import {
   type PaymentMethod,
 } from "@/components/vortex-ui";
 import { toast } from "sonner";
+import { WhatsAppIcon } from "@/components/whatsapp-icon";
 
 export const Route = createFileRoute("/_app/sales")({
   head: () => ({ meta: [{ title: "المبيعات والفواتير — فورتيكس ERP" }] }),
@@ -323,21 +322,18 @@ export function SalesPage() {
 
   // Handle saving payment from collection sheet
   const handleSaveCollection = async (payment: {
+    customerId: string;
     amount: number;
-    payment_method: PaymentMethod;
-    payment_date: string;
-    note: string;
+    method: PaymentMethod;
+    notes?: string;
   }) => {
-    if (!collectionTarget) return;
+    if (!collectionTarget) throw new Error("No collection target selected");
 
-    // `transfer` و`cheque` يُحفظان في القاعدة تحت طريقة واحدة (bank_transfer).
-    const dbMethodMap: Record<PaymentMethod, string> = {
+    const dbMethodMap: Record<PaymentMethod, "cash" | "bank_transfer"> = {
       cash: "cash",
-      card: "card",
-      cheque: "bank_transfer",
       transfer: "bank_transfer",
     };
-    const dbMethod = dbMethodMap[payment.payment_method] || "cash";
+    const dbMethod = dbMethodMap[payment.method];
 
     // 1. Record customer payment if customer exists
     if (collectionTarget.customerId) {
@@ -346,8 +342,8 @@ export function SalesPage() {
         invoice_id: collectionTarget.invoiceId,
         amount: payment.amount,
         payment_method: dbMethod,
-        note: payment.note || null,
-        payment_date: payment.payment_date || new Date().toISOString(),
+        note: payment.notes || null,
+        payment_date: new Date().toISOString(),
       });
       if (pError) throw pError;
     }
@@ -373,7 +369,7 @@ export function SalesPage() {
       if (invErr) {
         console.error("Failed to update invoice:", invErr);
         toast.error(isRtl ? "تعذر تحديث حالة الفاتورة" : "Failed to update invoice status");
-        return;
+        throw invErr;
       }
     }
 
@@ -397,6 +393,7 @@ export function SalesPage() {
 
     toast.success(isRtl ? "تم تسجيل التحصيل وتحديث الفاتورة بنجاح" : "Payment collected successfully");
     await load();
+    return { receiptNumber: String(Date.now()).slice(-6) };
   };
 
   // Build Invoice Document for Print & PDF
@@ -983,7 +980,7 @@ export function SalesPage() {
                               className="inline-flex items-center gap-1 rounded-md bg-amber-500/10 px-2 py-1 text-xs font-semibold text-amber-500 hover:bg-amber-500/20 transition"
                               title={isRtl ? "تحصيل سريع" : "Quick Collect"}
                             >
-                              <HandCoins className="h-3.5 w-3.5" />
+                              <Wallet className="h-3.5 w-3.5" />
                               <span className="hidden xl:inline">{isRtl ? "تحصيل" : "Collect"}</span>
                             </button>
                           )}
@@ -995,7 +992,7 @@ export function SalesPage() {
                             className="rounded-md p-1.5 text-muted-foreground hover:bg-surface hover:text-emerald-500 transition"
                             title={isRtl ? "مشاركة عبر واتساب" : "Share via WhatsApp"}
                           >
-                            <MessageCircle className="h-4 w-4" />
+                            <WhatsAppIcon className="h-4 w-4" />
                           </button>
 
                           {/* Details */}
@@ -1111,7 +1108,7 @@ export function SalesPage() {
                       className="rounded-lg p-1.5 text-muted-foreground hover:bg-surface-2 hover:text-emerald-500 transition"
                       title={isRtl ? "واتساب" : "WhatsApp"}
                     >
-                      <MessageCircle className="h-4 w-4" />
+                      <WhatsAppIcon className="h-4 w-4" />
                     </button>
                     <button
                       type="button"
@@ -1129,7 +1126,7 @@ export function SalesPage() {
                       onClick={() => triggerQuickCollect(inv)}
                       className="inline-flex items-center gap-1.5 rounded-lg bg-amber-500/10 px-2.5 py-1 text-xs font-semibold text-amber-500 hover:bg-amber-500/20 transition"
                     >
-                      <HandCoins className="h-3.5 w-3.5" />
+                      <Wallet className="h-3.5 w-3.5" />
                       <span>{isRtl ? "تحصيل فوري" : "Collect"}</span>
                     </button>
                   ) : (
@@ -1489,7 +1486,7 @@ export function SalesPage() {
                   onClick={() => shareInvoiceWhatsApp(selected)}
                   className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 text-xs font-semibold text-emerald-500 hover:bg-emerald-500/20 transition"
                 >
-                  <MessageCircle className="h-4 w-4" />
+                  <WhatsAppIcon className="h-4 w-4" />
                   <span>{isRtl ? "مشاركة واتساب" : "WhatsApp"}</span>
                 </button>
 
@@ -1516,7 +1513,7 @@ export function SalesPage() {
                       }}
                       className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-amber-500 px-4 text-xs font-semibold text-amber-950 shadow-sm hover:bg-amber-400 transition"
                     >
-                      <HandCoins className="h-4 w-4" />
+                      <Wallet className="h-4 w-4" />
                       <span>{isRtl ? "تحصيل الدفعة الآن" : "Collect Payment"}</span>
                     </button>
                   )}
@@ -1627,16 +1624,7 @@ export function SalesPage() {
               }
             : null
         }
-        onSavePayment={(data) =>
-          // المكوّن المشترك يمرّر `method` ويعيد رقم وصل التحصيل.
-          // المعالج الداخلي يتوقع `payment_method` ويعيد void.
-          handleSaveCollection({
-            amount: data.amount,
-            payment_method: data.method,
-            payment_date: new Date().toISOString(),
-            note: data.notes ?? "",
-          }).then(() => ({ receiptNumber: collectionTarget?.invoiceId ?? "" }))
-        }
+        onSavePayment={handleSaveCollection}
         onSuccess={() => {
           void load();
         }}
