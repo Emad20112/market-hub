@@ -1063,8 +1063,8 @@ function ProductsPage() {
                           </span>
                         )}
                         {p.unit && (
-                          <span className="rounded-md bg-surface-2/70 px-1.5 py-0.2 border border-border/50">
-                            {p.unit.name_ar || p.unit.name || ''}
+                          <span className="inline-flex items-center gap-1 rounded-md bg-primary/10 text-primary border border-primary/20 px-2 py-0.5 text-[10px] font-bold">
+                            <span>{p.unit.name_ar || p.unit.name || p.unit.short_name}</span>
                           </span>
                         )}
                         {p.shelf_location && (
