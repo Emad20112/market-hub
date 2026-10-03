@@ -307,9 +307,17 @@ const sections: Section[] = [
     titleKey: "nav.section.finance",
     items: [
       {
-        // The dedicated register. Roles here match the entry point's audience:
-        // an owner, manager or accountant works the queue, while a cashier
-        // reaches the module through the dashboard action instead.
+        // The finance section opens with opening balances: an entry that does
+        // not balance is the one thing an accountant needs to see first.
+        to: "/opening-balances",
+        icon: Scale,
+        key: "nav.opening_balances",
+        moduleId: "expenses",
+        allowedRoles: ["owner", "manager", "accountant"],
+        color: "text-rose-500",
+        bg: "bg-rose-500/15",
+      },
+      {
         to: "/expenses",
         icon: Receipt,
         key: "nav.expenses",
@@ -520,7 +528,6 @@ function SidebarContents({
   const { t, dir, lang } = useI18n();
 
   const { user, signOut, isPlatformAdmin, isPlatformSuperadmin, roles } = useAuth();
-
 
   const { isModuleEnabled } = useModules();
 
@@ -834,7 +841,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           hasDanger: backupDue || outCount > 0,
         };
       } catch {
-        return { total: checkBackupReminderStatus().isDue ? 1 : 0, hasDanger: checkBackupReminderStatus().isDue };
+        return {
+          total: checkBackupReminderStatus().isDue ? 1 : 0,
+          hasDanger: checkBackupReminderStatus().isDue,
+        };
       }
     },
   });
@@ -970,7 +980,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               title={dir === "rtl" ? "تحديث الصفحة الحالية" : "Refresh page"}
               aria-label={dir === "rtl" ? "تحديث الصفحة" : "Refresh"}
             >
-              <RotateCw className={cn("h-4 w-4 transition-all duration-300", isRefreshing && "animate-spin text-primary")} />
+              <RotateCw
+                className={cn(
+                  "h-4 w-4 transition-all duration-300",
+                  isRefreshing && "animate-spin text-primary",
+                )}
+              />
             </button>
 
             {/* زر تبديل الوضع (فاتح / مظلم) */}
@@ -980,7 +995,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               title={t("common.theme")}
               aria-label={t("common.theme")}
             >
-              {theme === "dark" ? <Sun className="h-4 w-4 text-amber-400" /> : <Moon className="h-4 w-4 text-sky-500" />}
+              {theme === "dark" ? (
+                <Sun className="h-4 w-4 text-amber-400" />
+              ) : (
+                <Moon className="h-4 w-4 text-sky-500" />
+              )}
             </button>
 
             {/* زر الإشعارات مع الشارة الذكية والرقم الصغير */}

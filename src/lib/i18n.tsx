@@ -590,6 +590,7 @@ const en: Dict = {
 
   // Expenses (ERP expense management module)
   "nav.expenses": "Expenses",
+  "nav.opening_balances": "Opening Balances",
   "expenses.title": "Expenses",
   "expenses.subtitle": "Register, approvals, posting and settlement",
   "expenses.new": "New expense",
@@ -1304,6 +1305,7 @@ const ar: Dict = {
 
   // المصروفات (وحدة إدارة المصروفات)
   "nav.expenses": "المصروفات",
+  "nav.opening_balances": "الأرصدة الافتتاحية",
   "expenses.title": "المصروفات",
   "expenses.subtitle": "السجل، الاعتماد، الترحيل والسداد",
   "expenses.new": "مصروف جديد",
