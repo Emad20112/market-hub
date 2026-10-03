@@ -1,25 +1,69 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { z } from "zod";
-import { ShieldCheck, Mail, Lock, Eye, EyeOff, CheckCircle2, LogIn, Sparkles, Sun, Moon } from "lucide-react";
+import {
+  ShieldCheck,
+  Mail,
+  Phone,
+  Lock,
+  Eye,
+  EyeOff,
+  CheckCircle2,
+  LogIn,
+  Sparkles,
+} from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import { useI18n } from "@/lib/i18n";
 import { toast } from "sonner";
 import { InamaSoftFooter } from "@/components/inama-soft-footer";
 import { Button } from "@/components/ui/button";
+import { CountrySelector } from "@/components/country-selector";
+import { DEFAULT_COUNTRY, Country } from "@/lib/country-data";
+import { formatPhoneE164, phoneToAuthEmail } from "@/lib/phone-utils";
 
 export const Route = createFileRoute("/auth")({
   head: () => ({ meta: [{ title: "تسجيل الدخول — فورتيكس ERP" }] }),
   component: AuthPage,
 });
 
-const loginSchema = (t: (key: string) => string) =>
+function resolveCandidates(input: string, countryCode: string): string[] {
+  const trimmed = input.trim();
+  if (trimmed.includes("@")) {
+    return [trimmed.toLowerCase()];
+  }
+  const digits = trimmed.replace(/\D/g, "");
+  const candidates: string[] = [];
+
+  // 1) Digits formatted with selected country dial code (E.164 without '+') -> cleanDigits@vortex.local
+  const fullE164 = formatPhoneE164(digits, countryCode);
+  const fullClean = fullE164.replace(/\D/g, "");
+  candidates.push(phoneToAuthEmail(fullClean));
+
+  // 2) Stripped leading zero -> e.g. 771234567@vortex.local
+  const stripped = digits.replace(/^0+/, "");
+  if (stripped && !candidates.includes(phoneToAuthEmail(stripped))) {
+    candidates.push(phoneToAuthEmail(stripped));
+  }
+
+  // 3) Raw digits directly -> digits@vortex.local
+  if (!candidates.includes(phoneToAuthEmail(digits))) {
+    candidates.push(phoneToAuthEmail(digits));
+  }
+
+  return candidates;
+}
+
+const loginSchema = (t: (key: string) => string, isRtl: boolean) =>
   z.object({
-    email: z
+    identifier: z
       .string()
       .trim()
-      .email({ message: t("auth.invalid_email") })
+      .min(1, {
+        message: isRtl
+          ? "يرجى إدخال رقم الهاتف أو البريد الإلكتروني"
+          : "Please enter phone number or email",
+      })
       .max(255, { message: t("auth.email_too_long") }),
     password: z
       .string()
@@ -31,28 +75,15 @@ function AuthPage() {
   const { t, dir } = useI18n();
   const { session } = useAuth();
   const navigate = useNavigate();
-  const [email, setEmail] = useState("");
+  const [country, setCountry] = useState<Country>(DEFAULT_COUNTRY);
+  const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [theme, setTheme] = useState<"light" | "dark">(() => {
-    if (typeof window !== "undefined") {
-      return (localStorage.getItem("theme") as "light" | "dark") || "light";
-    }
-    return "light";
-  });
-
-  useEffect(() => {
-    if (typeof document !== "undefined") {
-      const root = document.documentElement;
-      root.classList.toggle("dark", theme === "dark");
-      root.classList.toggle("light", theme === "light");
-      localStorage.setItem("theme", theme);
-    }
-  }, [theme]);
   const logoMarkUrl = "/vortex-erp-mark.png";
   const logoWordmarkUrl = "/vortex-erp-wordmark.png";
   const isRtl = dir === "rtl";
+  const isEmailInput = identifier.includes("@");
 
   useEffect(() => {
     if (session) navigate({ to: "/dashboard", replace: true });
@@ -60,29 +91,43 @@ function AuthPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    const parsed = loginSchema(t).safeParse({ email, password });
+    const parsed = loginSchema(t, isRtl).safeParse({ identifier, password });
     if (!parsed.success) {
       toast.error(parsed.error.issues[0].message);
       return;
     }
 
-    const cleanEmail = email.trim().toLowerCase();
+    const candidates = resolveCandidates(identifier, country.dialCode);
     setLoading(true);
 
     try {
-      const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
-        email: cleanEmail,
-        password,
-      });
+      let lastError: any = null;
+      let sessionEstablished = false;
 
-      if (signInError) {
-        throw signInError;
+      for (const email of candidates) {
+        const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
+
+        if (!signInError && signInData?.session) {
+          sessionEstablished = true;
+          break;
+        }
+
+        if (signInError) {
+          lastError = signInError;
+        }
       }
 
-      if (signInData?.session) {
+      if (sessionEstablished) {
         toast.success(t("auth.signin_success"));
         navigate({ to: "/dashboard", replace: true });
         return;
+      }
+
+      if (lastError) {
+        throw lastError;
       }
 
       // Shouldn't reach here, but handle gracefully
@@ -110,12 +155,12 @@ function AuthPage() {
       const translatedError =
         message.includes("invalid login credentials") || message.includes("invalid_credentials")
           ? isRtl
-            ? "بيانات الدخول غير صحيحة. يرجى التحقق من البريد وكلمة المرور."
-            : t("auth.invalid_credentials")
+            ? "بيانات الدخول غير صحيحة. يرجى التحقق من رقم الهاتف/البريد وكلمة المرور."
+            : "Invalid credentials. Please check your phone/email and password."
           : message.includes("email not confirmed")
             ? isRtl
-              ? "البريد الإلكتروني بحاجة لتأكيد. يرجى مراجعة بريدك أو التواصل مع الإدارة."
-              : "Email not confirmed yet."
+              ? "الحساب بحاجة لتأكيد. يرجى مراجعة الإدارة."
+              : "Account not confirmed yet."
             : message.includes("network") || message.includes("fetch")
               ? t("auth.network_error")
               : rawMsg ||
@@ -130,7 +175,7 @@ function AuthPage() {
 
   return (
     <div
-      className="relative flex min-h-screen flex-col overflow-x-hidden bg-background text-foreground transition-colors duration-200"
+      className="relative flex min-h-screen flex-col overflow-x-hidden bg-[#030817] text-foreground"
       dir={dir}
     >
       <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
@@ -140,25 +185,14 @@ function AuthPage() {
 
       <main className="relative z-10 mx-auto flex w-full flex-1 items-center px-4 py-10 sm:px-6 sm:py-14">
         <div className="mx-auto w-full max-w-[32rem]">
-          <div className="flex justify-end mb-4">
-            <button
-              type="button"
-              onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-              className="grid size-10 place-items-center rounded-full border border-border/80 bg-surface text-muted-foreground hover:text-foreground hover:border-primary/50 shadow-xs transition-colors"
-              title={theme === "dark" ? "الوضع الفاتح" : "الوضع الداكن"}
-              aria-label="تبديل الثيم"
-            >
-              {theme === "dark" ? <Sun className="size-4 text-amber-400" /> : <Moon className="size-4 text-sky-500" />}
-            </button>
-          </div>
           <header className="mb-8 text-center sm:mb-10">
-            <div className="mx-auto grid size-16 place-items-center rounded-[1.4rem] border border-primary/30 bg-primary/10 p-2 shadow-md shadow-primary/10">
+            <div className="mx-auto grid size-16 place-items-center rounded-[1.4rem] border border-primary/30 bg-primary/10 p-2 shadow-[0_10px_28px_rgba(37,99,235,0.18)]">
               <img src={logoMarkUrl} alt={t("app.name")} className="size-full object-contain" />
             </div>
-            <h1 className="mt-4 text-2xl font-black tracking-tight text-foreground sm:text-3xl">
+            <h1 className="mt-4 text-2xl font-black tracking-tight text-white sm:text-3xl">
               {isRtl ? "نظام فورتكس لإدارة الأعمال" : "Vortex Business Management"}
             </h1>
-            <p className="mt-2 text-sm text-muted-foreground">
+            <p className="mt-2 text-sm text-slate-400">
               {isRtl
                 ? "سجّل الدخول لإدارة متجرك، مخزونك ومبيعاتك"
                 : "Sign in to manage your store, inventory, and sales"}
@@ -168,7 +202,7 @@ function AuthPage() {
           <div className="grid">
             <section className="hidden">
               <div className="pointer-events-none absolute inset-0 opacity-40 [background-image:radial-gradient(rgba(255,255,255,0.26)_1px,transparent_1px)] [background-size:18px_18px]" />
-              <div className="pointer-events-none absolute -bottom-32 -end-24 h-80 w-80 rounded-full border-[32px] border-border/60" />
+              <div className="pointer-events-none absolute -bottom-32 -end-24 h-80 w-80 rounded-full border-[32px] border-white/10" />
               <div className="relative flex h-full flex-col">
                 <div className="flex items-center justify-between gap-4">
                   <img
@@ -207,7 +241,7 @@ function AuthPage() {
                         key={item}
                         className="rounded-2xl border border-white/15 bg-white/10 px-2 py-3 text-center text-[10px] font-semibold sm:text-[11px] backdrop-blur-sm"
                       >
-                        <CheckCircle2 className="mx-auto mb-1.5 size-3.5 text-foreground/90" />
+                        <CheckCircle2 className="mx-auto mb-1.5 size-3.5 text-white/90" />
                         {item}
                       </div>
                     ))}
@@ -227,13 +261,13 @@ function AuthPage() {
               </div>
             </section>
 
-            <section className="flex flex-col justify-center rounded-[2rem] border border-border/80 bg-card/95 px-5 py-7 shadow-xl backdrop-blur-xl sm:px-7 sm:py-8">
+            <section className="flex flex-col justify-center rounded-[2rem] border border-white/10 bg-[#0d182d]/95 px-5 py-7 shadow-[0_24px_80px_rgba(0,0,0,0.32)] backdrop-blur-xl sm:px-7 sm:py-8">
               <div className="mx-auto w-full max-w-sm">
                 <div className="text-center">
-                  <h2 className="text-xl font-black tracking-tight text-foreground">
+                  <h2 className="text-xl font-black tracking-tight text-white">
                     {isRtl ? "تسجيل الدخول" : "Sign in"}
                   </h2>
-                  <p className="mt-1.5 text-xs leading-6 text-muted-foreground">
+                  <p className="mt-1.5 text-xs leading-6 text-slate-400">
                     {isRtl
                       ? "أدخل بيانات حسابك للوصول إلى متجرك"
                       : "Enter your account details to access your store"}
@@ -242,36 +276,55 @@ function AuthPage() {
 
                 <form onSubmit={handleSubmit} className="mt-8 space-y-5">
                   <div className="space-y-2">
-                    <label htmlFor="login-email" className="block text-xs font-bold text-foreground">
-                      {t("common.email")}
+                    <label
+                      htmlFor="login-identifier"
+                      className="block text-xs font-bold text-slate-200"
+                    >
+                      {isRtl ? "رقم الهاتف أو البريد الإلكتروني" : "Phone number or email"}
                     </label>
-                    <div className="relative">
-                      <Mail
-                        className="pointer-events-none absolute start-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
-                        aria-hidden
-                      />
-                      <input
-                        id="login-email"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        type="email"
-                        inputMode="email"
-                        autoComplete="email"
-                        autoCapitalize="none"
-                        spellCheck={false}
-                        required
-                        disabled={loading}
-                        dir="ltr"
-                        className="h-12 w-full rounded-2xl border border-border/70 bg-surface px-4 ps-10 text-sm text-foreground shadow-xs outline-none transition-[border-color,box-shadow,background-color] placeholder:text-muted-foreground/60 hover:border-primary/45 focus:border-primary focus:ring-4 focus:ring-primary/15 disabled:cursor-not-allowed disabled:opacity-60 motion-reduce:transition-none"
-                        placeholder="name@company.com"
-                      />
+                    <div className="flex gap-2">
+                      {!isEmailInput && (
+                        <CountrySelector value={country} onChange={setCountry} disabled={loading} />
+                      )}
+                      <div className="relative flex-1">
+                        {isEmailInput ? (
+                          <Mail
+                            className="pointer-events-none absolute start-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+                            aria-hidden
+                          />
+                        ) : (
+                          <Phone
+                            className="pointer-events-none absolute start-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+                            aria-hidden
+                          />
+                        )}
+                        <input
+                          id="login-identifier"
+                          value={identifier}
+                          onChange={(e) => setIdentifier(e.target.value)}
+                          type="text"
+                          autoComplete="username"
+                          autoCapitalize="none"
+                          spellCheck={false}
+                          required
+                          disabled={loading}
+                          dir="ltr"
+                          className="h-12 w-full rounded-2xl border border-white/10 bg-[#071125] px-4 ps-10 text-sm text-white shadow-sm outline-none transition-[border-color,box-shadow,background-color] placeholder:text-slate-500 hover:border-primary/45 focus:border-primary focus:ring-4 focus:ring-primary/15 disabled:cursor-not-allowed disabled:opacity-60 motion-reduce:transition-none"
+                          placeholder={
+                            isRtl
+                              ? "7xxxxxxxx أو name@company.com"
+                              : "7xxxxxxxx or name@company.com"
+                          }
+                          maxLength={isEmailInput ? 255 : country.maxLength + 6}
+                        />
+                      </div>
                     </div>
                   </div>
 
                   <div className="space-y-2">
                     <label
                       htmlFor="login-password"
-                      className="block text-xs font-bold text-foreground"
+                      className="block text-xs font-bold text-slate-200"
                     >
                       {t("common.password")}
                     </label>
@@ -290,13 +343,13 @@ function AuthPage() {
                         minLength={6}
                         disabled={loading}
                         dir="ltr"
-                        className="h-12 w-full rounded-2xl border border-border/70 bg-surface px-4 ps-10 pe-12 text-sm text-foreground shadow-xs outline-none transition-[border-color,box-shadow,background-color] placeholder:text-muted-foreground/60 hover:border-primary/45 focus:border-primary focus:ring-4 focus:ring-primary/15 disabled:cursor-not-allowed disabled:opacity-60 motion-reduce:transition-none"
+                        className="h-12 w-full rounded-2xl border border-white/10 bg-[#071125] px-4 ps-10 pe-12 text-sm text-white shadow-sm outline-none transition-[border-color,box-shadow,background-color] placeholder:text-slate-500 hover:border-primary/45 focus:border-primary focus:ring-4 focus:ring-primary/15 disabled:cursor-not-allowed disabled:opacity-60 motion-reduce:transition-none"
                         placeholder="••••••••"
                       />
                       <button
                         type="button"
                         onClick={() => setShowPassword((visible) => !visible)}
-                        className="absolute end-2 top-1/2 grid size-9 -translate-y-1/2 place-items-center rounded-xl text-muted-foreground transition-colors hover:bg-white/10 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-not-allowed disabled:opacity-60 motion-reduce:transition-none"
+                        className="absolute end-2 top-1/2 grid size-9 -translate-y-1/2 place-items-center rounded-xl text-slate-400 transition-colors hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-not-allowed disabled:opacity-60 motion-reduce:transition-none"
                         aria-label={
                           showPassword
                             ? isRtl
@@ -335,7 +388,7 @@ function AuthPage() {
                   </Button>
                 </form>
 
-                <div className="mt-7 flex items-start gap-2.5 border-t border-border/60 pt-5 text-[11px] leading-5 text-muted-foreground">
+                <div className="mt-7 flex items-start gap-2.5 border-t border-white/10 pt-5 text-[11px] leading-5 text-slate-400">
                   <ShieldCheck className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden />
                   <p>
                     {isRtl
@@ -350,7 +403,7 @@ function AuthPage() {
       </main>
 
       <footer className="relative z-10 w-full">
-        <InamaSoftFooter className="border-t border-border/60 bg-card/70 text-muted-foreground backdrop-blur-md" />
+        <InamaSoftFooter className="border-t border-white/10 bg-[#030817]/80 text-slate-500 backdrop-blur-md" />
       </footer>
     </div>
   );
