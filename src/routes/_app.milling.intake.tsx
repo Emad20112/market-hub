@@ -21,6 +21,7 @@ import {
   Pill,
   MillingEmpty,
   Cell,
+  QueryErrorGuard,
 } from "@/components/milling/milling-ui";
 import type { PageGuideConfig } from "@/components/page-guide";
 
@@ -139,13 +140,23 @@ function MillingIntakePage() {
 
   // المرحلة 0: الفحوص تأتي من القاعدة، لا من مصفوفة ثابتة في الكود.
   // هذا يحل الانقسام بين "قمح صلب" (بلا مرجع) و "قمح صلب مستورد" (مرتبط).
-  const { data: grainGrades } = useQuery({
+  const {
+    data: grainGrades,
+    isError: grainGradesError,
+    error: grainGradesDetail,
+    refetch: grainGradesRefetch,
+  } = useQuery({
     queryKey: ["milling", "grain-grades"],
     queryFn: () => fetchGrainGrades(true),
   });
 
   // فحص الرطوبة/الشوائب مقابل الحد الفني — تنبيه لا منع (قرار المستخدم).
-  const { data: gradeCheck } = useQuery({
+  const {
+    data: gradeCheck,
+    isError: gradeCheckError,
+    error: gradeCheckDetail,
+    refetch: gradeCheckRefetch,
+  } = useQuery({
     queryKey: ["milling", "grade-check", grainGradeId, moisture || 0, impurities || 0],
     queryFn: () => checkGrainGrade(grainGradeId || null, moisture || 0, impurities || 0),
     enabled: !!grainGradeId,
@@ -153,7 +164,12 @@ function MillingIntakePage() {
 
   const activeGrade = grainGrades?.find((g) => g.id === grainGradeId) ?? null;
 
-  const { data: warehouses } = useQuery({
+  const {
+    data: warehouses,
+    isError: warehousesError,
+    error: warehousesDetail,
+    refetch: warehousesRefetch,
+  } = useQuery({
     queryKey: ["milling", "warehouses"],
     queryFn: async () => {
       const { data } = await supabase
@@ -170,7 +186,12 @@ function MillingIntakePage() {
     },
   });
 
-  const { data: customers } = useQuery({
+  const {
+    data: customers,
+    isError: customersError,
+    error: customersDetail,
+    refetch: customersRefetch,
+  } = useQuery({
     queryKey: ["milling", "customers"],
     queryFn: async () => {
       const { data } = await supabase
@@ -187,7 +208,12 @@ function MillingIntakePage() {
     [storeId, warehouses],
   );
 
-  const { data: receipts } = useQuery({
+  const {
+    data: receipts,
+    isError: receiptsError,
+    error: receiptsDetail,
+    refetch: receiptsRefetch,
+  } = useQuery({
     queryKey: ["milling", "intakes", activeStore],
     queryFn: () => fetchIntakes(activeStore),
     enabled: Boolean(activeStore),
@@ -267,6 +293,24 @@ function MillingIntakePage() {
       },
       paper,
     );
+
+  /*
+   * These 5 queries feed the tables and the counters below. A failed
+   * one used to render as an empty table or a row of zeros, which reads as a
+   * quiet day rather than a broken connection. The guard below turns any
+   * failure into a stated error.
+   */
+  const queryStates = [
+    { isError: grainGradesError, error: grainGradesDetail, refetch: grainGradesRefetch },
+    { isError: gradeCheckError, error: gradeCheckDetail, refetch: gradeCheckRefetch },
+    { isError: warehousesError, error: warehousesDetail, refetch: warehousesRefetch },
+    { isError: customersError, error: customersDetail, refetch: customersRefetch },
+    { isError: receiptsError, error: receiptsDetail, refetch: receiptsRefetch },
+  ];
+
+  if (queryStates.some((q) => q.isError)) {
+    return <QueryErrorGuard what="سناد الاستلام" queries={queryStates} />;
+  }
 
   return (
     <ModuleGuard moduleId="milling_operations">

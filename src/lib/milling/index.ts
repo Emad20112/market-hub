@@ -473,7 +473,7 @@ export async function fetchIntakes(
   if (customerId) q = q.eq("customer_id", customerId);
 
   const { data, error } = await q;
-  if (error) return [];
+  if (error) throw error;
   return (data ?? []) as MillingIntake[];
 }
 
@@ -484,7 +484,7 @@ export async function fetchJobs(storeId?: string, status?: MillingStatus): Promi
   if (status) q = q.eq("status", status);
 
   const { data, error } = await q;
-  if (error) return [];
+  if (error) throw error;
   return (data ?? []) as MillingJob[];
 }
 
@@ -495,7 +495,7 @@ export async function fetchOutputs(jobId: string): Promise<MillingOutput[]> {
     .eq("job_id", jobId)
     .order("output_type");
 
-  if (error) return [];
+  if (error) throw error;
   return (data ?? []) as MillingOutput[];
 }
 
@@ -513,7 +513,7 @@ export async function fetchDeliveries(
   if (customerId) q = q.eq("customer_id", customerId);
 
   const { data, error } = await q;
-  if (error) return [];
+  if (error) throw error;
   return (data ?? []) as MillingDelivery[];
 }
 
@@ -528,7 +528,7 @@ export async function fetchPackagingItems(): Promise<
     .eq("is_active", true)
     .order("sku");
 
-  if (error) return [];
+  if (error) throw error;
   return (data ?? []) as any;
 }
 
@@ -553,7 +553,7 @@ export async function fetchOutputBalances(customerId: string): Promise<OutputBal
     .gt("remaining_bags", 0)
     .order("output_type");
 
-  if (error) return [];
+  if (error) throw error;
   return (data ?? []) as OutputBalanceRow[];
 }
 
@@ -565,7 +565,7 @@ export async function fetchServiceMoney(customerId: string): Promise<ServiceMone
     .eq("customer_id", customerId)
     .order("created_at", { ascending: false });
 
-  if (error) return [];
+  if (error) throw error;
   return (data ?? []) as ServiceMoneyRow[];
 }
 

@@ -24,6 +24,7 @@ import {
   Pill,
   StatTile,
   MillingEmpty,
+  QueryErrorGuard,
 } from "@/components/milling/milling-ui";
 
 export const Route = createFileRoute("/_app/milling/reports")({
@@ -65,6 +66,13 @@ function MillingReportsPage() {
   const dualBasis = (pricing.data ?? []).filter(
     (p: PricingDiagnosticRow) => p.pricing_health === "DUAL_BASIS_ERROR",
   );
+
+  /*
+   * The tiles above are computed from these same arrays. When a query fails
+   * they read as zero, so without this guard a broken report renders a wall of
+   * confident zeros: "0 orders", "0 invoiced", "no orphans". Silence would
+   * have been read as good news.
+   */
 
   const totalInvoiced = rows.reduce((s, r) => s + (r.invoiced_total ?? 0), 0);
   const totalInput = rows.reduce((s, r) => s + r.input_weight_kg, 0);
@@ -133,6 +141,8 @@ function MillingReportsPage() {
       />
 
       <div className="space-y-4">
+        <QueryErrorGuard what="تقارير المطحنة" queries={[efficiency, intakeHealth, pricing]} />
+
         {/* ── مؤشرات عامة ── */}
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <StatTile

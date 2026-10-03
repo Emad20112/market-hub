@@ -27,6 +27,7 @@ import {
   Pill,
   MillingEmpty,
   Cell,
+  QueryErrorState,
 } from "@/components/milling/milling-ui";
 import type { PageGuideConfig } from "@/components/page-guide";
 
@@ -225,11 +226,15 @@ function MillingDashboard() {
   const { data: warehouses } = useQuery({
     queryKey: ["milling", "warehouses"],
     queryFn: async () => {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("warehouses")
         .select("id, name, name_ar, is_default")
         .eq("is_active", true)
         .order("is_default", { ascending: false });
+      // Throw rather than defaulting to []: an empty warehouse list would leave
+      // every query below disabled, and the dashboard would sit on its loading
+      // state forever instead of reporting a failure.
+      if (error) throw error;
       return (data ?? []) as {
         id: string;
         name: string;
@@ -244,29 +249,66 @@ function MillingDashboard() {
     [warehouses],
   );
 
-  const { data: stats } = useQuery({
+  const {
+    data: stats,
+    isError: statsError,
+    error: statsErr,
+    refetch: refetchStats,
+  } = useQuery({
     queryKey: ["milling", "stats", storeId],
     queryFn: () => fetchDashboardStats(storeId),
     enabled: Boolean(warehouses && warehouses.length > 0),
   });
 
-  const { data: intakes } = useQuery({
+  const {
+    data: intakes,
+    isError: intakesError,
+    error: intakesErr,
+    refetch: refetchIntakes,
+  } = useQuery({
     queryKey: ["milling", "intakes", storeId],
     queryFn: () => fetchIntakes(storeId),
     enabled: Boolean(warehouses && warehouses.length > 0),
   });
 
-  const { data: jobs } = useQuery({
+  const {
+    data: jobs,
+    isError: jobsError,
+    error: jobsErr,
+    refetch: refetchJobs,
+  } = useQuery({
     queryKey: ["milling", "jobs", storeId],
     queryFn: () => fetchJobs(storeId),
     enabled: Boolean(warehouses && warehouses.length > 0),
   });
 
-  const { data: deliveries } = useQuery({
+  const {
+    data: deliveries,
+    isError: deliveriesError,
+    error: deliveriesErr,
+    refetch: refetchDeliveries,
+  } = useQuery({
     queryKey: ["milling", "deliveries", storeId],
     queryFn: () => fetchDeliveries(storeId),
     enabled: Boolean(warehouses && warehouses.length > 0),
   });
+
+  /*
+   * Without this, a dead connection renders the mill dashboard as four zeros
+   * and two empty tables - which a user reads as a mill that received nothing,
+   * ground nothing and is owed nothing today. The `loading` flag below treats
+   * "not loaded" as "loading", so it never resolves; only isError ends that.
+   */
+  const failedQuery = [
+    { isError: statsError, error: statsErr, refetch: refetchStats },
+    { isError: intakesError, error: intakesErr, refetch: refetchIntakes },
+    { isError: jobsError, error: jobsErr, refetch: refetchJobs },
+    { isError: deliveriesError, error: deliveriesErr, refetch: refetchDeliveries },
+  ].find((q) => q.isError);
+
+  // The guard below is placed AFTER every hook on purpose: an early return
+  // ahead of the useMemo further down would change hook order between renders
+  // and crash the screen.
 
   const loading = !warehouses || (warehouses.length > 0 && !stats);
 
@@ -283,6 +325,18 @@ function MillingDashboard() {
     for (const j of jobs ?? []) map.set(j.customer_id, j.customer_id);
     return map;
   }, [intakes, jobs]);
+
+  if (failedQuery) {
+    return (
+      <MillingPanel>
+        <QueryErrorState
+          what="لوحة المطحنة"
+          error={failedQuery.error}
+          onRetry={() => void failedQuery.refetch()}
+        />
+      </MillingPanel>
+    );
+  }
 
   return (
     <>

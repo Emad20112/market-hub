@@ -612,6 +612,7 @@ const en: Dict = {
 
   // Expenses (ERP expense management module)
   "nav.expenses": "Expenses",
+  "nav.opening_balances": "Opening Balances",
   "expenses.title": "Expenses",
   "expenses.subtitle": "Register, approvals, posting and settlement",
   "expenses.new": "New expense",
@@ -783,6 +784,7 @@ const ar: Dict = {
   "nav.milling_jobs": "صالة التشغيل وأوامر الطحن",
   "nav.milling_delivery": "بوابة التسليم وإذن الخروج",
   "nav.milling_statement": "كشف حساب الأمانات",
+  "nav.production": "إنتاج المطحنة (ملكها)",
   "nav.milling_guide": "دليل عمليات المطحنة",
   "nav.section.overview": "نظرة عامة",
   "nav.section.operations": "العمليات",
@@ -1347,6 +1349,7 @@ const ar: Dict = {
 
   // المصروفات (وحدة إدارة المصروفات)
   "nav.expenses": "المصروفات",
+  "nav.opening_balances": "الأرصدة الافتتاحية",
   "expenses.title": "المصروفات",
   "expenses.subtitle": "السجل، الاعتماد، الترحيل والسداد",
   "expenses.new": "مصروف جديد",

@@ -55,6 +55,7 @@ import {
   MillingEmpty,
   LossWarning,
   Cell,
+  QueryErrorGuard,
 } from "@/components/milling/milling-ui";
 import type { PageGuideConfig } from "@/components/page-guide";
 import { cn } from "@/lib/utils";
@@ -189,7 +190,12 @@ function MillingJobsPage() {
   const [completion, setCompletion] = useState<JobCompletionSummary | null>(null);
   const [invoiceOpen, setInvoiceOpen] = useState(false);
 
-  const { data: warehouses } = useQuery({
+  const {
+    data: warehouses,
+    isError: warehousesError,
+    error: warehousesDetail,
+    refetch: warehousesRefetch,
+  } = useQuery({
     queryKey: ["milling", "warehouses"],
     queryFn: async () => {
       const { data } = await supabase
@@ -206,7 +212,12 @@ function MillingJobsPage() {
     },
   });
 
-  const { data: customers } = useQuery({
+  const {
+    data: customers,
+    isError: customersError,
+    error: customersDetail,
+    refetch: customersRefetch,
+  } = useQuery({
     queryKey: ["milling", "customers"],
     queryFn: async () => {
       const { data } = await supabase
@@ -223,19 +234,34 @@ function MillingJobsPage() {
     [warehouses],
   );
 
-  const { data: jobs } = useQuery({
+  const {
+    data: jobs,
+    isError: jobsError,
+    error: jobsDetail,
+    refetch: jobsRefetch,
+  } = useQuery({
     queryKey: ["milling", "jobs", storeId],
     queryFn: () => fetchJobs(storeId),
     enabled: Boolean(storeId),
   });
 
-  const { data: intakes } = useQuery({
+  const {
+    data: intakes,
+    isError: intakesError,
+    error: intakesDetail,
+    refetch: intakesRefetch,
+  } = useQuery({
     queryKey: ["milling", "intakes", storeId],
     queryFn: () => fetchIntakes(storeId),
     enabled: Boolean(storeId),
   });
 
-  const { data: packaging } = useQuery({
+  const {
+    data: packaging,
+    isError: packagingError,
+    error: packagingDetail,
+    refetch: packagingRefetch,
+  } = useQuery({
     queryKey: ["milling", "packaging"],
     queryFn: fetchPackagingItems,
   });
@@ -253,14 +279,24 @@ function MillingJobsPage() {
   // عقد الطحن الذي ينفذه هذا الأمر — يعرض ما اتفق عليه وقت الاستلام.
   // الأوامر القديمة (قبل نظام العقود) agreement_id = NULL، فنُخفي البانر.
   const agreementId = selectedJob?.agreement_id ?? null;
-  const { data: agreements } = useQuery({
+  const {
+    data: agreements,
+    isError: agreementsError,
+    error: agreementsDetail,
+    refetch: agreementsRefetch,
+  } = useQuery({
     queryKey: ["milling", "agreement", agreementId],
     queryFn: () => fetchAgreements(),
     enabled: !!agreementId,
   });
   const agreement = (agreements ?? []).find((a) => a.id === agreementId) ?? null;
 
-  const { data: outputs } = useQuery({
+  const {
+    data: outputs,
+    isError: outputsError,
+    error: outputsDetail,
+    refetch: outputsRefetch,
+  } = useQuery({
     queryKey: ["milling", "outputs", selectedJobId],
     queryFn: () => fetchOutputs(selectedJobId),
     enabled: Boolean(selectedJobId),
@@ -320,6 +356,26 @@ function MillingJobsPage() {
    * from the UI even though the engine supported it.
    */
   const isInvoiceable = selectedJob?.status === "COMPLETED" || selectedJob?.status === "DELIVERED";
+
+  /*
+   * These 7 queries feed the tables and the counters below. A failed
+   * one used to render as an empty table or a row of zeros, which reads as a
+   * quiet day rather than a broken connection. The guard below turns any
+   * failure into a stated error.
+   */
+  const queryStates = [
+    { isError: warehousesError, error: warehousesDetail, refetch: warehousesRefetch },
+    { isError: customersError, error: customersDetail, refetch: customersRefetch },
+    { isError: jobsError, error: jobsDetail, refetch: jobsRefetch },
+    { isError: intakesError, error: intakesDetail, refetch: intakesRefetch },
+    { isError: packagingError, error: packagingDetail, refetch: packagingRefetch },
+    { isError: agreementsError, error: agreementsDetail, refetch: agreementsRefetch },
+    { isError: outputsError, error: outputsDetail, refetch: outputsRefetch },
+  ];
+
+  if (queryStates.some((q) => q.isError)) {
+    return <QueryErrorGuard what="أوامر الطحن" queries={queryStates} />;
+  }
 
   return (
     <ModuleGuard moduleId="milling_operations">
