@@ -1,3 +1,4 @@
+import { useCompanyCurrency } from "@/hooks/use-company-currency";
 import { Link, useRouterState, useNavigate } from "@tanstack/react-router";
 import { memo, useEffect, useMemo, useState } from "react";
 import {
@@ -836,27 +837,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       "light",
   );
 
-  useEffect(() => {
-    let active = true;
-    void supabase
-      .from("company_settings")
-      .select("currency, currency_symbol")
-      .order("id")
-      .limit(1)
-      .maybeSingle()
-      .then(({ data, error }) => {
-        if (!active) return;
-        if (error) {
-          console.warn("[AppShell] Could not load company currency settings.", error);
-          return;
-        }
-        if (data) setCompanySettingsCache(data);
-      });
-
-    return () => {
-      active = false;
-    };
-  }, []);
+  // Use centralized company currency with TanStack Query cache (5min staleTime)
+  useCompanyCurrency();
 
   useEffect(() => {
     const root = document.documentElement;
