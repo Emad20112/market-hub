@@ -42,7 +42,8 @@ function BatchesPage() {
     const { data } = await supabase
       .from("product_batches")
       .select("*, products(name,name_ar,sku), warehouses(name,name_ar)")
-      .order("expiry_date", { ascending: true, nullsFirst: false });
+      .order("expiry_date", { ascending: true, nullsFirst: false })
+      .limit(500);
     setRows((data ?? []) as any);
     setLoading(false);
   }
