@@ -1,4 +1,4 @@
-﻿import React from "react";
+import React from "react";
 import {
   Building2,
   Receipt,
@@ -8,12 +8,14 @@ import {
   Languages,
   Hash,
   ShieldCheck,
+  Scale,
   LucideIcon,
 } from "lucide-react";
 import { CompanySection } from "./sections/company-section";
 import { InvoicingSection } from "./sections/invoicing-section";
 import { PrintingSection } from "./sections/printing-section";
 import { CatalogSection } from "./sections/catalog-section";
+import { MillingModeSection } from "./sections/milling-mode-section";
 import { SubscriptionSection } from "./sections/subscription-section";
 import { AppearanceSection } from "./sections/appearance-section";
 import { NumberFormatSection } from "./sections/number-format-section";
@@ -95,6 +97,18 @@ registerSettingsSection({
   descriptionEn: "Store industry profile and active catalog modules",
   icon: SlidersHorizontal,
   component: CatalogSection,
+});
+
+registerSettingsSection({
+  id: "milling-mode",
+  titleAr: "نمط تشغيل المطحنة (Super Admin)",
+  titleEn: "Milling Operational Mode",
+  descriptionAr: "التحكم في ظهور المطحنة: منشأة عادية (سوبرماركت)، الخطة المبسطة، أو التصنيع",
+  descriptionEn: "Configure store identity: General Store, Simplified Mill, or Manufacturing",
+  icon: Scale,
+  badgeAr: "سوبر أدمن",
+  badgeEn: "Super Admin",
+  component: MillingModeSection,
 });
 
 registerSettingsSection({

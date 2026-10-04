@@ -33,6 +33,7 @@ export interface GrainGrade {
   max_moisture: number;
   max_impurities: number;
   default_bag_size_kg: number;
+  default_bag_type?: string | null;
   default_service_sku: string | null;
   is_active: boolean;
 }

@@ -271,8 +271,20 @@ export async function createIntake(input: CreateIntakeInput): Promise<OpResult> 
     _notes: input.notes ?? null,
   });
 
-  if (error) return { ok: false, message: error.message };
+  if (error) return { ok: false, message: translateMillingError(error.message) };
   return { ok: true, id: data as string };
+}
+
+function translateMillingError(msg: string): string {
+  if (!msg) return "حدث خطأ غير متوقع في معالجة العملية.";
+  if (msg.includes("Grain grade is required") || msg.includes("grain_grade_id")) {
+    return "نوع ودرجة الحبوب مطلوبة — تحديد درجة الحبوب مطلوب لحساب سعر وتكلفة الطحن لاحقاً.";
+  }
+  if (msg.includes("Warehouse is required")) return "يرجى تحديد المستودع / الصومعة.";
+  if (msg.includes("Customer is required")) return "يرجى اختيار العميل صاحب الأمانات.";
+  if (msg.includes("Bag size must be greater than zero")) return "سعة الكيس يجب أن تكون أكبر من صفر.";
+  if (msg.includes("Net weight must be positive")) return "الوزن الصافي يجب أن يكون أكبر من صفر.";
+  return msg;
 }
 
 /* --------------------------------------------------------------- 2. jobs */

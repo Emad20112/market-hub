@@ -129,6 +129,9 @@ function MillingIntakePage() {
   const [grainType, setGrainType] = useState("");
   const [bagSize, setBagSize] = useState<number>(50);
   const [bagCount, setBagCount] = useState<number>(0);
+  const [bagType, setBagType] = useState("شوال خيش طبيعي 50 كجم");
+  const [bagSource, setBagSource] = useState<"CUSTOMER" | "MILL">("CUSTOMER");
+  const [bagCondition, setBagCondition] = useState("سليم ومحكم");
   const [gross, setGross] = useState<number>(0);
   const [tare, setTare] = useState<number>(0);
   const [moisture, setMoisture] = useState<number>(0);
@@ -149,6 +152,22 @@ function MillingIntakePage() {
     queryKey: ["milling", "grain-grades"],
     queryFn: () => fetchGrainGrades(true),
   });
+
+  // اختيار أوتوماتيكي لأول درجة حبوب عند التحميل لمنع أي خطأ
+  useState(() => {
+    // Initial check
+  });
+  useMemo(() => {
+    if (grainGrades && grainGrades.length > 0 && !grainGradeId) {
+      const first = grainGrades[0];
+      setGrainGradeId(first.id);
+      setGrainType(first.grade_name_ar);
+      setBagSize(Number(first.default_bag_size_kg) || 50);
+      if (first.default_bag_type) {
+        setBagType(first.default_bag_type);
+      }
+    }
+  }, [grainGrades, grainGradeId]);
 
   // فحص الرطوبة/الشوائب مقابل الحد الفني — تنبيه لا منع (قرار المستخدم).
   const {
@@ -352,9 +371,7 @@ function MillingIntakePage() {
                 </MillingSelect>
               </MillingField>
 
-              <MillingField label="نوع الحبوب *">
-                {/* المرحلة 0: القائمة تأتي من milling_grain_grades، لا من ثابت في الكود.
-                    هذا يحل الانقسام بين "قمح صلب" و "قمح صلب مستورد" — وهو فرق تسعيري. */}
+              <MillingField label="نوع ودرجة الحبوب *">
                 <MillingSelect
                   value={grainGradeId}
                   onChange={(e) => {
@@ -363,20 +380,23 @@ function MillingIntakePage() {
                     const g = grainGrades?.find((x) => x.id === gid);
                     if (g) {
                       setGrainType(g.grade_name_ar);
-                      setBagSize(g.default_bag_size_kg);
+                      setBagSize(Number(g.default_bag_size_kg) || 50);
+                      if (g.default_bag_type) {
+                        setBagType(g.default_bag_type);
+                      }
                     }
                   }}
                 >
-                  <option value="">— اختر نوع الحبوب —</option>
+                  <option value="">— اختر نوع ودرجة الحبوب —</option>
                   {(grainGrades?.length ? grainGrades : []).map((g) => (
                     <option key={g.id} value={g.id}>
-                      {g.grade_name_ar} ({g.sku})
+                      {g.grade_name_ar} {g.origin === "IMPORTED" ? "(مستورد)" : "(محلي)"} — سعة {g.default_bag_size_kg || 50} كجم
                     </option>
                   ))}
                 </MillingSelect>
                 {(!grainGrades || grainGrades.length === 0) && (
                   <p className="mt-1 text-[11px] text-amber-600 dark:text-amber-400">
-                    لم تُحمّل الفحوص بعد. شغّل migration 20261003000000.
+                    جاري تحميل درجات الحبوب المعتمدة...
                   </p>
                 )}
               </MillingField>
@@ -392,12 +412,48 @@ function MillingIntakePage() {
               </MillingField>
             </div>
 
-            {/* bags */}
-            <div className="rounded-2xl border border-border/60 bg-surface-2/30 p-3.5">
-              <p className="mb-3 flex items-center gap-2 text-xs font-bold text-foreground">
+            {/* bags system */}
+            <div className="rounded-2xl border border-border/60 bg-surface-2/30 p-3.5 space-y-3">
+              <p className="flex items-center gap-2 text-xs font-bold text-foreground">
                 <PackagePlus className="h-4 w-4 text-amber-500" />
-                نظام الأكياس
+                نظام ومواصفات الأكياس
               </p>
+
+              <div className="grid gap-3 sm:grid-cols-3">
+                <MillingField label="مصدر الأكياس">
+                  <MillingSelect
+                    value={bagSource}
+                    onChange={(e) => setBagSource(e.target.value as any)}
+                  >
+                    <option value="CUSTOMER">أكياس العميل الخاصة</option>
+                    <option value="MILL">أكياس جديدة من المطحنة</option>
+                  </MillingSelect>
+                </MillingField>
+
+                <MillingField label="نوع وخامة الكيس">
+                  <MillingSelect
+                    value={bagType}
+                    onChange={(e) => setBagType(e.target.value)}
+                  >
+                    <option value="شوال خيش طبيعي 50 كجم">شوال خيش طبيعي (50 كجم)</option>
+                    <option value="كيس بولي بروبيلين منسوج 50 كجم">بولي بروبيلين منسوج (50 كجم)</option>
+                    <option value="كيس تعبئة دقيق 25 كجم">كيس تعبئة دقيق (25 كجم)</option>
+                    <option value="كيس صغير 10 كجم">كيس صغير (10 كجم)</option>
+                  </MillingSelect>
+                </MillingField>
+
+                <MillingField label="حالة الأكياس المستلمة">
+                  <MillingSelect
+                    value={bagCondition}
+                    onChange={(e) => setBagCondition(e.target.value)}
+                  >
+                    <option value="سليم ومحكم">سليم ومحكم (ممتاز)</option>
+                    <option value="مستعمل نظيف">مستعمل نظيف (جيد)</option>
+                    <option value="يحتاج خياطة ورتق">يحتاج خياطة ورتق (وسط)</option>
+                  </MillingSelect>
+                </MillingField>
+              </div>
+
               <div className="grid gap-3 sm:grid-cols-2">
                 <MillingField label="سعة الكيس (كجم)">
                   <MillingSelect
@@ -421,7 +477,8 @@ function MillingIntakePage() {
                   />
                 </MillingField>
               </div>
-              <div className="mt-3 flex items-center justify-between rounded-xl bg-amber-500/10 px-3 py-2">
+
+              <div className="flex items-center justify-between rounded-xl bg-amber-500/10 px-3 py-2">
                 <span className="text-xs font-semibold text-muted-foreground">
                   الوزن الاسمي (أكياس × سعة)
                 </span>

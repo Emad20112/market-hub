@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
-export type BusinessProfile = "spare_parts" | "grocery" | "retail" | "custom";
+export type BusinessProfile = "spare_parts" | "grocery" | "retail" | "mill" | "custom";
 
 export interface CatalogModulesConfig {
   profile: BusinessProfile;
@@ -10,12 +10,24 @@ export interface CatalogModulesConfig {
   enableQualityGrades: boolean; // درجات الجودة (أصلي / تجاري / وكالة)
   enableBrands: boolean; // العلامات التجارية
   enableUnits: boolean; // الوحدات
+  enableGrainGrades?: boolean; // درجات وأنواع الحبوب للمطحنة
+  enablePackagingBags?: boolean; // أكياس ومستلزمات التعبئة والتغليف
 }
 
 const STORAGE_KEY = "vortex_catalog_modules_v1";
 const EVENT_NAME = "vortex_catalog_modules_changed";
 
 export const DEFAULT_PROFILES: Record<BusinessProfile, CatalogModulesConfig> = {
+  mill: {
+    profile: "mill",
+    enableMakesAndModels: false,
+    enableOrigins: true,
+    enableQualityGrades: false,
+    enableBrands: false,
+    enableUnits: true,
+    enableGrainGrades: true,
+    enablePackagingBags: true,
+  },
   spare_parts: {
     profile: "spare_parts",
     enableMakesAndModels: true,
@@ -23,6 +35,8 @@ export const DEFAULT_PROFILES: Record<BusinessProfile, CatalogModulesConfig> = {
     enableQualityGrades: true,
     enableBrands: true,
     enableUnits: true,
+    enableGrainGrades: false,
+    enablePackagingBags: false,
   },
   grocery: {
     profile: "grocery",
@@ -31,6 +45,8 @@ export const DEFAULT_PROFILES: Record<BusinessProfile, CatalogModulesConfig> = {
     enableQualityGrades: false,
     enableBrands: true,
     enableUnits: true,
+    enableGrainGrades: false,
+    enablePackagingBags: true,
   },
   retail: {
     profile: "retail",
@@ -39,6 +55,8 @@ export const DEFAULT_PROFILES: Record<BusinessProfile, CatalogModulesConfig> = {
     enableQualityGrades: false,
     enableBrands: true,
     enableUnits: true,
+    enableGrainGrades: false,
+    enablePackagingBags: false,
   },
   custom: {
     profile: "custom",
@@ -47,6 +65,8 @@ export const DEFAULT_PROFILES: Record<BusinessProfile, CatalogModulesConfig> = {
     enableQualityGrades: true,
     enableBrands: true,
     enableUnits: true,
+    enableGrainGrades: true,
+    enablePackagingBags: true,
   },
 };
 
@@ -146,7 +166,7 @@ export function useCatalogModules() {
   };
 
   const isTabEnabled = (
-    tab: "categories" | "brands" | "units" | "origins" | "qualities" | "makes" | "models",
+    tab: "categories" | "brands" | "units" | "origins" | "qualities" | "makes" | "models" | "grain_grades" | "packaging_bags",
   ): boolean => {
     switch (tab) {
       case "categories":
@@ -162,6 +182,10 @@ export function useCatalogModules() {
       case "makes":
       case "models":
         return config.enableMakesAndModels;
+      case "grain_grades":
+        return config.enableGrainGrades ?? true;
+      case "packaging_bags":
+        return config.enablePackagingBags ?? true;
       default:
         return true;
     }
