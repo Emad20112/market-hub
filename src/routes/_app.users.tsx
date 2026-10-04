@@ -207,7 +207,49 @@ function UsersPage() {
       const profileMap = new Map<string, any>();
       (profiles ?? []).forEach((p) => profileMap.set(p.id, p));
 
-      const platformAdminSet = new Set((platformAdmins ?? []).map((pa: any) => pa.user_id));
+      // Build the set of platform admin user IDs to exclude from store staff
+      const platformAdminSet = new Set<string>();
+
+      if (isSuper) {
+        // Superadmin has full RLS read on platform_admins table
+        (platformAdmins ?? []).forEach((pa: any) => {
+          if (pa?.user_id) {
+            platformAdminSet.add(pa.user_id);
+          }
+        });
+      } else {
+        // Non-platform admin (owner, manager, etc.): check candidate users via SECURITY DEFINER RPC
+        // Collect candidates: users in profiles who hold at least one store role
+        const candidateUserIds = (profiles ?? [])
+          .filter((p) => (byUser.get(p.id) ?? []).length > 0)
+          .map((p) => p.id);
+
+        if (candidateUserIds.length > 0) {
+          const rpcResults = await Promise.all(
+            candidateUserIds.map(async (uid) => {
+              try {
+                const { data, error } = await (supabase as any).rpc("is_platform_admin", {
+                  p_user_id: uid,
+                });
+                if (error) {
+                  console.error(`[loadUsers] is_platform_admin RPC error for ${uid}:`, error);
+                  return { uid, isPlatformAdmin: false };
+                }
+                return { uid, isPlatformAdmin: data === true };
+              } catch (rpcErr) {
+                console.error(`[loadUsers] is_platform_admin invoke failed for ${uid}:`, rpcErr);
+                return { uid, isPlatformAdmin: false };
+              }
+            }),
+          );
+
+          rpcResults.forEach((res) => {
+            if (res.isPlatformAdmin) {
+              platformAdminSet.add(res.uid);
+            }
+          });
+        }
+      }
 
       const storeUsers: any[] = [];
       (profiles ?? []).forEach((p) => {
