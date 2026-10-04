@@ -1,5 +1,5 @@
 import { Link, useRouterState, useNavigate } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { memo, useEffect, useMemo, useState } from "react";
 import {
   LayoutDashboard,
   ScanBarcode,
@@ -512,7 +512,7 @@ const sections: Section[] = [
   },
 ];
 
-function SidebarContents({
+const SidebarContents = memo(function SidebarContents({
   onNavigate,
   collapsed = false,
   onToggleCollapse,
@@ -775,7 +775,7 @@ function SidebarContents({
       </div>
     </div>
   );
-}
+});
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const { t, dir } = useI18n();
