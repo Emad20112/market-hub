@@ -17,8 +17,27 @@ import {
 } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Download, Calendar } from "lucide-react";
+import { Download, Calendar, Printer } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { exportToCSV, type ExportColumn } from "@/lib/excel-export";
+import { printReportDocument, type PrintSection } from "@/lib/print/report-print";
+import { Ltr } from "@/components/ltr-value";
+import {
+  lowStockColumns,
+  lowStockPrintSection,
+  lowStockRows,
+  paymentMethodLabel,
+  paymentMixColumns,
+  paymentMixPrintSection,
+  paymentMixRows,
+  salesColumns,
+  salesPrintSection,
+  salesRows,
+  statusLabel,
+  topProductColumns,
+  topProductPrintSection,
+  topProductRows,
+} from "@/lib/reports/reports-export";
 
 export const Route = createFileRoute("/_app/reports")({
   head: () => ({ meta: [{ title: "Reports — Vortex ERP" }] }),
@@ -133,18 +152,83 @@ function ReportsPage() {
    */
   const netPurchasing = salesTotal - purchasesTotal;
 
-  function exportCSV(name: string, rows: any[], headers: string[]) {
+  function productName(p: any) {
+    return lang === "ar" ? (p?.name_ar ?? p?.name ?? "") : (p?.name ?? "");
+  }
+
+  const topRowsData = topProducts.map((tp) => ({
+    name: productName(tp.product),
+    qty: Number(tp.qty || 0),
+    total: Number(tp.total || 0),
+  }));
+
+  const salesRowsData = sales.map((s: any) => ({
+    invoice: s.invoice_number ?? "",
+    date: s.created_at,
+    total: Number(s.total || 0),
+    paid: Number(s.paid || 0),
+    paymentMethod: paymentMethodLabel(s.payment_method, lang),
+    status: statusLabel(s.status, lang),
+  }));
+
+  const paymentTotal = Object.values(byMethod).reduce((a, b) => a + b, 0);
+  const paymentRowsData = Object.entries(byMethod)
+    .map(([m, v]) => ({
+      method: paymentMethodLabel(m, lang),
+      amount: v,
+      pct: paymentTotal > 0 ? (v / paymentTotal) * 100 : 0,
+    }))
+    .sort((a, b) => b.amount - a.amount);
+
+  const lowRowsData = lowStock.map((p: any) => ({
+    name: productName(p),
+    stock: Number(p.stock || 0),
+    min: Number(p.min_stock || 0),
+  }));
+
+  const periodLabel = `${range.from} → ${range.to}`;
+
+  function exportSection(
+    name: string,
+    columns: ExportColumn[],
+    rows: Record<string, string | number | null | undefined>[],
+  ) {
     if (rows.length === 0) return;
-    const csv = [headers.join(",")]
-      .concat(rows.map((r) => headers.map((h) => JSON.stringify(r[h] ?? "")).join(",")))
-      .join("\n");
-    const blob = new Blob([csv], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `${name}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+    exportToCSV({
+      filename: `report_${name}_${range.from}_${range.to}`,
+      title: `${lang === "ar" ? "تقرير" : "Report"} — ${periodLabel}`,
+      columns,
+      rows,
+      rtl: lang === "ar",
+    });
+  }
+
+  function printSection(section: PrintSection) {
+    printReportDocument({
+      lang,
+      title: t("reports.title"),
+      subtitle:
+        lang === "ar" ? "تحليلات الأداء، الأكثر مبيعاً، التدفق النقدي" : "Performance analytics",
+      period: periodLabel,
+      generatedAt: new Date().toLocaleString(),
+      kpis: [
+        {
+          label: lang === "ar" ? "إجمالي المبيعات" : "Total sales",
+          value: money(salesTotal),
+        },
+        { label: lang === "ar" ? "المحصّل" : "Collected", value: money(salesPaid) },
+        {
+          label: lang === "ar" ? "تكلفة المشتريات" : "Purchase cost",
+          value: money(purchasesTotal),
+        },
+        {
+          label: lang === "ar" ? "المبيعات ناقص المشتريات" : "Sales less purchases",
+          value: money(netPurchasing),
+          tone: netPurchasing >= 0 ? "pos" : "neg",
+        },
+      ],
+      sections: [section],
+    });
   }
 
   return (
@@ -218,15 +302,23 @@ function ReportsPage() {
                 size="sm"
                 variant="outline"
                 onClick={() =>
-                  exportCSV(
+                  exportSection(
                     "top-products",
-                    topProducts.map((t) => ({ name: t.product?.name, qty: t.qty, total: t.total })),
-                    ["name", "qty", "total"],
+                    topProductColumns(lang),
+                    topProductRows(topRowsData),
                   )
                 }
               >
                 <Download className="h-4 w-4 me-1" />
-                CSV
+                {lang === "ar" ? "تصدير CSV" : "Export CSV"}
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => printSection(topProductPrintSection(topRowsData, lang))}
+              >
+                <Printer className="h-4 w-4 me-1" />
+                {lang === "ar" ? "طباعة" : "Print"}
               </Button>
             </CardHeader>
             <CardContent className="p-0">
@@ -255,8 +347,12 @@ function ReportsPage() {
                             ? (tp.product?.name_ar ?? tp.product?.name)
                             : tp.product?.name}
                         </TableCell>
-                        <TableCell className="text-end font-mono">{tp.qty}</TableCell>
-                        <TableCell className="text-end font-mono">{money(tp.total)}</TableCell>
+                        <TableCell className="text-end font-mono">
+                          <Ltr>{tp.qty}</Ltr>
+                        </TableCell>
+                        <TableCell className="text-end font-mono">
+                          <Ltr>{money(tp.total)}</Ltr>
+                        </TableCell>
                       </TableRow>
                     ))
                   )}
@@ -275,19 +371,18 @@ function ReportsPage() {
               <Button
                 size="sm"
                 variant="outline"
-                onClick={() =>
-                  exportCSV("sales", sales, [
-                    "invoice_number",
-                    "created_at",
-                    "total",
-                    "paid",
-                    "payment_method",
-                    "status",
-                  ])
-                }
+                onClick={() => exportSection("sales", salesColumns(lang), salesRows(salesRowsData))}
               >
                 <Download className="h-4 w-4 me-1" />
-                CSV
+                {lang === "ar" ? "تصدير CSV" : "Export CSV"}
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => printSection(salesPrintSection(salesRowsData, lang))}
+              >
+                <Printer className="h-4 w-4 me-1" />
+                {lang === "ar" ? "طباعة" : "Print"}
               </Button>
             </CardHeader>
             <CardContent className="p-0">
@@ -312,9 +407,11 @@ function ReportsPage() {
                   ) : (
                     sales.slice(0, 50).map((s) => (
                       <TableRow key={s.id}>
-                        <TableCell className="font-mono text-xs">{s.invoice_number}</TableCell>
+                        <TableCell className="font-mono text-xs">
+                          <Ltr>{s.invoice_number}</Ltr>
+                        </TableCell>
                         <TableCell className="text-xs text-muted-foreground">
-                          {new Date(s.created_at).toLocaleString()}
+                          <Ltr>{new Date(s.created_at).toLocaleString()}</Ltr>
                         </TableCell>
                         <TableCell>
                           <Badge variant={s.status === "paid" ? "default" : "secondary"}>
@@ -322,7 +419,7 @@ function ReportsPage() {
                           </Badge>
                         </TableCell>
                         <TableCell className="text-end font-mono">
-                          {money(Number(s.total))}
+                          <Ltr>{money(Number(s.total))}</Ltr>
                         </TableCell>
                       </TableRow>
                     ))
@@ -335,10 +432,34 @@ function ReportsPage() {
 
         <TabsContent value="payments">
           <Card>
-            <CardHeader>
+            <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="text-base">
                 {lang === "ar" ? "توزيع طرق الدفع" : "Payment method distribution"}
               </CardTitle>
+              <div className="flex items-center gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() =>
+                    exportSection(
+                      "payment-mix",
+                      paymentMixColumns(lang),
+                      paymentMixRows(paymentRowsData),
+                    )
+                  }
+                >
+                  <Download className="h-4 w-4 me-1" />
+                  {lang === "ar" ? "تصدير CSV" : "Export CSV"}
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => printSection(paymentMixPrintSection(paymentRowsData, lang))}
+                >
+                  <Printer className="h-4 w-4 me-1" />
+                  {lang === "ar" ? "طباعة" : "Print"}
+                </Button>
+              </div>
             </CardHeader>
             <CardContent className="p-6 space-y-3">
               {Object.entries(byMethod).length === 0 ? (
@@ -346,24 +467,22 @@ function ReportsPage() {
                   {lang === "ar" ? "لا توجد بيانات" : "No data"}
                 </div>
               ) : (
-                Object.entries(byMethod).map(([m, v]) => {
-                  const total = Object.values(byMethod).reduce((a, b) => a + b, 0);
-                  const pct = total > 0 ? (v / total) * 100 : 0;
-                  return (
-                    <div key={m}>
-                      <div className="flex justify-between text-sm mb-1">
-                        <span className="capitalize">{m}</span>
-                        <span className="font-mono">
-                          {money(v)}{" "}
-                          <span className="text-muted-foreground">({pct.toFixed(1)}%)</span>
-                        </span>
-                      </div>
-                      <div className="h-2 bg-muted rounded overflow-hidden">
-                        <div className="h-full bg-primary" style={{ width: `${pct}%` }} />
-                      </div>
+                paymentRowsData.map((row) => (
+                  <div key={row.method}>
+                    <div className="flex justify-between text-sm mb-1">
+                      <span className="capitalize">{row.method}</span>
+                      <span className="font-mono">
+                        <Ltr>
+                          {money(row.amount)}{" "}
+                          <span className="text-muted-foreground">({row.pct.toFixed(1)}%)</span>
+                        </Ltr>
+                      </span>
                     </div>
-                  );
-                })
+                    <div className="h-2 bg-muted rounded overflow-hidden">
+                      <div className="h-full bg-primary" style={{ width: `${row.pct}%` }} />
+                    </div>
+                  </div>
+                ))
               )}
             </CardContent>
           </Card>
@@ -379,15 +498,19 @@ function ReportsPage() {
                 size="sm"
                 variant="outline"
                 onClick={() =>
-                  exportCSV(
-                    "low-stock",
-                    lowStock.map((p) => ({ name: p.name, stock: p.stock, min_stock: p.min_stock })),
-                    ["name", "stock", "min_stock"],
-                  )
+                  exportSection("low-stock", lowStockColumns(lang), lowStockRows(lowRowsData))
                 }
               >
                 <Download className="h-4 w-4 me-1" />
-                CSV
+                {lang === "ar" ? "تصدير CSV" : "Export CSV"}
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => printSection(lowStockPrintSection(lowRowsData, lang))}
+              >
+                <Printer className="h-4 w-4 me-1" />
+                {lang === "ar" ? "طباعة" : "Print"}
               </Button>
             </CardHeader>
             <CardContent className="p-0">
@@ -415,10 +538,10 @@ function ReportsPage() {
                       <TableRow key={p.id}>
                         <TableCell>{lang === "ar" ? (p.name_ar ?? p.name) : p.name}</TableCell>
                         <TableCell className="text-end font-mono text-rose-500">
-                          {p.stock}
+                          <Ltr>{p.stock}</Ltr>
                         </TableCell>
                         <TableCell className="text-end font-mono text-muted-foreground">
-                          {p.min_stock}
+                          <Ltr>{p.min_stock}</Ltr>
                         </TableCell>
                       </TableRow>
                     ))
@@ -449,7 +572,9 @@ function Kpi({
     <Card>
       <CardContent className="p-4">
         <div className="text-xs text-muted-foreground">{label}</div>
-        <div className={`mt-2 text-xl font-semibold font-mono ${color}`}>{value}</div>
+        <div className="mt-2 text-xl font-semibold font-mono">
+          <Ltr className={color}>{value}</Ltr>
+        </div>
         {sub && <div className="text-xs text-muted-foreground mt-1">{sub}</div>}
       </CardContent>
     </Card>
