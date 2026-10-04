@@ -243,11 +243,13 @@ export function PrintSettingsCard({ canEdit = true }: PrintSettingsCardProps) {
         </CardContent>
       </Card>
 
-      <Suspense fallback={null}><PrintPreviewModal
-        open={previewOpen}
-        onOpenChange={setPreviewOpen}
-        initialDocType={previewDocType}
-      />
+      <Suspense fallback={null}>
+        <PrintPreviewModal
+          open={previewOpen}
+          onOpenChange={setPreviewOpen}
+          initialDocType={previewDocType}
+        />
+      </Suspense>
     </>
   );
 }
