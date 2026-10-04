@@ -9,7 +9,7 @@ export function statementPrintStyles(lang: "ar" | "en"): string {
   const start = lang === "ar" ? "right" : "left";
 
   return `
-@page { size: A4; margin: 0; }
+@page { size: A4 portrait; margin: 0; }
 * { box-sizing: border-box; }
 :root {
   --ink: #0a1128; --gold: #b8935a; --line: #e2dfd6; --muted: #6b6860;
@@ -61,6 +61,11 @@ html, body { margin:0; padding:0; background:var(--bg); color:var(--ink);
 .legacy-statement-table .legacy-col-4, .legacy-statement-table .legacy-col-5,
 .legacy-statement-table .legacy-col-6, .legacy-statement-table .legacy-col-7 { width:11.25%; }
 .legacy-statement-table .legacy-description { text-align:right; }
+/* numeric cells are LTR-isolated: signs and separators never mirror in RTL */
+td.num, .luxury-report-table td.num, .luxury-card .lc-val, .sum .sv, .pagenum,
+.legacy-branch span, .age-chip {
+  direction:ltr; unicode-bidi:isolate; text-align:${lang === "ar" ? "left" : "right"};
+}
 .legacy-statement-table td { color:#333; font-family:'Tahoma','Segoe UI',sans-serif; }
 .legacy-statement-table td.debit, .legacy-statement-table td.balance-debit { color:#233b76; }
 .legacy-statement-table td.credit, .legacy-statement-table td.balance-credit { color:#5c2130; }
@@ -114,9 +119,12 @@ html, body { margin:0; padding:0; background:var(--bg); color:var(--ink);
 
 /* ── Table ── */
 table { width:100%; border-collapse:collapse; }
+/* thead repeats on every printed page; rows never split across pages */
 thead { display:table-header-group; }
 tfoot { display:table-footer-group; }
-tr { page-break-inside:avoid; }
+tr { page-break-inside:avoid; break-inside:avoid; }
+thead tr, tfoot tr { page-break-after:avoid; break-after:avoid; }
+img, .box, .sum, .luxury-card, .sigs, .notes, .warn { page-break-inside:avoid; break-inside:avoid; }
 th { background:var(--ink); color:#fff; padding:7px 8px; font-size:10.5px; font-weight:600;
   letter-spacing:.3px; white-space:nowrap; }
 td { padding:6px 8px; border-bottom:1px solid var(--line); font-size:11px; vertical-align:top; }
@@ -160,7 +168,8 @@ td.empty { text-align:center; padding:22px; color:var(--muted); font-size:12px; 
   .page { background:#fff; box-shadow:0 12px 46px rgba(0,0,0,.16); border-radius:6px; }
 }
 @media print {
-  body { background:#fff; margin:0; }
+  /* Paper, not screen: kill any inherited dark surface so ink stays readable. */
+  html, body { background:#fff !important; color:#0a1128 !important; }
   .page { box-shadow:none; padding:10mm 12mm 12mm 12mm; max-width:none; width:100%; }
 }
 `;

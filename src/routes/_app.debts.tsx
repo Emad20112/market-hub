@@ -29,6 +29,7 @@ import { useDebtIndex } from "@/hooks/use-debts-overview";
 import { StatementIntegrityBadge } from "@/components/statements/statement-integrity-badge";
 import { WhatsAppButton } from "@/components/whatsapp-button";
 import { debtReminderMessage } from "@/lib/whatsapp-templates";
+import { Ltr } from "@/components/ltr-value";
 
 const debtsSearchSchema = z.object({
   customerId: z.string().optional(),
@@ -372,9 +373,11 @@ function DebtsPage() {
                       onClick={() => openDetail(r)}
                     >
                       <td className="px-3 py-2.5 font-medium">{r.name}</td>
-                      <td className="px-3 py-2.5 text-muted-foreground">{r.phone ?? "—"}</td>
+                      <td className="px-3 py-2.5 text-muted-foreground">
+                        <Ltr className="block">{r.phone ?? "—"}</Ltr>
+                      </td>
                       <td className="px-3 py-2.5 text-end font-mono text-muted-foreground">
-                        {money(lim)}
+                        <Ltr>{money(lim)}</Ltr>
                       </td>
                       <td
                         className={`px-3 py-2.5 text-end font-mono font-semibold ${bal > 0 ? (over ? "text-rose-500" : "text-amber-500") : "text-muted-foreground"}`}
@@ -390,7 +393,9 @@ function DebtsPage() {
                               }}
                             />
                           )}
-                          <span>{money(bal)}</span>
+                          <span>
+                            <Ltr>{money(bal)}</Ltr>
+                          </span>
                         </div>
                       </td>
                       <td className="px-3 py-2.5">
@@ -485,7 +490,7 @@ function DebtsPage() {
                   {t("debts.balance")}
                 </div>
                 <div className="font-mono text-xl font-semibold text-amber-500">
-                  {money(selectedLedgerBalance)}
+                  <Ltr>{money(selectedLedgerBalance)}</Ltr>
                 </div>
               </div>
               <button onClick={() => setSelected(null)} className="rounded p-1 hover:bg-surface-2">
@@ -524,18 +529,22 @@ function DebtsPage() {
                         const rem = Number(i.total) - Number(i.paid);
                         return (
                           <tr key={i.id} className="border-b border-border/40">
-                            <td className="py-1.5 font-mono text-xs">{i.invoice_number}</td>
-                            <td className="py-1.5 text-muted-foreground">
-                              {new Date(i.created_at).toLocaleDateString()}
+                            <td className="py-1.5 font-mono text-xs">
+                              <Ltr>{i.invoice_number}</Ltr>
                             </td>
-                            <td className="py-1.5 text-end font-mono">{money(Number(i.total))}</td>
+                            <td className="py-1.5 text-muted-foreground">
+                              <Ltr>{new Date(i.created_at).toLocaleDateString()}</Ltr>
+                            </td>
+                            <td className="py-1.5 text-end font-mono">
+                              <Ltr>{money(Number(i.total))}</Ltr>
+                            </td>
                             <td className="py-1.5 text-end font-mono text-emerald-500">
-                              {money(Number(i.paid))}
+                              <Ltr>{money(Number(i.paid))}</Ltr>
                             </td>
                             <td
                               className={`py-1.5 text-end font-mono ${rem > 0 ? "text-amber-500 font-semibold" : "text-muted-foreground"}`}
                             >
-                              {money(rem)}
+                              <Ltr>{money(rem)}</Ltr>
                             </td>
                           </tr>
                         );
@@ -568,15 +577,17 @@ function DebtsPage() {
                     <tbody>
                       {payments.map((p) => (
                         <tr key={p.id} className="border-b border-border/40">
-                          <td className="py-1.5 text-muted-foreground">{p.payment_date}</td>
+                          <td className="py-1.5 text-muted-foreground">
+                            <Ltr>{p.payment_date}</Ltr>
+                          </td>
                           <td className="py-1.5 font-mono text-xs">
-                            {p.sales_invoices?.invoice_number ?? t("debts.on_account")}
+                            <Ltr>{p.sales_invoices?.invoice_number ?? t("debts.on_account")}</Ltr>
                           </td>
                           <td className="py-1.5 text-muted-foreground">
                             {pmLabel(p.payment_method)}
                           </td>
                           <td className="py-1.5 text-end font-mono font-semibold text-emerald-500">
-                            {money(Number(p.amount))}
+                            <Ltr>{money(Number(p.amount))}</Ltr>
                           </td>
                         </tr>
                       ))}
@@ -653,7 +664,9 @@ function SumCard({
   return (
     <div className={`rounded-xl border p-4 ${color}`}>
       <div className="text-[10px] uppercase">{label}</div>
-      <div className="mt-1 font-mono text-2xl font-semibold">{value}</div>
+      <div className="mt-1 font-mono text-2xl font-semibold">
+        <Ltr>{value}</Ltr>
+      </div>
     </div>
   );
 }

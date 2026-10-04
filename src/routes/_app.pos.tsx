@@ -28,7 +28,15 @@ import {
   SkipForward,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { posOfflineService, productsRepo, warehousesRepo, customersRepo, categoriesRepo, brandsRepo, unitsRepo } from "@/lib/offline";
+import {
+  posOfflineService,
+  productsRepo,
+  warehousesRepo,
+  customersRepo,
+  categoriesRepo,
+  brandsRepo,
+  unitsRepo,
+} from "@/lib/offline";
 import { useI18n } from "@/lib/i18n";
 import { money } from "@/lib/format";
 import { PageHeader } from "@/components/page-header";
@@ -478,7 +486,11 @@ function POSPage() {
         compatsRes,
       ] = await Promise.allSettled([
         supabase.from("warehouses").select("id,name,name_ar").eq("is_active", true).order("name"),
-        supabase.from("customers").select("id,name,phone,balance,credit_limit").eq("is_active", true).order("name"),
+        supabase
+          .from("customers")
+          .select("id,name,phone,balance,credit_limit")
+          .eq("is_active", true)
+          .order("name"),
         (supabase.from("products") as any)
           .select(
             "id,sku,barcode,name,name_ar,sale_price,tax_rate,image_url,category_id,brand_id,unit_id,origin_id,quality_grade_id,is_active,is_service,item_nature,inventory_policy",
@@ -522,8 +534,10 @@ function POSPage() {
       // Seed local repositories for future offline usage when fetch succeeds
       if (ws && ws.length > 0) ws.forEach((w) => warehousesRepo.create(w as any).catch(() => {}));
       if (cs && cs.length > 0) cs.forEach((c) => customersRepo.create(c as any).catch(() => {}));
-      if (ps && ps.length > 0) ps.forEach((p: any) => productsRepo.create(p as any).catch(() => {}));
-      if (cats && cats.length > 0) cats.forEach((c) => categoriesRepo.create(c as any).catch(() => {}));
+      if (ps && ps.length > 0)
+        ps.forEach((p: any) => productsRepo.create(p as any).catch(() => {}));
+      if (cats && cats.length > 0)
+        cats.forEach((c) => categoriesRepo.create(c as any).catch(() => {}));
       if (brs && brs.length > 0) brs.forEach((b) => brandsRepo.create(b as any).catch(() => {}));
       if (uns && uns.length > 0) uns.forEach((u) => unitsRepo.create(u as any).catch(() => {}));
 
@@ -543,7 +557,9 @@ function POSPage() {
       if (!rawProducts.length) {
         try {
           const { data: fallbackPs } = await (supabase.from("products") as any)
-            .select("id,sku,barcode,name,name_ar,sale_price,tax_rate,image_url,category_id,brand_id,unit_id")
+            .select(
+              "id,sku,barcode,name,name_ar,sale_price,tax_rate,image_url,category_id,brand_id,unit_id",
+            )
             .limit(1000);
           if (fallbackPs && fallbackPs.length) rawProducts = fallbackPs;
         } catch (e) {
@@ -754,9 +770,7 @@ function POSPage() {
             );
             return c;
           }
-          return c.map((l) =>
-            l.product_id === p.id ? { ...l, quantity: l.quantity + 1 } : l,
-          );
+          return c.map((l) => (l.product_id === p.id ? { ...l, quantity: l.quantity + 1 } : l));
         }
         return [
           ...c,
@@ -777,9 +791,7 @@ function POSPage() {
     setCart((c) => {
       const existing = c.find((l) => l.product_id === p.id);
       if (existing) {
-        return c.map((l) =>
-          l.product_id === p.id ? { ...l, quantity: l.quantity + 1 } : l,
-        );
+        return c.map((l) => (l.product_id === p.id ? { ...l, quantity: l.quantity + 1 } : l));
       }
       return [
         ...c,
@@ -931,8 +943,7 @@ function POSPage() {
   const splitPaidTotal = Math.round((splitCashN + splitCardN) * 100) / 100;
   // عدد وسائل الدفع غير الصفرية في الدفع المجزأ:
   //  0 -> لم يدفع شيء،  1 -> وسيلة واحدة (تُسجل بوسيلتها الحقيقية)،  2+ -> دفع مجزأ حقيقي
-  const splitMethodCount =
-    (splitCashN > 0 ? 1 : 0) + (splitCardN > 0 ? 1 : 0);
+  const splitMethodCount = (splitCashN > 0 ? 1 : 0) + (splitCardN > 0 ? 1 : 0);
   const isMultiMethodSplit = isSplitPayment && splitMethodCount > 1;
 
   // Auto-Paid & Smart Payment Logic
@@ -1052,12 +1063,7 @@ function POSPage() {
       // وسيلة الدفع المحفوظة على الفاتورة:
       //  * وسيلة واحدة -> تُسجل باسمها الحقيقي (نقد/بطاقة/بنك/آجل)
       //  * أكثر من وسيلة -> 'split' كي تبقى قابلة للفلترة والتقارير
-      const singleSplitMethod =
-        splitMethodCount === 1
-          ? splitCashN > 0
-            ? "cash"
-            : "card"
-          : null;
+      const singleSplitMethod = splitMethodCount === 1 ? (splitCashN > 0 ? "cash" : "card") : null;
       let finalMethod: string = isSplitPayment
         ? isMultiMethodSplit
           ? "split"
@@ -1864,34 +1870,39 @@ function POSPage() {
           </div>
 
           {/* Selected Customer Balance & Credit Info */}
-          {customerId && (() => {
-            const cust = customers.find((c) => c.id === customerId);
-            if (!cust) return null;
-            const bal = Number(cust.balance || 0);
-            const limit = Number(cust.credit_limit || 0);
-            const remainingCredit = limit > 0 ? limit - bal : null;
-            return (
-              <div className="shrink-0 mb-2 flex items-center justify-between rounded-xl bg-surface-2/60 border border-border/60 px-3 py-1 text-[11px]">
-                <div className="flex items-center gap-1.5 text-muted-foreground">
-                  <span>{lang === "ar" ? "رصيد العميل:" : "Customer Balance:"}</span>
-                  <span className={`font-mono font-bold ${bal > 0 ? "text-amber-500" : "text-emerald-500"}`}>
-                    {money(bal)}
-                  </span>
-                </div>
-                {limit > 0 && (
-                  <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
-                    <span>{lang === "ar" ? "حد الائتمان:" : "Credit Limit:"}</span>
-                    <span className="font-mono">{money(limit)}</span>
-                    {remainingCredit !== null && (
-                      <span className={`font-mono font-semibold ${remainingCredit < remainingDebt ? "text-rose-500" : "text-emerald-500"}`}>
-                        ({lang === "ar" ? "المتاح:" : "Avail:"} {money(remainingCredit)})
-                      </span>
-                    )}
+          {customerId &&
+            (() => {
+              const cust = customers.find((c) => c.id === customerId);
+              if (!cust) return null;
+              const bal = Number(cust.balance || 0);
+              const limit = Number(cust.credit_limit || 0);
+              const remainingCredit = limit > 0 ? limit - bal : null;
+              return (
+                <div className="shrink-0 mb-2 flex items-center justify-between rounded-xl bg-surface-2/60 border border-border/60 px-3 py-1 text-[11px]">
+                  <div className="flex items-center gap-1.5 text-muted-foreground">
+                    <span>{lang === "ar" ? "رصيد العميل:" : "Customer Balance:"}</span>
+                    <span
+                      className={`font-mono font-bold ${bal > 0 ? "text-amber-500" : "text-emerald-500"}`}
+                    >
+                      {money(bal)}
+                    </span>
                   </div>
-                )}
-              </div>
-            );
-          })()}
+                  {limit > 0 && (
+                    <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                      <span>{lang === "ar" ? "حد الائتمان:" : "Credit Limit:"}</span>
+                      <span className="font-mono">{money(limit)}</span>
+                      {remainingCredit !== null && (
+                        <span
+                          className={`font-mono font-semibold ${remainingCredit < remainingDebt ? "text-rose-500" : "text-emerald-500"}`}
+                        >
+                          ({lang === "ar" ? "المتاح:" : "Avail:"} {money(remainingCredit)})
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
 
           {/* Dedicated Internal Scroll Area for Cart Items (Single Row Layout) */}
           <div className="flex-1 min-h-0 overflow-y-auto pr-1 space-y-2 my-1 custom-scrollbar">
@@ -2002,7 +2013,9 @@ function POSPage() {
                   <span>{t("pos.discount")}</span>
                   {discountN > 0 && (
                     <span className="text-[10px] text-primary font-mono font-bold">
-                      (-{money(discountN)})
+                      <span dir="ltr" className="[unicode-bidi:isolate]">
+                        (-{money(discountN)})
+                      </span>
                     </span>
                   )}
                 </span>
@@ -2024,7 +2037,9 @@ function POSPage() {
                   {t("pos.total")}
                 </span>
                 <span className="text-base font-extrabold font-mono text-primary tracking-tight">
-                  {money(total)}
+                  <span dir="ltr" className="[unicode-bidi:isolate]">
+                    {money(total)}
+                  </span>
                 </span>
               </div>
             </div>
@@ -2108,14 +2123,17 @@ function POSPage() {
                       <input
                         type="number"
                         min="0"
+                        dir="ltr"
                         value={splitCash}
                         onChange={(e) => setSplitCash(e.target.value)}
                         placeholder="0"
-                        className="h-8 w-full rounded-xl border border-border bg-surface px-2 text-xs font-mono outline-none focus:border-violet-500"
+                        className="h-8 w-full rounded-xl border border-border bg-surface px-2 text-xs font-mono outline-none focus:border-violet-500 [unicode-bidi:plaintext]"
                       />
                       {splitCash && Number(splitCash) > 0 && (
                         <span className="text-[9px] text-muted-foreground font-mono block text-end">
-                          {formatWithCommas(splitCash)}
+                          <span dir="ltr" className="[unicode-bidi:isolate]">
+                            {formatWithCommas(splitCash)}
+                          </span>
                         </span>
                       )}
                     </div>
@@ -2126,14 +2144,17 @@ function POSPage() {
                       <input
                         type="number"
                         min="0"
+                        dir="ltr"
                         value={splitCard}
                         onChange={(e) => setSplitCard(e.target.value)}
                         placeholder="0"
-                        className="h-8 w-full rounded-xl border border-border bg-surface px-2 text-xs font-mono outline-none focus:border-violet-500"
+                        className="h-8 w-full rounded-xl border border-border bg-surface px-2 text-xs font-mono outline-none focus:border-violet-500 [unicode-bidi:plaintext]"
                       />
                       {splitCard && Number(splitCard) > 0 && (
                         <span className="text-[9px] text-muted-foreground font-mono block text-end">
-                          {formatWithCommas(splitCard)}
+                          <span dir="ltr" className="[unicode-bidi:isolate]">
+                            {formatWithCommas(splitCard)}
+                          </span>
                         </span>
                       )}
                     </div>
@@ -2145,7 +2166,9 @@ function POSPage() {
                       {lang === "ar" ? "إجمالي المدفوع الآن:" : "Total Paid Now:"}
                     </span>
                     <span className="font-mono font-bold text-foreground">
-                      {money(splitPaidTotal)}
+                      <span dir="ltr" className="[unicode-bidi:isolate]">
+                        {money(splitPaidTotal)}
+                      </span>
                     </span>
                   </div>
 
@@ -2154,7 +2177,11 @@ function POSPage() {
                       <span>
                         {lang === "ar" ? "المتبقي كدين آجل على العميل:" : "Remaining Debt:"}
                       </span>
-                      <span className="font-bold">{money(remainingDebt)}</span>
+                      <span className="font-bold">
+                        <span dir="ltr" className="[unicode-bidi:isolate]">
+                          {money(remainingDebt)}
+                        </span>
+                      </span>
                     </div>
                   )}
                 </div>
@@ -2165,6 +2192,7 @@ function POSPage() {
                     <input
                       type="number"
                       min="0"
+                      dir="ltr"
                       value={paid}
                       onChange={(e) => handlePaidChange(e.target.value)}
                       placeholder={
@@ -2178,11 +2206,13 @@ function POSPage() {
                         isOverpaid
                           ? "border-destructive bg-destructive/10 text-destructive focus:ring-2 focus:ring-destructive/30"
                           : "border-input/80 bg-surface/90 text-foreground focus:border-primary focus:ring-2 focus:ring-primary/20"
-                      }`}
+                      } [unicode-bidi:plaintext]`}
                     />
                     {paid.trim() !== "" && !isNaN(Number(paid)) && (
                       <span className="absolute end-3 top-1/2 -translate-y-1/2 text-[11px] font-mono text-muted-foreground pointer-events-none">
-                        = {money(Number(paid))}
+                        <span dir="ltr" className="[unicode-bidi:isolate]">
+                          = {money(Number(paid))}
+                        </span>
                       </span>
                     )}
                   </div>
@@ -2240,7 +2270,11 @@ function POSPage() {
                       <span>
                         {lang === "ar" ? "المتبقي كدين آجل على العميل:" : "Remaining debt:"}
                       </span>
-                      <span className="font-bold">{money(remainingDebt)}</span>
+                      <span className="font-bold">
+                        <span dir="ltr" className="[unicode-bidi:isolate]">
+                          {money(remainingDebt)}
+                        </span>
+                      </span>
                     </div>
                   ) : isPaidEmpty ? (
                     <div className="flex items-center justify-between text-[11px] text-emerald-600 dark:text-emerald-400 font-medium px-2">
@@ -2250,7 +2284,11 @@ function POSPage() {
                           ? "المدفوع تلقائيًا: كامل الإجمالي"
                           : "Auto paid: Full invoice"}
                       </span>
-                      <span className="font-mono font-semibold">{money(total)}</span>
+                      <span className="font-mono font-semibold">
+                        <span dir="ltr" className="[unicode-bidi:isolate]">
+                          {money(total)}
+                        </span>
+                      </span>
                     </div>
                   ) : null}
                 </div>
@@ -2288,7 +2326,11 @@ function POSPage() {
                     <span>{t("pos.checkout")}</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="font-mono font-bold text-base">{money(total)}</span>
+                    <span className="font-mono font-bold text-base">
+                      <span dir="ltr" className="[unicode-bidi:isolate]">
+                        {money(total)}
+                      </span>
+                    </span>
                     <kbd className="hidden sm:inline-block rounded-md bg-primary-foreground/20 px-1.5 py-0.5 text-[10px] font-mono text-primary-foreground">
                       F9
                     </kbd>
