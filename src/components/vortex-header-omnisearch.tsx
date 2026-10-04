@@ -25,6 +25,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useI18n } from "@/lib/i18n";
 import { useModules } from "@/lib/modules";
 import { cn } from "@/lib/utils";
+import { DOCUMENT_TYPES } from "@/lib/printing/document-types";
 
 // تطبيع النصوص للبحث التسامحي (عربي وإنجليزي)
 function normalizeText(text: string): string {
@@ -118,6 +119,10 @@ export function VortexHeaderOmnisearch() {
       { id: "expenses", title: isAr ? "المصروفات اليومية" : "Expenses", sub: isAr ? "سندات الصرف والمصاريف التشغيلية" : "Operational expenses", to: "/expenses", icon: Wallet, category: "navigation" as const, moduleId: "expenses", keywords: ["مصروفات", "مصاريف", "سند صرف"] },
       { id: "returns", title: isAr ? "مرتجعات المبيعات" : "Sales Returns", sub: isAr ? "معالجة مرتجع البضاعة والعملاء" : "Return items", to: "/sales-returns", icon: RotateCcw, category: "navigation" as const, moduleId: "returns", keywords: ["مرتجع", "ترجيع"] },
       { id: "milling", title: isAr ? "نظام المطحنة والأمانات" : "Milling Operations", sub: isAr ? "إدارة تشغيل الحبوب والطحن والتسليم" : "Grain intake & jobs", to: "/milling", icon: Scale, category: "navigation" as const, moduleId: "milling_operations", keywords: ["مطحنة", "طحن", "حبوب", "امانات"] },
+      { id: "transfers", title: isAr ? "تحويلات المخزون" : "Stock transfers", sub: isAr ? "نقل الأصناف بين المستودعات" : "Move goods between warehouses", to: "/transfers", icon: Boxes, category: "navigation" as const, moduleId: "multi_warehouse", keywords: ["تحويل", "نقل", "مخزون", "transfer"] },
+      { id: "account-statement", title: isAr ? "مركز الكشوفات" : "Statements center", sub: isAr ? "كشوف العملاء والموردين" : "Customer and supplier statements", to: "/account-statement", icon: BookOpen, category: "navigation" as const, moduleId: "payments", keywords: ["كشف", "حساب", "statement"] },
+      { id: "audit", title: isAr ? "سجل العمليات" : "Operations log", sub: isAr ? "مراجعة الأحداث والتغييرات" : "Review system events", to: "/audit", icon: BookOpen, category: "navigation" as const, moduleId: "audit", keywords: ["سجل", "أحداث", "تدقيق", "audit"] },
+      { id: "printing", title: isAr ? "إعدادات الطباعة والقوالب" : "Printing & templates", sub: isAr ? "القوالب والورق والطباعة الحرارية" : "Templates, paper and thermal printing", to: "/settings", icon: Settings, category: "settings" as const, keywords: ["طباعة", "قالب", "حراري", "نسخ", "printing", ...DOCUMENT_TYPES.flatMap((item) => item.aliases)] },
       { id: "backup", title: isAr ? "النسخ الاحتياطي والأمان" : "Backup Settings", sub: isAr ? "تحميل واستعادة النسخ الاحتياطية" : "Download & restore backups", to: "/settings", icon: HardDriveDownload, category: "settings" as const, keywords: ["نسخ احتياطي", "تنزيل", "باك اب", "backup", "حفظ"] },
       { id: "settings", title: isAr ? "إعدادات النظام العامة" : "System Settings", sub: isAr ? "إعدادات الفاتورة والعملة والضريبة" : "Company & invoice config", to: "/settings", icon: Settings, category: "settings" as const, keywords: ["اعدادات", "ضبط", "خيارات", "العملة", "الاسم"] },
     ].filter(item => !item.moduleId || isModuleEnabled(item.moduleId));

@@ -15,7 +15,7 @@ export type DocumentType =
 
 export type PaperSize = "80mm" | "58mm" | "A4" | "A5";
 
-export type InvoiceTemplateId = "thermal" | "standard" | "elegant" | string;
+export type InvoiceTemplateId = "thermal" | "standard" | "elegant" | "unified-modern" | "formal" | string;
 
 export interface DocumentLine {
   product: string;
@@ -31,12 +31,18 @@ export interface DocumentLine {
 
 export interface CompanyDetails {
   name?: string;
+  arabicName?: string;
+  englishName?: string;
+  legalName?: string;
   address?: string;
   phone?: string;
+  contacts?: string[];
   vat?: string;
   logo?: string;
   email?: string;
   website?: string;
+  footerText?: string;
+  footerContact?: string;
 }
 
 export interface CustomFieldOptions {
@@ -173,7 +179,9 @@ export interface PrintJobItem {
   templateId?: InvoiceTemplateId;
 }
 
-export const DEFAULT_BRANDING = "إنما سوفت - 772217218";
+// Branding is supplied by Company Profile. Keep this empty so templates never
+// render a product-owner name or phone number as a company footer fallback.
+export const DEFAULT_BRANDING = "";
 export const DEFAULT_COMPANY_LOGO = "/inama-soft-logo.ico";
 
 export function getCompanyLogo(doc: UnifiedDocumentData): string {

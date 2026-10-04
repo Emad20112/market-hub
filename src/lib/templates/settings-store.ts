@@ -28,7 +28,7 @@ const STORAGE_KEY = "vortex_print_settings";
 const LEGACY_TEMPLATE_KEY = "pos_default_template";
 const LEGACY_MODE_KEY = "pos_print_mode";
 
-const VALID_TEMPLATES: InvoiceTemplateId[] = ["thermal", "standard", "elegant"];
+const VALID_TEMPLATES: InvoiceTemplateId[] = ["thermal", "standard", "elegant", "unified-modern", "formal"];
 const VALID_MODES = ["auto", "ask", "off"] as const;
 
 function readLegacyTemplate(): InvoiceTemplateId | null {

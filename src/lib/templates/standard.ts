@@ -38,10 +38,11 @@ export function renderStandardTemplate(
     ...doc.options,
   };
 
-  const companyName = doc.company?.name || "مؤسسة فورتكس للتجارة والمحركات";
-  const companyAddress = doc.company?.address || "صنعاء - اليمن";
-  const companyPhone = doc.company?.phone || "772217218 / 734567-01";
-  const companyVat = doc.company?.vat || "1009826764";
+  // Company Profile is resolved by the caller; do not invent tenant data here.
+  const companyName = doc.company?.name || "";
+  const companyAddress = doc.company?.address || "";
+  const companyPhone = doc.company?.phone || "";
+  const companyVat = doc.company?.vat || "";
 
   const rows = doc.lines
     .map((l, i) => {

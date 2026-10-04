@@ -38,8 +38,8 @@ export function renderElegantTemplate(
     ...doc.options,
   };
 
-  const companyName = doc.company?.name || "طاحونتي";
-  const companyPhone = doc.company?.phone || "772217218";
+  const companyName = doc.company?.name || "";
+  const companyPhone = doc.company?.phone || "";
   const companyVat = doc.company?.vat || "";
 
   const rows = doc.lines

@@ -137,8 +137,8 @@ function renderFooter(
     ? `<div class="brand">
         <div class="brand-txt" style="text-align:${ar ? "right" : "left"};">
           <b>${esc(company.brand.name)}</b>
-          <div>Mousa Gamil Al-Awadhi - Ibb, Yemen</div>
-          <div dir="ltr">${esc(company.brand.website)} &nbsp; ${esc(company.brand.phone)}</div>
+          <div>${esc(company.address ?? "")}</div>
+          <div dir="ltr">${esc(company.brand.website)} &nbsp; 784795104</div>
         </div>
         <img src="${esc(company.brand.logoUrl)}" alt="${esc(company.brand.name)}" />
       </div>`
@@ -155,7 +155,7 @@ function renderFooter(
           : ""
       }
       ${extraFooter ? `<div>${esc(extraFooter)}</div>` : ""}
-      <div style="font-weight:600;margin-top:2px;">Market Hub · ${esc(company.brand.name)}</div>
+      <div style="font-weight:600;margin-top:2px;">${esc(company.name)}</div>
     </div>
     ${brandBlock}
   </div>`;

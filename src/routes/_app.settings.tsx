@@ -72,10 +72,11 @@ function SettingsPage() {
 
     const timer = window.setTimeout(async () => {
       setSaveState("saving");
-      const payload = {
+        const payload = {
         ...form,
         id: form.id ?? 1,
         tax_rate: Number(form.tax_rate),
+        footer_contact: form.footer_contact ?? "784795104 · 772217218",
       };
       try {
         if (typeof window !== "undefined") {

@@ -20,8 +20,10 @@ import {
   PAPER_PROFILES,
   getTemplateMeta,
 } from "@/lib/templates";
+import { getUnifiedPrintSettings, saveUnifiedPrintSettings, PRINT_PAPERS, type PrintBehavior, type PrintMethod } from "@/lib/printing";
 import { PrintPreviewModal } from "@/components/print-preview";
 import { toast } from "sonner";
+import { PRINTING_LABELS } from "@/lib/printing";
 
 interface PrintSettingsCardProps {
   canEdit?: boolean;
@@ -31,6 +33,7 @@ export function PrintSettingsCard({ canEdit = true }: PrintSettingsCardProps) {
   const [settings, setSettings] = useState<PrintSettings>(() => getPrintSettings());
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewDocType, setPreviewDocType] = useState<"customer_invoice" | "inventory_document">("customer_invoice");
+  const [unified, setUnified] = useState(() => getUnifiedPrintSettings());
 
   useEffect(() => {
     setSettings(getPrintSettings());
@@ -40,6 +43,12 @@ export function PrintSettingsCard({ canEdit = true }: PrintSettingsCardProps) {
     const updated = savePrintSettings({ [key]: !settings[key] });
     setSettings(updated);
     toast.success("تم تحديث إعدادات الطباعة");
+  }
+
+  function updateUnified(patch: Parameters<typeof saveUnifiedPrintSettings>[0]) {
+    const updated = saveUnifiedPrintSettings(patch);
+    setUnified(updated);
+    toast.success("تم تحديث إعدادات الطباعة الموحدة");
   }
 
   function saveProfile(documentType: "customer" | "inventory", templateId: InvoiceTemplateId, paperProfileId: PaperProfileId) {
@@ -74,7 +83,57 @@ export function PrintSettingsCard({ canEdit = true }: PrintSettingsCardProps) {
         </CardHeader>
 
         <CardContent className="space-y-6 pt-5">
-          <div className="space-y-3">
+        <div className="rounded-2xl border-primary/20 bg-primary/5 p-4 space-y-4">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <h4 className="text-sm font-bold">مركز التحكم الموحد للطباعة</h4>
+              <p className="text-xs leading-5 text-muted-foreground">اضبط طريقة الطباعة والورق والقالب من مكان واحد، وتُستخدم هذه الإعدادات تلقائيًا مع المستندات الجديدة.</p>
+            </div>
+            <div className="flex items-center gap-2 text-xs font-semibold">
+              <span>عرض المعاينة قبل الطباعة</span>
+              <Switch checked={unified.preview} onCheckedChange={(value) => updateUnified({ preview: value })} disabled={!canEdit} />
+            </div>
+          </div>
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
+            <label className="space-y-1.5 text-xs font-semibold">
+              <span>سلوك الطباعة</span>
+              <select value={unified.behavior} onChange={(e) => updateUnified({ behavior: e.target.value as PrintBehavior })} disabled={!canEdit} className="h-10 w-full rounded-lg border bg-background px-2 text-sm">
+                <option value="default">استخدام الإعداد الافتراضي</option>
+                <option value="ask">السؤال في كل مرة</option>
+                <option value="direct">الطباعة مباشرة</option>
+                <option value="off">عدم الطباعة تلقائيًا</option>
+              </select>
+              <span className="block font-normal leading-4 text-muted-foreground">حدد ما يحدث بعد حفظ المستند: معاينة، سؤال، طباعة فورية، أو بدون طباعة تلقائية.</span>
+            </label>
+            <label className="space-y-1.5 text-xs font-semibold">
+              <span>طريقة الطباعة</span>
+              <select value={unified.method} onChange={(e) => updateUnified({ method: e.target.value as PrintMethod })} disabled={!canEdit} className="h-10 w-full rounded-lg border bg-background px-2 text-sm">
+                <option value="browser">طباعة المتصفح</option>
+                <option value="thermal">طابعة حرارية</option>
+                <option value="pdf">ملف PDF</option>
+              </select>
+              <span className="block font-normal leading-4 text-muted-foreground">اختر الوسيلة التي سيستخدمها النظام لإخراج المستند.</span>
+            </label>
+            <label className="space-y-1.5 text-xs font-semibold">
+              <span>حجم الورق والتخطيط</span>
+              <select value={unified.paperId} onChange={(e) => updateUnified({ paperId: e.target.value as keyof typeof PRINT_PAPERS })} disabled={!canEdit} className="h-10 w-full rounded-lg border bg-background px-2 text-sm">
+                {Object.values(PRINT_PAPERS).map((paper) => <option key={paper.id} value={paper.id}>{paper.nameAr}</option>)}
+              </select>
+              <span className="block font-normal leading-4 text-muted-foreground">يشمل أحجام A4 وA5 والطابعات الحرارية 58 و80 ملم.</span>
+            </label>
+            <label className="space-y-1.5 text-xs font-semibold">
+              <span>{PRINTING_LABELS.ar.copies}</span>
+              <input type="number" min={1} max={20} value={unified.copies} onChange={(e) => updateUnified({ copies: Number(e.target.value) })} disabled={!canEdit} className="h-10 w-full rounded-lg border bg-background px-2 text-sm" />
+              <span className="block font-normal leading-4 text-muted-foreground">عدد النسخ التي يرسلها النظام للطباعة، من 1 إلى 20.</span>
+            </label>
+          </div>
+          <div className="flex flex-wrap items-center gap-2 border-t border-primary/10 pt-3">
+            <span className="text-xs font-semibold text-muted-foreground">نمط المستند:</span>
+            {(["standard", "luxury", "formal"] as const).map((theme) => <Button key={theme} type="button" size="sm" variant={unified.theme === theme ? "default" : "outline"} onClick={() => updateUnified({ theme })} disabled={!canEdit}>{theme === "formal" ? "رسمي مؤسسي" : theme === "luxury" ? "فاخر" : "موحد حديث"}</Button>)}
+            <span className="text-xs text-muted-foreground">النمط يغير المظهر والألوان دون تغيير بيانات المستند.</span>
+          </div>
+        </div>
+        <div className="space-y-3">
             <div>
               <h4 className="text-sm font-bold flex items-center gap-2">
                 <ScrollText className="h-4 w-4 text-primary" />

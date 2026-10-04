@@ -21,6 +21,7 @@ import { renderStandardTemplate } from "./standard";
 import { renderElegantTemplate } from "./elegant";
 import { renderInventoryThermalTemplate, renderInventoryStandardTemplate } from "./inventory";
 import { getPrintSettings } from "./settings-store";
+import { renderFormalTemplate } from "@/lib/printing/formal";
 
 export * from "./types";
 export * from "./settings-store";
@@ -29,6 +30,7 @@ export { renderThermalTemplate } from "./thermal";
 export { renderStandardTemplate } from "./standard";
 export { renderElegantTemplate } from "./elegant";
 export { renderInventoryThermalTemplate, renderInventoryStandardTemplate } from "./inventory";
+export { renderFormalTemplate } from "@/lib/printing/formal";
 export { numberToArabicWords } from "./tafqeet";
 
 interface RegisteredTemplate {
@@ -55,8 +57,9 @@ export function getTemplateRenderer(
   // If document is an inventory document and default thermal/standard requested, use specialized inventory layout
   if (docType === "inventory_document") {
     if (id === "thermal") return renderInventoryThermalTemplate;
-    if (id === "standard" || id === "elegant") return renderInventoryStandardTemplate;
+    if (id === "standard" || id === "elegant" || id === "unified-modern") return renderInventoryStandardTemplate;
   }
+  if (id === "formal") return (doc, labels, rtl, options) => renderFormalTemplate(doc, labels, rtl, options);
 
   const registered = templateRegistry.get(id);
   if (registered) {
@@ -69,6 +72,10 @@ export function getTemplateRenderer(
       return renderThermalTemplate;
     case "elegant":
       return renderElegantTemplate;
+    case "unified-modern":
+      return renderStandardTemplate;
+    case "formal":
+      return (doc, labels, rtl, options) => renderFormalTemplate(doc, labels, rtl, options);
     case "standard":
     default:
       return renderStandardTemplate;
@@ -141,12 +148,25 @@ registerTemplate(
 registerTemplate(
   {
     id: "standard",
-    nameAr: "قياسي (A4)",
-    nameEn: "Standard (A4)",
+    nameAr: "موحد حديث (A4)",
+    nameEn: "Unified Modern (A4)",
     category: "standard",
     paperSize: "A4",
     supportedPaperProfiles: ["a4"],
-    supportedDocTypes: ["customer_invoice", "inventory_document"],
+    supportedDocTypes: ["customer_invoice", "purchase_invoice", "sales_return", "purchase_return", "payment_receipt", "quotation", "delivery_note", "inventory_document"],
+  },
+  renderStandardTemplate,
+);
+
+registerTemplate(
+  {
+    id: "unified-modern",
+    nameAr: "موحد حديث",
+    nameEn: "Unified Modern",
+    category: "standard",
+    paperSize: "A4",
+    supportedPaperProfiles: ["a4"],
+    supportedDocTypes: ["customer_invoice", "purchase_invoice", "sales_return", "purchase_return", "payment_receipt", "quotation", "delivery_note", "inventory_document"],
   },
   renderStandardTemplate,
 );
@@ -159,9 +179,22 @@ registerTemplate(
     category: "standard",
     paperSize: "A4",
     supportedPaperProfiles: ["a4"],
-    supportedDocTypes: ["customer_invoice"],
+    supportedDocTypes: ["customer_invoice", "purchase_invoice", "sales_return", "purchase_return", "payment_receipt", "quotation", "delivery_note"],
   },
   renderElegantTemplate,
+);
+
+registerTemplate(
+  {
+    id: "formal",
+    nameAr: "رسمي مؤسسي",
+    nameEn: "Formal Corporate",
+    category: "standard",
+    paperSize: "A4",
+    supportedPaperProfiles: ["a4"],
+    supportedDocTypes: ["customer_invoice", "purchase_invoice", "sales_return", "purchase_return", "stock_transfer", "stock_receipt", "stock_issue", "payment_receipt", "quotation", "delivery_note", "inventory_document"],
+  },
+  (doc, labels, rtl, options) => renderFormalTemplate(doc, labels, rtl, options),
 );
 
 /**
