@@ -14,7 +14,6 @@ export const Route = createFileRoute("/_app/settings")({
 });
 
 function SettingsPage() {
-  const queryClient = useQueryClient();
   const { t, lang } = useI18n();
   const { hasRole } = useAuth();
   const canEdit = hasRole("owner") || hasRole("manager");

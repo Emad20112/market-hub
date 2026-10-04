@@ -16,6 +16,9 @@
 -- never arrive from a migration or a seed. See
 -- docs/database/migration-safety-notes.md section 6.
 --
+-- Demo datasets live in supabase/seeds/demo/ and are never auto-run. See
+-- supabase/seeds/README.md for the full layout and run order.
+--
 -- WHY THIS FILE IS SHORT
 -- ----------------------
 -- Most reference data already lives in MIGRATIONS, which is correct: the
@@ -56,6 +59,10 @@ ON CONFLICT (name) DO NOTHING;
 -- units — measurement units. Deliberately generic: a stationery shop sells by
 -- the piece, a grocery by the kilo, a workshop by the metre. Customers extend
 -- this from the app.
+--
+-- ON CONFLICT (name) requires the UNIQUE (name) constraint added by
+-- 20261203030000. Before it existed this statement had no conflict target and
+-- inserted a duplicate of every starter unit on every reset.
 -- ---------------------------------------------------------------------------
 INSERT INTO public.units (name, short_name, name_ar) VALUES
   ('Piece',  'pc', 'قطعة'),
