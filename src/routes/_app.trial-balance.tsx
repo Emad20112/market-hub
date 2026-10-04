@@ -43,17 +43,17 @@ function TrialBalancePage() {
   const loadTrialBalance = useCallback(async () => {
     setLoading(true);
     const [sales, purchases, expenses, customers, suppliers, inv] = await Promise.all([
-      supabase.from("sales_invoices").select("total,paid"),
-      supabase.from("purchase_invoices").select("total,paid"),
-      supabase.from("expenses").select("amount"),
-      supabase.from("customers").select("balance"),
-      supabase.from("suppliers").select("balance"),
+      supabase.from("sales_invoices").select("total,paid").limit(3000),
+      supabase.from("purchase_invoices").select("total,paid").limit(3000),
+      supabase.from("expenses").select("amount").limit(2000),
+      supabase.from("customers").select("balance").limit(2000),
+      supabase.from("suppliers").select("balance").limit(2000),
       /*
        * Inventory valuation comes from the owner-aware view, so it counts
        * company-owned TRACKED goods only — never customer-owned material, an
        * untracked good, or a service.
        */
-      supabase.from("inventory_valuation" as never).select("quantity,reference_valuation"),
+      supabase.from("inventory_valuation" as never).select("quantity,reference_valuation").limit(3000),
     ]);
 
     const salesTotal = (sales.data ?? []).reduce((a, r) => a + Number(r.total), 0);
