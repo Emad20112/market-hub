@@ -40,11 +40,11 @@ function BalanceSheetPage() {
   async function loadBalanceSheet() {
     setLoading(true);
     const [sales, purchases, expenses, customers, suppliers, inv] = await Promise.all([
-      supabase.from("sales_invoices").select("total,paid"),
-      supabase.from("purchase_invoices").select("total,paid"),
-      supabase.from("expenses").select("amount"),
-      supabase.from("customers").select("balance"),
-      supabase.from("suppliers").select("balance"),
+      supabase.from("sales_invoices").select("total,paid").order("created_at", { ascending: false }).limit(3000),
+      supabase.from("purchase_invoices").select("total,paid").order("created_at", { ascending: false }).limit(3000),
+      supabase.from("expenses").select("amount").order("created_at", { ascending: false }).limit(2000),
+      supabase.from("customers").select("balance").limit(2000),
+      supabase.from("suppliers").select("balance").limit(2000),
       /*
        * Inventory is read from public.inventory_valuation, which is built on the
        * owner-aware stock positions. That means the figure covers company-owned
@@ -54,7 +54,8 @@ function BalanceSheetPage() {
        */
       supabase
         .from("inventory_valuation" as never)
-        .select("quantity,reference_valuation,valuation_is_reference_based"),
+        .select("quantity,reference_valuation,valuation_is_reference_based")
+        .limit(3000),
     ]);
 
     const salesPaidCash = (sales.data ?? []).reduce((a, r) => a + Number(r.paid), 0);

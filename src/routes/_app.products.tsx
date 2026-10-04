@@ -353,6 +353,7 @@ function ProductsPage() {
 
   const { data: meta } = useQuery({
     queryKey: ["products-meta"],
+    staleTime: 10 * 60 * 1000,
     queryFn: async () => {
       const [c, b, u, origins, qualities] = await Promise.all([
         supabase.from("categories").select("id, name, name_ar").order("name"),

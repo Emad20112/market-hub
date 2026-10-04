@@ -300,11 +300,12 @@ function InventoryPage() {
     queryFn: async () => {
       const { data, error: valueError } = await (supabase.from("products") as any)
         .select("id, cost_price")
-        .eq("is_active", true);
+        .eq("is_active", true)
+        .limit(3000);
       if (valueError) throw valueError;
       return (data ?? []) as ValueRow[];
     },
-    staleTime: 60_000,
+    staleTime: 5 * 60_000,
   });
 
   const rows = useMemo(() => rowPages?.pages.flatMap((page) => page.rows) ?? [], [rowPages]);
@@ -772,13 +773,13 @@ function InventoryPage() {
           viewToggle={
             <div className="flex items-center gap-1.5">
               <ToolbarAction
-                label={lang === "ar" ? "إدخال مخزني مباشر" : "إدخال مخزني مباشر"}
+                label={lang === "ar" ? "إدخال مخزني مباشر" : "Direct Stock In"}
                 icon={<PackagePlus />}
                 onClick={() => setDirectIn({})}
                 tone="primary"
               />
               <ToolbarAction
-                label={lang === "ar" ? "رصيد أول المدة" : "رصيد أول المدة"}
+                label={lang === "ar" ? "رصيد أول المدة" : "Opening stock"}
                 icon={<Sparkles />}
                 onClick={() => setOpeningOpen(true)}
               />

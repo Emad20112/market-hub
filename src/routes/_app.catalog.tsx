@@ -25,15 +25,28 @@ import {
   Boxes,
   Check,
   CheckCircle2,
+  Wheat,
+  PackagePlus,
 } from "lucide-react";
 import { toast } from "sonner";
+import { GrainGradesCatalogView } from "@/components/catalog/grain-grades-catalog";
+import { PackagingBagsCatalogView } from "@/components/catalog/packaging-bags-catalog";
 
 export const Route = createFileRoute("/_app/catalog")({
   head: () => ({ meta: [{ title: "الفهرس والتصنيفات — فورتيكس ERP" }] }),
   component: CatalogPage,
 });
 
-type Tab = "categories" | "brands" | "units" | "origins" | "qualities" | "makes" | "models";
+type Tab =
+  | "categories"
+  | "grain_grades"
+  | "packaging_bags"
+  | "brands"
+  | "units"
+  | "origins"
+  | "qualities"
+  | "makes"
+  | "models";
 
 type Item = {
   id: string;
@@ -48,6 +61,8 @@ type Item = {
 
 const TAB_ICONS: Record<Tab, any> = {
   categories: FolderTree,
+  grain_grades: Wheat,
+  packaging_bags: PackagePlus,
   brands: Tag,
   units: Scale,
   origins: Globe,
@@ -64,6 +79,8 @@ function CatalogPage() {
   const allTabs = useMemo<{ key: Tab; label: string; icon: any }[]>(
     () => [
       { key: "categories", label: t("catalog.categories") || "التصنيفات", icon: FolderTree },
+      { key: "grain_grades", label: lang === "ar" ? "أنواع ودرجات الحبوب" : "Grain Grades", icon: Wheat },
+      { key: "packaging_bags", label: lang === "ar" ? "أكياس ومستلزمات التعبئة" : "Packaging Bags", icon: PackagePlus },
       { key: "brands", label: t("catalog.brands") || "العلامات التجارية", icon: Tag },
       { key: "units", label: t("catalog.units") || "وحدات القياس", icon: Scale },
       { key: "origins", label: lang === "ar" ? "بلدان المنشأ" : "Origins", icon: Globe },
@@ -108,21 +125,25 @@ function CatalogPage() {
   });
 
   const profileLabel =
-    config.profile === "spare_parts"
+    config.profile === "mill"
       ? lang === "ar"
-        ? "قطع غيار ومركبات"
-        : "Spare Parts"
-      : config.profile === "grocery"
+        ? "مطحنة وحبوب"
+        : "Mill & Grain"
+      : config.profile === "spare_parts"
         ? lang === "ar"
-          ? "مواد غذائية وبقالة"
-          : "Grocery"
-        : config.profile === "retail"
+          ? "قطع غيار ومركبات"
+          : "Spare Parts"
+        : config.profile === "grocery"
           ? lang === "ar"
-            ? "تجارة عامة"
-            : "General Retail"
-          : lang === "ar"
-            ? "تخصيص مخصص"
-            : "Custom";
+            ? "مواد غذائية وبقالة"
+            : "Grocery"
+          : config.profile === "retail"
+            ? lang === "ar"
+              ? "تجارة عامة"
+              : "General Retail"
+            : lang === "ar"
+              ? "تخصيص مخصص"
+              : "Custom";
 
   return (
     <div className="space-y-6 pb-12">
@@ -218,8 +239,14 @@ function CatalogPage() {
         </button>
       </div>
 
-      {/* Main Catalog Table / Component */}
-      <CatalogTable tab={tab} />
+      {/* Main Catalog View */}
+      {tab === "grain_grades" ? (
+        <GrainGradesCatalogView />
+      ) : tab === "packaging_bags" ? (
+        <PackagingBagsCatalogView />
+      ) : (
+        <CatalogTable tab={tab} />
+      )}
 
       {/* Catalog Modules Customization Dialog */}
       <CatalogModulesDialog open={modulesDialogOpen} onClose={() => setModulesDialogOpen(false)} />

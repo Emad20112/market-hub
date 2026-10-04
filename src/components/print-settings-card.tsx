@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, lazy, Suspense } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
@@ -21,7 +21,7 @@ import {
   getTemplateMeta,
 } from "@/lib/templates";
 import { getUnifiedPrintSettings, saveUnifiedPrintSettings, PRINT_PAPERS, type PrintBehavior, type PrintMethod } from "@/lib/printing";
-import { PrintPreviewModal } from "@/components/print-preview";
+const PrintPreviewModal = lazy(() => import("@/components/print-preview").then(m => ({ default: m.PrintPreviewModal })));
 import { toast } from "sonner";
 import { PRINTING_LABELS } from "@/lib/printing";
 
@@ -302,11 +302,13 @@ export function PrintSettingsCard({ canEdit = true }: PrintSettingsCardProps) {
         </CardContent>
       </Card>
 
-      <PrintPreviewModal
-        open={previewOpen}
-        onOpenChange={setPreviewOpen}
-        initialDocType={previewDocType}
-      />
+      <Suspense fallback={null}>
+        <PrintPreviewModal
+          open={previewOpen}
+          onOpenChange={setPreviewOpen}
+          initialDocType={previewDocType}
+        />
+      </Suspense>
     </>
   );
 }

@@ -1,4 +1,4 @@
-﻿import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { AlertCircle, Check, LoaderCircle } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
@@ -7,6 +7,7 @@ import { useAuth } from "@/lib/auth";
 import { SettingsLayout } from "@/components/settings/settings-layout";
 import { supabase } from "@/integrations/supabase/client";
 import { setCompanySettingsCache } from "@/lib/format";
+import { getPrintSettings, savePrintSettings } from "@/lib/templates";
 
 export const Route = createFileRoute("/_app/settings")({
   head: () => ({ meta: [{ title: "الإعدادات — فورتيكس ERP" }] }),
@@ -55,16 +56,22 @@ function SettingsPage() {
       .then(({ data }) => {
         if (data) {
           setForm(data);
-          if ((data as any).enable_pos_service_fee !== undefined) {
+          const catalog = ((data as any).catalog_modules as any) || {};
+          if (catalog.enablePosServiceFee !== undefined) {
+            setEnablePosServiceFee(Boolean(catalog.enablePosServiceFee));
+          } else if ((data as any).enable_pos_service_fee !== undefined) {
             setEnablePosServiceFee(Boolean((data as any).enable_pos_service_fee));
           }
-              setCompanySettingsCache({
-                currency: data.currency,
-                currency_symbol: data.currency_symbol,
-              });
-            }
-            setHasLoadedSettings(true);
+          if (catalog.printSettings) {
+            savePrintSettings(catalog.printSettings);
+          }
+          setCompanySettingsCache({
+            currency: data.currency,
+            currency_symbol: data.currency_symbol,
           });
+        }
+        setHasLoadedSettings(true);
+      });
   }, []);
 
   useEffect(() => {
@@ -72,11 +79,18 @@ function SettingsPage() {
 
     const timer = window.setTimeout(async () => {
       setSaveState("saving");
-        const payload = {
+      const currentCatalog = (form.catalog_modules as Record<string, any>) || {};
+      const updatedCatalog = {
+        ...currentCatalog,
+        enablePosServiceFee,
+        printSettings: getPrintSettings(),
+      };
+      const payload = {
         ...form,
         id: form.id ?? 1,
         tax_rate: Number(form.tax_rate),
         footer_contact: form.footer_contact ?? "784795104 · 772217218",
+        catalog_modules: updatedCatalog,
       };
       try {
         if (typeof window !== "undefined") {

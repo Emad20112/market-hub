@@ -1,3 +1,13 @@
+import React, { useState, useRef, useMemo, useEffect, type Dispatch, type SetStateAction } from "react";
+import { Hash, CalendarDays, ChevronDown, Check } from "lucide-react";
+import {
+  Command,
+  CommandInput,
+  CommandList,
+  CommandEmpty,
+  CommandGroup,
+  CommandItem,
+} from "@/components/ui/command";
 import { Receipt, ScanBarcode, Wrench } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -7,6 +17,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
 import { getCurrencyOptions, getCurrencySymbol, type CurrencyOption } from "@/lib/currencies";
+import { FlagIcon, currencyToCountryCode } from "@/components/ui/flag-icon";
 import { toast } from "sonner";
 import type { InvoiceTemplate } from "@/lib/invoice-print";
 import { getPrintSettings, savePrintSettings } from "@/lib/templates";
@@ -394,7 +405,7 @@ function CurrencyPicker({
           >
             <span className="flex min-w-0 items-center gap-2">
               <span aria-hidden="true" className="text-lg leading-none">
-                {selected?.flag ?? "🌐"}
+                {selected ? <FlagIcon code={currencyToCountryCode(selected.code) || ""} emoji={selected.flag} size="size-5" /> : "🌐"}
               </span>
               <span className="truncate text-start">
                 <span className="font-mono font-semibold">{selectedCode}</span>
@@ -427,7 +438,7 @@ function CurrencyPicker({
                     className="gap-2"
                   >
                     <span aria-hidden="true" className="text-lg leading-none">
-                      {currency.flag}
+                      <FlagIcon code={currencyToCountryCode(currency.code) || ""} emoji={currency.flag} size="size-5" />
                     </span>
                     <span className="min-w-0 flex-1 truncate">{currency.name}</span>
                     <span className="font-mono text-xs text-muted-foreground">
