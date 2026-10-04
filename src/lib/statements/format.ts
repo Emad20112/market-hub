@@ -37,10 +37,23 @@ export function fmtMoney(value: number, symbol?: string): string {
 
 /** مبلغ بلا رمز — للأعمدة المالية داخل الجداول */
 export function fmtAmount(value: number): string {
-  return new Intl.NumberFormat("ar-YE", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(Number(value || 0));
+  return stripArabicLetterMark(
+    new Intl.NumberFormat("ar-YE", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(Number(value || 0)),
+  );
+}
+
+/**
+ * يقص U+061C (Arabic Letter Mark).
+ *
+ * `ar-YE` يضع هذه العلامة قبل الأرقام السالبة، وهي محرف RTL قوي يجرّ إشارة
+ * السالب إلى الطرف الخطأ من الخلية، فيظهر المبلغ السالب مقلوباً على الورق.
+ * إزالتها تجعل "-450.50" تُقرأ من اليسار إلى اليمين كما يجب.
+ */
+export function stripArabicLetterMark(value: string): string {
+  return value.replace(/\u061C/g, "");
 }
 
 /** تاريخ للعرض */

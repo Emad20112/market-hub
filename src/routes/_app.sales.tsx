@@ -765,9 +765,11 @@ export function SalesPage() {
         </button>
       </div>
 
-      {/* Search and Filters Bar */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex-1">
+      {/* Search and Filters Bar
+          عمود واحد حتى md: عند 768px بالضبط لا يوجد متسع للبحث وزر التصفية
+          في صف واحد، فينضغط البحث ويصبح غير قابل للاستخدام. */}
+      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        <div className="md:flex-1">
           <VortexSearchInput
             value={search}
             onChange={setSearch}
@@ -853,8 +855,165 @@ export function SalesPage() {
             </Link>
           </div>
         </div>
-      ) : viewMode === "table" ? (
-        /* Table View */
+      ) : (
+        <>
+      {/* Mobile Cards — < 768px فقط. لا تعتمد على viewMode حتى لا يحتاج
+          المستخدم لتبديل الواجهة يدويًا على الهاتف. */}
+      <div className="grid grid-cols-1 gap-3 md:hidden">
+        {filteredRows.map((inv) => {
+          const total = Number(inv.total) || 0;
+          const paid = Number(inv.paid) || 0;
+          const remaining = Math.max(0, total - paid);
+          const customerName = inv.customers?.name ?? (isRtl ? "عميل نقدي" : "Walk-in");
+
+          return (
+            <div
+              key={inv.id}
+              data-qa="sales-card"
+              onClick={() => openInvoice(inv)}
+              className="group flex cursor-pointer flex-col rounded-xl border border-border/80 bg-surface p-3.5 shadow-sm transition active:scale-[0.995]"
+            >
+              {/* Header: رقم الفاتورة + نسخ + الحالة */}
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-1">
+                    {/* رقم الفاتورة معرّف أساسي: يُلتف بدل أن يُقص. القص في
+                        RTL يقطع أول الرقم لا آخره، فيصير "...NV-000123". */}
+                    <span className="break-all font-mono text-sm font-bold text-foreground">
+                      {inv.invoice_number}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        copyInvoiceNumber(inv.invoice_number, inv.id);
+                      }}
+                      className="grid size-8 shrink-0 place-items-center rounded-lg text-muted-foreground hover:bg-surface-2 hover:text-foreground"
+                      aria-label={isRtl ? "نسخ رقم الفاتورة" : "Copy invoice number"}
+                    >
+                      {copiedInvoiceId === inv.id ? (
+                        <Check className="h-3.5 w-3.5 text-emerald-500" />
+                      ) : (
+                        <Copy className="h-3.5 w-3.5" />
+                      )}
+                    </button>
+                  </div>
+                  <div className="mt-1">
+                    <VortexDateBadge date={inv.created_at} variant="subtle" size="sm" />
+                  </div>
+                </div>
+                <div className="shrink-0">{statusBadge(inv.status)}</div>
+              </div>
+
+              {/* Customer + payment method */}
+              <div className="mt-3 flex items-center justify-between gap-2 border-t border-border/60 pt-2.5 text-xs">
+                <div className="flex min-w-0 items-center gap-1.5">
+                  <div className="grid size-6 shrink-0 place-items-center rounded-full bg-surface-2 text-[10px] font-bold">
+                    {customerName.slice(0, 1).toUpperCase()}
+                  </div>
+                  <div className="min-w-0">
+                    {/* اسم العميل: سطران بلا قص مزعج، والأرقام تبقى منفصلة */}
+                    <div className="line-clamp-2 font-medium text-foreground">{customerName}</div>
+                    {inv.customers?.phone && (
+                      <div className="dir-ltr truncate text-[10px] text-muted-foreground">
+                        {toSystemDigits(inv.customers.phone)}
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <div className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-border/80 bg-surface px-2 py-1 text-[11px] text-muted-foreground">
+                  {pmIcon(inv.payment_method, inv.note)}
+                  <span className="whitespace-nowrap">{pmLabel(inv.payment_method, inv.note)}</span>
+                </div>
+              </div>
+
+              {hasMultiWarehouse && inv.warehouses && (
+                <div className="mt-2 truncate text-[11px] text-muted-foreground">
+                  {isRtl ? "المستودع: " : "Warehouse: "}
+                  {whName(inv.warehouses)}
+                </div>
+              )}
+
+              {/* Financial summary */}
+              <div className="mt-3 space-y-1.5 rounded-lg border border-border/60 bg-surface-2/40 p-2.5 text-xs">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-muted-foreground">
+                    {isRtl ? "إجمالي الفاتورة" : "Total"}
+                  </span>
+                  <span className="whitespace-nowrap font-mono text-sm font-semibold text-foreground">
+                    {toSystemDigits(money(total))}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-muted-foreground">{isRtl ? "المدفوع" : "Paid"}</span>
+                  <span className="whitespace-nowrap font-mono font-medium text-emerald-500">
+                    {toSystemDigits(money(paid))}
+                  </span>
+                </div>
+                {remaining > 0 && (
+                  <div className="flex items-center justify-between gap-2 border-t border-border/40 pt-1.5 font-semibold text-rose-500">
+                    <span>{isRtl ? "المتبقي" : "Remaining"}</span>
+                    <span className="whitespace-nowrap font-mono">
+                      {toSystemDigits(money(remaining))}
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              {/* Actions — نفس وظائف الجدول، بأحجام لمس مريحة */}
+              <div
+                className="mt-3 flex items-center justify-between gap-2 border-t border-border/60 pt-3"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => shareInvoiceWhatsApp(inv)}
+                    className="grid size-8 place-items-center rounded-lg border border-border/70 text-muted-foreground transition hover:bg-surface-2 hover:text-emerald-500"
+                    title={isRtl ? "مشاركة عبر واتساب" : "Share via WhatsApp"}
+                  >
+                    <WhatsAppIcon className="h-4 w-4" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => openInvoice(inv)}
+                    className="grid size-8 place-items-center rounded-lg border border-border/70 text-muted-foreground transition hover:bg-surface-2 hover:text-foreground"
+                    title={isRtl ? "عرض التفاصيل" : "View Details"}
+                  >
+                    <Eye className="h-4 w-4" />
+                  </button>
+                </div>
+
+                {remaining > 0 && inv.status !== "cancelled" ? (
+                  <button
+                    type="button"
+                    onClick={() => triggerQuickCollect(inv)}
+                    className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-amber-500/10 px-3 text-xs font-semibold text-amber-500 transition hover:bg-amber-500/20"
+                  >
+                    <Wallet className="h-3.5 w-3.5" />
+                    <span>{isRtl ? "تحصيل فوري" : "Collect"}</span>
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelected(inv);
+                      setPrintOpen(true);
+                    }}
+                    className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-border bg-surface px-3 text-xs font-medium text-foreground transition hover:bg-surface-2"
+                  >
+                    <Printer className="h-3.5 w-3.5" />
+                    <span>{isRtl ? "طباعة" : "Print"}</span>
+                  </button>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Desktop: جدول كما كان، أو شبكة البطاقات عند اختيار المستخدم */}
+      <div className={viewMode === "table" ? "hidden md:block" : "hidden"}>
         <div className="panel-elevated overflow-hidden border border-border/80">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
@@ -1013,9 +1172,13 @@ export function SalesPage() {
             </table>
           </div>
         </div>
-      ) : (
-        /* Cards / Grid View - 2 Columns on Mobile, 3 on Desktop */
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      </div>
+
+      <div
+        className={
+          viewMode === "grid" ? "hidden gap-3 md:grid md:grid-cols-2 lg:grid-cols-3" : "hidden"
+        }
+      >
           {filteredRows.map((inv) => {
             const total = Number(inv.total) || 0;
             const paid = Number(inv.paid) || 0;
@@ -1146,7 +1309,8 @@ export function SalesPage() {
               </div>
             );
           })}
-        </div>
+      </div>
+        </>
       )}
 
       {/* Advanced Filter Sheet */}
@@ -1630,13 +1794,18 @@ export function SalesPage() {
         }}
       />
 
-      {/* Bottom Floating/Docked View Switcher & Record Counter */}
+      {/* Bottom Floating/Docked View Switcher & Record Counter
+          على الهاتف يظهر العدّاد فقط: الواجهة هناك بطاقات دائمًا، ومبدّل
+          العرض لا معنى له — يُخفى بلا حذف حتى يبقى متاحًا على الشاشات الكبيرة. */}
       <div className="sticky bottom-4 z-20 mx-auto mt-6 flex max-w-fit items-center gap-3 rounded-2xl border border-border/80 bg-background/90 px-4 py-2 shadow-lg backdrop-blur-md">
         <span className="text-xs font-medium text-muted-foreground">
           {isRtl ? `إجمالي الفواتير: ${filteredRows.length}` : `Total Invoices: ${filteredRows.length}`}
         </span>
-        <div className="h-4 w-px bg-border" />
-        <div className="flex items-center rounded-xl border border-border bg-muted/40 p-0.5">
+        <div className="hidden h-4 w-px bg-border md:block" />
+        <div
+          data-qa="view-switcher"
+          className="hidden items-center rounded-xl border border-border bg-muted/40 p-0.5 md:flex"
+        >
           <button
             type="button"
             onClick={() => setViewMode("table")}

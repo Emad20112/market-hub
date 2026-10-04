@@ -19,6 +19,7 @@ const en: Dict = {
   "nav.warehouses": "Warehouses",
   "nav.catalog": "Catalog",
   "nav.sales": "Sales",
+  "nav.sales_invoice": "New Invoice",
   "nav.purchases": "Purchases",
   "nav.purchase_pos": "Purchase POS",
   "nav.returns": "Returns",
@@ -59,6 +60,8 @@ const en: Dict = {
   "nav.section.inventory": "Inventory & Warehouses",
   "nav.section.sales": "Sales & Collection",
   "nav.section.finance": "Accounting & Finance",
+  "nav.milling": "Milling & Custody",
+  "nav.milling_counter": "Mill Express Counter",
 
   // Common
   "common.search": "Search anything...",
@@ -750,6 +753,7 @@ const ar: Dict = {
   "nav.warehouses": "المستودعات",
   "nav.catalog": "الفهرس",
   "nav.sales": "المبيعات",
+  "nav.sales_invoice": "فاتورة جديدة",
   "nav.purchases": "المشتريات",
   "nav.purchase_pos": "نقطة المشتريات",
   "nav.returns": "المرتجعات",
@@ -780,6 +784,7 @@ const ar: Dict = {
   "nav.platform_admin": "إدارة المنصة والباقات",
   "nav.milling": "لوحة المطحنة",
   "nav.milling_intake": "قبان الميزان والاستلام",
+  "nav.milling_counter": "كاونتر المطحنة السريع",
   "nav.milling_jobs": "صالة التشغيل وأوامر الطحن",
   "nav.milling_delivery": "بوابة التسليم وإذن الخروج",
   "nav.milling_statement": "كشف حساب الأمانات",

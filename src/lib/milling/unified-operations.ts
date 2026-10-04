@@ -28,6 +28,10 @@ import {
   type MillingOutputType,
   type MillingStatus,
 } from "@/lib/milling";
+// createAgreement lives in agreements.ts, not the base milling barrel. The
+// custody deposit and the milling contract are the same commercial act, so
+// this is the one place the two modules meet.
+import { createAgreement } from "@/lib/milling/agreements";
 
 const db = supabase as any;
 
@@ -112,6 +116,37 @@ export interface BulkCustodyIntakeInput {
   driverName?: string;
   siloOrLocation?: string;
   notes?: string;
+
+  /* ---------------------------------------------------------------------
+   * Milling terms captured on the SAME document.
+   *
+   * A merchant depositing grain normally wants it ground, and wants to know
+   * the price per bag at the moment of deposit - not at some later counter
+   * visit. Keeping the receipt and the milling request as two documents means
+   * the fee is agreed in one place and charged from another, which is how a
+   * customer ends up disputing a price nobody remembers agreeing.
+   *
+   * These are OPTIONAL. A pure storage deposit - grain held, no grinding -
+   * is still a valid document, and leaving every field here empty produces
+   * exactly that. The two modes are supported without either being forced.
+   * ------------------------------------------------------------------- */
+  /** When true, an agreed milling contract is created alongside the receipt. */
+  withMilling?: boolean;
+  /** Fee basis. BAG is per bag, TON is per tonne - exactly one, mirroring the engine. */
+  millingBasis?: "BAG" | "TON";
+  millingFeeRate?: number;
+  /** What the customer wants produced. */
+  millingType?: "FLOUR_GRADE_1" | "FLOUR_GRADE_2" | "SEMOLINA" | "BRAN";
+  /** Who supplies the bags - the customer's own, or the mill's against a charge. */
+  bagsSource?: "CUSTOMER" | "MILL";
+  bagType?: string;
+  bagCondition?: string;
+  millBagProductId?: string | null;
+  millBagPrice?: number;
+  expectedExtractionRate?: number;
+  allowedLossPercentage?: number;
+  /** The service product the agreed fee attaches to. */
+  serviceProductId?: string | null;
 }
 
 export interface QuickMillingFeedItem {
@@ -145,7 +180,9 @@ export interface QuickMillingFeedItem {
 export async function fetchGrainGrades(): Promise<GrainGradeOption[]> {
   const { data, error } = await db
     .from("milling_grain_grades_view")
-    .select("id, product_id, sku, grade_code, grade_name_ar, origin, max_moisture, max_impurities, default_bag_size_kg, default_bag_type, default_service_sku, is_active")
+    .select(
+      "id, product_id, sku, grade_code, grade_name_ar, origin, max_moisture, max_impurities, default_bag_size_kg, default_bag_type, default_service_sku, is_active",
+    )
     .eq("is_active", true)
     .order("grade_name_ar");
 
@@ -156,7 +193,9 @@ export async function fetchGrainGrades(): Promise<GrainGradeOption[]> {
   // Fallback to table if view has issue
   const { data: rawData, error: rawError } = await db
     .from("milling_grain_grades")
-    .select("id, product_id, grade_code, grade_name_ar, origin, max_moisture, max_impurities, default_bag_size_kg, default_bag_type, default_service_sku, is_active")
+    .select(
+      "id, product_id, grade_code, grade_name_ar, origin, max_moisture, max_impurities, default_bag_size_kg, default_bag_type, default_service_sku, is_active",
+    )
     .eq("is_active", true)
     .order("grade_name_ar");
 
@@ -200,7 +239,11 @@ async function resolveGrainGradeId(
       .limit(1);
 
     if (grades && grades.length > 0) {
-      return { gradeId: grades[0].id, productId: grades[0].product_id, gradeName: grades[0].grade_name_ar };
+      return {
+        gradeId: grades[0].id,
+        productId: grades[0].product_id,
+        gradeName: grades[0].grade_name_ar,
+      };
     }
   }
 
@@ -214,7 +257,11 @@ async function resolveGrainGradeId(
     .maybeSingle();
 
   if (anyGrade) {
-    return { gradeId: anyGrade.id, productId: anyGrade.product_id, gradeName: anyGrade.grade_name_ar };
+    return {
+      gradeId: anyGrade.id,
+      productId: anyGrade.product_id,
+      gradeName: anyGrade.grade_name_ar,
+    };
   }
 
   return { gradeId: null, productId: null, gradeName: searchTerm };
@@ -223,7 +270,7 @@ async function resolveGrainGradeId(
 /* ----------------------------------------------------------- direct ticket */
 
 export async function executeDirectMillingTicket(
-  input: DirectMillingTicketInput
+  input: DirectMillingTicketInput,
 ): Promise<DirectMillingTicketResult> {
   try {
     // 1. Resolve Warehouse & Customer
@@ -434,8 +481,8 @@ export async function executeDirectMillingTicket(
 /* ------------------------------------------------------------- bulk intake */
 
 export async function executeBulkCustodyIntake(
-  input: BulkCustodyIntakeInput
-): Promise<{ ok: boolean; id?: string; number?: string; message?: string }> {
+  input: BulkCustodyIntakeInput,
+): Promise<{ ok: boolean; id?: string; number?: string; agreementId?: string; message?: string }> {
   try {
     const bagCount = Math.max(1, Number(input.bagCount) || 1);
     const bagSizeKg = Number(input.bagSizeKg) || 50;
@@ -465,6 +512,12 @@ export async function executeBulkCustodyIntake(
       driverName: input.driverName,
       silo: input.siloOrLocation,
       notes: input.notes,
+      // Bag identification, recorded on the receipt itself. Who supplied the
+      // sack and what condition it arrived in is exactly what a dispute three
+      // weeks later is about, and it cannot be reconstructed afterwards.
+      bagType: input.bagType,
+      bagSource: input.bagsSource ?? "CUSTOMER",
+      bagCondition: input.bagCondition,
     });
 
     if (!res.ok || !res.id) {
@@ -477,10 +530,51 @@ export async function executeBulkCustodyIntake(
       .eq("id", res.id)
       .maybeSingle();
 
+    // ── the agreed milling terms, on the same document ──
+    // Only created when the operator asked for grinding. A pure storage
+    // deposit returns here with no contract at all, which is the correct
+    // outcome: there is nothing to agree and nothing to fulfil.
+    let agreementId: string | undefined;
+    if (input.withMilling) {
+      if (!input.millingFeeRate || input.millingFeeRate <= 0) {
+        throw new Error(
+          "لا يمكن تسجيل الطحن بدون أجر متفق عليه. أدخل سعر الطحن أو ألغِ خيار الطحن.",
+        );
+      }
+      // The engine permits exactly one basis. Passing both would be rejected
+      // by the database, so it is caught here with a message about the form
+      // rather than about a constraint.
+      const basis = input.millingBasis ?? "BAG";
+      const agreeRes = await createAgreement({
+        intakeReceiptId: res.id,
+        // Both are nullable in the caller's input but required (or
+        // string-or-undefined) by createAgreement. The grade is non-null by
+        // this point: createIntake already refused the receipt without one.
+        grainGradeId: grainResolved.gradeId as string,
+        requestedOutputType: input.millingType ?? "FLOUR_GRADE_1",
+        requestedOutputNote: "شروط الطحن المحفوظة مع سند الأمانات",
+        outputBagSizeKg: bagSizeKg,
+        bagsSource: input.bagsSource ?? "CUSTOMER",
+        deliveryMode: "PARTIAL",
+        serviceProductId: input.serviceProductId ?? null,
+        priceBasis: basis,
+        agreedPrice: Number(input.millingFeeRate),
+        expectedExtractionRate: input.expectedExtractionRate ?? 78,
+        allowedLossPercentage: input.allowedLossPercentage ?? 2,
+        notes: input.notes ?? undefined,
+      });
+
+      if (!agreeRes.ok || !agreeRes.id) {
+        throw new Error(agreeRes.message || "تم تسجيل سند الأمانات لكن تعذر حفظ شروط الطحن عليه.");
+      }
+      agreementId = agreeRes.id;
+    }
+
     return {
       ok: true,
       id: res.id,
       number: row?.receipt_number,
+      agreementId,
     };
   } catch (err: any) {
     return {
@@ -498,12 +592,14 @@ export async function fetchTodayUnifiedFeed(storeId?: string): Promise<QuickMill
   // 1. Fetch recent jobs
   let qJobs = db
     .from("milling_jobs")
-    .select(`
+    .select(
+      `
       id, job_number, status, input_bag_count, input_bag_size_kg, input_weight_kg,
       milling_fee_per_bag, created_at, customer_id, intake_receipt_id,
       customers(name),
       milling_intake_receipts(grain_type, receipt_number)
-    `)
+    `,
+    )
     .gte("created_at", `${today}T00:00:00.000Z`)
     .order("created_at", { ascending: false })
     .limit(50);
@@ -515,10 +611,12 @@ export async function fetchTodayUnifiedFeed(storeId?: string): Promise<QuickMill
   // 2. Fetch recent standalone intakes (not yet converted to jobs)
   let qIntakes = db
     .from("milling_intake_receipts")
-    .select(`
+    .select(
+      `
       id, receipt_number, status, intake_bag_count, bag_size_kg, net_weight_kg,
       grain_type, created_at, customer_id, customers(name)
-    `)
+    `,
+    )
     .gte("created_at", `${today}T00:00:00.000Z`)
     .order("created_at", { ascending: false })
     .limit(30);

@@ -18,6 +18,7 @@ import {
   renderTransactionsTable,
 } from "./print-sections";
 import { statementPrintStyles } from "./print-styles";
+import { openPrintWindow } from "@/lib/print/print-window";
 import { esc, fmtAmount, fmtDate } from "./format";
 import { STATEMENT_COMPANY } from "./company";
 
@@ -215,28 +216,7 @@ export function buildStatementHtml(options: StatementPrintOptions): string {
 // ---------------------------------------------------------------------------
 
 export function openStatementPrintWindow(html: string): void {
-  if (typeof window === "undefined") return;
-
-  // الطباعة داخل إطار مخفي تمنع فتح نافذة about:blank إضافية،
-  // وتُظهر نافذة الطباعة مباشرة من زر المستخدم.
-  const iframe = document.createElement("iframe");
-  iframe.setAttribute("title", "print");
-  iframe.style.cssText =
-    "position:fixed;inset:0;width:1px;height:1px;border:0;opacity:0;pointer-events:none";
-  document.body.appendChild(iframe);
-  const cw = iframe.contentWindow;
-  if (!cw) {
-    iframe.remove();
-    return;
-  }
-  iframe.onload = () => {
-    cw.focus();
-    cw.print();
-    window.setTimeout(() => iframe.remove(), 1000);
-  };
-  cw.document.open();
-  cw.document.write(html);
-  cw.document.close();
+  openPrintWindow(html);
 }
 
 /** بناء وطباعة الكشف في خطوة واحدة */
