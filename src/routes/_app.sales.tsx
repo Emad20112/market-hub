@@ -765,9 +765,11 @@ export function SalesPage() {
         </button>
       </div>
 
-      {/* Search and Filters Bar */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex-1">
+      {/* Search and Filters Bar
+          عمود واحد حتى md: عند 768px بالضبط لا يوجد متسع للبحث وزر التصفية
+          في صف واحد، فينضغط البحث ويصبح غير قابل للاستخدام. */}
+      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        <div className="md:flex-1">
           <VortexSearchInput
             value={search}
             onChange={setSearch}
@@ -867,6 +869,7 @@ export function SalesPage() {
           return (
             <div
               key={inv.id}
+              data-qa="sales-card"
               onClick={() => openInvoice(inv)}
               className="group flex cursor-pointer flex-col rounded-xl border border-border/80 bg-surface p-3.5 shadow-sm transition active:scale-[0.995]"
             >
@@ -874,7 +877,9 @@ export function SalesPage() {
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
                   <div className="flex items-center gap-1">
-                    <span className="truncate font-mono text-sm font-bold text-foreground">
+                    {/* رقم الفاتورة معرّف أساسي: يُلتف بدل أن يُقص. القص في
+                        RTL يقطع أول الرقم لا آخره، فيصير "...NV-000123". */}
+                    <span className="break-all font-mono text-sm font-bold text-foreground">
                       {inv.invoice_number}
                     </span>
                     <button
@@ -883,7 +888,7 @@ export function SalesPage() {
                         e.stopPropagation();
                         copyInvoiceNumber(inv.invoice_number, inv.id);
                       }}
-                      className="grid size-7 shrink-0 place-items-center rounded-lg text-muted-foreground hover:bg-surface-2 hover:text-foreground"
+                      className="grid size-8 shrink-0 place-items-center rounded-lg text-muted-foreground hover:bg-surface-2 hover:text-foreground"
                       aria-label={isRtl ? "نسخ رقم الفاتورة" : "Copy invoice number"}
                     >
                       {copiedInvoiceId === inv.id ? (
@@ -907,7 +912,8 @@ export function SalesPage() {
                     {customerName.slice(0, 1).toUpperCase()}
                   </div>
                   <div className="min-w-0">
-                    <div className="truncate font-medium text-foreground">{customerName}</div>
+                    {/* اسم العميل: سطران بلا قص مزعج، والأرقام تبقى منفصلة */}
+                    <div className="line-clamp-2 font-medium text-foreground">{customerName}</div>
                     {inv.customers?.phone && (
                       <div className="dir-ltr truncate text-[10px] text-muted-foreground">
                         {toSystemDigits(inv.customers.phone)}
@@ -963,7 +969,7 @@ export function SalesPage() {
                   <button
                     type="button"
                     onClick={() => shareInvoiceWhatsApp(inv)}
-                    className="grid size-9 place-items-center rounded-lg border border-border/70 text-muted-foreground transition hover:bg-surface-2 hover:text-emerald-500"
+                    className="grid size-8 place-items-center rounded-lg border border-border/70 text-muted-foreground transition hover:bg-surface-2 hover:text-emerald-500"
                     title={isRtl ? "مشاركة عبر واتساب" : "Share via WhatsApp"}
                   >
                     <WhatsAppIcon className="h-4 w-4" />
@@ -971,7 +977,7 @@ export function SalesPage() {
                   <button
                     type="button"
                     onClick={() => openInvoice(inv)}
-                    className="grid size-9 place-items-center rounded-lg border border-border/70 text-muted-foreground transition hover:bg-surface-2 hover:text-foreground"
+                    className="grid size-8 place-items-center rounded-lg border border-border/70 text-muted-foreground transition hover:bg-surface-2 hover:text-foreground"
                     title={isRtl ? "عرض التفاصيل" : "View Details"}
                   >
                     <Eye className="h-4 w-4" />
@@ -1796,7 +1802,10 @@ export function SalesPage() {
           {isRtl ? `إجمالي الفواتير: ${filteredRows.length}` : `Total Invoices: ${filteredRows.length}`}
         </span>
         <div className="hidden h-4 w-px bg-border md:block" />
-        <div className="hidden items-center rounded-xl border border-border bg-muted/40 p-0.5 md:flex">
+        <div
+          data-qa="view-switcher"
+          className="hidden items-center rounded-xl border border-border bg-muted/40 p-0.5 md:flex"
+        >
           <button
             type="button"
             onClick={() => setViewMode("table")}

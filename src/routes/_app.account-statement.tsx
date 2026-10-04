@@ -640,8 +640,12 @@ function AccountStatementPage() {
             <div className="mb-2 text-[11px] text-muted-foreground">
               {result ? `${ar ? "الفترة" : "Period"}: ${result.period.label}` : ""}
             </div>
+            {/* ═══ الجدول والبطاقات — ترتيب مختلف حسب المقاس ═══
+                على الهاتف تظهر البطاقات أولًا (order-1) والجدول مخفي،
+                وعلى سطح المكتب يظهر الجدول أولًا والبطاقات مخفية. */}
+            <div className="flex flex-col">
             {/* ═══ الجدول — Desktop ≥ 768px فقط ═══ */}
-            <div className="hidden overflow-x-auto md:block">
+            <div className="order-2 hidden overflow-x-auto md:block">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -796,7 +800,7 @@ function AccountStatementPage() {
             {/* ═══ Mobile Statement Cards — < 768px فقط ═══
                 نفس الحقول ونفس الأرقام، مع احترام Column Visibility.
                 النقر على البطاقة يفتح نفس لوحة تفاصيل القيد. */}
-            <div className="space-y-2.5 md:hidden">
+            <div className="order-1 space-y-2.5 md:hidden">
               {isLoading ? (
                 <div className="grid place-items-center rounded-xl border border-border/70 py-10">
                   <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
@@ -850,6 +854,7 @@ function AccountStatementPage() {
                       <button
                         key={row.id}
                         type="button"
+                        data-qa="statement-card"
                         onClick={() => setDetailEntry(row)}
                         className="w-full rounded-xl border border-border/80 bg-surface p-3.5 text-start transition active:bg-surface-2/60"
                       >
@@ -974,6 +979,7 @@ function AccountStatementPage() {
                   </div>
                 </>
               )}
+            </div>
             </div>
 
             {/* تذييل الجدول */}
