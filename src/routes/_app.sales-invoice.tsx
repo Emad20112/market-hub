@@ -46,6 +46,7 @@ import {
   User,
   Printer,
   RotateCcw,
+  SlidersHorizontal,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/page-header";
@@ -65,6 +66,7 @@ import {
   type SellableProduct,
   type ServiceLineInput,
 } from "@/lib/sales-invoice";
+import { MILLING_BAG_SIZES } from "@/components/milling/milling-terms-fields";
 
 export const Route = createFileRoute("/_app/sales-invoice")({
   head: () => ({ meta: [{ title: "فاتورة المبيعات — فورتيكس ERP" }] }),
@@ -134,7 +136,6 @@ const EMPTY_TICKET: TicketForm = {
   allowedLoss: "",
   note: "",
 };
-
 interface Warehouse {
   id: string;
   name: string;
@@ -153,6 +154,52 @@ interface PosCartLine {
   product: SellableProduct;
   quantity: string;
   unitPrice: string;
+  /** The sale specification chosen for this line, printed under it. */
+  spec?: ProductSpec;
+}
+
+/**
+ * The options a mill product can be sold in.
+ *
+ * A mill sells the same flour in a 10 kg bag and a 50 kg sack, and grinds to
+ * different grades. The alternative to modelling that is creating a separate
+ * product for every combination — "دقيق نمرة 1 شوال 50 كجم", "دقيق نمرة 1 كيس
+ * 25 كجم" — which is exactly the catalogue pollution that makes margin reports
+ * useless, and it means a new product for every future sack size.
+ *
+ * So the product stays one row and the SPECIFICATION travels with the sale
+ * line. It is descriptive: it says what was sold, is printed on the invoice, and
+ * does not fork stock or pricing into a phantom product.
+ */
+export interface ProductSpec {
+  grainOrGrade: string;
+  millingType: string;
+  bagType: string;
+  bagSizeKg: string;
+}
+
+const SPEC_MILLING_TYPES = [
+  { value: "", ar: "بدون طحن (صنف جاهز)", en: "No milling (ready item)" },
+  ...MILLING_TYPES.map((m) => ({ value: m.value, ar: m.ar, en: m.en })),
+];
+
+const SPEC_BAG_TYPES = [
+  { value: "شوال", ar: "شوال", en: "Sack" },
+  { value: "كيس", ar: "كيس", en: "Bag" },
+  { value: "صندوق", ar: "صندوق", en: "Box" },
+  { value: "بالك", ar: "بالك (جرّة)", en: "Bulk" },
+];
+
+/** Renders a chosen specification as one readable line for the invoice. */
+function specLabel(spec: ProductSpec, isRtl: boolean): string {
+  const milling = SPEC_MILLING_TYPES.find((m) => m.value === spec.millingType);
+  return [
+    spec.grainOrGrade.trim(),
+    milling && milling.value ? (isRtl ? milling.ar : milling.en) : "",
+    `${spec.bagType} ${spec.bagSizeKg} ${isRtl ? "كجم" : "kg"}`,
+  ]
+    .filter(Boolean)
+    .join(" • ");
 }
 
 function SalesInvoicePage() {
@@ -255,10 +302,12 @@ function SalesInvoicePage() {
 
   function addProduct(product: SellableProduct) {
     setCart((current) => {
-      const existing = current.find((l) => l.product.id === product.id);
+      const existing = current.find((l) => l.product.id === product.id && !l.spec);
       if (existing) {
         return current.map((l) =>
-          l.product.id === product.id ? { ...l, quantity: String(Number(l.quantity || 0) + 1) } : l,
+          l.product.id === product.id && !l.spec
+            ? { ...l, quantity: String(Number(l.quantity || 0) + 1) }
+            : l,
         );
       }
       return [
@@ -272,8 +321,17 @@ function SalesInvoicePage() {
     });
   }
 
-  function removeLine(productId: string) {
-    setCart((current) => current.filter((l) => l.product.id !== productId));
+  /**
+   * Lines are identified by position, not by product id. Once a product can
+   * appear twice with different specifications, removing "the flour line" by id
+   * would remove every flour line at once.
+   */
+  function removeLine(index: number) {
+    setCart((current) => current.filter((_, i) => i !== index));
+  }
+
+  function updateSpec(index: number, spec: ProductSpec) {
+    setCart((current) => current.map((l, i) => (i === index ? { ...l, spec } : l)));
   }
 
   /* ------------------------------------------------------------ ticket */
@@ -346,7 +404,10 @@ function SalesInvoicePage() {
       return cart.map((l) => ({
         kind: "catalog" as const,
         product_id: l.product.id,
-        name: l.product.name,
+        // The specification rides on the line name so it is visible on the
+        // printed invoice and in the register, rather than being lost the
+        // moment the cashier closes the screen.
+        name: l.spec ? `${l.product.name} — ${specLabel(l.spec, isRtl)}` : l.product.name,
         sku: l.product.sku,
         quantity: Number(l.quantity) || 0,
         unit_price: Number(l.unitPrice) || 0,
@@ -365,7 +426,7 @@ function SalesInvoicePage() {
         detail: ticketDetail,
       } satisfies ServiceLineInput,
     ];
-  }, [mode, cart, ticketFee, ticketQty, ticketDetail, ticketLineName]);
+  }, [mode, cart, ticketFee, ticketQty, ticketDetail, ticketLineName, isRtl]);
 
   const subtotal = useMemo(
     () => Math.round(lines.reduce((s, l) => s + lineTotal(l), 0) * 100) / 100,
@@ -977,9 +1038,9 @@ function SalesInvoicePage() {
                     {isRtl ? "اضغط صنفاً لإضافته" : "Tap a product to add it"}
                   </div>
                 ) : (
-                  cart.map((l) => (
+                  cart.map((l, index) => (
                     <div
-                      key={l.product.id}
+                      key={`${l.product.id}-${index}`}
                       className="rounded-xl border border-border/70 bg-surface-2/40 p-2.5"
                     >
                       <div className="flex items-start justify-between gap-2">
@@ -988,12 +1049,98 @@ function SalesInvoicePage() {
                         </span>
                         <button
                           type="button"
-                          onClick={() => removeLine(l.product.id)}
+                          onClick={() => removeLine(index)}
                           className="rounded p-0.5 text-muted-foreground hover:text-rose-500"
                         >
                           <Trash2 className="h-3.5 w-3.5" />
                         </button>
                       </div>
+
+                      {/*
+                       * The specification panel. One product, sold several
+                       * ways: the mill's flour goes out as a 10 kg bag of fine
+                       * grade and as a 50 kg sack of whole-grain without
+                       * becoming two catalogue rows. The chosen spec rides on
+                       * the sale line and prints under it.
+                       */}
+                      <div className="mt-2 rounded-lg border border-border/50 bg-surface/60 p-2">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            updateSpec(index, {
+                              grainOrGrade: l.spec?.grainOrGrade ?? "",
+                              millingType: l.spec?.millingType ?? "",
+                              bagType: l.spec?.bagType ?? "شوال",
+                              bagSizeKg: l.spec?.bagSizeKg ?? "50",
+                            })
+                          }
+                          className="flex w-full items-center justify-between text-[10px] font-semibold text-muted-foreground hover:text-foreground"
+                        >
+                          <span>
+                            {l.spec
+                              ? isRtl
+                                ? `${l.spec.grainOrGrade || "—"} • ${specLabel(l.spec, isRtl)}`
+                                : specLabel(l.spec, isRtl)
+                              : isRtl
+                                ? "خيارات البيع (حجم • نوع • كيس)"
+                                : "Sale options (size • grade • bag)"}
+                          </span>
+                          <SlidersHorizontal className="h-3 w-3" />
+                        </button>
+
+                        {l.spec && (
+                          <div className="mt-2 grid grid-cols-2 gap-1.5">
+                            <input
+                              value={l.spec.grainOrGrade}
+                              onChange={(e) =>
+                                updateSpec(index, { ...l.spec!, grainOrGrade: e.target.value })
+                              }
+                              placeholder={isRtl ? "الدرجة/النوع" : "Grade / type"}
+                              className="h-7 w-full rounded-md border border-border bg-surface px-1.5 text-[10px] outline-none focus:border-primary"
+                            />
+                            <select
+                              value={l.spec.millingType}
+                              onChange={(e) =>
+                                updateSpec(index, { ...l.spec!, millingType: e.target.value })
+                              }
+                              className="h-7 w-full rounded-md border border-border bg-surface px-1.5 text-[10px] outline-none focus:border-primary"
+                            >
+                              {SPEC_MILLING_TYPES.map((m) => (
+                                <option key={m.value} value={m.value}>
+                                  {isRtl ? m.ar : m.en}
+                                </option>
+                              ))}
+                            </select>
+                            <select
+                              value={l.spec.bagType}
+                              onChange={(e) =>
+                                updateSpec(index, { ...l.spec!, bagType: e.target.value })
+                              }
+                              className="h-7 w-full rounded-md border border-border bg-surface px-1.5 text-[10px] outline-none focus:border-primary"
+                            >
+                              {SPEC_BAG_TYPES.map((b) => (
+                                <option key={b.value} value={b.value}>
+                                  {isRtl ? b.ar : b.en}
+                                </option>
+                              ))}
+                            </select>
+                            <select
+                              value={l.spec.bagSizeKg}
+                              onChange={(e) =>
+                                updateSpec(index, { ...l.spec!, bagSizeKg: e.target.value })
+                              }
+                              className="h-7 w-full rounded-md border border-border bg-surface px-1.5 text-[10px] outline-none focus:border-primary"
+                            >
+                              {MILLING_BAG_SIZES.map((b) => (
+                                <option key={b.kg} value={String(b.kg)}>
+                                  {b.kg} {isRtl ? "كجم" : "kg"}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        )}
+                      </div>
+
                       <div className="mt-2 grid grid-cols-3 gap-1.5">
                         <label className="space-y-0.5">
                           <span className="block text-[10px] text-muted-foreground">
@@ -1006,10 +1153,8 @@ function SalesInvoicePage() {
                             value={l.quantity}
                             onChange={(e) =>
                               setCart((current) =>
-                                current.map((x) =>
-                                  x.product.id === l.product.id
-                                    ? { ...x, quantity: e.target.value }
-                                    : x,
+                                current.map((x, i) =>
+                                  i === index ? { ...x, quantity: e.target.value } : x,
                                 ),
                               )
                             }
@@ -1027,10 +1172,8 @@ function SalesInvoicePage() {
                             value={l.unitPrice}
                             onChange={(e) =>
                               setCart((current) =>
-                                current.map((x) =>
-                                  x.product.id === l.product.id
-                                    ? { ...x, unitPrice: e.target.value }
-                                    : x,
+                                current.map((x, i) =>
+                                  i === index ? { ...x, unitPrice: e.target.value } : x,
                                 ),
                               )
                             }

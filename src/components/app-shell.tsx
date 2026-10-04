@@ -45,6 +45,7 @@ import {
   ClipboardList,
   Cog,
   PackagePlus,
+  Zap,
   ChartColumn,
   ReceiptText,
 } from "lucide-react";
@@ -390,6 +391,15 @@ const sections: Section[] = [
         moduleId: "milling_operations",
         allowedRoles: ["owner", "manager", "accountant", "warehouse"],
         color: "text-amber-500",
+        bg: "bg-amber-500/15",
+      },
+      {
+        to: "/milling-counter",
+        icon: Zap,
+        key: "nav.milling_counter",
+        moduleId: "milling_operations",
+        allowedRoles: ["owner", "manager", "accountant", "warehouse", "cashier"],
+        color: "text-amber-400",
         bg: "bg-amber-500/15",
       },
       {

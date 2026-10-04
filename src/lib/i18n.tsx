@@ -60,6 +60,8 @@ const en: Dict = {
   "nav.section.inventory": "Inventory & Warehouses",
   "nav.section.sales": "Sales & Collection",
   "nav.section.finance": "Accounting & Finance",
+  "nav.milling": "Milling & Custody",
+  "nav.milling_counter": "Mill Express Counter",
 
   // Common
   "common.search": "Search anything...",
@@ -782,6 +784,7 @@ const ar: Dict = {
   "nav.platform_admin": "إدارة المنصة والباقات",
   "nav.milling": "لوحة المطحنة",
   "nav.milling_intake": "قبان الميزان والاستلام",
+  "nav.milling_counter": "كاونتر المطحنة السريع",
   "nav.milling_jobs": "صالة التشغيل وأوامر الطحن",
   "nav.milling_delivery": "بوابة التسليم وإذن الخروج",
   "nav.milling_statement": "كشف حساب الأمانات",

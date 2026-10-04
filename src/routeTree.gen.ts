@@ -29,6 +29,7 @@ import { Route as AppIncomeStatementRouteImport } from './routes/_app.income-sta
 import { Route as AppInventoryRouteImport } from './routes/_app.inventory'
 import { Route as AppLoyaltyRouteImport } from './routes/_app.loyalty'
 import { Route as AppMillingRouteImport } from './routes/_app.milling'
+import { Route as AppMillingCounterRouteImport } from './routes/_app.milling-counter'
 import { Route as AppNotificationsRouteImport } from './routes/_app.notifications'
 import { Route as AppOpeningBalancesRouteImport } from './routes/_app.opening-balances'
 import { Route as AppPaymentsRouteImport } from './routes/_app.payments'
@@ -157,6 +158,11 @@ const AppLoyaltyRoute = AppLoyaltyRouteImport.update({
 const AppMillingRoute = AppMillingRouteImport.update({
   id: '/milling',
   path: '/milling',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppMillingCounterRoute = AppMillingCounterRouteImport.update({
+  id: '/milling-counter',
+  path: '/milling-counter',
   getParentRoute: () => AppRoute,
 } as any)
 const AppNotificationsRoute = AppNotificationsRouteImport.update({
@@ -332,6 +338,7 @@ export interface FileRoutesByFullPath {
   '/inventory': typeof AppInventoryRoute
   '/loyalty': typeof AppLoyaltyRoute
   '/milling': typeof AppMillingRouteWithChildren
+  '/milling-counter': typeof AppMillingCounterRoute
   '/notifications': typeof AppNotificationsRoute
   '/opening-balances': typeof AppOpeningBalancesRoute
   '/payments': typeof AppPaymentsRoute
@@ -383,6 +390,7 @@ export interface FileRoutesByTo {
   '/inventory': typeof AppInventoryRoute
   '/loyalty': typeof AppLoyaltyRoute
   '/milling': typeof AppMillingRouteWithChildren
+  '/milling-counter': typeof AppMillingCounterRoute
   '/notifications': typeof AppNotificationsRoute
   '/opening-balances': typeof AppOpeningBalancesRoute
   '/payments': typeof AppPaymentsRoute
@@ -436,6 +444,7 @@ export interface FileRoutesById {
   '/_app/inventory': typeof AppInventoryRoute
   '/_app/loyalty': typeof AppLoyaltyRoute
   '/_app/milling': typeof AppMillingRouteWithChildren
+  '/_app/milling-counter': typeof AppMillingCounterRoute
   '/_app/notifications': typeof AppNotificationsRoute
   '/_app/opening-balances': typeof AppOpeningBalancesRoute
   '/_app/payments': typeof AppPaymentsRoute
@@ -489,6 +498,7 @@ export interface FileRouteTypes {
     | '/inventory'
     | '/loyalty'
     | '/milling'
+    | '/milling-counter'
     | '/notifications'
     | '/opening-balances'
     | '/payments'
@@ -540,6 +550,7 @@ export interface FileRouteTypes {
     | '/inventory'
     | '/loyalty'
     | '/milling'
+    | '/milling-counter'
     | '/notifications'
     | '/opening-balances'
     | '/payments'
@@ -592,6 +603,7 @@ export interface FileRouteTypes {
     | '/_app/inventory'
     | '/_app/loyalty'
     | '/_app/milling'
+    | '/_app/milling-counter'
     | '/_app/notifications'
     | '/_app/opening-balances'
     | '/_app/payments'
@@ -770,6 +782,13 @@ declare module '@tanstack/react-router' {
       path: '/milling'
       fullPath: '/milling'
       preLoaderRoute: typeof AppMillingRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/milling-counter': {
+      id: '/_app/milling-counter'
+      path: '/milling-counter'
+      fullPath: '/milling-counter'
+      preLoaderRoute: typeof AppMillingCounterRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/notifications': {
@@ -1025,6 +1044,7 @@ interface AppRouteChildren {
   AppInventoryRoute: typeof AppInventoryRoute
   AppLoyaltyRoute: typeof AppLoyaltyRoute
   AppMillingRoute: typeof AppMillingRouteWithChildren
+  AppMillingCounterRoute: typeof AppMillingCounterRoute
   AppNotificationsRoute: typeof AppNotificationsRoute
   AppOpeningBalancesRoute: typeof AppOpeningBalancesRoute
   AppPaymentsRoute: typeof AppPaymentsRoute
@@ -1069,6 +1089,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppInventoryRoute: AppInventoryRoute,
   AppLoyaltyRoute: AppLoyaltyRoute,
   AppMillingRoute: AppMillingRouteWithChildren,
+  AppMillingCounterRoute: AppMillingCounterRoute,
   AppNotificationsRoute: AppNotificationsRoute,
   AppOpeningBalancesRoute: AppOpeningBalancesRoute,
   AppPaymentsRoute: AppPaymentsRoute,
