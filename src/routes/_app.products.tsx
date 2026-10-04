@@ -1058,12 +1058,26 @@ function ProductsPage() {
                     >
                       {/* Top Badges Row */}
                       <div className="flex items-center justify-between gap-1.5 mb-2">
-                        <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 border border-primary/20 px-2 py-0.5 text-[10px] sm:text-[11px] font-semibold text-primary truncate max-w-[110px] sm:max-w-[140px]">
-                          <Tag className="size-2.5 sm:size-3 shrink-0" />
-                          <span className="truncate">
-                            {categoryName || (lang === "ar" ? "عام" : "General")}
+                        <div className="flex items-center gap-1 min-w-0">
+                          <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 border border-primary/20 px-2 py-0.5 text-[10px] sm:text-[11px] font-semibold text-primary truncate max-w-[110px] sm:max-w-[140px]">
+                            <Tag className="size-2.5 sm:size-3 shrink-0" />
+                            <span className="truncate">
+                              {categoryName || (lang === "ar" ? "عام" : "General")}
+                            </span>
                           </span>
-                        </span>
+                          {/* What role this item plays — grain waiting to be
+                              milled, a finished product, a fee, a consumable.
+                              On a mill screen this is the distinction that
+                              matters, and the grid is the default view, so it
+                              has to be readable here and not only in the table. */}
+                          <ItemRoleBadge
+                            itemClass={p.item_class}
+                            itemNature={p.item_nature}
+                            inventoryPolicy={p.inventory_policy}
+                            isRtl={lang === "ar"}
+                            compact
+                          />
+                        </div>
 
                         <div className="flex items-center gap-1">
                           {p.barcode ? (
@@ -1322,6 +1336,13 @@ function ProductsPage() {
                                 <span>{categoryName}</span>
                               </span>
                             )}
+                            <ItemRoleBadge
+                              itemClass={p.item_class}
+                              itemNature={p.item_nature}
+                              inventoryPolicy={p.inventory_policy}
+                              isRtl={lang === "ar"}
+                              compact
+                            />
                           </div>
 
                           <div className="flex flex-wrap items-center gap-2 mt-1 text-[11px] text-muted-foreground">
