@@ -1,6 +1,8 @@
 import { createFileRoute, Link, Outlet, useLocation } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
+import { useMillingMode } from "@/lib/milling-mode";
+import { UnifiedMillingDesk } from "@/components/milling/unified-milling-desk";
 import {
   Scale,
   PackagePlus,
@@ -46,10 +48,58 @@ export const Route = createFileRoute("/_app/milling")({
 function MillingLayout() {
   const { pathname } = useLocation();
   const isDashboard = pathname.replace(/\/+$/, "") === "/milling";
+  const { mode: millingMode } = useMillingMode();
+  const [hybridView, setHybridView] = useState<"desk" | "dashboard">("desk");
+
+  if (!isDashboard) {
+    return (
+      <ModuleGuard moduleId="milling_operations">
+        <Outlet />
+      </ModuleGuard>
+    );
+  }
 
   return (
     <ModuleGuard moduleId="milling_operations">
-      {isDashboard ? <MillingDashboard /> : <Outlet />}
+      {millingMode === "manufacturing" ? (
+        <MillingDashboard />
+      ) : millingMode === "hybrid" ? (
+        <div className="space-y-4">
+          <div className="flex flex-wrap items-center justify-between border-b border-border pb-3 gap-3">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold text-muted-foreground">وضع العرض الهجين:</span>
+              <div className="flex rounded-xl bg-muted p-1 border border-border">
+                <button
+                  type="button"
+                  onClick={() => setHybridView("desk")}
+                  className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
+                    hybridView === "desk"
+                      ? "bg-amber-500 text-white shadow-xs"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  كاونتر الطحن السريع الموحد
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setHybridView("dashboard")}
+                  className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
+                    hybridView === "dashboard"
+                      ? "bg-primary text-primary-foreground shadow-xs"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  لوحة المؤشرات والرقابة
+                </button>
+              </div>
+            </div>
+          </div>
+          {hybridView === "desk" ? <UnifiedMillingDesk /> : <MillingDashboard />}
+        </div>
+      ) : (
+        /* Simplified Mode - Default for Standard Mills */
+        <UnifiedMillingDesk />
+      )}
     </ModuleGuard>
   );
 }

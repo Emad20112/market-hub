@@ -2,6 +2,7 @@ import * as React from "react";
 import { Check, ChevronsUpDown, Search } from "lucide-react";
 import { COUNTRIES, Country } from "@/lib/country-data";
 import { cn } from "@/lib/utils";
+import { FlagIcon } from "@/components/ui/flag-icon";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
@@ -39,7 +40,7 @@ export function CountrySelector({ value, onChange, disabled }: CountrySelectorPr
           className="h-12 px-3 min-w-[110px] justify-between border-white/10 bg-[#071125] text-white hover:bg-white/5 shadow-xs rounded-2xl"
         >
           <div className="flex items-center gap-2 font-medium dir-ltr">
-            <span className="text-lg">{value.flag}</span>
+            <FlagIcon code={value.code} emoji={value.flag} size="size-5" />
             <span className="text-xs font-semibold tracking-tight">{value.dialCode}</span>
           </div>
           <ChevronsUpDown className="mr-1 h-3.5 w-3.5 shrink-0 opacity-50 text-slate-400" />
@@ -83,7 +84,7 @@ export function CountrySelector({ value, onChange, disabled }: CountrySelectorPr
                   )}
                 >
                   <div className="flex items-center gap-2">
-                    <span className="text-base">{country.flag}</span>
+                    <FlagIcon code={country.code} emoji={country.flag} size="size-5" />
                     <span className="truncate">{country.nameAr}</span>
                   </div>
                   <div className="flex items-center gap-2 dir-ltr font-mono text-xs">
