@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { useState, useEffect, useRef, useMemo } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import {
@@ -24,6 +25,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { useI18n } from "@/lib/i18n";
 import { useModules } from "@/lib/modules";
+import { useMillingMode, isRouteVisibleByMillingMode } from "@/lib/milling-mode";
 import { cn } from "@/lib/utils";
 
 // تطبيع النصوص للبحث التسامحي (عربي وإنجليزي)
@@ -87,11 +89,20 @@ interface SearchResultItem {
   icon: any;
 }
 
-export function VortexHeaderOmnisearch() {
+import { useBreakpoint } from "@/design/breakpoints";
+
+export const VortexHeaderOmnisearch = memo(function VortexHeaderOmnisearch({
+  onFocusChange,
+}: {
+  onFocusChange?: (focused: boolean) => void;
+}) {
   const { lang } = useI18n();
   const isAr = lang === "ar";
   const navigate = useNavigate();
   const { isModuleEnabled } = useModules();
+  const { mode: millingMode } = useMillingMode();
+  const breakpoint = useBreakpoint();
+  const isMobile = breakpoint === "xs" || breakpoint === "sm";
 
   const [query, setQuery] = useState("");
   const [isOpen, setIsOpen] = useState(false);
@@ -120,14 +131,15 @@ export function VortexHeaderOmnisearch() {
       { id: "milling", title: isAr ? "نظام المطحنة والأمانات" : "Milling Operations", sub: isAr ? "إدارة تشغيل الحبوب والطحن والتسليم" : "Grain intake & jobs", to: "/milling", icon: Scale, category: "navigation" as const, moduleId: "milling_operations", keywords: ["مطحنة", "طحن", "حبوب", "امانات"] },
       { id: "backup", title: isAr ? "النسخ الاحتياطي والأمان" : "Backup Settings", sub: isAr ? "تحميل واستعادة النسخ الاحتياطية" : "Download & restore backups", to: "/settings", icon: HardDriveDownload, category: "settings" as const, keywords: ["نسخ احتياطي", "تنزيل", "باك اب", "backup", "حفظ"] },
       { id: "settings", title: isAr ? "إعدادات النظام العامة" : "System Settings", sub: isAr ? "إعدادات الفاتورة والعملة والضريبة" : "Company & invoice config", to: "/settings", icon: Settings, category: "settings" as const, keywords: ["اعدادات", "ضبط", "خيارات", "العملة", "الاسم"] },
-    ].filter(item => !item.moduleId || isModuleEnabled(item.moduleId));
-  }, [isAr, isModuleEnabled]);
+    ].filter(item => (!item.moduleId || isModuleEnabled(item.moduleId)) && isRouteVisibleByMillingMode(item.to, millingMode));
+  }, [isAr, isModuleEnabled, millingMode]);
 
   // إغلاق القائمة عند النقر خارجها
   useEffect(() => {
     const handleOutsideClick = (e: MouseEvent) => {
       if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
         setIsOpen(false);
+        onFocusChange?.(false);
       }
     };
     document.addEventListener("mousedown", handleOutsideClick);
@@ -158,6 +170,7 @@ export function VortexHeaderOmnisearch() {
       if (e.key === "Escape" && isOpen) {
         setIsOpen(false);
         inputRef.current?.blur();
+        onFocusChange?.(false);
       }
     };
 
@@ -212,6 +225,18 @@ export function VortexHeaderOmnisearch() {
           return;
         }
 
+        // Taken from the other branch, and kept because it is a real
+        // improvement: an operator typing a phone number should match on the
+        // digits alone, so "0771234567" finds "+967 771 234 567". A term that
+        // is entirely digits searches the phone column; otherwise it searches
+        // the name. Note the queries below select `customers(name, phone)` and
+        // read `total` — the columns this schema actually has. The other
+        // branch's `customer_name` / `total_amount` do not exist here, so its
+        // version of this query fails at runtime rather than merely reading
+        // old data.
+        const digitsOnly = cleanQuery.replace(/\D/g, "");
+        const phoneMatchable = digitsOnly.length >= 3;
+
         // جلب متزامن فائق السرعة من المنتجات، الفواتير، العملاء، والموردين
         const [productsRes, invoicesRes, customersRes, suppliersRes] = await Promise.all([
           supabase
@@ -232,13 +257,21 @@ export function VortexHeaderOmnisearch() {
           supabase
             .from("customers")
             .select("id, name, phone, balance")
-            .or(`name.ilike.%${term}%,phone.ilike.%${term}%`)
+            .or(
+              phoneMatchable
+                ? `phone.ilike.%${digitsOnly}%,name.ilike.%${term}%`
+                : `name.ilike.%${term}%`,
+            )
             .limit(6)
             .abortSignal(controller.signal),
           supabase
             .from("suppliers")
             .select("id, name, phone, balance")
-            .or(`name.ilike.%${term}%,phone.ilike.%${term}%`)
+            .or(
+              phoneMatchable
+                ? `phone.ilike.%${digitsOnly}%,name.ilike.%${term}%`
+                : `name.ilike.%${term}%`,
+            )
             .limit(6)
             .abortSignal(controller.signal),
         ]);
@@ -393,10 +426,21 @@ export function VortexHeaderOmnisearch() {
             if (!isOpen) setIsOpen(true);
             setSelectedIndex(0);
           }}
-          onFocus={() => setIsOpen(true)}
+          onFocus={() => {
+            setIsOpen(true);
+            onFocusChange?.(true);
+          }}
+          onBlur={() => {
+            // Delay to allow click events on dropdown items
+            setTimeout(() => onFocusChange?.(false), 200);
+          }}
           onKeyDown={handleKeyDownInput}
-          placeholder={isAr ? "ابحث عن فاتورة، عميل، منتج، مورد... (/)" : "Search invoices, products, customers... (/)"}
-          className="h-full flex-1 bg-transparent text-sm font-medium text-foreground placeholder:text-muted-foreground/75 focus:outline-none"
+          placeholder={
+            isMobile
+              ? isAr ? "بحث..." : "Search..."
+              : isAr ? "ابحث عن فاتورة، عميل، منتج، مورد... (/)" : "Search invoices, products, customers... (/)"
+          }
+          className="h-full flex-1 min-w-0 bg-transparent text-sm font-medium text-foreground placeholder:text-muted-foreground/75 placeholder:truncate focus:outline-none"
         />
 
         {isLoading ? (
@@ -408,9 +452,22 @@ export function VortexHeaderOmnisearch() {
               setQuery("");
               inputRef.current?.focus();
             }}
-            className="grid h-5 w-5 place-items-center rounded-full text-muted-foreground hover:bg-surface-2 hover:text-foreground"
+            className="grid h-6 w-6 place-items-center rounded-full text-muted-foreground hover:bg-surface-2 hover:text-foreground"
           >
-            <X className="h-3 w-3" />
+            <X className="h-3.5 w-3.5" />
+          </button>
+        ) : isMobile && isOpen ? (
+          <button
+            type="button"
+            onClick={() => {
+              setIsOpen(false);
+              inputRef.current?.blur();
+              onFocusChange?.(false);
+            }}
+            className="grid h-6 w-6 place-items-center rounded-full text-muted-foreground hover:bg-surface-2 hover:text-foreground"
+            title={isAr ? "إغلاق البحث" : "Close search"}
+          >
+            <X className="h-3.5 w-3.5" />
           </button>
         ) : (
           <div className="flex items-center gap-1.5">
@@ -428,8 +485,8 @@ export function VortexHeaderOmnisearch() {
       {isOpen && (
         <div
           className={cn(
-            "absolute top-full z-50 mt-2 max-h-[75vh] w-[92vw] sm:w-[580px] md:w-[680px] lg:w-[760px] overflow-hidden rounded-2xl border border-border/80 bg-popover/95 p-2 shadow-2xl backdrop-blur-2xl transition-all animate-in fade-in-0 zoom-in-95",
-            isAr ? "right-0" : "left-0",
+            "fixed inset-x-2.5 top-[68px] z-50 max-h-[75vh] overflow-hidden rounded-2xl border border-border/80 bg-popover/95 p-2 shadow-2xl backdrop-blur-2xl transition-all animate-in fade-in-0 zoom-in-95 sm:absolute sm:top-full sm:inset-x-auto sm:mt-2 sm:w-[580px] md:w-[680px] lg:w-[760px]",
+            isAr ? "sm:right-0" : "sm:left-0",
           )}
         >
           {/* Header indicator */}
@@ -568,4 +625,4 @@ export function VortexHeaderOmnisearch() {
       )}
     </div>
   );
-}
+});

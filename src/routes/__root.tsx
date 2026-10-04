@@ -25,6 +25,8 @@ import { AuthProvider } from "@/lib/auth";
 import { ModulesProvider } from "@/lib/modules";
 import { Toaster } from "@/components/ui/sonner";
 import { IosInstallPrompt } from "@/components/IosInstallPrompt";
+import { VortexSplashScreen } from "@/components/VortexSplashScreen";
+import { VortexWelcomeOnboarding } from "@/components/VortexWelcomeOnboarding";
 
 function NotFoundComponent() {
   return (
@@ -324,6 +326,8 @@ function RootComponent() {
       <I18nProvider>
         <AuthProvider>
           <ModulesProvider>
+            <VortexSplashScreen />
+            <VortexWelcomeOnboarding />
             <Outlet />
             <IosInstallPrompt />
             <Toaster />

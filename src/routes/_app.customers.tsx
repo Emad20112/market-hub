@@ -119,7 +119,7 @@ function CustomersPage() {
 
   async function load() {
     setLoading(true);
-    const { data } = await supabase.from("customers").select("*").order("name");
+    const { data } = await supabase.from("customers").select("*").order("name").limit(1000);
     setRows((data ?? []) as Customer[]);
     setLoading(false);
   }

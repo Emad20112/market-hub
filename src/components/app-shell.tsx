@@ -1,5 +1,6 @@
+import { useCompanyCurrency } from "@/hooks/use-company-currency";
 import { Link, useRouterState, useNavigate } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { memo, useEffect, useMemo, useState } from "react";
 import {
   LayoutDashboard,
   ScanBarcode,
@@ -31,6 +32,8 @@ import {
   Layers,
   Boxes,
   Menu,
+  PanelLeftOpen,
+  PanelLeftClose,
   AlertTriangle,
   LineChart,
   FileText,
@@ -42,7 +45,9 @@ import {
   ClipboardList,
   Cog,
   PackagePlus,
+  Zap,
   ChartColumn,
+  ReceiptText,
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { canAccessRoute, getRouteRule } from "@/lib/route-access";
@@ -57,6 +62,7 @@ import { InamaSoftFooter } from "@/components/inama-soft-footer";
 import { supabase } from "@/integrations/supabase/client";
 import { setCompanySettingsCache } from "@/lib/format";
 import { checkBackupReminderStatus } from "@/lib/backup/reminder";
+import { useMillingMode, isRouteVisibleByMillingMode } from "@/lib/milling-mode";
 
 type Item = {
   to: string;
@@ -130,6 +136,14 @@ const sections: Section[] = [
         moduleId: "core",
         color: "text-emerald-400",
         bg: "bg-emerald-500/15",
+      },
+      {
+        to: "/sales-invoice",
+        icon: ReceiptText,
+        key: "nav.sales_invoice",
+        moduleId: "core",
+        color: "text-teal-400",
+        bg: "bg-teal-500/15",
       },
       {
         to: "/sales-returns",
@@ -380,6 +394,15 @@ const sections: Section[] = [
         bg: "bg-amber-500/15",
       },
       {
+        to: "/milling-counter",
+        icon: Zap,
+        key: "nav.milling_counter",
+        moduleId: "milling_operations",
+        allowedRoles: ["owner", "manager", "accountant", "warehouse", "cashier"],
+        color: "text-amber-400",
+        bg: "bg-amber-500/15",
+      },
+      {
         to: "/milling/intake",
         icon: PackagePlus,
         key: "nav.milling_intake",
@@ -512,7 +535,7 @@ const sections: Section[] = [
   },
 ];
 
-function SidebarContents({
+const SidebarContents = memo(function SidebarContents({
   onNavigate,
   collapsed = false,
   onToggleCollapse,
@@ -541,11 +564,16 @@ function SidebarContents({
   // The company logo remains available in invoices and printable documents.
   const logoUrl = "/vortex-erp-mark.png";
 
+  const { mode: millingMode } = useMillingMode();
+
   const filteredSections = useMemo(() => {
     return sections
       .map((sec) => ({
         ...sec,
         items: sec.items.filter((it) => {
+          if (!isRouteVisibleByMillingMode(it.to, millingMode)) {
+            return false;
+          }
           if (!canAccessRoute(it.to, { roles, isPlatformAdmin, isPlatformSuperadmin })) {
             return false;
           }
@@ -553,7 +581,7 @@ function SidebarContents({
         }),
       }))
       .filter((sec) => sec.items.length > 0);
-  }, [isModuleEnabled, isPlatformAdmin, isPlatformSuperadmin, roles]);
+  }, [isModuleEnabled, isPlatformAdmin, isPlatformSuperadmin, roles, millingMode]);
 
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden bg-sidebar text-sidebar-foreground">
@@ -775,7 +803,7 @@ function SidebarContents({
       </div>
     </div>
   );
-}
+});
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const { t, dir } = useI18n();
@@ -798,6 +826,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [settingsSidebarOpen, setSettingsSidebarOpen] = useState(false);
+  const [searchFocused, setSearchFocused] = useState(false);
 
   // لا يتم تحميل قائمة التنبيهات كاملة داخل الغلاف؛ صفحة التنبيهات هي المسؤولة عن ذلك.
   // إبقاء الملخص بقيمة آمنة يمنع تعطل الغلاف قبل فتح صفحة التنبيهات، بينما يظل
@@ -836,27 +865,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       "light",
   );
 
-  useEffect(() => {
-    let active = true;
-    void supabase
-      .from("company_settings")
-      .select("currency, currency_symbol")
-      .order("id")
-      .limit(1)
-      .maybeSingle()
-      .then(({ data, error }) => {
-        if (!active) return;
-        if (error) {
-          console.warn("[AppShell] Could not load company currency settings.", error);
-          return;
-        }
-        if (data) setCompanySettingsCache(data);
-      });
-
-    return () => {
-      active = false;
-    };
-  }, []);
+  // Use centralized company currency with TanStack Query cache (5min staleTime)
+  useCompanyCurrency();
 
   useEffect(() => {
     const root = document.documentElement;
@@ -926,48 +936,77 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
         {/* Top bar */}
         <header className="sticky top-0 z-30 flex h-16 items-center gap-2.5 border-b border-border/60 bg-background/70 px-4 backdrop-blur-xl sm:px-6">
+          {/* Mobile menu toggle - smoothly hides when search is focused */}
           <button
+            type="button"
             onClick={() => setMobileOpen(true)}
-            className="md:hidden grid size-10 shrink-0 place-items-center rounded-lg border border-border/70 bg-transparent text-muted-foreground transition-colors hover:bg-surface hover:text-foreground"
+            className={cn(
+              "grid h-10 w-10 shrink-0 place-items-center rounded-full border border-border/60 bg-surface text-muted-foreground transition-all duration-300 hover:border-ring/40 hover:bg-surface-2 hover:text-foreground active:scale-95 md:hidden",
+              searchFocused
+                ? "w-0 max-w-0 opacity-0 pointer-events-none scale-0 -ms-2"
+                : "w-10 opacity-100 scale-100",
+            )}
             aria-label={dir === "rtl" ? "فتح القائمة الجانبية" : "Open sidebar"}
           >
-            <Menu className="size-5" />
+            <Menu className="h-4.5 w-4.5" />
           </button>
 
-          {/* Desktop Sidebar Collapse / Expand Toggle */}
+          {/* Desktop Sidebar Collapse / Expand Toggle - circular button with PanelLeftOpen/Close */}
           <button
             type="button"
             onClick={() =>
-              isSettingsRoute
-                ? setSettingsSidebarOpen((open) => !open)
-                : toggleCollapsed()
+              isSettingsRoute ? setSettingsSidebarOpen((open) => !open) : toggleCollapsed()
             }
-            className="hidden md:grid size-10 shrink-0 place-items-center rounded-lg border border-border/70 bg-transparent text-muted-foreground transition-colors hover:bg-surface hover:text-foreground hover:border-ring/40"
+            className={cn(
+              "hidden md:grid h-10 w-10 shrink-0 place-items-center rounded-full border border-border/60 bg-surface text-muted-foreground transition-all duration-300 hover:border-ring/40 hover:bg-surface-2 hover:text-foreground active:scale-95",
+              searchFocused && "md:hidden lg:grid",
+            )}
             title={
               isSettingsRoute
                 ? settingsSidebarOpen
-                  ? dir === "rtl" ? "إغلاق القائمة الجانبية" : "Close sidebar"
-                  : dir === "rtl" ? "فتح القائمة الجانبية" : "Open sidebar"
+                  ? dir === "rtl"
+                    ? "إغلاق القائمة الجانبية"
+                    : "Close sidebar"
+                  : dir === "rtl"
+                    ? "فتح القائمة الجانبية"
+                    : "Open sidebar"
                 : collapsed
-                ? dir === "rtl"
-                  ? "توسيع القائمة الجانبية"
-                  : "Expand sidebar"
-                : dir === "rtl"
-                  ? "طي القائمة (أيقونات فقط)"
-                  : "Collapse sidebar"
+                  ? dir === "rtl"
+                    ? "توسيع القائمة الجانبية"
+                    : "Expand sidebar"
+                  : dir === "rtl"
+                    ? "طي القائمة (أيقونات فقط)"
+                    : "Collapse sidebar"
             }
             aria-label={
               isSettingsRoute && settingsSidebarOpen
-                ? dir === "rtl" ? "إغلاق القائمة الجانبية" : "Close sidebar"
-                : dir === "rtl" ? "القائمة الجانبية" : "Sidebar menu"
+                ? dir === "rtl"
+                  ? "إغلاق القائمة الجانبية"
+                  : "Close sidebar"
+                : dir === "rtl"
+                  ? "القائمة الجانبية"
+                  : "Sidebar menu"
             }
           >
-            <Menu className="size-5" />
+            {isSettingsRoute ? (
+              <Menu className="h-4.5 w-4.5" />
+            ) : collapsed ? (
+              <PanelLeftOpen className="h-4.5 w-4.5" />
+            ) : (
+              <PanelLeftClose className="h-4.5 w-4.5" />
+            )}
           </button>
 
-          <VortexHeaderOmnisearch />
+          <VortexHeaderOmnisearch onFocusChange={setSearchFocused} />
 
-          <div className="ms-auto flex items-center gap-2">
+          <div
+            className={cn(
+              "ms-auto flex items-center gap-2 transition-all duration-300",
+              searchFocused
+                ? "max-w-0 overflow-hidden opacity-0 pointer-events-none scale-90 sm:max-w-none sm:opacity-100 sm:pointer-events-auto sm:scale-100"
+                : "max-w-[300px] opacity-100 scale-100",
+            )}
+          >
             {/* زر تحديث الصفحة الحالية في نفس المكان بدون انتقال */}
             <button
               type="button"

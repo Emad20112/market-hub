@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
-export type BusinessProfile = "spare_parts" | "grocery" | "retail" | "custom";
+export type BusinessProfile = "spare_parts" | "grocery" | "retail" | "mill" | "custom";
 
 export interface CatalogModulesConfig {
   profile: BusinessProfile;
@@ -10,12 +10,24 @@ export interface CatalogModulesConfig {
   enableQualityGrades: boolean; // درجات الجودة (أصلي / تجاري / وكالة)
   enableBrands: boolean; // العلامات التجارية
   enableUnits: boolean; // الوحدات
+  enableGrainGrades?: boolean; // درجات وأنواع الحبوب للمطحنة
+  enablePackagingBags?: boolean; // أكياس ومستلزمات التعبئة والتغليف
 }
 
 const STORAGE_KEY = "vortex_catalog_modules_v1";
 const EVENT_NAME = "vortex_catalog_modules_changed";
 
 export const DEFAULT_PROFILES: Record<BusinessProfile, CatalogModulesConfig> = {
+  mill: {
+    profile: "mill",
+    enableMakesAndModels: false,
+    enableOrigins: true,
+    enableQualityGrades: false,
+    enableBrands: false,
+    enableUnits: true,
+    enableGrainGrades: true,
+    enablePackagingBags: true,
+  },
   spare_parts: {
     profile: "spare_parts",
     enableMakesAndModels: true,
@@ -23,6 +35,8 @@ export const DEFAULT_PROFILES: Record<BusinessProfile, CatalogModulesConfig> = {
     enableQualityGrades: true,
     enableBrands: true,
     enableUnits: true,
+    enableGrainGrades: false,
+    enablePackagingBags: false,
   },
   grocery: {
     profile: "grocery",
@@ -31,6 +45,8 @@ export const DEFAULT_PROFILES: Record<BusinessProfile, CatalogModulesConfig> = {
     enableQualityGrades: false,
     enableBrands: true,
     enableUnits: true,
+    enableGrainGrades: false,
+    enablePackagingBags: true,
   },
   retail: {
     profile: "retail",
@@ -39,6 +55,8 @@ export const DEFAULT_PROFILES: Record<BusinessProfile, CatalogModulesConfig> = {
     enableQualityGrades: false,
     enableBrands: true,
     enableUnits: true,
+    enableGrainGrades: false,
+    enablePackagingBags: false,
   },
   custom: {
     profile: "custom",
@@ -47,21 +65,29 @@ export const DEFAULT_PROFILES: Record<BusinessProfile, CatalogModulesConfig> = {
     enableQualityGrades: true,
     enableBrands: true,
     enableUnits: true,
+    enableGrainGrades: true,
+    enablePackagingBags: true,
   },
 };
 
 export function getCatalogModulesConfig(): CatalogModulesConfig {
-  if (typeof window === "undefined") return DEFAULT_PROFILES.spare_parts;
+  // The default is the MILL profile, not spare parts. A tenant handed this
+  // system should open on the dimensions its catalogue actually uses; opening
+  // on vehicle makes and spare-part grades put irrelevant fields in front of
+  // an operator who has never configured anything. Anyone who really sells
+  // spare parts picks that profile in the dialog.
+  const fallback = DEFAULT_PROFILES.mill;
+  if (typeof window === "undefined") return fallback;
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return DEFAULT_PROFILES.spare_parts;
+    if (!raw) return fallback;
     const parsed = JSON.parse(raw);
     return {
-      ...DEFAULT_PROFILES.spare_parts,
+      ...fallback,
       ...parsed,
     };
   } catch {
-    return DEFAULT_PROFILES.spare_parts;
+    return fallback;
   }
 }
 
@@ -146,7 +172,16 @@ export function useCatalogModules() {
   };
 
   const isTabEnabled = (
-    tab: "categories" | "brands" | "units" | "origins" | "qualities" | "makes" | "models",
+    tab:
+      | "categories"
+      | "brands"
+      | "units"
+      | "origins"
+      | "qualities"
+      | "makes"
+      | "models"
+      | "grain_grades"
+      | "packaging_bags",
   ): boolean => {
     switch (tab) {
       case "categories":
@@ -162,6 +197,10 @@ export function useCatalogModules() {
       case "makes":
       case "models":
         return config.enableMakesAndModels;
+      case "grain_grades":
+        return config.enableGrainGrades ?? true;
+      case "packaging_bags":
+        return config.enablePackagingBags ?? true;
       default:
         return true;
     }

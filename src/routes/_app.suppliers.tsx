@@ -43,7 +43,7 @@ function SuppliersPage() {
   async function load() {
     setLoading(true);
     setLoadError(null);
-    const { data, error } = await supabase.from("suppliers").select("*").order("name");
+    const { data, error } = await supabase.from("suppliers").select("*").order("name").limit(1000);
     if (error) {
       setRows([]);
       setLoadError(error.message);

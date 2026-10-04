@@ -1,3 +1,4 @@
+import { useCompanyCurrency } from "@/hooks/use-company-currency";
 "use client";
 
 import * as React from "react";

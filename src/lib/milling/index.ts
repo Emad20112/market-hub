@@ -227,6 +227,16 @@ export interface CreateIntakeInput {
   driverName?: string;
   silo?: string;
   notes?: string;
+  /*
+   * Bag identification, captured at the gate.
+   *
+   * These live on the receipt because the moment of receipt is the only moment
+   * they can be observed. "Fifty sacks, five of them torn" is checkable when
+   * the truck is still at the gate and impossible to verify a week later.
+   */
+  bagType?: string | null;
+  bagSource?: string | null;
+  bagCondition?: string | null;
 }
 
 /**
@@ -269,10 +279,28 @@ export async function createIntake(input: CreateIntakeInput): Promise<OpResult> 
     _driver_name: input.driverName ?? null,
     _silo: input.silo ?? null,
     _notes: input.notes ?? null,
+    // Bag details travel with the receipt so the document records what was
+    // actually seen at the gate, not what is assumed about sacks in general.
+    _bag_type: input.bagType ?? null,
+    _bag_source: input.bagSource ?? null,
+    _bag_condition: input.bagCondition ?? null,
   });
 
-  if (error) return { ok: false, message: error.message };
+  if (error) return { ok: false, message: translateMillingError(error.message) };
   return { ok: true, id: data as string };
+}
+
+function translateMillingError(msg: string): string {
+  if (!msg) return "حدث خطأ غير متوقع في معالجة العملية.";
+  if (msg.includes("Grain grade is required") || msg.includes("grain_grade_id")) {
+    return "نوع ودرجة الحبوب مطلوبة — تحديد درجة الحبوب مطلوب لحساب سعر وتكلفة الطحن لاحقاً.";
+  }
+  if (msg.includes("Warehouse is required")) return "يرجى تحديد المستودع / الصومعة.";
+  if (msg.includes("Customer is required")) return "يرجى اختيار العميل صاحب الأمانات.";
+  if (msg.includes("Bag size must be greater than zero"))
+    return "سعة الكيس يجب أن تكون أكبر من صفر.";
+  if (msg.includes("Net weight must be positive")) return "الوزن الصافي يجب أن يكون أكبر من صفر.";
+  return msg;
 }
 
 /* --------------------------------------------------------------- 2. jobs */

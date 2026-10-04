@@ -47,6 +47,7 @@ export const SYSTEM_MODULES: PlatformModule[] = [
       "/catalog",
       "/inventory",
       "/sales",
+      "/sales-invoice",
       "/customers",
       "/settings",
       "/notifications",
@@ -58,6 +59,7 @@ export const SYSTEM_MODULES: PlatformModule[] = [
       "/_app/catalog",
       "/_app/inventory",
       "/_app/sales",
+      "/_app/sales-invoice",
       "/_app/customers",
       "/_app/settings",
       "/_app/notifications",
@@ -203,6 +205,7 @@ export const SYSTEM_MODULES: PlatformModule[] = [
     dependencies: ["core"],
     navItems: [
       "/milling",
+      "/milling-counter",
       "/milling/intake",
       "/milling/jobs",
       "/milling/delivery",
@@ -211,6 +214,7 @@ export const SYSTEM_MODULES: PlatformModule[] = [
     ],
     routes: [
       "/_app/milling",
+      "/_app/milling-counter",
       "/_app/milling/intake",
       "/_app/milling/jobs",
       "/_app/milling/delivery",

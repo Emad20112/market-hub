@@ -52,6 +52,7 @@ import { moneyCell, qtyCell } from "@/lib/format";
 import { useBreakpoint } from "@/design/breakpoints";
 import { useRealtimeTable } from "@/lib/realtime";
 import { QUERY_KEYS } from "@/lib/query-keys";
+import { ItemRoleBadge } from "@/components/item-role-badge";
 
 export const Route = createFileRoute("/_app/inventory")({
   head: () => ({ meta: [{ title: "Inventory — Vortex ERP" }] }),
@@ -86,6 +87,10 @@ type Row = {
   category?: { name: string; name_ar: string | null } | null;
   brand?: { name: string; name_ar: string | null } | null;
   unit?: { name?: string; short_name: string; name_ar: string | null } | null;
+  /** Role columns, used to colour-code the row (see item-role-badge). */
+  item_nature?: string | null;
+  item_class?: string | null;
+  inventory_policy?: string | null;
   byWarehouse: Record<string, number>;
 };
 
@@ -260,7 +265,7 @@ function InventoryPage() {
       if (ids.length) {
         const { data: detailRows } = await (supabase.from("products") as any)
           .select(
-            "id, barcode, min_stock, cost_price, shelf_location, category:categories(name, name_ar), brand:brands(name, name_ar), unit:units(name, short_name, name_ar)",
+            "id, barcode, min_stock, cost_price, shelf_location, item_nature, item_class, inventory_policy, category:categories(name, name_ar), brand:brands(name, name_ar), unit:units(name, short_name, name_ar)",
           )
           .in("id", ids);
         details = (detailRows ?? []) as any[];
@@ -278,6 +283,11 @@ function InventoryPage() {
           category: meta.category ?? null,
           brand: meta.brand ?? null,
           unit: meta.unit ?? null,
+          // Carried so the row can be colour-coded by role. On a mill screen a
+          // sack of grain and a sack of flour look identical until they do not.
+          item_nature: meta.item_nature ?? null,
+          item_class: meta.item_class ?? null,
+          inventory_policy: meta.inventory_policy ?? null,
         };
       });
       return { rows, hasMore: from + INVENTORY_PAGE_SIZE < orderedIds.length };
@@ -300,11 +310,12 @@ function InventoryPage() {
     queryFn: async () => {
       const { data, error: valueError } = await (supabase.from("products") as any)
         .select("id, cost_price")
-        .eq("is_active", true);
+        .eq("is_active", true)
+        .limit(3000);
       if (valueError) throw valueError;
       return (data ?? []) as ValueRow[];
     },
-    staleTime: 60_000,
+    staleTime: 5 * 60_000,
   });
 
   const rows = useMemo(() => rowPages?.pages.flatMap((page) => page.rows) ?? [], [rowPages]);
@@ -574,7 +585,9 @@ function InventoryPage() {
                     ? "text-emerald-500"
                     : "text-muted-foreground";
           return (
-            <span className={`font-mono text-xs font-bold tabular-nums ${tone} inline-flex items-center gap-1`}>
+            <span
+              className={`font-mono text-xs font-bold tabular-nums ${tone} inline-flex items-center gap-1`}
+            >
               <span>{qtyCell(qtyFor(r))}</span>
               {(r.unit?.name_ar || r.unit?.name || r.unit?.short_name) && (
                 <span className="text-[10px] font-normal text-muted-foreground">
@@ -772,13 +785,13 @@ function InventoryPage() {
           viewToggle={
             <div className="flex items-center gap-1.5">
               <ToolbarAction
-                label={lang === "ar" ? "إدخال مخزني مباشر" : "إدخال مخزني مباشر"}
+                label={lang === "ar" ? "إدخال مخزني مباشر" : "Direct Stock In"}
                 icon={<PackagePlus />}
                 onClick={() => setDirectIn({})}
                 tone="primary"
               />
               <ToolbarAction
-                label={lang === "ar" ? "رصيد أول المدة" : "رصيد أول المدة"}
+                label={lang === "ar" ? "رصيد أول المدة" : "Opening stock"}
                 icon={<Sparkles />}
                 onClick={() => setOpeningOpen(true)}
               />
@@ -924,7 +937,6 @@ function InventoryPage() {
                         >
                           {primary}
                         </h4>
-
                       </div>
 
                       <div className="mb-3.5 flex flex-wrap items-center gap-1.5 text-[11px] text-muted-foreground">
@@ -1073,6 +1085,13 @@ function InventoryPage() {
                               {label(r.category?.name, r.category?.name_ar) ||
                                 (lang === "ar" ? "عام" : "General")}
                             </span>
+                            <ItemRoleBadge
+                              itemClass={r.item_class}
+                              itemNature={r.item_nature}
+                              inventoryPolicy={r.inventory_policy}
+                              isRtl={lang === "ar"}
+                              compact
+                            />
                           </div>
                           <div className="mt-1 flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
                             {r.sku ? (

@@ -2,6 +2,7 @@ import { SlidersHorizontal } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { CatalogModulesDialog } from "@/components/catalog-modules-dialog";
+import { MillingModeSection } from "./milling-mode-section";
 import { useState } from "react";
 
 interface CatalogSectionProps {
@@ -9,7 +10,7 @@ interface CatalogSectionProps {
   lang: string;
 }
 
-export function CatalogSection({ lang }: CatalogSectionProps) {
+export function CatalogSection({ canEdit, lang }: CatalogSectionProps) {
   const [catalogDialogOpen, setCatalogDialogOpen] = useState(false);
 
   return (
@@ -33,6 +34,10 @@ export function CatalogSection({ lang }: CatalogSectionProps) {
           </div>
         </CardContent>
       </Card>
+
+      <div className="mt-6">
+        <MillingModeSection canEdit={canEdit} lang={lang} />
+      </div>
 
       <CatalogModulesDialog open={catalogDialogOpen} onClose={() => setCatalogDialogOpen(false)} />
     </>
