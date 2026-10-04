@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { useState, useEffect, useRef, useMemo } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import {
@@ -58,7 +59,7 @@ interface SearchResultItem {
   icon: any;
 }
 
-export function VortexHeaderOmnisearch() {
+export const VortexHeaderOmnisearch = memo(function VortexHeaderOmnisearch() {
   const { lang } = useI18n();
   const isAr = lang === "ar";
   const navigate = useNavigate();
@@ -484,4 +485,4 @@ export function VortexHeaderOmnisearch() {
       )}
     </div>
   );
-}
+});

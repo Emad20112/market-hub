@@ -300,11 +300,12 @@ function InventoryPage() {
     queryFn: async () => {
       const { data, error: valueError } = await (supabase.from("products") as any)
         .select("id, cost_price")
-        .eq("is_active", true);
+        .eq("is_active", true)
+        .limit(3000);
       if (valueError) throw valueError;
       return (data ?? []) as ValueRow[];
     },
-    staleTime: 60_000,
+    staleTime: 5 * 60_000,
   });
 
   const rows = useMemo(() => rowPages?.pages.flatMap((page) => page.rows) ?? [], [rowPages]);

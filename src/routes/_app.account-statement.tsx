@@ -210,7 +210,8 @@ function AccountStatementPage() {
         .from(table)
         .select("id, name, phone, balance")
         .eq("is_active", true)
-        .order("name");
+        .order("name")
+        .limit(1000);
 
       if (cancelled) return;
       const list = (data ?? []) as PartyOption[];

@@ -87,8 +87,8 @@ function FinancePage() {
 
   async function load() {
     const [sales, purchases, exp, cats, custs, supps] = await Promise.all([
-      supabase.from("sales_invoices").select("total,paid,payment_method"),
-      supabase.from("purchase_invoices").select("total,paid,payment_method"),
+      supabase.from("sales_invoices").select("total,paid,payment_method").order("created_at", { ascending: false }).limit(3000),
+      supabase.from("purchase_invoices").select("total,paid,payment_method").order("created_at", { ascending: false }).limit(3000),
       supabase
         .from("expenses")
         .select("*, expense_categories(name,name_ar)")

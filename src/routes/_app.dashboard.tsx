@@ -1,3 +1,5 @@
+import { lazy } from "react";
+import { Area, AreaChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { PageHeader } from "@/components/page-header";
@@ -36,20 +38,7 @@ import {
   Zap,
   CheckCircle2,
 } from "lucide-react";
-import {
-  AreaChart,
-  Area,
-  XAxis,
-  YAxis,
-  Tooltip,
-  ResponsiveContainer,
-  BarChart,
-  Bar,
-  CartesianGrid,
-  PieChart,
-  Pie,
-  Cell,
-} from "recharts";
+const DashboardCharts = lazy(() => import("@/components/dashboard/dashboard-charts"));
 
 export const Route = createFileRoute("/_app/dashboard")({
   head: () => ({ meta: [{ title: "Dashboard — Vortex ERP" }] }),
@@ -209,7 +198,7 @@ function DashboardPage() {
 
   const { data } = useQuery({
     queryKey: ["dashboard-v2"],
-    staleTime: 60_000,
+    staleTime: 180_000, // 3 minutes cache for dashboard metrics
     queryFn: async () => {
       const since = new Date(Date.now() - 30 * 86400_000).toISOString();
       const since14 = new Date(Date.now() - 14 * 86400_000).toISOString();
@@ -221,9 +210,10 @@ function DashboardPage() {
         supabase
           .from("customers")
           .select("id,name,balance", { count: "exact" })
-          .eq("is_active", true),
-        supabase.from("products").select("id,name,name_ar,min_stock,sale_price"),
-        supabase.from("inventory").select("product_id,quantity"),
+          .eq("is_active", true)
+          .limit(500),
+        supabase.from("products").select("id,name,name_ar,min_stock,sale_price").limit(1000),
+        supabase.from("inventory").select("product_id,quantity").limit(2000),
         supabase
           .from("sales_invoice_items")
           .select(
