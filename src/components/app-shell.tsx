@@ -46,6 +46,7 @@ import {
   Cog,
   PackagePlus,
   ChartColumn,
+  ReceiptText,
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { canAccessRoute, getRouteRule } from "@/lib/route-access";
@@ -134,6 +135,14 @@ const sections: Section[] = [
         moduleId: "core",
         color: "text-emerald-400",
         bg: "bg-emerald-500/15",
+      },
+      {
+        to: "/sales-invoice",
+        icon: ReceiptText,
+        key: "nav.sales_invoice",
+        moduleId: "core",
+        color: "text-teal-400",
+        bg: "bg-teal-500/15",
       },
       {
         to: "/sales-returns",
@@ -923,7 +932,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             onClick={() => setMobileOpen(true)}
             className={cn(
               "grid h-10 w-10 shrink-0 place-items-center rounded-full border border-border/60 bg-surface text-muted-foreground transition-all duration-300 hover:border-ring/40 hover:bg-surface-2 hover:text-foreground active:scale-95 md:hidden",
-              searchFocused ? "w-0 max-w-0 opacity-0 pointer-events-none scale-0 -ms-2" : "w-10 opacity-100 scale-100",
+              searchFocused
+                ? "w-0 max-w-0 opacity-0 pointer-events-none scale-0 -ms-2"
+                : "w-10 opacity-100 scale-100",
             )}
             aria-label={dir === "rtl" ? "فتح القائمة الجانبية" : "Open sidebar"}
           >
@@ -934,9 +945,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <button
             type="button"
             onClick={() =>
-              isSettingsRoute
-                ? setSettingsSidebarOpen((open) => !open)
-                : toggleCollapsed()
+              isSettingsRoute ? setSettingsSidebarOpen((open) => !open) : toggleCollapsed()
             }
             className={cn(
               "hidden md:grid h-10 w-10 shrink-0 place-items-center rounded-full border border-border/60 bg-surface text-muted-foreground transition-all duration-300 hover:border-ring/40 hover:bg-surface-2 hover:text-foreground active:scale-95",
@@ -945,20 +954,28 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             title={
               isSettingsRoute
                 ? settingsSidebarOpen
-                  ? dir === "rtl" ? "إغلاق القائمة الجانبية" : "Close sidebar"
-                  : dir === "rtl" ? "فتح القائمة الجانبية" : "Open sidebar"
+                  ? dir === "rtl"
+                    ? "إغلاق القائمة الجانبية"
+                    : "Close sidebar"
+                  : dir === "rtl"
+                    ? "فتح القائمة الجانبية"
+                    : "Open sidebar"
                 : collapsed
-                ? dir === "rtl"
-                  ? "توسيع القائمة الجانبية"
-                  : "Expand sidebar"
-                : dir === "rtl"
-                  ? "طي القائمة (أيقونات فقط)"
-                  : "Collapse sidebar"
+                  ? dir === "rtl"
+                    ? "توسيع القائمة الجانبية"
+                    : "Expand sidebar"
+                  : dir === "rtl"
+                    ? "طي القائمة (أيقونات فقط)"
+                    : "Collapse sidebar"
             }
             aria-label={
               isSettingsRoute && settingsSidebarOpen
-                ? dir === "rtl" ? "إغلاق القائمة الجانبية" : "Close sidebar"
-                : dir === "rtl" ? "القائمة الجانبية" : "Sidebar menu"
+                ? dir === "rtl"
+                  ? "إغلاق القائمة الجانبية"
+                  : "Close sidebar"
+                : dir === "rtl"
+                  ? "القائمة الجانبية"
+                  : "Sidebar menu"
             }
           >
             {isSettingsRoute ? (
@@ -972,12 +989,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
           <VortexHeaderOmnisearch onFocusChange={setSearchFocused} />
 
-          <div className={cn(
-            "ms-auto flex items-center gap-2 transition-all duration-300",
-            searchFocused
-              ? "max-w-0 overflow-hidden opacity-0 pointer-events-none scale-90 sm:max-w-none sm:opacity-100 sm:pointer-events-auto sm:scale-100"
-              : "max-w-[300px] opacity-100 scale-100",
-          )}>
+          <div
+            className={cn(
+              "ms-auto flex items-center gap-2 transition-all duration-300",
+              searchFocused
+                ? "max-w-0 overflow-hidden opacity-0 pointer-events-none scale-90 sm:max-w-none sm:opacity-100 sm:pointer-events-auto sm:scale-100"
+                : "max-w-[300px] opacity-100 scale-100",
+            )}
+          >
             {/* زر تحديث الصفحة الحالية في نفس المكان بدون انتقال */}
             <button
               type="button"

@@ -28,6 +28,7 @@ export const ROUTE_ACCESS: Record<string, RouteAccessRule> = {
   // المبيعات
   "/pos": { allowedRoles: ["owner", "manager", "cashier"] },
   "/sales": { allowedRoles: SALES },
+  "/sales-invoice": { allowedRoles: SALES },
   "/sales-returns": { allowedRoles: SALES },
   "/returns": { allowedRoles: SALES },
   "/customers": { allowedRoles: SALES },

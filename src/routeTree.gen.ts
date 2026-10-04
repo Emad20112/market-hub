@@ -43,6 +43,7 @@ import { Route as AppPurchasesRouteImport } from './routes/_app.purchases'
 import { Route as AppReportsRouteImport } from './routes/_app.reports'
 import { Route as AppReturnsRouteImport } from './routes/_app.returns'
 import { Route as AppSalesRouteImport } from './routes/_app.sales'
+import { Route as AppSalesInvoiceRouteImport } from './routes/_app.sales-invoice'
 import { Route as AppSalesReturnsRouteImport } from './routes/_app.sales-returns'
 import { Route as AppSettingsRouteImport } from './routes/_app.settings'
 import { Route as AppSettlementsRouteImport } from './routes/_app.settlements'
@@ -228,6 +229,11 @@ const AppSalesRoute = AppSalesRouteImport.update({
   path: '/sales',
   getParentRoute: () => AppRoute,
 } as any)
+const AppSalesInvoiceRoute = AppSalesInvoiceRouteImport.update({
+  id: '/sales-invoice',
+  path: '/sales-invoice',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppSalesReturnsRoute = AppSalesReturnsRouteImport.update({
   id: '/sales-returns',
   path: '/sales-returns',
@@ -340,6 +346,7 @@ export interface FileRoutesByFullPath {
   '/reports': typeof AppReportsRoute
   '/returns': typeof AppReturnsRoute
   '/sales': typeof AppSalesRoute
+  '/sales-invoice': typeof AppSalesInvoiceRoute
   '/sales-returns': typeof AppSalesReturnsRoute
   '/settings': typeof AppSettingsRoute
   '/settlements': typeof AppSettlementsRoute
@@ -390,6 +397,7 @@ export interface FileRoutesByTo {
   '/reports': typeof AppReportsRoute
   '/returns': typeof AppReturnsRoute
   '/sales': typeof AppSalesRoute
+  '/sales-invoice': typeof AppSalesInvoiceRoute
   '/sales-returns': typeof AppSalesReturnsRoute
   '/settings': typeof AppSettingsRoute
   '/settlements': typeof AppSettlementsRoute
@@ -442,6 +450,7 @@ export interface FileRoutesById {
   '/_app/reports': typeof AppReportsRoute
   '/_app/returns': typeof AppReturnsRoute
   '/_app/sales': typeof AppSalesRoute
+  '/_app/sales-invoice': typeof AppSalesInvoiceRoute
   '/_app/sales-returns': typeof AppSalesReturnsRoute
   '/_app/settings': typeof AppSettingsRoute
   '/_app/settlements': typeof AppSettlementsRoute
@@ -494,6 +503,7 @@ export interface FileRouteTypes {
     | '/reports'
     | '/returns'
     | '/sales'
+    | '/sales-invoice'
     | '/sales-returns'
     | '/settings'
     | '/settlements'
@@ -544,6 +554,7 @@ export interface FileRouteTypes {
     | '/reports'
     | '/returns'
     | '/sales'
+    | '/sales-invoice'
     | '/sales-returns'
     | '/settings'
     | '/settlements'
@@ -595,6 +606,7 @@ export interface FileRouteTypes {
     | '/_app/reports'
     | '/_app/returns'
     | '/_app/sales'
+    | '/_app/sales-invoice'
     | '/_app/sales-returns'
     | '/_app/settings'
     | '/_app/settlements'
@@ -858,6 +870,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppSalesRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/sales-invoice': {
+      id: '/_app/sales-invoice'
+      path: '/sales-invoice'
+      fullPath: '/sales-invoice'
+      preLoaderRoute: typeof AppSalesInvoiceRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/sales-returns': {
       id: '/_app/sales-returns'
       path: '/sales-returns'
@@ -1020,6 +1039,7 @@ interface AppRouteChildren {
   AppReportsRoute: typeof AppReportsRoute
   AppReturnsRoute: typeof AppReturnsRoute
   AppSalesRoute: typeof AppSalesRoute
+  AppSalesInvoiceRoute: typeof AppSalesInvoiceRoute
   AppSalesReturnsRoute: typeof AppSalesReturnsRoute
   AppSettingsRoute: typeof AppSettingsRoute
   AppSettlementsRoute: typeof AppSettlementsRoute
@@ -1063,6 +1083,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppReportsRoute: AppReportsRoute,
   AppReturnsRoute: AppReturnsRoute,
   AppSalesRoute: AppSalesRoute,
+  AppSalesInvoiceRoute: AppSalesInvoiceRoute,
   AppSalesReturnsRoute: AppSalesReturnsRoute,
   AppSettingsRoute: AppSettingsRoute,
   AppSettlementsRoute: AppSettlementsRoute,
