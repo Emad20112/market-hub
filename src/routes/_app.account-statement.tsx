@@ -23,6 +23,7 @@ import {
   Building2,
   Wallet,
   ClipboardList,
+  Eye,
 } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { useI18n } from "@/lib/i18n";
@@ -342,6 +343,70 @@ function AccountStatementPage() {
     label: column.label,
   }));
 
+  /**
+   * محتوى خلية واحدة — نفس المنطق يُستخدم في الجدول وفي بطاقة الهاتف،
+   * حتى لا تتباعد الواجهتان. لا حساب مالي هنا: كل الأرقام تأتي من الـ Engine.
+   */
+  const renderCell = (row: StatementTransaction, key: StatementFieldKey): React.ReactNode => {
+    switch (key) {
+      case "index":
+        return <span className="font-mono text-xs text-muted-foreground">{row.index}</span>;
+      case "date":
+        return (
+          <span className="text-xs text-muted-foreground">
+            {new Date(row.occurredAt).toLocaleString(ar ? "ar-YE" : "en-GB")}
+          </span>
+        );
+      case "kind":
+        return <span className="text-xs font-semibold">{kindLabel(row.kind, partyType, lang)}</span>;
+      case "reference":
+        return (
+          <span className="font-mono text-xs text-primary">{row.reference ?? "—"}</span>
+        );
+      case "description":
+        return (
+          <span className="text-xs text-muted-foreground">{row.description ?? "—"}</span>
+        );
+      case "debit":
+        return <span className="font-mono text-rose-500">{fmtOrDash(row.debit)}</span>;
+      case "credit":
+        return <span className="font-mono text-emerald-500">{fmtOrDash(row.credit)}</span>;
+      case "balance":
+        return <span className="font-mono font-bold">{fmtAmount(row.runningBalance)}</span>;
+      case "paymentMethod": {
+        const rawPm = String(row.meta?.paymentMethod ?? "")
+          .trim()
+          .toLowerCase();
+        const breakdown = String(row.meta?.paymentBreakdown ?? "").trim();
+        const labels: Record<string, string> = {
+          cash: ar ? "نقدي" : "Cash",
+          card: ar ? "بطاقة" : "Card",
+          bank_transfer: ar ? "تحويل بنكي" : "Bank transfer",
+          bank: ar ? "تحويل بنكي" : "Bank transfer",
+          mobile_money: ar ? "محفظة إلكترونية" : "Mobile money",
+          credit: ar ? "آجل" : "Credit",
+          split: ar ? "دفع مجزأ" : "Split payment",
+        };
+        const pmLabel = labels[rawPm] ?? (rawPm || "—");
+        return (
+          <span
+            className={`text-xs ${rawPm ? "font-medium text-foreground" : "text-muted-foreground"}`}
+            title={breakdown || undefined}
+          >
+            {pmLabel}
+            {breakdown && (
+              <span className="block text-[10px] font-normal text-muted-foreground">
+                {breakdown}
+              </span>
+            )}
+          </span>
+        );
+      }
+      default:
+        return "—";
+    }
+  };
+
   return (
     <>
       <PageHeader
@@ -483,10 +548,10 @@ function AccountStatementPage() {
               )}
             </div>
 
-            {/* المجاميع — كما كانت */}
+            {/* المجاميع — عمود واحد على الهاتف حتى لا تُضغط الأرقام */}
             {result && (
-              <div className="flex items-center gap-6">
-                <div className="text-end">
+              <div className="grid w-full grid-cols-1 gap-2 sm:flex sm:w-auto sm:items-center sm:gap-6">
+                <div className="flex items-center justify-between gap-3 sm:block sm:text-end">
                   <span className="text-xs text-muted-foreground">
                     {ar ? "إجمالي المدين (له):" : "Total Debit:"}{" "}
                   </span>
@@ -494,7 +559,7 @@ function AccountStatementPage() {
                     {money(totalDebit)}
                   </span>
                 </div>
-                <div className="text-end">
+                <div className="flex items-center justify-between gap-3 border-t border-border/60 pt-2 sm:border-0 sm:pt-0 sm:block sm:text-end">
                   <span className="text-xs text-muted-foreground">
                     {ar ? "إجمالي الدائن (عليه):" : "Total Credit:"}{" "}
                   </span>
@@ -502,7 +567,7 @@ function AccountStatementPage() {
                     {money(totalCredit)}
                   </span>
                 </div>
-                <div className="text-end border-r pr-6 border-border">
+                <div className="flex items-center justify-between gap-3 border-t border-border/60 pt-2 sm:border-0 sm:pt-0 sm:block sm:text-end sm:border-r sm:pr-6">
                   <span className="text-xs text-muted-foreground">
                     {ar ? "الرصيد المتبقي الحالي:" : "Net Balance:"}{" "}
                   </span>
@@ -575,7 +640,8 @@ function AccountStatementPage() {
             <div className="mb-2 text-[11px] text-muted-foreground">
               {result ? `${ar ? "الفترة" : "Period"}: ${result.period.label}` : ""}
             </div>
-            <div className="overflow-x-auto">
+            {/* ═══ الجدول — Desktop ≥ 768px فقط ═══ */}
+            <div className="hidden overflow-x-auto md:block">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -680,104 +746,11 @@ function AccountStatementPage() {
                           onClick={() => setDetailEntry(row)}
                           title={ar ? "عرض تفاصيل القيد" : "View entry details"}
                         >
-                          {columns.map((col) => {
-                            let content: React.ReactNode = "—";
-                            switch (col.key) {
-                              case "index":
-                                content = (
-                                  <span className="font-mono text-xs text-muted-foreground">
-                                    {row.index}
-                                  </span>
-                                );
-                                break;
-                              case "date":
-                                content = (
-                                  <span className="text-xs text-muted-foreground">
-                                    {new Date(row.occurredAt).toLocaleString(
-                                      ar ? "ar-YE" : "en-GB",
-                                    )}
-                                  </span>
-                                );
-                                break;
-                              case "kind":
-                                content = (
-                                  <span className="text-xs font-semibold">
-                                    {kindLabel(row.kind, partyType, lang)}
-                                  </span>
-                                );
-                                break;
-                              case "reference":
-                                content = (
-                                  <span className="font-mono text-xs text-primary">
-                                    {row.reference ?? "—"}
-                                  </span>
-                                );
-                                break;
-                              case "description":
-                                content = (
-                                  <span className="text-xs text-muted-foreground">
-                                    {row.description ?? "—"}
-                                  </span>
-                                );
-                                break;
-                              case "debit":
-                                content = (
-                                  <span className="font-mono text-rose-500">
-                                    {fmtOrDash(row.debit)}
-                                  </span>
-                                );
-                                break;
-                              case "credit":
-                                content = (
-                                  <span className="font-mono text-emerald-500">
-                                    {fmtOrDash(row.credit)}
-                                  </span>
-                                );
-                                break;
-                              case "balance":
-                                content = (
-                                  <span className="font-mono font-bold">
-                                    {fmtAmount(row.runningBalance)}
-                                  </span>
-                                );
-                                break;
-                              case "paymentMethod": {
-                                const rawPm = String(row.meta?.paymentMethod ?? "")
-                                  .trim()
-                                  .toLowerCase();
-                                const breakdown = String(row.meta?.paymentBreakdown ?? "").trim();
-                                const labels: Record<string, string> = {
-                                  cash: ar ? "نقدي" : "Cash",
-                                  card: ar ? "بطاقة" : "Card",
-                                  bank_transfer: ar ? "تحويل بنكي" : "Bank transfer",
-                                  bank: ar ? "تحويل بنكي" : "Bank transfer",
-                                  mobile_money: ar ? "محفظة إلكترونية" : "Mobile money",
-                                  credit: ar ? "آجل" : "Credit",
-                                  split: ar ? "دفع مجزأ" : "Split payment",
-                                };
-                                const pmLabel = labels[rawPm] ?? (rawPm || "—");
-                                content = (
-                                  <span
-                                    className={`text-xs ${rawPm ? "font-medium text-foreground" : "text-muted-foreground"}`}
-                                    title={breakdown || undefined}
-                                  >
-                                    {pmLabel}
-                                    {breakdown && (
-                                      <span className="block text-[10px] font-normal text-muted-foreground">
-                                        {breakdown}
-                                      </span>
-                                    )}
-                                  </span>
-                                );
-                                break;
-                              }
-                            }
-                            return (
-                              <TableCell key={col.key} className={alignClass(col.align)}>
-                                {content}
-                              </TableCell>
-                            );
-                          })}
+                          {columns.map((col) => (
+                            <TableCell key={col.key} className={alignClass(col.align)}>
+                              {renderCell(row, col.key)}
+                            </TableCell>
+                          ))}
                         </TableRow>
                       ))}
                     </>
@@ -818,6 +791,189 @@ function AccountStatementPage() {
                   )}
                 </TableBody>
               </Table>
+            </div>
+
+            {/* ═══ Mobile Statement Cards — < 768px فقط ═══
+                نفس الحقول ونفس الأرقام، مع احترام Column Visibility.
+                النقر على البطاقة يفتح نفس لوحة تفاصيل القيد. */}
+            <div className="space-y-2.5 md:hidden">
+              {isLoading ? (
+                <div className="grid place-items-center rounded-xl border border-border/70 py-10">
+                  <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                </div>
+              ) : !partyId ? (
+                <div className="rounded-xl border border-border/70 py-10 text-center text-xs text-muted-foreground">
+                  {ar ? "اختر حسابًا لعرض الكشف" : "Select an account to view the statement"}
+                </div>
+              ) : statementRows.length === 0 ? (
+                <div className="rounded-xl border border-border/70 py-10 text-center text-xs text-muted-foreground">
+                  <div>
+                    {ar
+                      ? "لا توجد حركات حسابية مسجلة لهذه الفترة"
+                      : "No statement records for this period"}
+                  </div>
+                  {result && Math.abs(result.openingBalance) > 0.005 && (
+                    <div className="mt-1 text-[11px]">
+                      {ar
+                        ? `يوجد رصيد سابق بمقدار ${fmtAmount(result.openingBalance)}`
+                        : `Opening balance carried: ${fmtAmount(result.openingBalance)}`}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <>
+                  {/* الرصيد الافتتاحي — لا يختفي على الهاتف */}
+                  {layout?.showOpeningRow && (
+                    <div className="rounded-xl border border-primary/25 bg-primary/5 p-3.5">
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="text-xs font-semibold text-foreground">
+                            {ar ? "الرصيد الافتتاحي" : "Opening balance"}
+                          </div>
+                          <div className="mt-0.5 text-[11px] italic text-muted-foreground">
+                            {ar ? "رصيد ما قبل بداية الفترة" : "Balance before period start"}
+                            {result?.period.from ? ` · ${result.period.from}` : ""}
+                          </div>
+                        </div>
+                        <span className="shrink-0 font-mono text-sm font-bold text-primary">
+                          {fmtAmount(result?.openingBalance ?? 0)}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+
+                  {statementRows.map((row) => {
+                    const paymentMethod =
+                      visibleColumns.paymentMethod &&
+                      String(row.meta?.paymentMethod ?? "").trim();
+                    return (
+                      <button
+                        key={row.id}
+                        type="button"
+                        onClick={() => setDetailEntry(row)}
+                        className="w-full rounded-xl border border-border/80 bg-surface p-3.5 text-start transition active:bg-surface-2/60"
+                      >
+                        {/* رأس البطاقة: نوع الحركة + التاريخ + المرجع */}
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-1.5">
+                              {visibleColumns.index && (
+                                <span className="font-mono text-[10px] text-muted-foreground">
+                                  #{row.index}
+                                </span>
+                              )}
+                              <span className="truncate text-xs font-semibold text-foreground">
+                                {kindLabel(row.kind, partyType, lang)}
+                              </span>
+                            </div>
+                            {visibleColumns.date && (
+                              <div className="mt-0.5 text-[11px] text-muted-foreground">
+                                {new Date(row.occurredAt).toLocaleString(ar ? "ar-YE" : "en-GB")}
+                              </div>
+                            )}
+                          </div>
+                          {visibleColumns.reference && row.reference && (
+                            <span className="shrink-0 font-mono text-xs text-primary">
+                              {row.reference}
+                            </span>
+                          )}
+                        </div>
+
+                        {/* البيان / الوصف */}
+                        {visibleColumns.description && row.description && (
+                          <div className="mt-2 line-clamp-2 text-[11px] text-muted-foreground">
+                            {row.description}
+                          </div>
+                        )}
+
+                        {/* مدين / دائن — شبكة بدل صف أفقي ضيق */}
+                        {(visibleColumns.debit || visibleColumns.credit) && (
+                          <div className="mt-2.5 grid grid-cols-2 gap-2 border-t border-border/60 pt-2.5">
+                            {visibleColumns.debit && (
+                              <div>
+                                <div className="text-[10px] text-muted-foreground">
+                                  {ar ? "مدين" : "Debit"}
+                                </div>
+                                <div className="font-mono text-xs font-semibold text-rose-500">
+                                  {fmtOrDash(row.debit)}
+                                </div>
+                              </div>
+                            )}
+                            {visibleColumns.credit && (
+                              <div>
+                                <div className="text-[10px] text-muted-foreground">
+                                  {ar ? "دائن" : "Credit"}
+                                </div>
+                                <div className="font-mono text-xs font-semibold text-emerald-500">
+                                  {fmtOrDash(row.credit)}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {/* الرصيد الجاري */}
+                        {visibleColumns.balance && (
+                          <div className="mt-2 flex items-center justify-between gap-2 rounded-lg bg-surface-2/50 px-2.5 py-1.5">
+                            <span className="text-[11px] text-muted-foreground">
+                              {ar ? "الرصيد الجاري" : "Running balance"}
+                            </span>
+                            <span className="font-mono text-xs font-bold text-foreground">
+                              {fmtAmount(row.runningBalance)}
+                            </span>
+                          </div>
+                        )}
+
+                        {/* طريقة الدفع + زر التفاصيل */}
+                        <div className="mt-2.5 flex items-center justify-between gap-2 border-t border-border/60 pt-2.5">
+                          <span className="truncate text-[11px] text-muted-foreground">
+                            {paymentMethod
+                              ? `${ar ? "طريقة الدفع" : "Payment"}: ${renderCell(row, "paymentMethod")}`
+                              : ""}
+                          </span>
+                          <span className="inline-flex shrink-0 items-center gap-1 text-[11px] font-medium text-primary">
+                            <Eye className="h-3.5 w-3.5" />
+                            {ar ? "عرض التفاصيل" : "View details"}
+                          </span>
+                        </div>
+                      </button>
+                    );
+                  })}
+
+                  {/* الإجماليات — عمودان على الهاتف */}
+                  <div className="rounded-xl border border-border/80 bg-surface-2/50 p-3.5">
+                    <div className="mb-2 text-xs font-bold text-foreground">
+                      {ar ? "الإجمالي الكلي" : "Total"}
+                    </div>
+                    <div className="grid grid-cols-2 gap-2.5">
+                      <div>
+                        <div className="text-[10px] text-muted-foreground">
+                          {ar ? "إجمالي المدين" : "Total debit"}
+                        </div>
+                        <div className="font-mono text-sm font-semibold text-rose-500">
+                          {money(totalDebit)}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-[10px] text-muted-foreground">
+                          {ar ? "إجمالي الدائن" : "Total credit"}
+                        </div>
+                        <div className="font-mono text-sm font-semibold text-emerald-500">
+                          {fmtOrDash(totalCredit)}
+                        </div>
+                      </div>
+                      <div className="col-span-2 border-t border-border/60 pt-2">
+                        <div className="text-[10px] text-muted-foreground">
+                          {ar ? "الرصيد الحالي" : "Closing balance"}
+                        </div>
+                        <div className="font-mono text-base font-bold text-primary">
+                          {money(closingBalance)}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
 
             {/* تذييل الجدول */}

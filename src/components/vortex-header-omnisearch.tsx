@@ -37,6 +37,35 @@ function normalizeText(text: string): string {
     .trim();
 }
 
+/**
+ * تهيئة قيمة البحث قبل تمريرها إلى PostgREST `.or(...)`.
+ *
+ * السبب: صيغة الفلتر في PostgREST تفصل الحقول والفلاتر بفواصل وأقواس، وقيمة
+ * تحتوي فاصلة أو قوسًا تجعل الطلب غير صالح وتفشل البحث كله. كما أن `%` و `_`
+ * محرفان خاصان في `LIKE` — تُهرب بـ `\` حتى لا يتحول بحث المستخدم إلى نمط.
+ * هذا تحصين للاستعلام الحالي، لا إعادة بناء لمحرك البحث.
+ */
+function sanitizeSearchTerm(raw: string): string {
+  return raw
+    .replace(/[\\"'()]/g, " ") // رموز تكسر صيغة الفلتر
+    .replace(/,/g, " ") // الفاصلة تفصل الفلاتر في .or()
+    .replace(/[%_]/g, (m) => `\\${m}`) // محارف LIKE الخاصة
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/** ترويسة الفاصل بين الفلاتر — ثابت واحد بدل تكرار النص */
+const DEBOUNCE_MS = 250;
+
+/** هل الخطأ ناتج عن إلغاء الطلب؟ الإلغاء عملية متوقعة لا خطأ للمستخدم. */
+function isAbortError(error: unknown): boolean {
+  if (!error) return false;
+  const anyErr = error as { name?: string; message?: string; details?: string };
+  if (anyErr.name === "AbortError") return true;
+  const text = `${anyErr.message ?? ""} ${anyErr.details ?? ""}`.toLowerCase();
+  return text.includes("abort");
+}
+
 interface NavItem {
   id: string;
   title: string;
@@ -136,52 +165,96 @@ export function VortexHeaderOmnisearch() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isOpen]);
 
-  // البحث التسامحي في البيانات عبر Supabase مع Debounce
+  // البحث التسامحي في البيانات عبر Supabase
+  //
+  // التصميم:
+  //   1) Debounce = 250ms — لا يُرسل طلب أثناء الكتابة السريعة.
+  //   2) AbortController لكل طلب — الطلب السابق يُلغى فعليًا على مستوى HTTP
+  //      عبر `.abortSignal(signal)` المدعوم في Supabase JS.
+  //   3) حرس «أحدث طلب» (requestId) — حتى لو وصل ردّ طلب قديم بعد بدء الجديد،
+  //      لا يستطيع أن يكتب النتائج أو حالة التحميل أو الخطأ.
+  //   4) التنظيف عند تغيّر الاستعلام وعند إلغاء تركيب المكوّن.
+  const requestSeqRef = useRef(0);
+  const abortRef = useRef<AbortController | null>(null);
+
   useEffect(() => {
     const cleanQuery = query.trim();
-    if (!cleanQuery || cleanQuery.length < 2) {
+
+    // أقل من حرفين: لا بحث — ولا نترك أي طلب أو مؤقّت معلّقًا.
+    if (cleanQuery.length < 2) {
+      abortRef.current?.abort();
+      abortRef.current = null;
+      requestSeqRef.current += 1; // يُبطل أي ردّ قادم من طلب سابق
       setDataResults([]);
       setIsLoading(false);
       return;
     }
 
+    // ابدأ مؤقت الانتظار بعد إلغاء أي طلب سابق فورًا
+    const seq = ++requestSeqRef.current;
     setIsLoading(true);
+
     const handler = setTimeout(async () => {
+      abortRef.current?.abort();
+      const controller = new AbortController();
+      abortRef.current = controller;
+
+      // هل ما زال هذا الطلب هو الأحدث؟ لا يكتب شيئًا بعده إلا هو.
+      const isLatest = () => seq === requestSeqRef.current;
+
       try {
-        const normQ = cleanQuery;
+        const term = sanitizeSearchTerm(cleanQuery);
+        if (!term) {
+          if (isLatest()) {
+            setDataResults([]);
+            setIsLoading(false);
+          }
+          return;
+        }
+
         // جلب متزامن فائق السرعة من المنتجات، الفواتير، العملاء، والموردين
         const [productsRes, invoicesRes, customersRes, suppliersRes] = await Promise.all([
           supabase
             .from("products")
-            .select("id, name, name_ar, barcode, sku, retail_price")
-            .or(`name.ilike.%${normQ}%,name_ar.ilike.%${normQ}%,barcode.ilike.%${normQ}%,sku.ilike.%${normQ}%`)
-            .limit(6),
+            .select("id, name, name_ar, barcode, sku, sale_price")
+            .or(
+              `name.ilike.%${term}%,name_ar.ilike.%${term}%,barcode.ilike.%${term}%,sku.ilike.%${term}%`,
+            )
+            .limit(6)
+            .abortSignal(controller.signal),
           supabase
             .from("sales_invoices")
-            .select("id, invoice_number, customer_name, total_amount, created_at")
-            .or(`invoice_number.ilike.%${normQ}%,customer_name.ilike.%${normQ}%`)
+            .select("id, invoice_number, total, created_at, customers(name, phone)")
+            .or(`invoice_number.ilike.%${term}%`)
             .order("created_at", { ascending: false })
-            .limit(6),
+            .limit(6)
+            .abortSignal(controller.signal),
           supabase
             .from("customers")
             .select("id, name, phone, balance")
-            .or(`name.ilike.%${normQ}%,phone.ilike.%${normQ}%`)
-            .limit(6),
+            .or(`name.ilike.%${term}%,phone.ilike.%${term}%`)
+            .limit(6)
+            .abortSignal(controller.signal),
           supabase
             .from("suppliers")
             .select("id, name, phone, balance")
-            .or(`name.ilike.%${normQ}%,phone.ilike.%${normQ}%`)
-            .limit(6),
+            .or(`name.ilike.%${term}%,phone.ilike.%${term}%`)
+            .limit(6)
+            .abortSignal(controller.signal),
         ]);
+
+        // طلب قديم: لا يلمس أي state
+        if (!isLatest()) return;
 
         const results: SearchResultItem[] = [];
 
-        // 1) فواتير
+        // 1) فواتير — اسم العميل من العلاقة (لا يوجد عمود customer_name في الجدول)
         (invoicesRes.data || []).forEach((inv: any) => {
+          const customerName = inv.customers?.name || (isAr ? "عميل نقدي" : "Cash");
           results.push({
             id: `inv-${inv.id}`,
             title: `${isAr ? "فاتورة رقم" : "Invoice #"} ${inv.invoice_number}`,
-            subtitle: `${inv.customer_name || (isAr ? "عميل نقدي" : "Cash")} • ${inv.total_amount?.toLocaleString()} ${isAr ? "ر.ي" : "YER"}`,
+            subtitle: `${customerName} • ${Number(inv.total ?? 0).toLocaleString()} ${isAr ? "ر.ي" : "YER"}`,
             category: "invoice",
             to: `/sales?invoiceId=${inv.id}`,
             badge: isAr ? "فاتورة" : "Invoice",
@@ -189,12 +262,12 @@ export function VortexHeaderOmnisearch() {
           });
         });
 
-        // 2) منتجات
+        // 2) منتجات — عمود السعر الصحيح هو sale_price
         (productsRes.data || []).forEach((p: any) => {
           results.push({
             id: `prod-${p.id}`,
             title: p.name_ar || p.name,
-            subtitle: `${p.barcode ? `[${p.barcode}] • ` : ""}${isAr ? "السعر:" : "Price:"} ${p.retail_price?.toLocaleString()} ${isAr ? "ر.ي" : "YER"}`,
+            subtitle: `${p.barcode ? `[${p.barcode}] • ` : ""}${isAr ? "السعر:" : "Price:"} ${Number(p.sale_price ?? 0).toLocaleString()} ${isAr ? "ر.ي" : "YER"}`,
             category: "product",
             to: `/products?search=${encodeURIComponent(p.barcode || p.name)}`,
             badge: isAr ? "منتج" : "Product",
@@ -207,7 +280,7 @@ export function VortexHeaderOmnisearch() {
           results.push({
             id: `cust-${c.id}`,
             title: c.name,
-            subtitle: `${c.phone ? `${c.phone} • ` : ""}${isAr ? "الرصيد:" : "Balance:"} ${c.balance?.toLocaleString()} ${isAr ? "ر.ي" : "YER"}`,
+            subtitle: `${c.phone ? `${c.phone} • ` : ""}${isAr ? "الرصيد:" : "Balance:"} ${Number(c.balance ?? 0).toLocaleString()} ${isAr ? "ر.ي" : "YER"}`,
             category: "customer",
             to: `/customers?search=${encodeURIComponent(c.name)}`,
             badge: isAr ? "عميل" : "Customer",
@@ -215,27 +288,38 @@ export function VortexHeaderOmnisearch() {
           });
         });
 
-                // 4) موردين
+        // 4) موردين
         (suppliersRes.data || []).forEach((s: any) => {
           results.push({
             id: `supp-${s.id}`,
             title: s.name,
-            subtitle: `${s.phone ? `${s.phone} • ` : ""}${isAr ? "الرصيد للمورد:" : "Supplier balance:"} ${s.balance?.toLocaleString()} ${isAr ? "ر.ي" : "YER"}`,
+            subtitle: `${s.phone ? `${s.phone} • ` : ""}${isAr ? "الرصيد للمورد:" : "Supplier balance:"} ${Number(s.balance ?? 0).toLocaleString()} ${isAr ? "ر.ي" : "YER"}`,
             category: "supplier",
             to: `/suppliers?search=${encodeURIComponent(s.name)}`,
             badge: isAr ? "مورد" : "Supplier",
             icon: Building2,
           });
         });
+
         setDataResults(results);
       } catch (err) {
+        // الإلغاء ليس خطأ: لا Toast ولا رسالة للمستخدم
+        if (isAbortError(err)) return;
+        // خطأ حقيقي من Supabase/الشبكة — ولا يُكتب إن كان الطلب قديمًا
+        if (!isLatest()) return;
         console.warn("[Omnisearch] Error searching:", err);
+        setDataResults([]);
       } finally {
-        setIsLoading(false);
+        // الطلب القديم لا يُطفئ مؤشر تحميل الطلب الأحدث
+        if (isLatest()) setIsLoading(false);
       }
-    }, 200);
+    }, DEBOUNCE_MS);
 
-    return () => clearTimeout(handler);
+    return () => {
+      clearTimeout(handler);
+      abortRef.current?.abort();
+      abortRef.current = null;
+    };
   }, [query, isAr]);
 
   // تصفية الواجهات حسب البحث
