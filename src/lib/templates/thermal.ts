@@ -3,7 +3,6 @@ import {
   InvoiceLabels,
   escapeHtml,
   formatMoney,
-  DEFAULT_BRANDING,
   CustomFieldOptions,
 } from "./types";
 
@@ -16,7 +15,6 @@ export function renderThermalTemplate(
   const c = doc.currency ?? "";
   const esc = escapeHtml;
   const money = (n?: number) => formatMoney(n, c);
-  const branding = doc.brandingText || DEFAULT_BRANDING;
   const opts = {
     showLogo: true,
     showCompanyInfo: true,
@@ -28,7 +26,6 @@ export function renderThermalTemplate(
     showNotes: true,
     showSignatures: false,
     showFooter: true,
-    showBranding: true,
     ...options,
     ...doc.options,
   };
@@ -104,6 +101,5 @@ export function renderThermalTemplate(
       : ""
   }
   ${opts.showFooter ? `<div class="foot">${L.thanks}</div>` : ""}
-  ${opts.showBranding ? `<div class="branding">${esc(branding)}</div>` : ""}
 </div></body></html>`;
 }

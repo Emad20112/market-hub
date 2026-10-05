@@ -20,7 +20,6 @@ export const DEFAULT_PRINT_SETTINGS: PrintSettings = {
   showNotes: true,
   showSignatures: true,
   showFooter: true,
-  showBranding: true,
 };
 
 const STORAGE_KEY = "vortex_print_settings";
@@ -29,7 +28,13 @@ const STORAGE_KEY = "vortex_print_settings";
 const LEGACY_TEMPLATE_KEY = "pos_default_template";
 const LEGACY_MODE_KEY = "pos_print_mode";
 
-const VALID_TEMPLATES: InvoiceTemplateId[] = ["thermal", "standard", "elegant", "unified-modern", "formal"];
+const VALID_TEMPLATES: InvoiceTemplateId[] = [
+  "thermal",
+  "standard",
+  "elegant",
+  "unified-modern",
+  "formal",
+];
 const VALID_MODES = ["auto", "ask", "off"] as const;
 
 function readLegacyTemplate(): InvoiceTemplateId | null {
@@ -142,7 +147,7 @@ export function savePrintSettings(settings: Partial<PrintSettings>): PrintSettin
         })
         .then(
           () => {},
-          (err: any) => console.warn("[print-settings] Cloud sync warning:", err)
+          (err: any) => console.warn("[print-settings] Cloud sync warning:", err),
         );
     } catch (err) {
       console.error("Failed to save print settings:", err);

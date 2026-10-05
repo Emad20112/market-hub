@@ -7,6 +7,7 @@ import { useAuth } from "@/lib/auth";
 import { SettingsLayout } from "@/components/settings/settings-layout";
 import { supabase } from "@/integrations/supabase/client";
 import { setCompanySettingsCache } from "@/lib/format";
+import { cacheCompanyProfile } from "@/lib/printing";
 import { getPrintSettings, savePrintSettings } from "@/lib/templates";
 
 export const Route = createFileRoute("/_app/settings")({
@@ -67,7 +68,6 @@ function SettingsPage() {
           }
           setCompanySettingsCache({
             currency: data.currency,
-            currency_symbol: data.currency_symbol,
           });
         }
         setHasLoadedSettings(true);
@@ -103,9 +103,12 @@ function SettingsPage() {
           setSaveState("error");
           return;
         }
+        // Company Profile cache is updated through the central accessor only,
+        // so every document (invoices, statements, reports, milling, thermal)
+        // sees the new identity immediately.
+        cacheCompanyProfile(payload as Record<string, unknown>);
         setCompanySettingsCache({
           currency: payload.currency,
-          currency_symbol: payload.currency_symbol,
         });
         setSaveState("saved");
       } catch {
@@ -127,29 +130,31 @@ function SettingsPage() {
         }
       />
 
-      {canEdit && (
-        hasLoadedSettings && (
-          <div
-            className="fixed bottom-4 right-4 z-40 flex items-center gap-2 rounded-full border border-border/70 bg-card/95 px-3 py-2 text-[11px] font-medium text-muted-foreground shadow-lg backdrop-blur-md"
-            role="status"
-            aria-live="polite"
-          >
-            {saveState === "saving" ? (
-              <LoaderCircle className="size-3.5 animate-spin text-amber-500" />
-            ) : saveState === "error" ? (
-              <AlertCircle className="size-3.5 text-destructive" />
-            ) : (
-              <Check className="size-3.5 text-emerald-500" />
-            )}
-            {saveState !== "saved" && (
-              <span>
-                {saveState === "saving"
-                  ? lang === "ar" ? "جارٍ الحفظ" : "Saving"
-                  : lang === "ar" ? "تعذّر الحفظ" : "Save failed"}
-              </span>
-            )}
-          </div>
-        )
+      {canEdit && hasLoadedSettings && (
+        <div
+          className="fixed bottom-4 right-4 z-40 flex items-center gap-2 rounded-full border border-border/70 bg-card/95 px-3 py-2 text-[11px] font-medium text-muted-foreground shadow-lg backdrop-blur-md"
+          role="status"
+          aria-live="polite"
+        >
+          {saveState === "saving" ? (
+            <LoaderCircle className="size-3.5 animate-spin text-amber-500" />
+          ) : saveState === "error" ? (
+            <AlertCircle className="size-3.5 text-destructive" />
+          ) : (
+            <Check className="size-3.5 text-emerald-500" />
+          )}
+          {saveState !== "saved" && (
+            <span>
+              {saveState === "saving"
+                ? lang === "ar"
+                  ? "جارٍ الحفظ"
+                  : "Saving"
+                : lang === "ar"
+                  ? "تعذّر الحفظ"
+                  : "Save failed"}
+            </span>
+          )}
+        </div>
       )}
 
       <SettingsLayout

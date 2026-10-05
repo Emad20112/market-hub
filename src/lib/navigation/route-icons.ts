@@ -1,0 +1,117 @@
+/**
+ * Route Icons — ربط سجل المسارات بأيقونات lucide.
+ * يفصل بيانات المسارات (نقية، بلا React) عن الأيقونات (طبقة عرض).
+ */
+
+import {
+  LayoutDashboard,
+  LineChart,
+  BarChart3,
+  ScanBarcode,
+  Receipt,
+  RotateCcw,
+  Users,
+  Wallet,
+  AlertTriangle,
+  FileText,
+  Gift,
+  Package,
+  Warehouse,
+  Layers,
+  Barcode,
+  ClipboardList,
+  ArrowRightLeft,
+  Boxes,
+  CalendarClock,
+  ShoppingBag,
+  Truck,
+  Building2,
+  Scale,
+  BookOpen,
+  PieChart,
+  Landmark,
+  Cog,
+  PackagePlus,
+  ChartColumn,
+  ShieldCheck,
+  Bell,
+  History,
+  Settings,
+  Sparkles,
+  Crown,
+  HardDriveDownload,
+  type LucideIcon,
+} from "lucide-react";
+
+/** أيقونة حسب معرّف المسار في السجل المركزي. */
+const ICONS: Record<string, LucideIcon> = {
+  dashboard: LayoutDashboard,
+  analytics: LineChart,
+  reports: BarChart3,
+  pos: ScanBarcode,
+  sales: Receipt,
+  "sales-returns": RotateCcw,
+  returns: RotateCcw,
+  customers: Users,
+  payments: Wallet,
+  debts: AlertTriangle,
+  "account-statement": FileText,
+  loyalty: Gift,
+  products: Package,
+  inventory: Warehouse,
+  catalog: Layers,
+  barcodes: Barcode,
+  settlements: ClipboardList,
+  transfers: ArrowRightLeft,
+  warehouses: Boxes,
+  batches: CalendarClock,
+  "purchase-pos": ShoppingBag,
+  purchases: Truck,
+  suppliers: Building2,
+  "purchase-returns": RotateCcw,
+  "opening-balances": Scale,
+  expenses: Receipt,
+  finance: Wallet,
+  "daily-journal": BookOpen,
+  "trial-balance": Scale,
+  "income-statement": PieChart,
+  "balance-sheet": Landmark,
+  milling: Scale,
+  "milling-intake": PackagePlus,
+  "milling-jobs": Cog,
+  "milling-delivery": Truck,
+  "milling-reports": ChartColumn,
+  production: Cog,
+  "milling-statement": FileText,
+  "milling-guide": BookOpen,
+  users: ShieldCheck,
+  notifications: Bell,
+  audit: History,
+  plans: Crown,
+  "vortex-ui": Sparkles,
+  "platform-admin": Crown,
+  settings: Settings,
+  "printing-settings": Settings,
+  "company-settings": Building2,
+  "backup-settings": HardDriveDownload,
+};
+
+export function routeIcon(id: string): LucideIcon {
+  return ICONS[id] ?? FileText;
+}
+
+/** تسمية القسم حسب الفئة (لعنونة المجموعات في نتائج البحث). */
+export function routeCategoryLabel(category: string, isAr: boolean): string {
+  const labels: Record<string, [string, string]> = {
+    command_center: ["لوحة القيادة", "Command center"],
+    sales: ["المبيعات", "Sales"],
+    inventory: ["المخزون", "Inventory"],
+    procurement: ["المشتريات", "Procurement"],
+    finance: ["المالية", "Finance"],
+    milling: ["المطحنة", "Milling"],
+    admin: ["الإدارة", "Admin"],
+    settings: ["الإعدادات", "Settings"],
+  };
+  const pair = labels[category] ?? ["عام", "General"];
+  return isAr ? pair[0] : pair[1];
+}

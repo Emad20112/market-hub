@@ -89,4 +89,3 @@ export function saveUnifiedPrintSettings(
   if (typeof window !== "undefined") localStorage.setItem(PRINT_SETTINGS_KEY, JSON.stringify(next));
   return next;
 }
-

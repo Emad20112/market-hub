@@ -12,7 +12,11 @@
     "format": "prettier --write .",
     "test:statements": "npx tsx src/lib/statements/__tests__/engine.test.ts",
     "test:print-engine": "npx tsx src/lib/templates/__tests__/print-engine.test.ts",
-    "test:reports-export": "npx tsx src/lib/reports/__tests__/reports-export.test.ts"
+    "test:reports-export": "npx tsx src/lib/reports/__tests__/reports-export.test.ts",
+    "test:route-registry": "npx tsx src/lib/navigation/__tests__/route-registry.test.ts",
+    "test:unified-printing": "npx tsx src/lib/printing/__tests__/unified-printing.test.ts",
+    "test:transports": "npx tsx src/lib/printing/__tests__/transports.test.ts",
+    "test:company-profile": "npx tsx src/lib/printing/__tests__/company-profile.test.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",

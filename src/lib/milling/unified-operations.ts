@@ -145,7 +145,9 @@ export interface QuickMillingFeedItem {
 export async function fetchGrainGrades(): Promise<GrainGradeOption[]> {
   const { data, error } = await db
     .from("milling_grain_grades_view")
-    .select("id, product_id, sku, grade_code, grade_name_ar, origin, max_moisture, max_impurities, default_bag_size_kg, default_bag_type, default_service_sku, is_active")
+    .select(
+      "id, product_id, sku, grade_code, grade_name_ar, origin, max_moisture, max_impurities, default_bag_size_kg, default_bag_type, default_service_sku, is_active",
+    )
     .eq("is_active", true)
     .order("grade_name_ar");
 
@@ -156,7 +158,9 @@ export async function fetchGrainGrades(): Promise<GrainGradeOption[]> {
   // Fallback to table if view has issue
   const { data: rawData, error: rawError } = await db
     .from("milling_grain_grades")
-    .select("id, product_id, grade_code, grade_name_ar, origin, max_moisture, max_impurities, default_bag_size_kg, default_bag_type, default_service_sku, is_active")
+    .select(
+      "id, product_id, grade_code, grade_name_ar, origin, max_moisture, max_impurities, default_bag_size_kg, default_bag_type, default_service_sku, is_active",
+    )
     .eq("is_active", true)
     .order("grade_name_ar");
 
@@ -200,7 +204,11 @@ async function resolveGrainGradeId(
       .limit(1);
 
     if (grades && grades.length > 0) {
-      return { gradeId: grades[0].id, productId: grades[0].product_id, gradeName: grades[0].grade_name_ar };
+      return {
+        gradeId: grades[0].id,
+        productId: grades[0].product_id,
+        gradeName: grades[0].grade_name_ar,
+      };
     }
   }
 
@@ -214,7 +222,11 @@ async function resolveGrainGradeId(
     .maybeSingle();
 
   if (anyGrade) {
-    return { gradeId: anyGrade.id, productId: anyGrade.product_id, gradeName: anyGrade.grade_name_ar };
+    return {
+      gradeId: anyGrade.id,
+      productId: anyGrade.product_id,
+      gradeName: anyGrade.grade_name_ar,
+    };
   }
 
   return { gradeId: null, productId: null, gradeName: searchTerm };
@@ -223,7 +235,7 @@ async function resolveGrainGradeId(
 /* ----------------------------------------------------------- direct ticket */
 
 export async function executeDirectMillingTicket(
-  input: DirectMillingTicketInput
+  input: DirectMillingTicketInput,
 ): Promise<DirectMillingTicketResult> {
   try {
     // 1. Resolve Warehouse & Customer
@@ -434,7 +446,7 @@ export async function executeDirectMillingTicket(
 /* ------------------------------------------------------------- bulk intake */
 
 export async function executeBulkCustodyIntake(
-  input: BulkCustodyIntakeInput
+  input: BulkCustodyIntakeInput,
 ): Promise<{ ok: boolean; id?: string; number?: string; message?: string }> {
   try {
     const bagCount = Math.max(1, Number(input.bagCount) || 1);
@@ -498,12 +510,14 @@ export async function fetchTodayUnifiedFeed(storeId?: string): Promise<QuickMill
   // 1. Fetch recent jobs
   let qJobs = db
     .from("milling_jobs")
-    .select(`
+    .select(
+      `
       id, job_number, status, input_bag_count, input_bag_size_kg, input_weight_kg,
       milling_fee_per_bag, created_at, customer_id, intake_receipt_id,
       customers(name),
       milling_intake_receipts(grain_type, receipt_number)
-    `)
+    `,
+    )
     .gte("created_at", `${today}T00:00:00.000Z`)
     .order("created_at", { ascending: false })
     .limit(50);
@@ -515,10 +529,12 @@ export async function fetchTodayUnifiedFeed(storeId?: string): Promise<QuickMill
   // 2. Fetch recent standalone intakes (not yet converted to jobs)
   let qIntakes = db
     .from("milling_intake_receipts")
-    .select(`
+    .select(
+      `
       id, receipt_number, status, intake_bag_count, bag_size_kg, net_weight_kg,
       grain_type, created_at, customer_id, customers(name)
-    `)
+    `,
+    )
     .gte("created_at", `${today}T00:00:00.000Z`)
     .order("created_at", { ascending: false })
     .limit(30);

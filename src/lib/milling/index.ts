@@ -282,7 +282,8 @@ function translateMillingError(msg: string): string {
   }
   if (msg.includes("Warehouse is required")) return "يرجى تحديد المستودع / الصومعة.";
   if (msg.includes("Customer is required")) return "يرجى اختيار العميل صاحب الأمانات.";
-  if (msg.includes("Bag size must be greater than zero")) return "سعة الكيس يجب أن تكون أكبر من صفر.";
+  if (msg.includes("Bag size must be greater than zero"))
+    return "سعة الكيس يجب أن تكون أكبر من صفر.";
   if (msg.includes("Net weight must be positive")) return "الوزن الصافي يجب أن يكون أكبر من صفر.";
   return msg;
 }

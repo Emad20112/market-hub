@@ -64,4 +64,3 @@ export function paperCss(profile: PrintPaperProfile, orientation = profile.orien
   const m = profile.marginsMm;
   return `@page{size:${size};margin:${m.top}mm ${m.right}mm ${m.bottom}mm ${m.left}mm;} :root{--print-width:${width}mm;}`;
 }
-

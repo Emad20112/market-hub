@@ -62,4 +62,3 @@ export function paperCss(profile: PaperProfile): string {
   const { top, right, bottom, left } = profile.margins;
   return `@page{size:${size};margin:${top}mm ${right}mm ${bottom}mm ${left}mm;}html,body{--print-paper-width:${profile.widthMm}mm;}`;
 }
-

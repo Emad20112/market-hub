@@ -14,28 +14,26 @@
 
 import type { MillingDelivery, MillingIntake, MillingJob, MillingOutput } from "@/lib/milling";
 import { outputLabel } from "@/lib/milling";
+import { getCachedCompanyProfile } from "@/lib/printing/company-profile";
+import { renderUniversalFooter, UNIVERSAL_FOOTER_CSS } from "@/lib/printing/footer";
+import { openPrintWindow } from "@/lib/print/print-window";
 
 export type MillingPaper = "thermal" | "a4" | "a5";
 
-const COMPANY_CACHE_KEY = "company_settings_cache";
-
-type CompanyInfo = {
-  name?: string;
-  legal_name?: string;
-  phone?: string;
-  address?: string;
-  tax_number?: string;
-  currency_symbol?: string;
-};
-
-function readCompany(): CompanyInfo {
-  if (typeof window === "undefined") return {};
-  try {
-    const raw = window.localStorage.getItem(COMPANY_CACHE_KEY);
-    return raw ? JSON.parse(raw) : {};
-  } catch {
-    return {};
-  }
+/**
+ * بيانات الشركة تأتي من Company Profile (مصدر الحقيقة) عبر الكاش المشترك.
+ * لم يعد هناك اسم شركة أو هاتف مكتوب داخل مستندات المطحنة.
+ */
+function readCompany() {
+  const profile = getCachedCompanyProfile();
+  return {
+    name: profile.name,
+    legal_name: profile.legalName,
+    phone: profile.phone ?? profile.contacts[0],
+    address: profile.address,
+    tax_number: profile.taxNumber,
+    currency_symbol: profile.currency,
+  };
 }
 
 const esc = (v: unknown): string =>
@@ -165,6 +163,7 @@ const shell = (title: string, body: string, paper: MillingPaper): string => {
     a5: { w: "148mm", h: "210mm", pad: "8mm" },
   };
   const s = sizes[paper];
+  const company = getCachedCompanyProfile();
 
   return `<!DOCTYPE html>
 <html dir="rtl" lang="ar">
@@ -178,6 +177,7 @@ const shell = (title: string, body: string, paper: MillingPaper): string => {
     font-family: "Segoe UI", Tahoma, "Noto Naskh Arabic", sans-serif;
     width: ${s.w}; margin: 0; padding: ${s.pad}; color: #000; background: #fff;
     font-size: ${paper === "thermal" ? "10.5pt" : "11pt"}; line-height: 1.5;
+    display: flex; flex-direction: column; min-height: ${paper === "thermal" ? "0" : "100vh"};
   }
   h1 { font-size: ${paper === "thermal" ? "14pt" : "17pt"}; margin: 0 0 2px; text-align: center; }
   h2 { font-size: ${paper === "thermal" ? "11pt" : "13pt"}; margin: 0 0 6px; text-align: center; font-weight: 700; }
@@ -193,38 +193,22 @@ const shell = (title: string, body: string, paper: MillingPaper): string => {
   .note { font-size: 8.5pt; margin-top: 6px; }
   .sign { display: flex; justify-content: space-between; font-size: 9pt; font-weight: 700; }
   .foot { text-align: center; font-size: 8pt; margin-top: 8px; }
+  /* Item separators: light, dashed, and cheap on paper and ink. */
+  .item-divider { border: 0; border-top: 1px dashed #666; margin: 3px 0; }
+  .item-divider-row td { padding: 0; border: 0; }
+  .doc-footer { margin-top: auto; }
+  tr, .sig > div { break-inside: avoid; }
   @media print { body { width: auto; } .no-print { display: none; } }
+  ${UNIVERSAL_FOOTER_CSS}
 </style>
 </head>
-<body>${body}</body>
+<body>${body}<div class="doc-footer">${renderUniversalFooter(company, true, paper === "thermal")}</div></body>
 </html>`;
 };
 
 function emit(html: string, delay = 350) {
-  const iframe = document.createElement("iframe");
-  iframe.style.cssText =
-    "position:fixed;top:-9999px;left:-9999px;width:1px;height:1px;border:0;visibility:hidden;";
-  document.body.appendChild(iframe);
-
-  const cw = iframe.contentWindow!;
-  cw.document.open();
-  cw.document.write(html);
-  cw.document.close();
-
-  setTimeout(() => {
-    try {
-      cw.focus();
-      cw.print();
-    } finally {
-      setTimeout(() => {
-        try {
-          document.body.removeChild(iframe);
-        } catch {
-          /* already removed */
-        }
-      }, 2000);
-    }
-  }, delay);
+  // Shared print-window plumbing: one hidden iframe, never a popup.
+  window.setTimeout(() => openPrintWindow(html), delay);
 }
 
 /* ------------------------------------------------------- 1. intake slip */
@@ -243,7 +227,7 @@ export function printIntakeReceipt(
   const shortage = Number(r.nominal_weight_kg ?? 0) - Number(r.net_weight_kg ?? 0);
 
   const body = `
-    <h1>${esc(c.legal_name || c.name || "مطاحن")}</h1>
+    <h1>${esc(c.legal_name || c.name || "")}</h1>
     <div class="sub">
       ${esc(c.address ?? "")}${c.phone ? " — " + esc(c.phone) : ""}
       ${c.tax_number ? "<br/>الرقم الضريبي: " + esc(c.tax_number) : ""}
@@ -331,7 +315,7 @@ export function printDeliveryNote(
   const d = doc.delivery;
 
   const body = `
-    <h1>${esc(c.legal_name || c.name || "مطاحن")}</h1>
+    <h1>${esc(c.legal_name || c.name || "")}</h1>
     <div class="sub">${esc(c.address ?? "")}${c.phone ? " — " + esc(c.phone) : ""}</div>
     <hr/>
     <h2>إذن خروج وتسليم نواتج أمانات — ${esc(d.delivery_number)}</h2>
@@ -358,7 +342,8 @@ export function printDeliveryNote(
               <td>${n(i.bag_size_kg, 2)}</td>
               <td>${n(i.delivered_bags, 0)}</td>
               <td>${n(i.delivered_weight_kg)}</td>
-            </tr>`,
+            </tr>
+            <tr class="item-divider-row"><td colspan="4"><hr class="item-divider"/></td></tr>`,
           )
           .join("")}
       </tbody>
@@ -410,7 +395,7 @@ export function printMillingJobTicket(
   const allowed = (Number(j.input_weight_kg ?? 0) * Number(j.allowed_loss_percentage ?? 0)) / 100;
 
   const body = `
-    <h1>${esc(c.legal_name || c.name || "مطاحن")}</h1>
+    <h1>${esc(c.legal_name || c.name || "")}</h1>
     <div class="sub">${esc(c.address ?? "")}${c.phone ? " — " + esc(c.phone) : ""}</div>
     <hr/>
     <h2>أمر تشغيل وطحن — ${esc(j.job_number)}</h2>
@@ -442,7 +427,8 @@ export function printMillingJobTicket(
                     <td>${n(o.produced_bag_count, 0)}</td>
                     <td>${n(o.produced_weight_kg)}</td>
                     <td>${o.bags_source === "MILL" ? "مخزون المطحنة" : "العميل"}</td>
-                  </tr>`,
+                  </tr>
+                  <tr class="item-divider-row"><td colspan="5"><hr class="item-divider"/></td></tr>`,
                 )
                 .join("")
         }

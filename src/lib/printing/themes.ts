@@ -45,8 +45,10 @@ export const PRINT_THEMES: Record<PrintTheme, ThemeTokens> = {
 };
 
 export function normalizeTheme(value?: string): PrintTheme {
-  if (value === "elegant" || value === "luxury") return "luxury";
-  if (value === "formal") return "formal";
+  if (!value) return "standard";
+  const v = value.trim().toLowerCase();
+  // Legacy aliases kept so stored settings never lose their look.
+  if (v === "elegant" || v === "luxury" || v === "premium") return "luxury";
+  if (v === "formal") return "formal";
   return "standard";
 }
-

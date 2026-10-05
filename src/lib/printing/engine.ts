@@ -11,6 +11,20 @@ import { normalizeTheme, type PrintTheme } from "./themes";
 import { getUnifiedPrintSettings, type PrintMethod, type UnifiedPrintSettings } from "./settings";
 import type { PrintingDocumentType } from "./document-types";
 import { openPrintWindow } from "@/lib/print/print-window";
+import {
+  adapterFromTransport,
+  registerPrintAdapters,
+  transportForMethod,
+  type PrintAdapterContext,
+} from "./adapters";
+import {
+  getPrintTransport,
+  printWithFallback,
+  type PrintResult,
+  type PrintTransportId,
+} from "./transports";
+import { buildEscPosBytes } from "./escpos";
+import { renderThermalEscPos } from "./thermal-escpos";
 
 export interface PrintRequest {
   doc: UnifiedDocumentData;
@@ -88,20 +102,88 @@ export function renderUnifiedDocument(request: PrintRequest): string {
     .replace(/<body([^>]*)>/i, "<body>");
 }
 
-export function printUnifiedDocument(request: PrintRequest): void {
+/**
+ * الـ adapters الثلاثة — كل واحد يُبنى من الـ transport المقابل، فلا تتكرر
+ * جداول القدرات ولا الأسماء.
+ *
+ * - `browser` → Browser Print عبر iframe مخفي (`openPrintWindow`).
+ * - `pdf` → نفس الآلية، ويُطلب من المستخدم «حفظ كـ PDF».
+ * - `thermal` → **ليس ESC/POS**: المتصفح مع ملف ورق حراري (٥٨/٨٠ ملم).
+ *
+ * نقل ESC/POS المباشر موجود في `transports.ts` لكنه لا يُختار من الإعدادات
+ * لأن إرساله يتطلب Local Print Agent غير متاح في المتصفح.
+ */
+const ADAPTERS = [
+  adapterFromTransport("browser"),
+  adapterFromTransport("pdf"),
+  {
+    ...adapterFromTransport("browser"),
+    id: "thermal" as const,
+    nameAr: "حراري عبر المتصفح (٥٨/٨٠ ملم)",
+    nameEn: "Thermal via browser (58/80 mm)",
+  },
+];
+
+registerPrintAdapters(ADAPTERS);
+
+/**
+ * طباعة موحدة — تُرجع نتيجة النقل حتى تعرف الصفحة ما حدث فعلًا
+ * (نجاح / سقوط إلى المتصفح / حاجة إلى وكيل محلي).
+ *
+ * التوافق الرجعي: من لا يقرأ النتيجة يعمل كما كان (fire-and-forget).
+ */
+export async function printUnifiedDocument(
+  request: PrintRequest,
+  context?: PrintAdapterContext,
+): Promise<PrintResult> {
   const settings = request.settings ?? getUnifiedPrintSettings();
-  if (
-    (request.method ?? settings.method) !== "browser" &&
-    (request.method ?? settings.method) !== "thermal"
-  )
-    return;
+  const method = request.method ?? settings.method;
+  const adapter = ADAPTERS.find((a) => a.id === method);
+  if (!adapter) return { ok: false, copiesSent: 0, reason: "transport_error" };
+
   const html = renderUnifiedDocument(request);
-  const copies = Math.max(1, Math.min(20, request.copies ?? settings.copies));
-  for (let i = 0; i < copies; i += 1) openPrintWindow(html);
+  const copies = adapter.capabilities.supportsCopies
+    ? Math.max(1, Math.min(20, request.copies ?? settings.copies))
+    : 1;
+
+  const transportId = transportForMethod(method);
+  const result = await printWithFallback(
+    transportId,
+    { output: { html }, copies, title: request.doc?.title },
+    context,
+  );
+  return result;
 }
+
+/**
+ * طباعة مباشرة عبر ESC/POS.
+ *
+ * تُولّد البايتات فعليًا، ثم تُرسلها إن وُجد `context.agent`؛ وإلا تُرجع
+ * `agent_required` **دون أن تطبع شيئًا**. لا يوجد أي مسار وهمي.
+ */
+export async function printEscPos(
+  request: PrintRequest,
+  context?: PrintAdapterContext,
+): Promise<PrintResult> {
+  const settings = request.settings ?? getUnifiedPrintSettings();
+  const copies = Math.max(1, Math.min(20, request.copies ?? settings.copies));
+  const escpos = renderThermalEscPos(request);
+  const transport = getPrintTransport("escpos");
+  return transport.print({ output: { escpos }, copies, title: request.doc?.title }, context);
+}
+
+/** يبني بايتات ESC/POS لمستند موحد — بلا أي اتصال (للاختبار والتشخيص). */
+export function buildEscPosForRequest(request: PrintRequest): Uint8Array {
+  return buildEscPosBytes(renderThermalEscPos(request));
+}
+
+/** هل نقل ESC/POS قابل للاستخدام الآن؟ */
+export function isEscPosAvailable(context?: PrintAdapterContext): boolean {
+  return Boolean(context?.agent);
+}
+
+export type { PrintTransportId };
 
 export function shouldPreview(settings = getUnifiedPrintSettings()): boolean {
   return settings.preview;
 }
-
-

@@ -6,39 +6,21 @@ import {
   Receipt,
   Package,
   Users,
-  Settings,
   X,
-  ArrowRight,
   Sparkles,
   Command as CommandIcon,
   Loader2,
   Building2,
-  Boxes,
-  RotateCcw,
-  BarChart3,
-  Scale,
-  LineChart,
-  HardDriveDownload,
-  Wallet,
-  BookOpen,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useI18n } from "@/lib/i18n";
+import { useAuth } from "@/lib/auth";
 import { useModules } from "@/lib/modules";
 import { useMillingMode, isRouteVisibleByMillingMode } from "@/lib/milling-mode";
+import { canAccessRoute } from "@/lib/route-access";
 import { cn } from "@/lib/utils";
-import { DOCUMENT_TYPES } from "@/lib/printing/document-types";
-
-// تطبيع النصوص للبحث التسامحي (عربي وإنجليزي)
-function normalizeText(text: string): string {
-  return (text || "")
-    .toLowerCase()
-    .replace(/[أإآ]/g, "ا")
-    .replace(/ة/g, "ه")
-    .replace(/ى/g, "ي")
-    .replace(/[\u064B-\u065F]/g, "") // إزالة التشكيل
-    .trim();
-}
+import { searchRoutes } from "@/lib/navigation";
+import { routeIcon, routeCategoryLabel } from "@/lib/navigation/route-icons";
 
 /**
  * تهيئة قيمة البحث قبل تمريرها إلى PostgREST `.or(...)`.
@@ -69,17 +51,6 @@ function isAbortError(error: unknown): boolean {
   return text.includes("abort");
 }
 
-interface NavItem {
-  id: string;
-  title: string;
-  sub: string;
-  to: string;
-  icon: any;
-  category: "navigation" | "settings";
-  moduleId?: string;
-  keywords?: string[];
-}
-
 interface SearchResultItem {
   id: string;
   title: string;
@@ -101,6 +72,7 @@ export const VortexHeaderOmnisearch = memo(function VortexHeaderOmnisearch({
   const isAr = lang === "ar";
   const navigate = useNavigate();
   const { isModuleEnabled } = useModules();
+  const { roles, isPlatformAdmin, isPlatformSuperadmin } = useAuth();
   const { mode: millingMode } = useMillingMode();
   const breakpoint = useBreakpoint();
   const isMobile = breakpoint === "xs" || breakpoint === "sm";
@@ -114,30 +86,22 @@ export const VortexHeaderOmnisearch = memo(function VortexHeaderOmnisearch({
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // قائمة الواجهات والإعدادات الرئيسية للنظام
-  const navigationIndex = useMemo<NavItem[]>(() => {
-    return [
-      { id: "dash", title: isAr ? "لوحة التحكم الرئيسية" : "Dashboard", sub: isAr ? "نظرة عامة على الأعمال والمؤشرات" : "Overview & metrics", to: "/dashboard", icon: LineChart, category: "navigation" as const, keywords: ["رئيسية", "dashboard", "مؤشرات"] },
-      { id: "pos", title: isAr ? "نقطة البيع (الكاشير)" : "POS Cashier", sub: isAr ? "تسجيل المبيعات وطباعة الفواتير السريعة" : "Quick sales & printing", to: "/pos", icon: Receipt, category: "navigation" as const, moduleId: "pos", keywords: ["كاشير", "بيع", "pos", "فاتورة"] },
-      { id: "sales", title: isAr ? "فواتير المبيعات" : "Sales Invoices", sub: isAr ? "سجل ومتابعة جميع فواتير البيع" : "Manage sales records", to: "/sales", icon: Receipt, category: "navigation" as const, keywords: ["فواتير", "مبيعات", "sales"] },
-      { id: "products", title: isAr ? "المنتجات والأصناف" : "Products", sub: isAr ? "إدارة بطاقات المنتجات والتسعير والباركود" : "Catalog & pricing", to: "/products", icon: Package, category: "navigation" as const, keywords: ["اصناف", "منتج", "منتجات", "اسعار", "باركود"] },
-      { id: "inventory", title: isAr ? "إدارة المخزون" : "Inventory", sub: isAr ? "جرد ومتابعة كميات المستودعات" : "Stock & warehouse quantities", to: "/inventory", icon: Boxes, category: "navigation" as const, keywords: ["مخزون", "جرد", "كميات", "stock"] },
-      { id: "customers", title: isAr ? "العملاء والحسابات" : "Customers", sub: isAr ? "دليل العملاء والأرصدة والديون" : "Customer balances & debts", to: "/customers", icon: Users, category: "navigation" as const, keywords: ["عميل", "عملاء", "زبائن", "ديون"] },
-      { id: "debts", title: isAr ? "سجل الديون والتحصيل" : "Debts & Collection", sub: isAr ? "تحصيل مديونيات العملاء والآجال" : "Overdue balances", to: "/debts", icon: Scale, category: "navigation" as const, keywords: ["ديون", "تحصيل", "اجل", "سداد"] },
-      { id: "purchases", title: isAr ? "المشتريات والتوريد" : "Purchases", sub: isAr ? "فواتير الشراء وإدخال البضائع" : "Purchase orders & stock-in", to: "/purchases", icon: Building2, category: "navigation" as const, moduleId: "purchases", keywords: ["شراء", "مشتريات", "توريد"] },
-      { id: "suppliers", title: isAr ? "الموردين والشركات" : "Suppliers", sub: isAr ? "سجل الموردين وحساباتهم" : "Vendor accounts", to: "/suppliers", icon: Building2, category: "navigation" as const, moduleId: "purchases", keywords: ["مورد", "موردين", "شركات"] },
-      { id: "reports", title: isAr ? "التقارير المالية" : "Financial Reports", sub: isAr ? "الأرباح والخسائر والتدفقات" : "Profit & balance reports", to: "/reports", icon: BarChart3, category: "navigation" as const, moduleId: "analytics", keywords: ["تقارير", "ارباح", "خسائر", "مالية"] },
-      { id: "expenses", title: isAr ? "المصروفات اليومية" : "Expenses", sub: isAr ? "سندات الصرف والمصاريف التشغيلية" : "Operational expenses", to: "/expenses", icon: Wallet, category: "navigation" as const, moduleId: "expenses", keywords: ["مصروفات", "مصاريف", "سند صرف"] },
-      { id: "returns", title: isAr ? "مرتجعات المبيعات" : "Sales Returns", sub: isAr ? "معالجة مرتجع البضاعة والعملاء" : "Return items", to: "/sales-returns", icon: RotateCcw, category: "navigation" as const, moduleId: "returns", keywords: ["مرتجع", "ترجيع"] },
-      { id: "milling", title: isAr ? "نظام المطحنة والأمانات" : "Milling Operations", sub: isAr ? "إدارة تشغيل الحبوب والطحن والتسليم" : "Grain intake & jobs", to: "/milling", icon: Scale, category: "navigation" as const, moduleId: "milling_operations", keywords: ["مطحنة", "طحن", "حبوب", "امانات"] },
-      { id: "transfers", title: isAr ? "تحويلات المخزون" : "Stock transfers", sub: isAr ? "نقل الأصناف بين المستودعات" : "Move goods between warehouses", to: "/transfers", icon: Boxes, category: "navigation" as const, moduleId: "multi_warehouse", keywords: ["تحويل", "نقل", "مخزون", "transfer"] },
-      { id: "account-statement", title: isAr ? "مركز الكشوفات" : "Statements center", sub: isAr ? "كشوف العملاء والموردين" : "Customer and supplier statements", to: "/account-statement", icon: BookOpen, category: "navigation" as const, moduleId: "payments", keywords: ["كشف", "حساب", "statement"] },
-      { id: "audit", title: isAr ? "سجل العمليات" : "Operations log", sub: isAr ? "مراجعة الأحداث والتغييرات" : "Review system events", to: "/audit", icon: BookOpen, category: "navigation" as const, moduleId: "audit", keywords: ["سجل", "أحداث", "تدقيق", "audit"] },
-      { id: "printing", title: isAr ? "إعدادات الطباعة والقوالب" : "Printing & templates", sub: isAr ? "القوالب والورق والطباعة الحرارية" : "Templates, paper and thermal printing", to: "/settings", icon: Settings, category: "settings" as const, keywords: ["طباعة", "قالب", "حراري", "نسخ", "printing", ...DOCUMENT_TYPES.flatMap((item) => item.aliases)] },
-      { id: "backup", title: isAr ? "النسخ الاحتياطي والأمان" : "Backup Settings", sub: isAr ? "تحميل واستعادة النسخ الاحتياطية" : "Download & restore backups", to: "/settings", icon: HardDriveDownload, category: "settings" as const, keywords: ["نسخ احتياطي", "تنزيل", "باك اب", "backup", "حفظ"] },
-      { id: "settings", title: isAr ? "إعدادات النظام العامة" : "System Settings", sub: isAr ? "إعدادات الفاتورة والعملة والضريبة" : "Company & invoice config", to: "/settings", icon: Settings, category: "settings" as const, keywords: ["اعدادات", "ضبط", "خيارات", "العملة", "الاسم"] },
-    ].filter(item => (!item.moduleId || isModuleEnabled(item.moduleId)) && isRouteVisibleByMillingMode(item.to, millingMode));
-  }, [isAr, isModuleEnabled, millingMode]);
+  /**
+   * فهرس الواجهات الموحد — يُشتق من سجل المسارات المركزي (route-registry)
+   * بدل القائمة اليدوية السابقة، ويطبّق الصلاحيات + الوحدات + وضع المطحنة.
+   */
+  const routeIndex = useMemo(() => {
+    return searchRoutes("", isAr, {
+      isModuleEnabled,
+      isVisibleByMillingMode: (path) => isRouteVisibleByMillingMode(path, millingMode),
+      canAccess: (entry) =>
+        canAccessRoute(entry.path.split("?")[0], {
+          roles,
+          isPlatformAdmin,
+          isPlatformSuperadmin,
+        }),
+    });
+  }, [isAr, isModuleEnabled, millingMode, roles, isPlatformAdmin, isPlatformSuperadmin]);
 
   // إغلاق القائمة عند النقر خارجها
   useEffect(() => {
@@ -344,31 +308,39 @@ export const VortexHeaderOmnisearch = memo(function VortexHeaderOmnisearch({
     };
   }, [query, isAr]);
 
-  // تصفية الواجهات حسب البحث
+  // تصفية الواجهات حسب البحث — من السجل المركزي (يدعم العربية/الإنجليزية والمرادفات)
   const filteredNav = useMemo(() => {
-    if (!query.trim()) return navigationIndex.slice(0, 8); // الافتراضي
-    const nq = normalizeText(query);
-    return navigationIndex.filter((nav) => {
-      const matchTitle = normalizeText(nav.title).includes(nq);
-      const matchSub = normalizeText(nav.sub).includes(nq);
-      const matchKw = nav.keywords?.some((k) => normalizeText(k).includes(nq));
-      return matchTitle || matchSub || matchKw;
+    if (!query.trim()) return routeIndex.slice(0, 8); // الافتراضي
+    return searchRoutes(query, isAr, {
+      isModuleEnabled,
+      isVisibleByMillingMode: (path) => isRouteVisibleByMillingMode(path, millingMode),
+      canAccess: (entry) =>
+        canAccessRoute(entry.path.split("?")[0], {
+          roles,
+          isPlatformAdmin,
+          isPlatformSuperadmin,
+        }),
     });
-  }, [query, navigationIndex]);
+  }, [query, routeIndex, isAr, isModuleEnabled, millingMode, roles, isPlatformAdmin, isPlatformSuperadmin]);
 
   // دمج كافة النتائج
   const allResults = useMemo(() => {
-    const list: (SearchResultItem | (NavItem & { isNav: true }))[] = [];
+    const list: { to: string }[] = [];
     dataResults.forEach((d) => list.push(d));
-    filteredNav.forEach((n) => list.push({ ...n, isNav: true }));
+    filteredNav.forEach((n) => list.push({ to: n.path }));
     return list;
   }, [dataResults, filteredNav]);
 
-  // التنقل السريع عند الضغط على عنصر
+  // التنقل السريع عند الضغط على عنصر (يدعم مسارات تحتوي query مثل /settings?section=printing)
   const handleSelect = (to: string) => {
     setIsOpen(false);
     setQuery("");
-    navigate({ to });
+    const [pathname, search] = to.split("?");
+    if (search) {
+      navigate({ to: pathname, search: Object.fromEntries(new URLSearchParams(search)) } as never);
+    } else {
+      navigate({ to: pathname } as never);
+    }
   };
 
   // التحكم بالأسهم للأسفل والأعلى وEnter
@@ -562,11 +534,13 @@ export const VortexHeaderOmnisearch = memo(function VortexHeaderOmnisearch({
                   {filteredNav.map((nav, nIdx) => {
                     const actualIdx = dataResults.length + nIdx;
                     const isSelected = selectedIndex === actualIdx;
-                    const Icon = nav.icon;
+                    const Icon = routeIcon(nav.id);
+                    const title = isAr ? nav.titleAr : nav.titleEn;
+                    const sub = isAr ? nav.descriptionAr : nav.descriptionEn;
                     return (
                       <div
                         key={nav.id}
-                        onClick={() => handleSelect(nav.to)}
+                        onClick={() => handleSelect(nav.path)}
                         onMouseEnter={() => setSelectedIndex(actualIdx)}
                         className={cn(
                           "group flex items-center justify-between gap-3 rounded-xl border p-2.5 cursor-pointer transition-all duration-150",
@@ -581,14 +555,16 @@ export const VortexHeaderOmnisearch = memo(function VortexHeaderOmnisearch({
                           </div>
                           <div className="min-w-0">
                             <div className="font-semibold text-xs text-foreground truncate">
-                              {nav.title}
+                              {title}
                             </div>
                             <div className="text-[11px] text-muted-foreground truncate">
-                              {nav.sub}
+                              {sub}
                             </div>
                           </div>
                         </div>
-                        <ArrowRight className="h-3.5 w-3.5 text-muted-foreground/60 opacity-0 group-hover:opacity-100 transition-opacity" />
+                        <span className="shrink-0 rounded-md bg-surface-2 px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground/80 border border-border/50">
+                          {routeCategoryLabel(nav.category, isAr)}
+                        </span>
                       </div>
                     );
                   })}

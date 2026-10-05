@@ -79,128 +79,134 @@ type TransferRow = {
  */
 const TRANSFER_STATUSES = ["draft", "pending", "completed", "cancelled"] as const;
 
-const transferGuideConfig: PageGuideConfig = {
-  title: "دليل تحويلات المخزون بين المستودعات",
-  subtitle:
-    "شرح شامل لمناقلة البضاعة بين الفروع والمستودعات، مع ضوابط منع التحويل بأكثر من الرصيد المتاح وضمان سلامة الأرصدة والتكلفة.",
-  badge: "إدارة المخزون والمناقلات",
-  icon: <ArrowRightLeft className="h-5 w-5 text-purple-500" />,
-  summaryText:
-    "شاشة التحويلات هي أداة المناقلة الرسمية بين مواقع التخزين؛ تسجّل انتقال الكميات من المستودع المصدر إلى المستودع الهدف في حركة واحدة متوازنة، وتخصم من رصيد الأول وتضيف للثاني دون التأثير على إجمالي المخزون أو الأرباح.",
-  overviewCards: [
-    {
-      title: "مناقلة مخزنية متوازنة",
-      description:
-        "خصم فوري من رصيد المستودع المصدر وإضافة مطابقة للمستودع الهدف، مع بقاء إجمالي الكميات على مستوى المنشأة دون تغيير.",
-      icon: <ArrowRightLeft className="h-4 w-4" />,
-    },
-    {
-      title: "حماية من التحويل الزائد",
-      description:
-        "لا يمكن تحويل كمية تتجاوز الرصيد الفعلي المتاح في المستودع المصدر، ويظهر التنبيه لحظياً على سطر البند.",
-      icon: <ShieldCheck className="h-4 w-4" />,
-    },
-    {
-      title: "رقم تحويل متسلسل وتدقيق كامل",
-      description:
-        "كل تحويل يحمل رقماً متسلسلاً فريداً مع تاريخ الإنشاء ومستخدم التنفيذ وملاحظات المبرر الإداري.",
-      icon: <Sparkles className="h-4 w-4" />,
-    },
-    {
-      title: "أثر محاسبي بلا أرباح",
-      description:
-        "التحويل قيد مناقلة بين مراكز التكلفة فقط؛ لا يُثبت إيراداً ولا خسارة ولا يؤثر على قائمة الدخل.",
-      icon: <Boxes className="h-4 w-4" />,
-    },
-  ],
-  matrixTitle: "مصفوفة أثر التحويل على الأرصدة والقيود",
-  matrixDescription: "جدول تحليلي يوضح ما يحدث في قاعدة البيانات ودفتر اليومية عند كل تحويل:",
-  impactMatrix: {
-    columns: [
-      { key: "type", label: "الحركة", className: "w-[20%]" },
-      { key: "stockImpact", label: "التأثير على رصيد المستودعات", className: "w-[30%]" },
-      { key: "financialImpact", label: "الأثر المالي والقيد المحاسبي", className: "w-[30%]" },
-      { key: "triggerCondition", label: "مصدر البيانات", className: "w-[20%]" },
-    ],
-    rows: [
+const TRANSFERS_GUIDE_TITLE = "دليل تحويلات المخزون بين المستودعات";
+
+/**
+ * دليل صفحة التحويلات — يُبنى عبر `t()` حتى لا يبقى أي نص عربي مباشر داخل JSX،
+ * ويُترجم كامل الدليل إلى الإنجليزية عند تغيير اللغة.
+ */
+function buildTransferGuide(
+  t: (key: string, ...args: (string | number)[]) => string,
+): PageGuideConfig {
+  return {
+    title: t("transfers.guide.title"),
+    subtitle: t("transfers.guide.subtitle"),
+    badge: t("transfers.guide.badge"),
+    icon: <ArrowRightLeft className="h-5 w-5 text-purple-500" />,
+    summaryText: t("transfers.guide.summary"),
+    overviewCards: [
       {
-        badge: { label: "تحويل صادر (−)", variant: "rose" },
-        fields: {
-          type: "خصم المستودع المصدر",
-          stockImpact: "تخفيض الكمية المحوّلة من رصيد الصنف في المستودع المصدر.",
-          financialImpact: "قيد مناقلة دائن لحساب مخزون الفرع المصدر بسعر التكلفة.",
-          triggerCondition: "سجل حركة المخزون transfer_out.",
-        },
+        title: t("transfers.guide.card.balanced.title"),
+        description: t("transfers.guide.card.balanced.desc"),
+        icon: <ArrowRightLeft className="h-4 w-4" />,
       },
       {
-        badge: { label: "تحويل وارد (+)", variant: "emerald" },
-        fields: {
-          type: "إضافة المستودع الهدف",
-          stockImpact: "إضافة الكمية نفسها إلى رصيد الصنف في المستودع الهدف.",
-          financialImpact: "قيد مناقلة مدين لحساب مخزون الفرع الهدف بنفس التكلفة.",
-          triggerCondition: "سجل حركة المخزون transfer_in.",
-        },
+        title: t("transfers.guide.card.oversell.title"),
+        description: t("transfers.guide.card.oversell.desc"),
+        icon: <ShieldCheck className="h-4 w-4" />,
       },
       {
-        badge: { label: "بدون أثر ربحية", variant: "slate" },
-        fields: {
-          type: "إجمالي المنشأة",
-          stockImpact: "لا يتغير إجمالي الكميات على مستوى المنشأة إطلاقاً.",
-          financialImpact: "لا يوجد إيراد أو تكلفة بضاعة مباعة؛ الأثر على الميزانية فقط.",
-          triggerCondition: "قاعدة التوزيع الداخلي للنظام.",
-        },
+        title: t("transfers.guide.card.audit.title"),
+        description: t("transfers.guide.card.audit.desc"),
+        icon: <Sparkles className="h-4 w-4" />,
+      },
+      {
+        title: t("transfers.guide.card.no_profit.title"),
+        description: t("transfers.guide.card.no_profit.desc"),
+        icon: <Boxes className="h-4 w-4" />,
       },
     ],
-  },
-  stepsTitle: "الخطوات القياسية لتنفيذ تحويل مخزني سليم",
-  steps: [
-    {
-      number: "1",
-      title: "تحديد المستودع المصدر",
-      description:
-        "اختر المستودع الذي تحمل البضاعة رصيداً فعلياً فيه، وسيتم تحميل أرصدته المتاحة تلقائياً.",
+    matrixTitle: t("transfers.guide.matrix.title"),
+    matrixDescription: t("transfers.guide.matrix.desc"),
+    impactMatrix: {
+      columns: [
+        { key: "type", label: t("transfers.guide.matrix.col.movement"), className: "w-[20%]" },
+        { key: "stockImpact", label: t("transfers.guide.matrix.col.stock"), className: "w-[30%]" },
+        {
+          key: "financialImpact",
+          label: t("transfers.guide.matrix.col.financial"),
+          className: "w-[30%]",
+        },
+        {
+          key: "triggerCondition",
+          label: t("transfers.guide.matrix.col.source"),
+          className: "w-[20%]",
+        },
+      ],
+      rows: [
+        {
+          badge: { label: t("transfers.guide.row.out.badge"), variant: "rose" },
+          fields: {
+            type: t("transfers.guide.row.out.type"),
+            stockImpact: t("transfers.guide.row.out.stock"),
+            financialImpact: t("transfers.guide.row.out.financial"),
+            triggerCondition: "transfer_out",
+          },
+        },
+        {
+          badge: { label: t("transfers.guide.row.in.badge"), variant: "emerald" },
+          fields: {
+            type: t("transfers.guide.row.in.type"),
+            stockImpact: t("transfers.guide.row.in.stock"),
+            financialImpact: t("transfers.guide.row.in.financial"),
+            triggerCondition: "transfer_in",
+          },
+        },
+        {
+          badge: { label: t("transfers.guide.row.total.badge"), variant: "slate" },
+          fields: {
+            type: t("transfers.guide.row.total.type"),
+            stockImpact: t("transfers.guide.row.total.stock"),
+            financialImpact: t("transfers.guide.row.total.financial"),
+            triggerCondition: t("transfers.guide.row.total.source"),
+          },
+        },
+      ],
     },
-    {
-      number: "2",
-      title: "تحديد المستودع الهدف",
-      description: "اختر الفرع أو المستودع المستقبل، ولا يمكن أن يكون نفس المستودع المصدر.",
-    },
-    {
-      number: "3",
-      title: "إضافة البنود والكميات",
-      description:
-        "ابحث عن الأصناف وأضفها، وسيمنع النظام أي كمية تتجاوز الرصيد المتاح لحظياً بالمصدر.",
-    },
-    {
-      number: "4",
-      title: "تدوين الملاحظات والحفظ",
-      description:
-        "اكتب سبب التحويل (إعادة توازن، طلب فرع، توزيع موسمي) ثم احفظ لترحيل الحركة فوراً.",
-    },
-  ],
-  rulesTitle: "الضوابط والتحذيرات الرقابية",
-  rules: [
-    {
-      type: "danger",
-      title: "منع التحويل بأكثر من الرصيد المتاح",
-      description:
-        "أي كمية تتجاوز رصيد المستودع المصدر تُرفض على مستوى الواجهة وقاعدة البيانات معاً لمنع الرصيد السالب.",
-    },
-    {
-      type: "warning",
-      title: "الحركات المخزنية غير قابلة للحذف",
-      description:
-        "التحويل المنفّذ يُسجل كحركة غير قابلة للحذف (Append-Only)؛ التصحيح يكون بتحويل عكسي جديد موثق.",
-    },
-    {
-      type: "info",
-      title: "الصلاحيات المخولة للتحويل",
-      description:
-        "الوصول إلى التحويلات متاح للمالك والمدير وأمين المستودع فقط، لمنع أي مناقلة غير مصرح بها.",
-    },
-  ],
-  footerTip: "فورتيكس ERP — مناقلات مخزنية موثقة وأرصدة فروع متطابقة لحظياً",
-};
+    stepsTitle: t("transfers.guide.steps.title"),
+    steps: [
+      {
+        number: "1",
+        title: t("transfers.guide.step1.title"),
+        description: t("transfers.guide.step1.desc"),
+      },
+      {
+        number: "2",
+        title: t("transfers.guide.step2.title"),
+        description: t("transfers.guide.step2.desc"),
+      },
+      {
+        number: "3",
+        title: t("transfers.guide.step3.title"),
+        description: t("transfers.guide.step3.desc"),
+      },
+      {
+        number: "4",
+        title: t("transfers.guide.step4.title"),
+        description: t("transfers.guide.step4.desc"),
+      },
+    ],
+    rulesTitle: t("transfers.guide.rules.title"),
+    rules: [
+      {
+        type: "danger",
+        title: t("transfers.guide.rule.oversell.title"),
+        description: t("transfers.guide.rule.oversell.desc"),
+      },
+      {
+        type: "warning",
+        title: t("transfers.guide.rule.immutable.title"),
+        description: t("transfers.guide.rule.immutable.desc"),
+      },
+      {
+        type: "info",
+        title: t("transfers.guide.rule.roles.title"),
+        description: t("transfers.guide.rule.roles.desc"),
+      },
+    ],
+    footerTip: t("transfers.guide.footer"),
+  };
+}
 
 function TransfersPage() {
   const { t, lang } = useI18n();
@@ -229,6 +235,7 @@ function TransfersPage() {
   const statusLabel = (status: string | null) =>
     status ? t(`transfers.status.${status}`) : t("transfers.status.pending");
 
+  const transferGuideConfig = useMemo(() => buildTransferGuide(t), [t]);
   const statusTone = (status: string | null): "success" | "danger" | "neutral" | "warning" =>
     status === "completed"
       ? "success"
@@ -402,12 +409,12 @@ function TransfersPage() {
   const sortOptions = useMemo<SortOption[]>(() => {
     void sort;
     return [
-      { value: "", label: lang === "ar" ? "الافتراضي (الأحدث)" : "Default (newest)" },
+      { value: "", label: t("transfers.sort.default") },
       { value: "date", label: t("transfers.sort.date") },
       { value: "number", label: t("transfers.sort.number") },
       { value: "items", label: t("transfers.sort.items") },
     ];
-  }, [lang, t, sort]);
+  }, [t, sort]);
 
   const sortedRows = useMemo(() => {
     if (!sort?.key) return displayRows;
@@ -454,7 +461,7 @@ function TransfersPage() {
         /** Sortable mirror of the date shown under the transfer number, so the
          * "date" option in the sort menu has a column to sort by. */
         key: "date",
-        header: lang === "ar" ? "التاريخ" : "Date",
+        header: t("transfers.sort.date"),
         sortable: true,
         width: "w-[130px]",
         sortValue: (r) => new Date(r.created_at).getTime(),
@@ -545,14 +552,8 @@ function TransfersPage() {
     return (
       <div className="panel-elevated rounded-3xl border border-border/80 bg-surface/90 p-8 text-center">
         <ShieldCheck className="mx-auto mb-3 h-10 w-10 text-muted-foreground" />
-        <h3 className="text-lg font-semibold text-foreground">
-          {lang === "ar" ? "لا يوجد صلاحية للتحويلات" : "Transfer access denied"}
-        </h3>
-        <p className="mt-2 text-sm text-muted-foreground">
-          {lang === "ar"
-            ? "يحتاج المستخدم إلى صلاحية المستودعات أو الإدارة لمشاهدة التحويلات."
-            : "Warehouse or admin access is required to view transfers."}
-        </p>
+        <h3 className="text-lg font-semibold text-foreground">{t("transfers.denied.title")}</h3>
+        <p className="mt-2 text-sm text-muted-foreground">{t("transfers.denied.hint")}</p>
       </div>
     );
   }
@@ -577,7 +578,7 @@ function TransfersPage() {
             </h3>
             <span className="mt-1 inline-flex items-center gap-1 text-[10px] text-muted-foreground/80">
               <Sparkles className="size-3 text-primary" />
-              {lang === "ar" ? "داخل السجل المحمّل" : "in loaded ledger"}
+              {t("transfers.kpi.loaded")}
             </span>
           </div>
           <div className="grid size-12 shrink-0 place-items-center rounded-2xl border border-primary/20 bg-primary/10 text-primary shadow-sm transition-transform group-hover:scale-105">
@@ -596,7 +597,7 @@ function TransfersPage() {
             </h3>
             <span className="mt-1 inline-flex items-center gap-1 text-[10px] text-emerald-500/80">
               <Boxes className="size-3" />
-              {lang === "ar" ? "بنود منقولة" : "line items"}
+              {t("transfers.kpi.lines")}
             </span>
           </div>
           <div className="grid size-12 shrink-0 place-items-center rounded-2xl border border-emerald-500/20 bg-emerald-500/10 text-emerald-400 shadow-sm transition-transform group-hover:scale-105">
@@ -615,7 +616,7 @@ function TransfersPage() {
             </h3>
             <span className="mt-1 inline-flex items-center gap-1 text-[10px] text-blue-500/80">
               <CalendarClock className="size-3" />
-              {lang === "ar" ? "تحويلات اليوم" : "transfers today"}
+              {t("transfers.kpi.today_hint")}
             </span>
           </div>
           <div className="grid size-12 shrink-0 place-items-center rounded-2xl border border-blue-500/20 bg-blue-500/10 text-blue-400 shadow-sm transition-transform group-hover:scale-105">
@@ -627,7 +628,7 @@ function TransfersPage() {
         <div className="card-mullak group relative flex items-center justify-between overflow-hidden p-4 sm:p-5">
           <div className="min-w-0">
             <p className="text-[11px] font-semibold uppercase tracking-wider text-amber-500/90 sm:text-xs">
-              {lang === "ar" ? "مسودات ومعلّقة" : "Draft & pending"}
+              {t("transfers.kpi.draft")}
             </p>
             <h3 className="mt-1 font-mono text-xl font-bold tracking-tight text-amber-400 sm:text-2xl">
               {rows
@@ -636,7 +637,7 @@ function TransfersPage() {
             </h3>
             <span className="mt-1 inline-flex items-center gap-1 text-[10px] text-amber-500/80">
               <AlertTriangle className="size-3" />
-              {lang === "ar" ? "تحتاج متابعة" : "needs follow-up"}
+              {t("transfers.kpi.draft_hint")}
             </span>
           </div>
           <div className="grid size-12 shrink-0 place-items-center rounded-2xl border border-amber-500/20 bg-amber-500/10 text-amber-400 shadow-sm transition-transform group-hover:scale-105">
@@ -653,8 +654,7 @@ function TransfersPage() {
           search={{
             value: query,
             onValueChange: setQuery,
-            placeholder:
-              lang === "ar" ? "ابحث برقم التحويل أو المستودع" : "Search number or warehouse",
+            placeholder: t("transfers.search_placeholder"),
             resultCount: rows.length,
             loading: isFetching && !isLoading,
           }}
@@ -663,7 +663,7 @@ function TransfersPage() {
             options: sortOptions,
             value: sort?.key ?? "",
             onValueChange: (v) => setSort(v ? { key: v, direction: "asc" } : null),
-            label: lang === "ar" ? "ترتيب" : "Sort",
+            label: t("transfers.sort.label"),
           }}
           viewToggle={
             <ToolbarAction
@@ -792,7 +792,7 @@ function TransfersPage() {
                       </div>
                       <div className="flex items-center gap-1.5 ps-1 text-[11px] text-muted-foreground">
                         <ArrowRightLeft className="size-3 shrink-0 text-primary" />
-                        <span>{lang === "ar" ? "إلى" : "to"}</span>
+                        <span>{t("transfers.to_short")}</span>
                       </div>
                       <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
                         <Warehouse className="size-3.5 shrink-0 text-muted-foreground" />
@@ -1121,11 +1121,7 @@ function NewTransferDialog({ onClose, onSaved }: { onClose: () => void; onSaved:
       return;
     }
     if (oversoldLines.length > 0) {
-      toast.error(
-        lang === "ar"
-          ? `الكمية المطلوبة تتجاوز الرصيد المتوفر: ${oversoldLines.map((l) => l.name).join("، ")}`
-          : `Quantity exceeds available stock for: ${oversoldLines.map((l) => l.name).join(", ")}`,
-      );
+      toast.error(t("transfers.exceeds_stock", oversoldLines.map((l) => l.name).join("، ")));
       return;
     }
     setSaving(true);
@@ -1187,7 +1183,7 @@ function NewTransferDialog({ onClose, onSaved }: { onClose: () => void; onSaved:
         }}
         className="flex flex-col gap-6"
       >
-        <FormSection title={lang === "ar" ? "بيانات التحويل" : "Transfer details"}>
+        <FormSection title={t("transfers.dialog.details")}>
           <FormGrid cols={2}>
             <FormField label={t("transfers.from")} required>
               {(p) => (
@@ -1198,7 +1194,7 @@ function NewTransferDialog({ onClose, onSaved }: { onClose: () => void; onSaved:
                   onChange={(e) => handleFromChange(e.target.value)}
                   className={fieldSurfaceClass}
                 >
-                  <option value="">{lang === "ar" ? "اختر..." : "Select..."}</option>
+                  <option value="">{t("transfers.select")}</option>
                   {warehouses.map((w) => (
                     <option key={w.id} value={w.id}>
                       {lang === "ar" ? w.name_ar || w.name : w.name || w.name_ar}
@@ -1217,7 +1213,7 @@ function NewTransferDialog({ onClose, onSaved }: { onClose: () => void; onSaved:
                   onChange={(e) => setTo(e.target.value)}
                   className={fieldSurfaceClass}
                 >
-                  <option value="">{lang === "ar" ? "اختر..." : "Select..."}</option>
+                  <option value="">{t("transfers.select")}</option>
                   {warehouses
                     .filter((w) => w.id !== from)
                     .map((w) => (
@@ -1236,7 +1232,7 @@ function NewTransferDialog({ onClose, onSaved }: { onClose: () => void; onSaved:
                   aria-describedby={p["aria-describedby"]}
                   value={note}
                   onChange={(e) => setNote(e.target.value)}
-                  placeholder={lang === "ar" ? "سبب التحويل..." : "Reason for the transfer..."}
+                  placeholder={t("transfers.reason_placeholder")}
                 />
               )}
             </FormField>
@@ -1244,13 +1240,13 @@ function NewTransferDialog({ onClose, onSaved }: { onClose: () => void; onSaved:
             {!catalogueLoaded && (
               <div className="flex items-center gap-2 text-xs text-muted-foreground">
                 <Loader2 className="size-3.5 animate-spin" />
-                {lang === "ar" ? "جارٍ تحميل البيانات..." : "Loading data…"}
+                {t("transfers.loading_data")}
               </div>
             )}
           </FormGrid>
         </FormSection>
 
-        <FormSection title={lang === "ar" ? "بنود التحويل" : "Transfer items"}>
+        <FormSection title={t("transfers.dialog.items")}>
           <div className="relative">
             <FieldInput
               value={search}
@@ -1283,10 +1279,10 @@ function NewTransferDialog({ onClose, onSaved }: { onClose: () => void; onSaved:
               <thead className="bg-surface-2/60 text-[11px] uppercase tracking-wider text-muted-foreground">
                 <tr className="border-b border-border">
                   <th className="px-3 py-2 text-start font-medium">
-                    {lang === "ar" ? "المنتج" : "Product"}
+                    {t("transfers.field.product")}
                   </th>
                   <th className="px-3 py-2 text-end font-medium">
-                    {lang === "ar" ? "المتاح بالمصدر" : "Available at source"}
+                    {t("transfers.field.available")}
                   </th>
                   <th className="px-3 py-2 text-start font-medium">{t("transfers.qty")}</th>
                   <th className="px-3 py-2"></th>
@@ -1331,9 +1327,7 @@ function NewTransferDialog({ onClose, onSaved }: { onClose: () => void; onSaved:
                           />
                           {exceeds && (
                             <p className="mt-1 text-[10px] font-medium text-destructive">
-                              {lang === "ar"
-                                ? `الرصيد المتوفر ${available} فقط`
-                                : `Only ${available} available`}
+                              {t("transfers.available_only", available)}
                             </p>
                           )}
                         </td>
@@ -1360,16 +1354,12 @@ function NewTransferDialog({ onClose, onSaved }: { onClose: () => void; onSaved:
           {oversoldLines.length > 0 && (
             <p className="mt-2 flex items-center gap-1.5 text-[11px] font-medium text-destructive">
               <AlertTriangle className="size-3.5" />
-              {lang === "ar"
-                ? "راجع الكميات المظللة قبل الحفظ"
-                : "Review the highlighted quantities before saving"}
+              {t("transfers.review_quantities")}
             </p>
           )}
 
           {hasMultiWarehouse && warehouses.length === 0 && catalogueLoaded && (
-            <p className="mt-2 text-[11px] text-muted-foreground">
-              {lang === "ar" ? "لا توجد مستودعات مفعّلة" : "No active warehouses found"}
-            </p>
+            <p className="mt-2 text-[11px] text-muted-foreground">{t("transfers.no_warehouses")}</p>
           )}
         </FormSection>
       </form>
