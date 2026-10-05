@@ -18,6 +18,7 @@ import {
   VortexSearchInput,
 } from "@/components/vortex-ui";
 import { ArrowUpRight, CheckCircle2, AlertTriangle, Sparkles } from "lucide-react";
+import { OperationSuccessModal } from "@/components/communication";
 
 const paymentsSearchSchema = z.object({
   customerId: z.string().optional(),
@@ -68,6 +69,17 @@ function PaymentsPage() {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [payments, setPayments] = useState<Payment[]>([]);
   const [invoiceId, setInvoiceId] = useState<string>("");
+  const [successModalData, setSuccessModalData] = useState<{
+    open: boolean;
+    amount: number;
+    customerName: string;
+    customerPhone?: string | null;
+    customerId: string;
+    receiptNumber?: string;
+    date: string;
+    remaining?: number;
+    invoiceNumber?: string | null;
+  } | null>(null);
   const [amount, setAmount] = useState("");
   const [method, setMethod] = useState<"cash" | "card" | "bank_transfer">("cash");
   const [note, setNote] = useState("");
@@ -177,43 +189,20 @@ function PaymentsPage() {
       });
       if (error) throw error;
       const invNo = selectedInvoice?.invoice_number ?? null;
-      toast.success(
-        t("payments.recorded") || (lang === "ar" ? "تم تسجيل الدفعة" : "Payment recorded"),
-        {
-          action: selected.phone
-            ? {
-                label: lang === "ar" ? "إيصال واتساب" : "WhatsApp receipt",
-                onClick: () =>
-                  openWhatsApp(
-                    selected.phone,
-                    paymentReceiptMessage({
-                      name: selected.name,
-                      amount: money(amt),
-                      date,
-                      invoiceNumber: invNo,
-                      remaining: invNo ? money(Math.max(remaining - amt, 0)) : null,
-                      lang,
-                    }),
-                  ),
-              }
-            : undefined,
-          duration: 8000,
-        },
-      );
+      setSuccessModalData({
+        open: true,
+        amount: amt,
+        customerName: selected.name,
+        customerPhone: selected.phone,
+        customerId: selected.id,
+        receiptNumber: invNo ? `REC-${invNo}` : `REC-${String(Date.now()).slice(-5)}`,
+        date,
+        remaining: Math.max(remaining - amt, 0),
+        invoiceNumber: invNo,
+      });
+      setAmount("");
+      setNote("");
       await refresh();
-      // المستخدم يريد رؤية أثر الدفعة فورًا على الرصيد
-      toast.success(
-        lang === "ar"
-          ? "يمكنك الآن عرض كشف الحساب المُحدَّث"
-          : "You can now view the updated statement",
-        {
-          action: {
-            label: lang === "ar" ? "عرض الكشف" : "View statement",
-            onClick: () => selected && goStatement(selected.id),
-          },
-          duration: 6000,
-        },
-      );
     } catch (e: any) {
       toast.error(e.message ?? t("common.failed"));
     } finally {
@@ -596,6 +585,50 @@ function PaymentsPage() {
         open={!!selectedTx}
         onOpenChange={(op) => !op && setSelectedTx(null)}
         transaction={selectedTx}
+      />
+
+      <OperationSuccessModal
+        open={Boolean(successModalData?.open)}
+        onClose={() => setSuccessModalData(null)}
+        title={lang === "ar" ? "تم تسجيل التحصيل بنجاح" : "Payment Recorded Successfully"}
+        subtitle={
+          successModalData?.invoiceNumber
+            ? lang === "ar"
+              ? `سداد للفاتورة #${successModalData.invoiceNumber}`
+              : `Payment for invoice #${successModalData.invoiceNumber}`
+            : undefined
+        }
+        amount={successModalData?.amount}
+        referenceNumber={successModalData?.receiptNumber}
+        customer={
+          successModalData
+            ? {
+                id: successModalData.customerId,
+                name: successModalData.customerName,
+                phone: successModalData.customerPhone,
+                balance: successModalData.remaining ?? 0,
+              }
+            : null
+        }
+        payment={
+          successModalData
+            ? {
+                receiptNumber: successModalData.receiptNumber || "",
+                date: successModalData.date,
+                amount: successModalData.amount,
+                method: method === "cash" ? "نقداً" : method === "bank_transfer" ? "تحويل بنكي" : "بطاقة",
+                remainingBalance: successModalData.remaining,
+                invoiceNumber: successModalData.invoiceNumber,
+              }
+            : null
+        }
+        eventType="payment_received"
+        onViewDocument={() => {
+          if (successModalData?.customerId) {
+            goStatement(successModalData.customerId);
+            setSuccessModalData(null);
+          }
+        }}
       />
     </>
   );

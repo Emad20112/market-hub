@@ -50,6 +50,12 @@ import {
 } from "@/components/vortex-ui";
 import { toast } from "sonner";
 import { WhatsAppIcon } from "@/components/whatsapp-icon";
+import {
+  buildUnifiedContext,
+  renderMessage,
+  buildWhatsAppLink,
+  isValidWhatsAppPhone,
+} from "@/lib/communication";
 
 export const Route = createFileRoute("/_app/sales")({
   head: () => ({ meta: [{ title: "المبيعات والفواتير — فورتيكس ERP" }] }),
@@ -273,42 +279,49 @@ export function SalesPage() {
     }
   };
 
-  // WhatsApp Message Generator
+  // WhatsApp Message Generator via Unified Communication Engine
   const shareInvoiceWhatsApp = (inv: Invoice) => {
-    const customerName = inv.customers?.name || (isRtl ? "العميل الكريم" : "Valued Customer");
-    const remaining = Math.max(0, Number(inv.total) - Number(inv.paid));
-    const formattedTotal = toSystemDigits(money(Number(inv.total)));
-    const formattedPaid = toSystemDigits(money(Number(inv.paid)));
-    const formattedRemaining = toSystemDigits(money(remaining));
-    const dateFormatted = new Date(inv.created_at).toLocaleDateString(isRtl ? "ar-EG" : "en-US");
-
-    let text = "";
-    if (isRtl) {
-      text =
-        `السلام عليكم ورحمة الله وبركاته،\nعزيزنا *${customerName}*،\nتفاصيل فاتورة المبيعات الخاصة بكم:\n` +
-        `🧾 *رقم الفاتورة:* ${inv.invoice_number}\n` +
-        `📅 *التاريخ:* ${dateFormatted}\n` +
-        `💵 *الإجمالي:* ${formattedTotal}\n` +
-        `✅ *المدفوع:* ${formattedPaid}\n` +
-        (remaining > 0 ? `⏳ *المتبقي:* ${formattedRemaining}\n` : `✨ *الحالة:* مسددة بالكامل\n`) +
-        `\nشكراً لتعاملكم معنا ونسعد بخدمتكم دائماً!`;
-    } else {
-      text =
-        `Hello ${customerName},\nHere are the details for your sales invoice:\n` +
-        `🧾 *Invoice #:* ${inv.invoice_number}\n` +
-        `📅 *Date:* ${dateFormatted}\n` +
-        `💵 *Total:* ${formattedTotal}\n` +
-        `✅ *Paid:* ${formattedPaid}\n` +
-        (remaining > 0 ? `⏳ *Remaining:* ${formattedRemaining}\n` : `✨ *Status:* Fully Paid\n`) +
-        `\nThank you for choosing us!`;
+    const hasPhone = Boolean(inv.customers?.phone && inv.customers.phone.trim().length > 0);
+    if (!hasPhone) {
+      toast.warning(
+        isRtl
+          ? "هذا العميل لا يوجد لديه رقم هاتف مسجل في النظام"
+          : "This customer has no phone number registered in the system",
+      );
+      return;
     }
 
-    const cleanPhone = (inv.customers?.phone || "").replace(/[^0-9]/g, "");
-    const waUrl = cleanPhone
-      ? `https://wa.me/${cleanPhone}?text=${encodeURIComponent(text)}`
-      : `https://wa.me/?text=${encodeURIComponent(text)}`;
+    const remaining = Math.max(0, Number(inv.total) - Number(inv.paid));
+    const ctx = buildUnifiedContext({
+      event: "invoice_share",
+      customer: {
+        id: inv.customer_id || "",
+        name: inv.customers?.name || (isRtl ? "العميل الكريم" : "Valued Customer"),
+        phone: inv.customers?.phone,
+        balance: remaining,
+      },
+      invoice: {
+        id: inv.id,
+        invoiceNumber: inv.invoice_number,
+        date: new Date(inv.created_at).toLocaleDateString(isRtl ? "ar-YE" : "en-US"),
+        subtotal: Number(inv.subtotal || inv.total),
+        total: Number(inv.total),
+        paid: Number(inv.paid),
+        remaining,
+      },
+      language: isRtl ? "ar" : "en",
+    });
 
-    window.open(waUrl, "_blank");
+    const rendered = renderMessage(ctx);
+    if (rendered.canSendWhatsApp && rendered.whatsAppUrl) {
+      window.open(rendered.whatsAppUrl, "_blank", "noopener,noreferrer");
+    } else {
+      toast.error(
+        isRtl
+          ? "رقم الهاتف المسجل للعميل غير صالح للإرسال"
+          : "Customer phone number is invalid for WhatsApp",
+      );
+    }
   };
 
   // Quick Collect trigger
@@ -1005,9 +1018,22 @@ export function SalesPage() {
                     <div className="flex items-center gap-1.5">
                       <button
                         type="button"
+                        disabled={!inv.customers?.phone}
                         onClick={() => shareInvoiceWhatsApp(inv)}
-                        className="grid size-8 place-items-center rounded-lg border border-border/70 text-muted-foreground transition hover:bg-surface-2 hover:text-emerald-500"
-                        title={isRtl ? "مشاركة عبر واتساب" : "Share via WhatsApp"}
+                        className={`grid size-8 place-items-center rounded-lg border transition ${
+                          inv.customers?.phone
+                            ? "border-border/70 text-muted-foreground hover:bg-surface-2 hover:text-emerald-500 cursor-pointer"
+                            : "border-border/40 text-muted-foreground/30 cursor-not-allowed opacity-50"
+                        }`}
+                        title={
+                          !inv.customers?.phone
+                            ? isRtl
+                              ? "هذا العميل لا يوجد لديه رقم هاتف مسجل في النظام"
+                              : "This customer has no phone number registered"
+                            : isRtl
+                              ? "مشاركة عبر واتساب"
+                              : "Share via WhatsApp"
+                        }
                       >
                         <WhatsAppIcon className="h-4 w-4" />
                       </button>
@@ -1196,9 +1222,22 @@ export function SalesPage() {
                               {/* WhatsApp Share */}
                               <button
                                 type="button"
+                                disabled={!inv.customers?.phone}
                                 onClick={() => shareInvoiceWhatsApp(inv)}
-                                className="rounded-md p-1.5 text-muted-foreground hover:bg-surface hover:text-emerald-500 transition"
-                                title={isRtl ? "مشاركة عبر واتساب" : "Share via WhatsApp"}
+                                className={`rounded-md p-1.5 transition ${
+                                  inv.customers?.phone
+                                    ? "text-muted-foreground hover:bg-surface hover:text-emerald-500 cursor-pointer"
+                                    : "text-muted-foreground/30 cursor-not-allowed opacity-50"
+                                }`}
+                                title={
+                                  !inv.customers?.phone
+                                    ? isRtl
+                                      ? "هذا العميل لا يوجد لديه رقم هاتف مسجل في النظام"
+                                      : "This customer has no phone number registered"
+                                    : isRtl
+                                      ? "مشاركة عبر واتساب"
+                                      : "Share via WhatsApp"
+                                }
                               >
                                 <WhatsAppIcon className="h-4 w-4" />
                               </button>
@@ -1316,9 +1355,22 @@ export function SalesPage() {
                     <div className="flex items-center gap-1">
                       <button
                         type="button"
+                        disabled={!inv.customers?.phone}
                         onClick={() => shareInvoiceWhatsApp(inv)}
-                        className="rounded-lg p-1.5 text-muted-foreground hover:bg-surface-2 hover:text-emerald-500 transition"
-                        title={isRtl ? "واتساب" : "WhatsApp"}
+                        className={`rounded-lg p-1.5 transition ${
+                          inv.customers?.phone
+                            ? "text-muted-foreground hover:bg-surface-2 hover:text-emerald-500 cursor-pointer"
+                            : "text-muted-foreground/30 cursor-not-allowed opacity-50"
+                        }`}
+                        title={
+                          !inv.customers?.phone
+                            ? isRtl
+                              ? "هذا العميل لا يوجد لديه رقم هاتف مسجل في النظام"
+                              : "This customer has no phone number registered"
+                            : isRtl
+                              ? "واتساب"
+                              : "WhatsApp"
+                        }
                       >
                         <WhatsAppIcon className="h-4 w-4" />
                       </button>
@@ -1716,14 +1768,38 @@ export function SalesPage() {
             <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border/80 bg-surface-2/40 px-6 py-4">
               <div className="flex items-center gap-2">
                 {/* WhatsApp invoice share */}
-                <button
-                  type="button"
-                  onClick={() => shareInvoiceWhatsApp(selected)}
-                  className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 text-xs font-semibold text-emerald-500 hover:bg-emerald-500/20 transition"
-                >
-                  <WhatsAppIcon className="h-4 w-4" />
-                  <span>{isRtl ? "مشاركة واتساب" : "WhatsApp"}</span>
-                </button>
+                <div className="flex flex-col items-start gap-1">
+                  {!selected.customers?.phone && (
+                    <span className="flex items-center gap-1 text-[11px] text-amber-500 font-semibold">
+                      <AlertCircle className="size-3" />
+                      {isRtl
+                        ? "هذا العميل لا يوجد لديه رقم هاتف مسجل في النظام."
+                        : "This customer has no phone number registered in the system."}
+                    </span>
+                  )}
+                  <button
+                    type="button"
+                    disabled={!selected.customers?.phone}
+                    onClick={() => shareInvoiceWhatsApp(selected)}
+                    title={
+                      !selected.customers?.phone
+                        ? isRtl
+                          ? "هذا العميل لا يوجد لديه رقم هاتف مسجل في النظام"
+                          : "This customer has no phone number registered"
+                        : isRtl
+                          ? "مشاركة واتساب"
+                          : "WhatsApp"
+                    }
+                    className={`inline-flex h-9 items-center gap-1.5 rounded-lg px-3 text-xs font-semibold transition ${
+                      selected.customers?.phone
+                        ? "border border-emerald-500/30 bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20 cursor-pointer"
+                        : "border border-border/60 bg-muted/40 text-muted-foreground/40 cursor-not-allowed opacity-50"
+                    }`}
+                  >
+                    <WhatsAppIcon className="h-4 w-4" />
+                    <span>{isRtl ? "مشاركة واتساب" : "WhatsApp"}</span>
+                  </button>
+                </div>
 
                 {/* PDF */}
                 <button
