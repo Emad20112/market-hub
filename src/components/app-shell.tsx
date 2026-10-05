@@ -63,6 +63,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { setCompanySettingsCache } from "@/lib/format";
 import { checkBackupReminderStatus } from "@/lib/backup/reminder";
 import { useMillingMode, isRouteVisibleByMillingMode } from "@/lib/milling-mode";
+import { useTheme } from "@/lib/theme";
 import { getSidebarSections, type SidebarSection } from "@/lib/navigation";
 import { routeIcon } from "@/lib/navigation/route-icons";
 
@@ -379,24 +380,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     }
   }, [isSettingsRoute]);
 
-  const [theme, setTheme] = useState<"dark" | "light">(
-    () =>
-      (typeof window !== "undefined" && (localStorage.getItem("theme") as "dark" | "light")) ||
-      "light",
-  );
+  // السمة تُقرأ من المزوّد المركزي، لا من حالة محلية هنا: كانت الحالة المحلية
+  // تفقد الخيار إذا حُفظت خارج غلاف التطبيق (صفحة الدخول، شاشة البداية).
+  const { theme, setTheme } = useTheme();
 
   // Use centralized company currency with TanStack Query cache (5min staleTime)
   useCompanyCurrency();
-
-  useEffect(() => {
-    const root = document.documentElement;
-
-    root.classList.toggle("dark", theme === "dark");
-
-    root.classList.toggle("light", theme === "light");
-
-    localStorage.setItem("theme", theme);
-  }, [theme]);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {

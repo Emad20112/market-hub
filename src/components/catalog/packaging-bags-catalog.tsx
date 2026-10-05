@@ -75,7 +75,7 @@ export function PackagingBagsCatalogView() {
       const { data, error } = await db
         .from("products")
         .select(
-          "id, sku, name, name_ar, sale_price, cost_price, is_active, unit_id, unit:units(id, name, name_ar, short_name)",
+          "id, sku, name, name_ar, sale_price, cost_price, is_active, unit_id, unit:units!products_unit_id_fkey(id, name, name_ar, short_name)",
         )
         .ilike("sku", "PKG-%")
         .order("sku");

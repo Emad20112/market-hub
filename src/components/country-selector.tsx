@@ -37,32 +37,32 @@ export function CountrySelector({ value, onChange, disabled }: CountrySelectorPr
           role="combobox"
           aria-expanded={open}
           disabled={disabled}
-          className="h-12 px-3 min-w-[110px] justify-between border-white/10 bg-[#071125] text-white hover:bg-white/5 shadow-xs rounded-2xl"
+          className="h-12 px-3 min-w-[110px] justify-between border-border bg-surface text-foreground hover:border-primary/45 hover:bg-surface-2 shadow-xs rounded-2xl"
         >
           <div className="flex items-center gap-2 font-medium dir-ltr">
             <FlagIcon code={value.code} emoji={value.flag} size="size-5" />
             <span className="text-xs font-semibold tracking-tight">{value.dialCode}</span>
           </div>
-          <ChevronsUpDown className="mr-1 h-3.5 w-3.5 shrink-0 opacity-50 text-slate-400" />
+          <ChevronsUpDown className="mr-1 h-3.5 w-3.5 shrink-0 opacity-50 text-muted-foreground" />
         </Button>
       </PopoverTrigger>
       <PopoverContent
-        className="w-[280px] p-0 border-white/10 bg-[#0d182d] text-white shadow-2xl rounded-2xl backdrop-blur-xl"
+        className="w-[280px] p-0 border-border bg-popover text-popover-foreground shadow-2xl rounded-2xl backdrop-blur-xl"
         align="start"
       >
-        <div className="p-2 border-b border-white/10 flex items-center gap-2">
-          <Search className="h-4 w-4 shrink-0 text-slate-400" />
+        <div className="p-2 border-b border-border flex items-center gap-2">
+          <Search className="h-4 w-4 shrink-0 text-muted-foreground" />
           <input
             type="text"
             placeholder="ابحث عن الدولة أو الرمز..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full bg-transparent text-xs text-white outline-none placeholder:text-slate-400 dir-rtl"
+            className="w-full bg-transparent text-xs text-foreground outline-none placeholder:text-muted-foreground dir-rtl"
           />
         </div>
         <div className="max-h-[220px] overflow-y-auto p-1 text-xs">
           {filteredCountries.length === 0 ? (
-            <div className="py-6 text-center text-xs text-slate-400 dir-rtl">
+            <div className="py-6 text-center text-xs text-muted-foreground dir-rtl">
               لا توجد نتائج مطابقة
             </div>
           ) : (
@@ -79,8 +79,8 @@ export function CountrySelector({ value, onChange, disabled }: CountrySelectorPr
                   className={cn(
                     "w-full flex items-center justify-between px-3 py-2 text-xs rounded-xl transition-colors dir-rtl cursor-pointer",
                     isSelected
-                      ? "bg-primary/20 text-primary font-bold"
-                      : "hover:bg-white/5 text-slate-300",
+                      ? "bg-primary/15 text-foreground font-bold"
+                      : "hover:bg-surface-2 text-muted-foreground",
                   )}
                 >
                   <div className="flex items-center gap-2">
@@ -88,7 +88,7 @@ export function CountrySelector({ value, onChange, disabled }: CountrySelectorPr
                     <span className="truncate">{country.nameAr}</span>
                   </div>
                   <div className="flex items-center gap-2 dir-ltr font-mono text-xs">
-                    <span className="text-slate-400">{country.dialCode}</span>
+                    <span className="text-muted-foreground">{country.dialCode}</span>
                     {isSelected && <Check className="h-3.5 w-3.5 text-primary" />}
                   </div>
                 </button>

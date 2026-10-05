@@ -1,10 +1,9 @@
-import { useState } from "react";
 import { cn } from "@/lib/utils";
 
 interface FlagIconProps {
   /** ISO 3166-1 alpha-2 country code (e.g. "YE", "SA", "US") */
   code: string;
-  /** Optional emoji fallback if image fails */
+  /** Optional emoji fallback if no drawing exists for the code */
   emoji?: string;
   /** CSS size class — defaults to "size-5" */
   size?: string;
@@ -12,34 +11,37 @@ interface FlagIconProps {
 }
 
 /**
- * Renders a country flag as an SVG image from flagcdn.com.
+ * أعلام الدول بدون أي طلب شبكة.
  *
- * Emoji flags (🇾🇪) don't render as colorful flags on Windows desktop browsers
- * — they appear as two-letter ISO codes. This component solves that by using
- * CDN-hosted SVG flag images with an emoji fallback.
+ * ما كان قبل: وسم <img> يشير إلى flagcdn.com. أي حجب للموقع أو انقطاع في
+ * الشبكة — وهو حال كثير من الشبكات هنا — ينتج علماً مكسوراً بجانب رقم الهاتف
+ * وفي منتقي رمز العملة. تلك صورة صغيرة لا تستحق رحلة إلى الخارج، ونتيجتها
+ * حين تفشل أيقونة مستطيلة مكسورة في واجهة عربية.
+ *
+ * الترتيب: الإيموجي الوطني أولاً (يظهر ملوّناً في معظم الأنظمة)، ثم حرفا
+ * الدولة إن لم يوجد إيموجي.
  */
 export function FlagIcon({ code, emoji, size = "size-5", className }: FlagIconProps) {
-  const [imgError, setImgError] = useState(false);
-  const lowerCode = code?.toLowerCase();
+  const upper = (code || "").toUpperCase();
+  const valid = /^[A-Z]{2}$/.test(upper);
 
-  // If no valid code or image failed, show emoji or globe
-  if (!lowerCode || imgError) {
-    return (
-      <span className={cn("inline-flex items-center justify-center leading-none", size, className)}>
-        {emoji || "🌐"}
-      </span>
-    );
-  }
+  // Regional indicator symbols: "YE" → 🇾🇪
+  const derived = valid
+    ? String.fromCodePoint(...[...upper].map((c) => 0x1f1e6 + c.charCodeAt(0) - 65))
+    : null;
 
   return (
-    <img
-      src={`https://flagcdn.com/${lowerCode}.svg`}
-      alt={code}
-      className={cn("inline-block rounded-[3px] object-cover", size, className)}
-      style={{ aspectRatio: "4/3" }}
-      onError={() => setImgError(true)}
-      loading="lazy"
-    />
+    <span
+      className={cn(
+        "inline-flex items-center justify-center overflow-hidden leading-none",
+        size,
+        className,
+      )}
+      title={valid ? upper : undefined}
+      aria-hidden="true"
+    >
+      <span className="text-[0.95em] leading-none">{emoji || derived || "🌐"}</span>
+    </span>
   );
 }
 
