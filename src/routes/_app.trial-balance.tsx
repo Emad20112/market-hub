@@ -17,6 +17,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Printer, Scale, FileSpreadsheet } from "lucide-react";
+import { fetchUnifiedExpenseStats } from "@/lib/expenses/financial-bridge";
 
 export const Route = createFileRoute("/_app/trial-balance")({
   head: () => ({ meta: [{ title: "ميزان المراجعة — Vortex ERP" }] }),
@@ -42,10 +43,10 @@ function TrialBalancePage() {
 
   const loadTrialBalance = useCallback(async () => {
     setLoading(true);
-    const [sales, purchases, expenses, customers, suppliers, inv] = await Promise.all([
+    const [sales, purchases, expenseStats, customers, suppliers, inv] = await Promise.all([
       supabase.from("sales_invoices").select("total,paid").limit(3000),
       supabase.from("purchase_invoices").select("total,paid").limit(3000),
-      supabase.from("expenses").select("amount").limit(2000),
+      fetchUnifiedExpenseStats(),
       supabase.from("customers").select("balance").limit(2000),
       supabase.from("suppliers").select("balance").limit(2000),
       /*
@@ -62,7 +63,10 @@ function TrialBalancePage() {
     const purchaseTotal = (purchases.data ?? []).reduce((a, r) => a + Number(r.total), 0);
     const purchasePaidCash = (purchases.data ?? []).reduce((a, r) => a + Number(r.paid), 0);
 
-    const expensesTotal = (expenses.data ?? []).reduce((a, r) => a + Number(r.amount), 0);
+    const expensesTotal = expenseStats.postedTotal;
+    const expenseCashPaid = expenseStats.paidCashOut;
+    const expensePayables = expenseStats.outstandingTotal;
+
     const receivables = (customers.data ?? []).reduce(
       (a, c) => a + Math.max(0, Number(c.balance || 0)),
       0,
@@ -75,7 +79,7 @@ function TrialBalancePage() {
       (a, row: { reference_valuation?: number | null }) => a + Number(row.reference_valuation ?? 0),
       0,
     );
-    const netCashOnHand = Math.max(0, salesPaidCash - purchasePaidCash - expensesTotal);
+    const netCashOnHand = Math.max(0, salesPaidCash - purchasePaidCash - expenseCashPaid);
 
     const result: TrialBalanceAccount[] = [
       {
@@ -107,6 +111,14 @@ function TrialBalancePage() {
         type: "liability",
         debit: 0,
         credit: payables,
+      },
+      {
+        accountCode: "2020",
+        accountName:
+          lang === "ar" ? "ذمم مصروفات مستحقة الدفع" : "Accrued Expenses Payable",
+        type: "liability",
+        debit: 0,
+        credit: expensePayables,
       },
       {
         accountCode: "4010",

@@ -136,7 +136,11 @@ check("الصفوف لا تنقسم بين الصفحات", html.includes("page-
 check("الدعم الحديث لـ break-inside موجود", html.includes("break-inside:avoid"));
 check("ترويسة الجدول تتكرر", html.includes("display:table-header-group"));
 check("الخلايا الرقمية معزولة LTR", (html.match(/dir="ltr"/g) ?? []).length > 0);
-check("اسم النظام في التذييل", html.includes("Market Hub"));
+check(
+  "اسم الشركة في التذييل يأتي من Company Profile لا من ثابت",
+  html.includes('class="universal-footer"'),
+);
+check("لا يوجد اسم منتج/شركة مكتوب داخل التقرير", !html.includes("Market Hub"));
 check("لا يستدعي window.print على الصفحة الحالية", !html.includes("window.print"));
 
 const htmlEn = buildReportHtml({

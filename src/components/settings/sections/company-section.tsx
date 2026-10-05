@@ -110,6 +110,35 @@ export function CompanySection({ form, setForm, canEdit, lang }: CompanySectionP
 
         <div className="grid gap-1.5">
           <Label className="text-xs font-semibold">
+            {isAr ? "بيانات التواصل في الفوتر" : "Footer contact"}
+          </Label>
+          <Input
+            value={form.footer_contact ?? "784795104"}
+            onChange={(e) => setForm({ ...form, footer_contact: e.target.value })}
+            disabled={!canEdit}
+            placeholder="784795104"
+            className="rounded-2xl font-mono"
+          />
+          <span className="text-[11px] text-muted-foreground">
+            {isAr ? "تظهر هذه القيمة في المستندات المطبوعة" : "Shown in printed document footers"}
+          </span>
+        </div>
+
+        <div className="grid gap-1.5">
+          <Label className="text-xs font-semibold">
+            {isAr ? "نص الفوتر" : "Footer note"}
+          </Label>
+          <Input
+            value={form.footer_text ?? ""}
+            onChange={(e) => setForm({ ...form, footer_text: e.target.value })}
+            disabled={!canEdit}
+            placeholder={isAr ? "ملاحظات التواصل أو الاعتماد" : "Contact or compliance note"}
+            className="rounded-2xl"
+          />
+        </div>
+
+        <div className="grid gap-1.5">
+          <Label className="text-xs font-semibold">
             {isAr ? "العنوان الجغرافي والموقع" : "Address & Location"}
           </Label>
           <Textarea

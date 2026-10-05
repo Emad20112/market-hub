@@ -1,0 +1,382 @@
+/**
+ * Unified printing tests — profiles, themes, documents, company profile,
+ * footer and legacy normalisation.
+ *
+ * Runs with: npx tsx src/lib/printing/__tests__/unified-printing.test.ts
+ */
+
+import { PRINT_PAPERS, paperCss, type PrintPaperId } from "../paper";
+import { PRINT_THEMES, normalizeTheme } from "../themes";
+import { DOCUMENT_TYPES, getDocumentTypeMeta } from "../document-types";
+import {
+  normalizePrintSettings,
+  DEFAULT_UNIFIED_PRINT_SETTINGS,
+  PRINT_SETTINGS_KEY,
+} from "../settings";
+import { PRINT_ADAPTER_META, getRegisteredPrintAdapters } from "../adapters";
+import { renderUnifiedDocument } from "../engine";
+import { renderStandardTemplate } from "@/lib/templates/standard";
+import { renderElegantTemplate } from "@/lib/templates/elegant";
+import { renderFormalTemplate } from "../formal";
+import { renderUniversalFooter, UNIVERSAL_FOOTER_CSS } from "../footer";
+import { DEFAULT_COMPANY_PROFILE, type CompanyProfile } from "../company-profile";
+import type { UnifiedDocumentData, InvoiceLabels } from "@/lib/templates";
+
+let passed = 0;
+const failures: string[] = [];
+
+function check(name: string, condition: boolean) {
+  if (condition) passed += 1;
+  else failures.push(name);
+}
+
+/* ─────────────────────────── Profiles ─────────────────────────── */
+
+check("A4 profile exists", PRINT_PAPERS.a4.widthMm === 210 && PRINT_PAPERS.a4.heightMm === 297);
+check("A5 profile exists", PRINT_PAPERS.a5.widthMm === 148 && PRINT_PAPERS.a5.heightMm === 210);
+check("Thermal 58mm exists", PRINT_PAPERS["thermal-58"].widthMm === 58);
+check("Thermal 80mm exists", PRINT_PAPERS["thermal-80"].widthMm === 80);
+check(
+  "thermal profiles are flagged",
+  PRINT_PAPERS["thermal-58"].thermal && PRINT_PAPERS["thermal-80"].thermal,
+);
+
+const portraitCss = paperCss(PRINT_PAPERS.a4, "portrait");
+const landscapeCss = paperCss(PRINT_PAPERS.a4, "landscape");
+check("portrait paper css uses width then height", portraitCss.includes("210mm 297mm"));
+check("landscape paper css swaps dimensions", landscapeCss.includes("297mm 210mm"));
+check(
+  "thermal paper css uses auto height",
+  paperCss(PRINT_PAPERS["thermal-80"]).includes("80mm auto"),
+);
+
+/* ─────────────────────────── Themes ─────────────────────────── */
+
+check("standard theme exists", PRINT_THEMES.standard.id === "standard");
+check("luxury theme exists", PRINT_THEMES.luxury.id === "luxury");
+check("formal theme exists", PRINT_THEMES.formal.id === "formal");
+check("legacy 'elegant' normalises to luxury", normalizeTheme("elegant") === "luxury");
+check("legacy 'premium' normalises to luxury", normalizeTheme("premium") === "luxury");
+check("legacy 'normal' normalises to standard", normalizeTheme("normal") === "standard");
+check("legacy 'standard' stays standard", normalizeTheme("standard") === "standard");
+check("unknown theme falls back to standard", normalizeTheme("nonsense") === "standard");
+check("undefined theme falls back to standard", normalizeTheme(undefined) === "standard");
+
+/* ─────────────────────────── Settings / migration ─────────────────────────── */
+
+check(
+  "default settings are complete",
+  DEFAULT_UNIFIED_PRINT_SETTINGS.behavior === "default" &&
+    DEFAULT_UNIFIED_PRINT_SETTINGS.method === "browser" &&
+    DEFAULT_UNIFIED_PRINT_SETTINGS.copies === 1,
+);
+check("settings key is the v2 store", PRINT_SETTINGS_KEY === "vortex_print_settings_v2");
+
+const fromLegacyAuto = normalizePrintSettings({ printMode: "auto" } as never);
+check("legacy printMode 'auto' migrates to direct", fromLegacyAuto.behavior === "direct");
+const fromLegacyOff = normalizePrintSettings({ printMode: "off" } as never);
+check("legacy printMode 'off' migrates to off", fromLegacyOff.behavior === "off");
+const fromLegacyAsk = normalizePrintSettings({ printMode: "ask" } as never);
+check("legacy printMode 'ask' migrates to ask", fromLegacyAsk.behavior === "ask");
+check(
+  "legacy paperSize 58mm migrates to thermal-58",
+  normalizePrintSettings({ paperSize: "58mm" } as never).paperId === "thermal-58",
+);
+check(
+  "legacy paperSize A4 migrates to a4",
+  normalizePrintSettings({ paperSize: "A4" } as never).paperId === "a4",
+);
+check("copies are clamped to >= 1", normalizePrintSettings({ copies: 0 }).copies === 1);
+check("copies are clamped to <= 20", normalizePrintSettings({ copies: 99 }).copies === 20);
+check("NaN copies fall back to 1", normalizePrintSettings({ copies: Number.NaN }).copies === 1);
+check(
+  "legacy overrides survive normalisation",
+  (
+    normalizePrintSettings({
+      overrides: { customer_invoice: { theme: "elegant" } },
+    } as never).overrides.customer_invoice as { theme?: string } | undefined
+  )?.theme === "elegant",
+);
+
+/* ─────────────────────────── Adapters ─────────────────────────── */
+
+check("browser adapter declared", PRINT_ADAPTER_META.browser.capabilities.supportsPreview);
+check(
+  "pdf adapter does not claim copies",
+  PRINT_ADAPTER_META.pdf.capabilities.supportsCopies === false,
+);
+check(
+  "thermal adapter does not claim direct output",
+  PRINT_ADAPTER_META.thermal.capabilities.supportsDirectOutput === false,
+);
+check("all three adapters are registered", getRegisteredPrintAdapters().length === 3);
+
+/* ─────────────────────────── Document types ─────────────────────────── */
+
+const REQUIRED_DOCS = [
+  "customer_invoice",
+  "purchase_invoice",
+  "sales_return",
+  "purchase_return",
+  "payment_receipt",
+  "customer_statement",
+  "supplier_statement",
+  "stock_transfer",
+  "inventory_document",
+  "report",
+  "mill_document",
+  "daily_ticket",
+  "audit_record",
+];
+for (const id of REQUIRED_DOCS) {
+  check(
+    `document type registered: ${id}`,
+    DOCUMENT_TYPES.some((d) => d.id === id),
+  );
+}
+check(
+  "every document type has Arabic + English names",
+  DOCUMENT_TYPES.every((d) => d.nameAr.trim() && d.nameEn.trim()),
+);
+check(
+  "unknown document type falls back safely",
+  getDocumentTypeMeta("nope" as never).nameEn === "Document",
+);
+
+/* ─────────────────────────── Documents render ─────────────────────────── */
+
+const COMPANY: CompanyProfile = {
+  name: "شركة الاختبار",
+  contacts: ["784795104", "772217218"],
+  footerContact: "784795104 · 772217218",
+  address: "صنعاء",
+  email: "test@example.com",
+  logoUrl: "/inama-soft-logo.ico",
+};
+
+const LABELS: InvoiceLabels = {
+  invoice: "مستند",
+  date: "التاريخ",
+  billTo: "الطرف",
+  warehouse: "المستودع",
+  payment: "الدفع",
+  status: "الحالة",
+  product: "الصنف",
+  qty: "الكمية",
+  price: "السعر",
+  total: "الإجمالي",
+  subtotal: "المجموع",
+  tax: "الضريبة",
+  discount: "الخصم",
+  grandTotal: "الإجمالي النهائي",
+  paid: "المدفوع",
+  balance: "المتبقي",
+  thanks: "شكرًا",
+  poweredBy: "",
+};
+
+function docFor(docType: UnifiedDocumentData["docType"]): UnifiedDocumentData {
+  return {
+    docType,
+    title: "مستند اختبار",
+    number: "T-001",
+    date: "2026-10-04",
+    partyName: "عميل الاختبار",
+    warehouse: "المستودع الرئيسي",
+    payment: "نقداً",
+    status: "مدفوعة",
+    lines: [
+      { product: "صنف أول", qty: 2, unit: "حبة", price: 50, total: 100, code: "P1" },
+      {
+        product: "صنف ثانٍ طويل الاسم جدًا لاختبار الالتفاف",
+        qty: 3,
+        unit: "كرتون",
+        price: 25,
+        total: 75,
+      },
+    ],
+    subtotal: 175,
+    tax: 10,
+    discount: 5,
+    total: 180,
+    paid: 180,
+    balance: 0,
+    currency: "ر.ي",
+    company: { name: COMPANY.name, phone: COMPANY.contacts[0], logo: COMPANY.logoUrl },
+  };
+}
+
+for (const type of [
+  "customer_invoice",
+  "purchase_invoice",
+  "sales_return",
+  "payment_receipt",
+] as const) {
+  const html = renderStandardTemplate(docFor(type), LABELS, true, { company: COMPANY });
+  check(`standard renders ${type}`, html.includes("<!doctype html>") && html.includes("T-001"));
+}
+
+const longDoc = docFor("customer_invoice");
+longDoc.lines = Array.from({ length: 40 }, (_, i) => ({
+  product: `صنف رقم ${i + 1} باسم طويل نسبيًا`,
+  qty: 1,
+  price: 10,
+  total: 10,
+}));
+const manyLinesHtml = renderStandardTemplate(longDoc, LABELS, true, { company: COMPANY });
+check("many lines render without truncation", (manyLinesHtml.match(/<tr>/g) ?? []).length >= 40);
+
+/* Standard and luxury must share one layout — only colours differ. */
+const stdHtml = renderStandardTemplate(docFor("customer_invoice"), LABELS, true, {
+  company: COMPANY,
+});
+const luxHtml = renderElegantTemplate(docFor("customer_invoice"), LABELS, true, {
+  company: COMPANY,
+});
+check(
+  "standard and luxury share the same page container",
+  stdHtml.includes('class="page-container"') && luxHtml.includes('class="page-container"'),
+);
+check(
+  "standard and luxury share the same items table",
+  stdHtml.includes('class="items-table"') && luxHtml.includes('class="items-table"'),
+);
+check(
+  "standard and luxury differ only by theme tokens",
+  stdHtml.includes(PRINT_THEMES.standard.accent) && luxHtml.includes(PRINT_THEMES.luxury.accent),
+);
+check("standard does not contain the luxury accent", !stdHtml.includes(PRINT_THEMES.luxury.accent));
+
+/* RTL / LTR */
+const ltrHtml = renderStandardTemplate(docFor("customer_invoice"), LABELS, false, {
+  company: COMPANY,
+});
+check("RTL document declares rtl", stdHtml.includes('dir="rtl"'));
+check("LTR document declares ltr", ltrHtml.includes('dir="ltr"'));
+
+/* Formal */
+const formalHtml = renderFormalTemplate(
+  docFor("customer_invoice"),
+  LABELS,
+  true,
+  { showFooter: true },
+  COMPANY,
+);
+check(
+  "formal template renders",
+  formalHtml.includes("<!doctype html>") && formalHtml.includes("T-001"),
+);
+
+/* Engine — profiles & overrides */
+const engineThermal = renderUnifiedDocument({
+  doc: docFor("customer_invoice"),
+  documentType: "customer_invoice",
+  rtl: true,
+  paperId: "thermal-58",
+  theme: "standard",
+});
+check("engine honours thermal-58 paper", engineThermal.includes("--print-width:58mm"));
+
+const engineLandscape = renderUnifiedDocument({
+  doc: docFor("customer_invoice"),
+  documentType: "customer_invoice",
+  rtl: true,
+  paperId: "a4",
+  orientation: "landscape",
+});
+check("engine honours landscape orientation", engineLandscape.includes("297mm 210mm"));
+
+const engineOverride = renderUnifiedDocument({
+  doc: docFor("customer_invoice"),
+  documentType: "customer_invoice",
+  rtl: true,
+  settings: {
+    ...DEFAULT_UNIFIED_PRINT_SETTINGS,
+    paperId: "a4",
+    overrides: { customer_invoice: { paperId: "thermal-80" } },
+  },
+});
+check(
+  "per-document override beats the global default",
+  engineOverride.includes("--print-width:80mm"),
+);
+
+const engineFormal = renderUnifiedDocument({
+  doc: docFor("customer_invoice"),
+  documentType: "customer_invoice",
+  rtl: true,
+  theme: "formal",
+});
+check("engine routes formal theme to the formal template", engineFormal.includes("A4 portrait"));
+
+/* ─────────────────────────── Company Profile ─────────────────────────── */
+
+check("default company profile has no invented tenant name", DEFAULT_COMPANY_PROFILE.name === "");
+check(
+  "default company profile exposes both support numbers",
+  DEFAULT_COMPANY_PROFILE.footerContact === "784795104 · 772217218",
+);
+
+const footer = renderUniversalFooter(COMPANY, true);
+check("universal footer renders the company name", footer.includes("شركة الاختبار"));
+check("universal footer renders contact numbers", footer.includes("784795104"));
+check("universal footer renders the address", footer.includes("صنعاء"));
+check("universal footer renders the email", footer.includes("test@example.com"));
+check("universal footer declares rtl", footer.includes('dir="rtl"'));
+check(
+  "universal footer declares ltr when asked",
+  renderUniversalFooter(COMPANY, false).includes('dir="ltr"'),
+);
+check(
+  "universal footer css avoids page breaks",
+  UNIVERSAL_FOOTER_CSS.includes("break-inside:avoid"),
+);
+
+const noOwnerName = renderUniversalFooter(COMPANY, true);
+check("footer never contains the former owner name", !noOwnerName.includes("موسى العواضي"));
+
+/* Company data must come from Company Profile, not a template constant. */
+const profileDrivenHtml = renderStandardTemplate(docFor("customer_invoice"), LABELS, true, {
+  company: { ...COMPANY, name: "منشأة العميل الفعلية" },
+});
+check(
+  "template reads the company name from the profile",
+  profileDrivenHtml.includes("منشأة العميل الفعلية"),
+);
+check(
+  "template never falls back to a hard-coded company name",
+  !profileDrivenHtml.includes("طاحونتي"),
+);
+
+/* Footer presence across documents and formats */
+const FOOTER_MARKUP = '<footer class="universal-footer"';
+for (const paperId of ["a4", "a5", "thermal-58", "thermal-80"] as PrintPaperId[]) {
+  const html = renderUnifiedDocument({
+    doc: docFor("customer_invoice"),
+    documentType: "customer_invoice",
+    rtl: true,
+    paperId,
+    settings: { ...DEFAULT_UNIFIED_PRINT_SETTINGS, footerEnabled: true, paperId },
+  });
+  check(`footer present on ${paperId}`, html.includes(FOOTER_MARKUP));
+}
+
+const footerOffHtml = renderUnifiedDocument({
+  doc: docFor("customer_invoice"),
+  documentType: "customer_invoice",
+  rtl: true,
+  settings: { ...DEFAULT_UNIFIED_PRINT_SETTINGS, footerEnabled: false },
+});
+check("footer can be disabled", !footerOffHtml.includes(FOOTER_MARKUP));
+
+/* Multi-page documents must not let the footer cover content. */
+check(
+  "footer is pushed to the end of the document flow",
+  UNIVERSAL_FOOTER_CSS.includes("margin-top:auto"),
+);
+
+if (failures.length > 0) {
+  throw new Error(`Unified printing tests failed:\n - ${failures.join("\n - ")}`);
+}
+
+console.log(`Unified printing tests passed: ${passed}`);

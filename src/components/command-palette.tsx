@@ -11,39 +11,22 @@ import { useNavigate } from "@tanstack/react-router";
 import { useI18n } from "@/lib/i18n";
 import { useAuth } from "@/lib/auth";
 import { useModules } from "@/lib/modules";
-import {
-  LayoutDashboard,
-  ScanBarcode,
-  Package,
-  Warehouse,
-  Receipt,
-  Truck,
-  Users,
-  Building2,
-  Wallet,
-  BarChart3,
-  Settings,
-  Bell,
-  ShieldCheck,
-  RotateCcw,
-  ArrowRightLeft,
-  CalendarClock,
-  Barcode,
-  Gift,
-  History,
-  Layers,
-  Boxes,
-  AlertTriangle,
-  FileText,
-  BookOpen,
-  Scale,
-  Landmark,
-  PieChart,
-  LineChart,
-  Crown,
-  ClipboardList,
-  Sparkles,
-} from "lucide-react";
+import { useMillingMode, isRouteVisibleByMillingMode } from "@/lib/milling-mode";
+import { canAccessRoute } from "@/lib/route-access";
+import { getVisibleRoutes, type RouteCategory } from "@/lib/navigation";
+import { routeIcon, routeCategoryLabel } from "@/lib/navigation/route-icons";
+
+/** ترتيب أقسام لوحة الأوامر. */
+const GROUP_ORDER: RouteCategory[] = [
+  "command_center",
+  "sales",
+  "inventory",
+  "procurement",
+  "finance",
+  "milling",
+  "admin",
+  "settings",
+];
 
 export function CommandPalette({
   open,
@@ -53,182 +36,58 @@ export function CommandPalette({
   onOpenChange: (v: boolean) => void;
 }) {
   const navigate = useNavigate();
-  const { t } = useI18n();
-  const { isPlatformAdmin } = useAuth();
+  const { t, lang } = useI18n();
+  const isAr = lang === "ar";
+  const { roles, isPlatformAdmin, isPlatformSuperadmin } = useAuth();
   const { isModuleEnabled } = useModules();
-  const go = (to: string) => {
+  const { mode: millingMode } = useMillingMode();
+
+  const go = (path: string) => {
     onOpenChange(false);
-    navigate({ to });
+    const [pathname, search] = path.split("?");
+    if (search) {
+      navigate({ to: pathname, search: Object.fromEntries(new URLSearchParams(search)) } as never);
+    } else {
+      navigate({ to: pathname } as never);
+    }
   };
+
+  const entries = getVisibleRoutes({
+    isModuleEnabled,
+    isVisibleByMillingMode: (path) => isRouteVisibleByMillingMode(path, millingMode),
+    canAccess: (entry) =>
+      canAccessRoute(entry.path.split("?")[0], { roles, isPlatformAdmin, isPlatformSuperadmin }),
+  });
 
   return (
     <CommandDialog open={open} onOpenChange={onOpenChange}>
       <CommandInput placeholder={t("common.search")} />
       <CommandList>
         <CommandEmpty>{t("common.no_results")}</CommandEmpty>
-
-        {/* Operations */}
-        <CommandGroup heading={t("common.navigate")}>
-          <CommandItem onSelect={() => go("/dashboard")}>
-            <LayoutDashboard /> {t("nav.dashboard")}
-          </CommandItem>
-          {isModuleEnabled("analytics") && (
-            <CommandItem onSelect={() => go("/analytics")}>
-              <LineChart /> {t("nav.analytics")}
-            </CommandItem>
-          )}
-          <CommandItem onSelect={() => go("/plans")}>
-            <Crown className="text-amber-500" /> {t("nav.plans")}
-          </CommandItem>
-          {isModuleEnabled("pos") && (
-            <CommandItem onSelect={() => go("/pos")}>
-              <ScanBarcode /> {t("nav.pos")}
-            </CommandItem>
-          )}
-          <CommandItem onSelect={() => go("/products")}>
-            <Package /> {t("nav.products")}
-          </CommandItem>
-          <CommandItem onSelect={() => go("/inventory")}>
-            <Warehouse /> {t("nav.inventory")}
-          </CommandItem>
-          {isModuleEnabled("multi_warehouse") && (
-            <CommandItem onSelect={() => go("/warehouses")}>
-              <Boxes /> {t("nav.warehouses")}
-            </CommandItem>
-          )}
-          <CommandItem onSelect={() => go("/catalog")}>
-            <Layers /> {t("nav.catalog")}
-          </CommandItem>
-          <CommandItem onSelect={() => go("/sales")}>
-            <Receipt /> {t("nav.sales")}
-          </CommandItem>
-          {isModuleEnabled("returns") && (
-            <CommandItem onSelect={() => go("/sales-returns")}>
-              <RotateCcw /> {t("nav.sales_returns")}
-            </CommandItem>
-          )}
-          {isModuleEnabled("purchases") && (
-            <CommandItem onSelect={() => go("/purchases")}>
-              <Truck /> {t("nav.purchases")}
-            </CommandItem>
-          )}
-          {isModuleEnabled("returns") && (
-            <CommandItem onSelect={() => go("/purchase-returns")}>
-              <RotateCcw /> {t("nav.purchase_returns")}
-            </CommandItem>
-          )}
-          {isModuleEnabled("multi_warehouse") && (
-            <CommandItem onSelect={() => go("/transfers")}>
-              <ArrowRightLeft /> {t("nav.transfers")}
-            </CommandItem>
-          )}
-          {isModuleEnabled("batches") && (
-            <CommandItem onSelect={() => go("/batches")}>
-              <CalendarClock /> {t("nav.batches")}
-            </CommandItem>
-          )}
-          {isModuleEnabled("barcode") && (
-            <CommandItem onSelect={() => go("/barcodes")}>
-              <Barcode /> {t("nav.barcodes")}
-            </CommandItem>
-          )}
-          <CommandItem onSelect={() => go("/customers")}>
-            <Users /> {t("nav.customers")}
-          </CommandItem>
-          {isModuleEnabled("loyalty") && (
-            <CommandItem onSelect={() => go("/loyalty")}>
-              <Gift /> {t("nav.loyalty")}
-            </CommandItem>
-          )}
-          {isModuleEnabled("purchases") && (
-            <CommandItem onSelect={() => go("/suppliers")}>
-              <Building2 /> {t("nav.suppliers")}
-            </CommandItem>
-          )}
-        </CommandGroup>
-
-        {/* Accounting & Finance */}
-        {(isModuleEnabled("payments") ||
-          isModuleEnabled("expenses") ||
-          isModuleEnabled("advanced_accounting") ||
-          isModuleEnabled("analytics")) && (
-          <>
-            <CommandSeparator />
-            <CommandGroup heading={t("common.accounting")}>
-              {isModuleEnabled("payments") && (
-                <CommandItem onSelect={() => go("/payments")}>
-                  <Wallet /> {t("nav.payments")}
-                </CommandItem>
-              )}
-              {isModuleEnabled("payments") && (
-                <CommandItem onSelect={() => go("/debts")}>
-                  <AlertTriangle /> {t("nav.debts")}
-                </CommandItem>
-              )}
-              {isModuleEnabled("payments") && (
-                <CommandItem onSelect={() => go("/account-statement")}>
-                  <FileText /> {t("nav.account_statement")}
-                </CommandItem>
-              )}
-              {isModuleEnabled("expenses") && (
-                <CommandItem onSelect={() => go("/finance")}>
-                  <Wallet /> {t("nav.finance")}
-                </CommandItem>
-              )}
-              {isModuleEnabled("advanced_accounting") && (
-                <>
-                  <CommandItem onSelect={() => go("/daily-journal")}>
-                    <BookOpen /> {t("nav.daily_journal")}
-                  </CommandItem>
-                  <CommandItem onSelect={() => go("/trial-balance")}>
-                    <Scale /> {t("nav.trial_balance")}
-                  </CommandItem>
-                  <CommandItem onSelect={() => go("/income-statement")}>
-                    <PieChart /> {t("nav.income_statement")}
-                  </CommandItem>
-                  <CommandItem onSelect={() => go("/balance-sheet")}>
-                    <Landmark /> {t("nav.balance_sheet")}
-                  </CommandItem>
-                </>
-              )}
-              {isModuleEnabled("analytics") && (
-                <CommandItem onSelect={() => go("/reports")}>
-                  <BarChart3 /> {t("nav.reports")}
-                </CommandItem>
-              )}
-            </CommandGroup>
-          </>
-        )}
-
-        {/* Admin */}
-        <CommandSeparator />
-        <CommandGroup heading={t("common.admin")}>
-          <CommandItem onSelect={() => go("/users")}>
-            <ShieldCheck /> {t("nav.users")}
-          </CommandItem>
-          {isModuleEnabled("audit") && (
-            <CommandItem onSelect={() => go("/audit")}>
-              <History /> {t("nav.audit")}
-            </CommandItem>
-          )}
-          <CommandItem onSelect={() => go("/settlements")}>
-            <ClipboardList /> {t("nav.settlements")}
-          </CommandItem>
-          <CommandItem onSelect={() => go("/notifications")}>
-            <Bell /> {t("nav.notifications")}
-          </CommandItem>
-          <CommandItem onSelect={() => go("/settings")}>
-            <Settings /> {t("nav.settings")}
-          </CommandItem>
-          <CommandItem onSelect={() => go("/vortex-ui")}>
-            <Sparkles className="text-primary" /> {t("nav.vortex_ui")}
-          </CommandItem>
-          {isPlatformAdmin && (
-            <CommandItem onSelect={() => go("/platform-admin")}>
-              <Crown className="text-amber-500" /> {t("nav.platform_admin")}
-            </CommandItem>
-          )}
-        </CommandGroup>
+        {GROUP_ORDER.map((category, index) => {
+          const group = entries.filter((entry) => entry.category === category);
+          if (group.length === 0) return null;
+          return (
+            <div key={category}>
+              {index > 0 && <CommandSeparator />}
+              <CommandGroup heading={routeCategoryLabel(category, isAr)}>
+                {group.map((entry) => {
+                  const Icon = routeIcon(entry.id);
+                  return (
+                    <CommandItem
+                      key={entry.id}
+                      value={`${isAr ? entry.titleAr : entry.titleEn} ${entry.keywords.join(" ")}`}
+                      onSelect={() => go(entry.path)}
+                    >
+                      <Icon />
+                      {isAr ? entry.titleAr : entry.titleEn}
+                    </CommandItem>
+                  );
+                })}
+              </CommandGroup>
+            </div>
+          );
+        })}
       </CommandList>
     </CommandDialog>
   );

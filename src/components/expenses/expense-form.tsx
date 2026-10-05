@@ -36,6 +36,7 @@ import { FieldInput } from "@/components/ui/input";
 import { VortexDrawerDialog } from "@/components/vortex-ui";
 import { useExpenseMutations, type ExpenseLineInput } from "@/hooks/use-expenses";
 import {
+  ACTIVE_EXPENSE_ENTRY_TYPES,
   EXPENSE_ENTRY_TYPES,
   EXPENSE_TAX_MODES,
   parseAmount,
@@ -138,6 +139,7 @@ export function ExpenseFormDialog({
   const [showPayment, setShowPayment] = useState(true);
   const [payNow, setPayNow] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState("cash");
+  const [accountId, setAccountId] = useState("");
   const [accountLabel, setAccountLabel] = useState("");
   const [dirty, setDirty] = useState(false);
   const firstFieldRef = useRef<HTMLInputElement>(null);
@@ -188,6 +190,7 @@ export function ExpenseFormDialog({
       setShowAdvanced(false);
       setPayNow(false);
       setPaymentMethod("cash");
+      setAccountId("");
       setAccountLabel("");
     }
 
@@ -374,6 +377,7 @@ export function ExpenseFormDialog({
               version: created.version,
               payNow: true,
               paymentMethod,
+              accountId: accountId || null,
               accountLabel: accountLabel || null,
               paymentDate: header.expense_date,
             });
@@ -774,16 +778,44 @@ export function ExpenseFormDialog({
                   <option value="mobile_money">{t("pos.pm.mobile_money")}</option>
                 </select>
               </Field>
-              <Field
-                label={ar ? "المصدر" : "Source"}
-                hint={ar ? "مثال: صندوق المصروفات النقدية" : "e.g. Petty cash box"}
-              >
-                <FieldInput
-                  value={accountLabel}
-                  onValueChange={setAccountLabel}
-                  placeholder={ar ? "اختياري" : "Optional"}
-                />
-              </Field>
+
+              {(lookups?.financial_accounts ?? []).length > 0 ? (
+                <Field
+                  label={ar ? "الحساب المالي (الصندوق / البنك)" : "Financial Account"}
+                  hint={ar ? "الحساب المحاسبي للخصم" : "Source cash or bank account"}
+                >
+                  <select
+                    value={accountId}
+                    onChange={(event) => {
+                      const val = event.target.value;
+                      setAccountId(val);
+                      const matched = lookups?.financial_accounts?.find((a) => a.id === val);
+                      if (matched) setAccountLabel(matched.name_ar);
+                    }}
+                    className={selectClass}
+                  >
+                    <option value="">
+                      {ar ? "— اختياري (تحديد تلقائي) —" : "— Optional (Auto) —"}
+                    </option>
+                    {(lookups?.financial_accounts ?? []).map((acct) => (
+                      <option key={acct.id} value={acct.id}>
+                        {acct.code} — {acct.name_ar}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+              ) : (
+                <Field
+                  label={ar ? "المصدر" : "Source"}
+                  hint={ar ? "مثال: صندوق المصروفات النقدية" : "e.g. Petty cash box"}
+                >
+                  <FieldInput
+                    value={accountLabel}
+                    onValueChange={setAccountLabel}
+                    placeholder={ar ? "اختياري" : "Optional"}
+                  />
+                </Field>
+              )}
             </div>
           ) : null}
         </Section>
@@ -829,11 +861,17 @@ export function ExpenseFormDialog({
                 }
                 className={selectClass}
               >
-                {EXPENSE_ENTRY_TYPES.map((type) => (
+                {ACTIVE_EXPENSE_ENTRY_TYPES.map((type) => (
                   <option key={type} value={type}>
                     {t(`expenses.type.${type}`)}
                   </option>
                 ))}
+                {/* Keep existing type if editing legacy/imported record */}
+                {!ACTIVE_EXPENSE_ENTRY_TYPES.includes(header.entry_type) ? (
+                  <option value={header.entry_type}>
+                    {t(`expenses.type.${header.entry_type}`)}
+                  </option>
+                ) : null}
               </select>
             </Field>
 

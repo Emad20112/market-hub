@@ -9,6 +9,7 @@ import { printFinancialStatement } from "@/lib/pdf";
 import { exportToCSV } from "@/lib/excel-export";
 import { Button } from "@/components/ui/button";
 import { Printer, Landmark, Wallet, FileSpreadsheet } from "lucide-react";
+import { fetchUnifiedExpenseStats } from "@/lib/expenses/financial-bridge";
 
 export const Route = createFileRoute("/_app/balance-sheet")({
   head: () => ({ meta: [{ title: "الميزانية العمومية — Vortex ERP" }] }),
@@ -39,10 +40,10 @@ function BalanceSheetPage() {
 
   async function loadBalanceSheet() {
     setLoading(true);
-    const [sales, purchases, expenses, customers, suppliers, inv] = await Promise.all([
+    const [sales, purchases, expenseStats, customers, suppliers, inv] = await Promise.all([
       supabase.from("sales_invoices").select("total,paid").order("created_at", { ascending: false }).limit(3000),
       supabase.from("purchase_invoices").select("total,paid").order("created_at", { ascending: false }).limit(3000),
-      supabase.from("expenses").select("amount").order("created_at", { ascending: false }).limit(2000),
+      fetchUnifiedExpenseStats(),
       supabase.from("customers").select("balance").limit(2000),
       supabase.from("suppliers").select("balance").limit(2000),
       /*
@@ -60,9 +61,10 @@ function BalanceSheetPage() {
 
     const salesPaidCash = (sales.data ?? []).reduce((a, r) => a + Number(r.paid), 0);
     const purchasePaidCash = (purchases.data ?? []).reduce((a, r) => a + Number(r.paid), 0);
-    const expensesTotal = (expenses.data ?? []).reduce((a, r) => a + Number(r.amount), 0);
+    const expenseCashPaid = expenseStats.paidCashOut;
+    const expensePayables = expenseStats.outstandingTotal;
 
-    const cashOnHand = Math.max(0, salesPaidCash - purchasePaidCash - expensesTotal);
+    const cashOnHand = Math.max(0, salesPaidCash - purchasePaidCash - expenseCashPaid);
     const receivables = (customers.data ?? []).reduce(
       (a, c) => a + Math.max(0, Number(c.balance || 0)),
       0,
@@ -73,11 +75,11 @@ function BalanceSheetPage() {
     );
     const totalAssets = cashOnHand + receivables + inventoryValue;
 
-    const payables = (suppliers.data ?? []).reduce(
+    const supplierPayables = (suppliers.data ?? []).reduce(
       (a, s) => a + Math.max(0, Number(s.balance || 0)),
       0,
     );
-    const totalLiabilities = payables;
+    const totalLiabilities = supplierPayables + expensePayables;
 
     const equity = totalAssets - totalLiabilities;
     const totalLiabilitiesAndEquity = totalLiabilities + equity;
@@ -87,7 +89,7 @@ function BalanceSheetPage() {
       receivables,
       inventoryValue,
       totalAssets,
-      payables,
+      payables: totalLiabilities,
       totalLiabilities,
       equity,
       totalLiabilitiesAndEquity,

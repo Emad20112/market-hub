@@ -48,3 +48,4 @@ supabase/.linter/
 # Local QA / dev scratch files
 qa-login*.mjs
 dev-server.log
+metadata.json

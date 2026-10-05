@@ -63,7 +63,10 @@ export function ProfitSalesReport({
         .select("quantity,product_id,invoice_id,sales_invoices!inner(created_at,status)")
         .not("sales_invoices.status", "in", "(draft,cancelled)");
       let returnsRequest = supabase.from("sales_returns").select("total");
-      let expensesRequest = supabase.from("expenses").select("amount");
+      let expensesRequest = (supabase as any)
+        .from("expense_entries")
+        .select("total_amount")
+        .in("status", ["POSTED", "PARTIALLY_PAID", "PAID", "CLOSED"]);
       if (fromTs) {
         salesRequest = salesRequest.gte("created_at", fromTs);
         itemsRequest = itemsRequest.gte("sales_invoices.created_at", fromTs);
@@ -146,7 +149,7 @@ export function ProfitSalesReport({
         }
       }
       const expenseTotal = (expenses.data ?? []).reduce(
-        (sum, row) => sum + Number((row as { amount?: number }).amount ?? 0),
+        (sum: number, row: { amount?: number }) => sum + Number(row.amount ?? 0),
         0,
       );
       const gross = netSales - cost;

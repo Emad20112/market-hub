@@ -15,7 +15,8 @@ export type DocumentType =
 
 export type PaperSize = "80mm" | "58mm" | "A4" | "A5";
 
-export type InvoiceTemplateId = "thermal" | "standard" | "elegant" | string;
+export type InvoiceTemplateId =
+  "thermal" | "standard" | "elegant" | "unified-modern" | "formal" | string;
 
 export interface DocumentLine {
   product: string;
@@ -31,12 +32,18 @@ export interface DocumentLine {
 
 export interface CompanyDetails {
   name?: string;
+  arabicName?: string;
+  englishName?: string;
+  legalName?: string;
   address?: string;
   phone?: string;
+  contacts?: string[];
   vat?: string;
   logo?: string;
   email?: string;
   website?: string;
+  footerText?: string;
+  footerContact?: string;
 }
 
 export interface CustomFieldOptions {
@@ -50,7 +57,6 @@ export interface CustomFieldOptions {
   showNotes?: boolean;
   showSignatures?: boolean;
   showFooter?: boolean;
-  showBranding?: boolean;
 }
 
 export interface UnifiedDocumentData {
@@ -90,7 +96,6 @@ export interface UnifiedDocumentData {
   terms?: string;
   lines: DocumentLine[];
   company?: CompanyDetails;
-  brandingText?: string;
 
   // Dynamic Field Customization Override
   options?: CustomFieldOptions;
@@ -153,7 +158,11 @@ export type TemplateRenderer = (
   doc: UnifiedDocumentData,
   labels: InvoiceLabels,
   rtl: boolean,
-  options?: CustomFieldOptions,
+  options?: CustomFieldOptions & {
+    /** بيانات الشركة من Company Profile (تتجاوز أي ثابت داخل القالب). */
+    company?: import("@/lib/printing/company-profile").CompanyProfile;
+    theme?: import("@/lib/printing/themes").PrintTheme;
+  },
 ) => string;
 
 export interface PrintSettings extends CustomFieldOptions {
@@ -173,7 +182,11 @@ export interface PrintJobItem {
   templateId?: InvoiceTemplateId;
 }
 
-export const DEFAULT_BRANDING = "إنما سوفت - 772217218";
+// Branding is supplied by Company Profile. The old `brandingText` /
+// `DEFAULT_BRANDING` pair was removed: it was dead configuration (always an
+// empty string) that risked re-introducing a hard-coded product-owner name in
+// printed documents. Company Profile (name, logo, footer) is the single source
+// of identity — see src/lib/printing/company-profile.ts.
 export const DEFAULT_COMPANY_LOGO = "/inama-soft-logo.ico";
 
 export function getCompanyLogo(doc: UnifiedDocumentData): string {

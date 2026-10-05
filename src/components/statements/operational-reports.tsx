@@ -102,13 +102,26 @@ export function OperationalReports({
         if (to) request = request.lte("created_at", `${to}T23:59:59`);
         result = await request;
       } else if (type === "expenses") {
-        let request = supabase
-          .from("expenses")
-          .select("*, expense_categories(name,name_ar)")
+        let request = (supabase as any)
+          .from("expense_entries")
+          .select(
+            "id,reference,expense_date,total_amount,status,description,note,expense_lines(category_id,expense_categories(name,name_ar))",
+          )
+          .in("status", ["POSTED", "PARTIALLY_PAID", "PAID", "CLOSED"])
           .order("expense_date", { ascending: false });
         if (from) request = request.gte("expense_date", from);
         if (to) request = request.lte("expense_date", to);
-        result = await request;
+        const res = await request;
+        const rows = ((res.data ?? []) as any[]).map((e) => {
+          const firstLine = e.expense_lines?.[0];
+          return {
+            ...e,
+            amount: e.total_amount,
+            expense_categories: firstLine?.expense_categories ?? { name: "General", name_ar: "عام" },
+            note: e.description || e.note || e.reference,
+          };
+        });
+        result = { data: rows, error: res.error };
       } else if (type === "inventory-movements" || type === "product") {
         let request = supabase
           .from("stock_movements")

@@ -21,6 +21,8 @@ import { statementPrintStyles } from "./print-styles";
 import { openPrintWindow } from "@/lib/print/print-window";
 import { esc, fmtAmount, fmtDate } from "./format";
 import { STATEMENT_COMPANY } from "./company";
+import { renderUniversalFooter, UNIVERSAL_FOOTER_CSS } from "@/lib/printing/footer";
+import { getCachedCompanyProfile, type CompanyProfile } from "@/lib/printing/company-profile";
 
 export type { StatementPrintOptions, DebtsSummaryRow, StatementCompanyInfo };
 
@@ -123,8 +125,8 @@ function renderSignatures(lang: "ar" | "en"): string {
 }
 
 /**
- * التذييل: نص التذييل + هوية Inama Soft (الشعار · الاسم · الهاتف · الموقع).
- * قرار المستخدم #6: نستخدم /inama-soft-logo.ico الموجود.
+ * التذييل: يُبنى من Universal Footer حتى تظهر نفس بيانات الشركة وأرقام
+ * التواصل في كل المستندات، مع الحفاظ على بلوك الهوية الاختياري للكشف.
  */
 function renderFooter(
   layout: StatementPrintOptions["layout"],
@@ -133,12 +135,24 @@ function renderFooter(
   extraFooter?: string,
 ): string {
   const ar = lang === "ar";
+  const profile: CompanyProfile = getCachedCompanyProfile();
+  // Company Profile هو مصدر الحقيقة؛ وقيم الكشف تُستخدم كـ fallback فقط.
+  const merged: CompanyProfile = {
+    ...profile,
+    name: profile.name || company.name,
+    address: profile.address || company.address || undefined,
+    email: profile.email || company.email || undefined,
+    taxNumber: profile.taxNumber || company.taxNumber || undefined,
+    logoUrl: profile.logoUrl || company.logoUrl || undefined,
+    footerContact: profile.footerContact || company.brand.phone,
+  };
+
   const brandBlock = layout.showBrandFooter
     ? `<div class="brand">
         <div class="brand-txt" style="text-align:${ar ? "right" : "left"};">
           <b>${esc(company.brand.name)}</b>
-          <div>Mousa Gamil Al-Awadhi - Ibb, Yemen</div>
-          <div dir="ltr">${esc(company.brand.website)} &nbsp; ${esc(company.brand.phone)}</div>
+          <div>${esc(company.address ?? "")}</div>
+          <div dir="ltr">${esc(company.brand.website)}</div>
         </div>
         <img src="${esc(company.brand.logoUrl)}" alt="${esc(company.brand.name)}" />
       </div>`
@@ -155,10 +169,11 @@ function renderFooter(
           : ""
       }
       ${extraFooter ? `<div>${esc(extraFooter)}</div>` : ""}
-      <div style="font-weight:600;margin-top:2px;">Market Hub · ${esc(company.brand.name)}</div>
+      <div style="font-weight:600;margin-top:2px;">${esc(company.name)}</div>
     </div>
     ${brandBlock}
-  </div>`;
+  </div>
+  ${renderUniversalFooter(merged, ar, true)}`;
 }
 
 // ---------------------------------------------------------------------------
@@ -191,7 +206,7 @@ export function buildStatementHtml(options: StatementPrintOptions): string {
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&family=Amiri:wght@400;700&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
-<style>${statementPrintStyles(lang)}</style>
+<style>${statementPrintStyles(lang)}${UNIVERSAL_FOOTER_CSS}</style>
 </head>
 <body>
 <div class="page">
