@@ -34,22 +34,30 @@ function resolveCandidates(input: string, countryCode: string): string[] {
   }
   const digits = trimmed.replace(/\D/g, "");
   const candidates: string[] = [];
+  const push = (value: string) => {
+    const email = phoneToAuthEmail(value);
+    if (!candidates.includes(email)) candidates.push(email);
+  };
 
-  // 1) Digits formatted with selected country dial code (E.164 without '+') -> cleanDigits@vortex.local
-  const fullE164 = formatPhoneE164(digits, countryCode);
-  const fullClean = fullE164.replace(/\D/g, "");
-  candidates.push(phoneToAuthEmail(fullClean));
+  // الرقم القادم بصيغة دولية كاملة يبدأ ببادئة الدولة (967…) — لا نلصق البادئة
+  // مرة ثانية، وهذا حال من كُتب له الحساب مرقّماً بالصيغة الدولية.
+  const dialDigits = countryCode.replace(/\D/g, "");
+  if (digits.startsWith(dialDigits) && digits.length > dialDigits.length) {
+    push(digits);
+    push(digits.slice(dialDigits.length));
+    push(`0${digits.slice(dialDigits.length)}`);
+    return candidates;
+  }
 
-  // 2) Stripped leading zero -> e.g. 771234567@vortex.local
+  // 1) الرقم كما كُتب، مع إزالة الأصفار البادئة: 0771234567 → 771234567
   const stripped = digits.replace(/^0+/, "");
-  if (stripped && !candidates.includes(phoneToAuthEmail(stripped))) {
-    candidates.push(phoneToAuthEmail(stripped));
-  }
+  push(stripped || digits);
 
-  // 3) Raw digits directly -> digits@vortex.local
-  if (!candidates.includes(phoneToAuthEmail(digits))) {
-    candidates.push(phoneToAuthEmail(digits));
-  }
+  // 2) الصيغة الدولية الكاملة: +967771234567 → 967771234567
+  push(formatPhoneE164(digits, countryCode).replace(/\D/g, ""));
+
+  // 3) الرقم الخام كما أُدخل (احتياط أخير)
+  push(digits);
 
   return candidates;
 }
@@ -83,7 +91,44 @@ function AuthPage() {
   const logoMarkUrl = "/vortex-erp-mark.png";
   const logoWordmarkUrl = "/vortex-erp-wordmark.png";
   const isRtl = dir === "rtl";
-  const isEmailInput = identifier.includes("@");
+  /**
+   * التمييز بين البريد والهاتف يجب أن يقبل أثناء الكتابة.
+   *
+   * المشكلة التي كانت: الشرط `includes("@")` يُقرأ مع كل ضغطة مفتاح، وكان
+   * مرتبطاً بـ `maxLength` يتغيّر معه — فحظة كتابة @ يهبط الحد من 15 إلى 255
+   * ثم يعود، فيُقتطع النص ولا يكتمل ".com".
+   *
+   * الآن نوع المُدخَل عقد مستقر يُحسم مرة واحدة من أول حرف غير رقمي، ولا
+   * يُعاد الحكم عليه مع كل حرف.
+   */
+  const [inputMode, setInputMode] = useState<"unknown" | "phone" | "email">("unknown");
+  const isEmailInput =
+    inputMode === "email" || (inputMode === "unknown" && identifier.includes("@"));
+
+  const handleIdentifierChange = (raw: string) => {
+    setIdentifier(raw);
+
+    // الفراغ يعيد النية إلى المجهول، فيصحّ تبديل النوع لاحقاً بدل الجمود
+    // على قرارٍ خاطئ اتُّخذ في حرفٍ سابق.
+    if (raw.trim() === "") {
+      setInputMode("unknown");
+      return;
+    }
+
+    if (/[@A-Za-z]/.test(raw)) {
+      setInputMode("email");
+      return;
+    }
+
+    // رقم فقط بعد أن حُسم النوع بريداً => المستخدم غيّر رأيه، نعود إلى رقم
+    // (يمنع بقاء منتقي الدولة مخفياً مع رقم في يده).
+    if (inputMode === "email" && /^\s*\d/.test(raw)) {
+      setInputMode("phone");
+      return;
+    }
+
+    if (inputMode === "unknown" && /\d/.test(raw)) setInputMode("phone");
+  };
 
   useEffect(() => {
     if (session) navigate({ to: "/dashboard", replace: true });
@@ -175,7 +220,7 @@ function AuthPage() {
 
   return (
     <div
-      className="relative flex min-h-screen flex-col overflow-x-hidden bg-[#030817] text-foreground"
+      className="relative flex min-h-screen flex-col overflow-x-hidden bg-background text-foreground"
       dir={dir}
     >
       <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
@@ -189,10 +234,10 @@ function AuthPage() {
             <div className="mx-auto grid size-16 place-items-center rounded-[1.4rem] border border-primary/30 bg-primary/10 p-2 shadow-[0_10px_28px_rgba(37,99,235,0.18)]">
               <img src={logoMarkUrl} alt={t("app.name")} className="size-full object-contain" />
             </div>
-            <h1 className="mt-4 text-2xl font-black tracking-tight text-white sm:text-3xl">
+            <h1 className="mt-4 text-2xl font-black tracking-tight text-foreground sm:text-3xl">
               {isRtl ? "نظام فورتكس لإدارة الأعمال" : "Vortex Business Management"}
             </h1>
-            <p className="mt-2 text-sm text-slate-400">
+            <p className="mt-2 text-sm text-muted-foreground">
               {isRtl
                 ? "سجّل الدخول لإدارة متجرك، مخزونك ومبيعاتك"
                 : "Sign in to manage your store, inventory, and sales"}
@@ -261,13 +306,13 @@ function AuthPage() {
               </div>
             </section>
 
-            <section className="flex flex-col justify-center rounded-[2rem] border border-white/10 bg-[#0d182d]/95 px-5 py-7 shadow-[0_24px_80px_rgba(0,0,0,0.32)] backdrop-blur-xl sm:px-7 sm:py-8">
+            <section className="flex flex-col justify-center rounded-[2rem] border border-border/70 bg-card px-5 py-7 shadow-[0_24px_80px_rgba(0,0,0,0.12)] backdrop-blur-xl sm:px-7 sm:py-8">
               <div className="mx-auto w-full max-w-sm">
                 <div className="text-center">
-                  <h2 className="text-xl font-black tracking-tight text-white">
+                  <h2 className="text-xl font-black tracking-tight text-foreground">
                     {isRtl ? "تسجيل الدخول" : "Sign in"}
                   </h2>
-                  <p className="mt-1.5 text-xs leading-6 text-slate-400">
+                  <p className="mt-1.5 text-xs leading-6 text-muted-foreground">
                     {isRtl
                       ? "أدخل بيانات حسابك للوصول إلى متجرك"
                       : "Enter your account details to access your store"}
@@ -278,9 +323,15 @@ function AuthPage() {
                   <div className="space-y-2">
                     <label
                       htmlFor="login-identifier"
-                      className="block text-xs font-bold text-slate-200"
+                      className="block text-xs font-bold text-foreground"
                     >
-                      {isRtl ? "رقم الهاتف أو البريد الإلكتروني" : "Phone number or email"}
+                      {isEmailInput
+                        ? isRtl
+                          ? "البريد الإلكتروني"
+                          : "Email address"
+                        : isRtl
+                          ? "رقم الهاتف"
+                          : "Phone number"}
                     </label>
                     <div className="flex gap-2">
                       {!isEmailInput && (
@@ -301,21 +352,18 @@ function AuthPage() {
                         <input
                           id="login-identifier"
                           value={identifier}
-                          onChange={(e) => setIdentifier(e.target.value)}
+                          onChange={(e) => handleIdentifierChange(e.target.value)}
                           type="text"
+                          inputMode={isEmailInput ? "email" : "tel"}
                           autoComplete="username"
                           autoCapitalize="none"
                           spellCheck={false}
                           required
                           disabled={loading}
                           dir="ltr"
-                          className="h-12 w-full rounded-2xl border border-white/10 bg-[#071125] px-4 ps-10 text-sm text-white shadow-sm outline-none transition-[border-color,box-shadow,background-color] placeholder:text-slate-500 hover:border-primary/45 focus:border-primary focus:ring-4 focus:ring-primary/15 disabled:cursor-not-allowed disabled:opacity-60 motion-reduce:transition-none"
-                          placeholder={
-                            isRtl
-                              ? "7xxxxxxxx أو name@company.com"
-                              : "7xxxxxxxx or name@company.com"
-                          }
-                          maxLength={isEmailInput ? 255 : country.maxLength + 6}
+                          className="h-12 w-full rounded-2xl border border-border bg-surface px-4 ps-10 text-sm text-foreground shadow-sm outline-none transition-[border-color,box-shadow,background-color] placeholder:text-muted-foreground hover:border-primary/45 focus:border-primary focus:ring-4 focus:ring-primary/15 disabled:cursor-not-allowed disabled:opacity-60 motion-reduce:transition-none"
+                          placeholder={isEmailInput ? "name@company.com" : `${country.placeholder}`}
+                          maxLength={isEmailInput ? 254 : 32}
                         />
                       </div>
                     </div>
@@ -324,7 +372,7 @@ function AuthPage() {
                   <div className="space-y-2">
                     <label
                       htmlFor="login-password"
-                      className="block text-xs font-bold text-slate-200"
+                      className="block text-xs font-bold text-foreground"
                     >
                       {t("common.password")}
                     </label>
@@ -343,13 +391,13 @@ function AuthPage() {
                         minLength={6}
                         disabled={loading}
                         dir="ltr"
-                        className="h-12 w-full rounded-2xl border border-white/10 bg-[#071125] px-4 ps-10 pe-12 text-sm text-white shadow-sm outline-none transition-[border-color,box-shadow,background-color] placeholder:text-slate-500 hover:border-primary/45 focus:border-primary focus:ring-4 focus:ring-primary/15 disabled:cursor-not-allowed disabled:opacity-60 motion-reduce:transition-none"
+                        className="h-12 w-full rounded-2xl border border-border bg-surface px-4 ps-10 pe-12 text-sm text-foreground shadow-sm outline-none transition-[border-color,box-shadow,background-color] placeholder:text-muted-foreground hover:border-primary/45 focus:border-primary focus:ring-4 focus:ring-primary/15 disabled:cursor-not-allowed disabled:opacity-60 motion-reduce:transition-none"
                         placeholder="••••••••"
                       />
                       <button
                         type="button"
                         onClick={() => setShowPassword((visible) => !visible)}
-                        className="absolute end-2 top-1/2 grid size-9 -translate-y-1/2 place-items-center rounded-xl text-slate-400 transition-colors hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-not-allowed disabled:opacity-60 motion-reduce:transition-none"
+                        className="absolute end-2 top-1/2 grid size-9 -translate-y-1/2 place-items-center rounded-xl text-muted-foreground transition-colors hover:bg-surface-2 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-not-allowed disabled:opacity-60 motion-reduce:transition-none"
                         aria-label={
                           showPassword
                             ? isRtl
@@ -388,7 +436,7 @@ function AuthPage() {
                   </Button>
                 </form>
 
-                <div className="mt-7 flex items-start gap-2.5 border-t border-white/10 pt-5 text-[11px] leading-5 text-slate-400">
+                <div className="mt-7 flex items-start gap-2.5 border-t border-border/70 pt-5 text-[11px] leading-5 text-muted-foreground">
                   <ShieldCheck className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden />
                   <p>
                     {isRtl
@@ -403,7 +451,7 @@ function AuthPage() {
       </main>
 
       <footer className="relative z-10 w-full">
-        <InamaSoftFooter className="border-t border-white/10 bg-[#030817]/80 text-slate-500 backdrop-blur-md" />
+        <InamaSoftFooter className="border-t border-border/70 bg-surface/80 text-muted-foreground backdrop-blur-md" />
       </footer>
     </div>
   );

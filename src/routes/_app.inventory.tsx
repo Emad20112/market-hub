@@ -265,7 +265,7 @@ function InventoryPage() {
       if (ids.length) {
         const { data: detailRows } = await (supabase.from("products") as any)
           .select(
-            "id, barcode, min_stock, cost_price, shelf_location, item_nature, item_class, inventory_policy, category:categories(name, name_ar), brand:brands(name, name_ar), unit:units(name, short_name, name_ar)",
+            "id, barcode, min_stock, cost_price, shelf_location, item_nature, item_class, inventory_policy, category:categories(name, name_ar), brand:brands!products_brand_id_fkey(name, name_ar), unit:units!products_unit_id_fkey(name, short_name, name_ar)",
           )
           .in("id", ids);
         details = (detailRows ?? []) as any[];

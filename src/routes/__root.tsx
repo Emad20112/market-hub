@@ -23,6 +23,7 @@ import { reportLovableError } from "../lib/lovable-error-reporting";
 import { I18nProvider } from "@/lib/i18n";
 import { AuthProvider } from "@/lib/auth";
 import { ModulesProvider } from "@/lib/modules";
+import { ThemeProvider, THEME_BOOT_SCRIPT } from "@/lib/theme";
 import { Toaster } from "@/components/ui/sonner";
 import { IosInstallPrompt } from "@/components/IosInstallPrompt";
 import { VortexSplashScreen } from "@/components/VortexSplashScreen";
@@ -307,9 +308,14 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 
 function RootShell({ children }: { children: ReactNode }) {
   return (
-    <html lang="ar" dir="rtl" className="light">
+    <html lang="ar" dir="rtl" className="light" suppressHydrationWarning>
       <head>
         <HeadContent />
+        {/**
+         * يجب أن يسبق أي شيء مرئي: يقرأ السمة المحفوظة ويطبّقها على <html>
+         * قبل أول رسم، فلا يومض التطبيق بالوضع الفاتح ثم ينقلب ليلاً.
+         */}
+        <script dangerouslySetInnerHTML={{ __html: THEME_BOOT_SCRIPT }} />
       </head>
       <body>
         {children}
@@ -323,17 +329,19 @@ function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   return (
     <QueryClientProvider client={queryClient}>
-      <I18nProvider>
-        <AuthProvider>
-          <ModulesProvider>
-            <VortexSplashScreen />
-            <VortexWelcomeOnboarding />
-            <Outlet />
-            <IosInstallPrompt />
-            <Toaster />
-          </ModulesProvider>
-        </AuthProvider>
-      </I18nProvider>
+      <ThemeProvider>
+        <I18nProvider>
+          <AuthProvider>
+            <ModulesProvider>
+              <VortexSplashScreen />
+              <VortexWelcomeOnboarding />
+              <Outlet />
+              <IosInstallPrompt />
+              <Toaster />
+            </ModulesProvider>
+          </AuthProvider>
+        </I18nProvider>
+      </ThemeProvider>
     </QueryClientProvider>
   );
 }

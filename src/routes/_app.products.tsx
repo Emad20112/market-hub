@@ -312,14 +312,20 @@ function ProductsPage() {
         productIds.length
           ? (supabase.from("products") as any)
               .select(
-                "id, shelf_location, category:categories(name, name_ar), unit:units(name, short_name, name_ar)",
+                // المفتاح مذكور صريحاً: للمنتج أربع علاقات مع units
+                // (unit_id / base_uom_id / sales_uom_id / purchase_uom_id)،
+                // و"unit:units(...)" يفشل بخطأ "more than one relationship"
+                // لأن PostgREST لا يعرف أيها المقصود.
+                "id, shelf_location, category:categories(name, name_ar), unit:units!products_unit_id_fkey(name, short_name, name_ar)",
               )
               .in("id", productIds)
           : Promise.resolve({ data: [], error: null } as any),
 
+        // العلامة أيضاً مفتاحها صريح: brands ليست علاقة وحيدة للمنتج في المخطوطات
+        // الوسيطة، والاعتماد على الاستدلال التلقائي هنا كان يُسقط العلامة بصمت.
         productIds.length
           ? (supabase.from("products") as any)
-              .select("id, brand:brands(name, name_ar)")
+              .select("id, brand:brands!products_brand_id_fkey(name, name_ar)")
               .in("id", productIds)
           : Promise.resolve({ data: [], error: null } as any),
 
