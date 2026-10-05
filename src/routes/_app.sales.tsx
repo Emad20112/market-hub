@@ -1,5 +1,6 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Receipt,
   Eye,
@@ -19,6 +20,7 @@ import {
   RefreshCw,
   LayoutGrid,
   List,
+  TableProperties,
   Share2,
   Copy,
   Check,
@@ -50,6 +52,21 @@ import {
 } from "@/components/vortex-ui";
 import { toast } from "sonner";
 import { WhatsAppIcon } from "@/components/whatsapp-icon";
+import {
+  buildUnifiedContext,
+  renderMessage,
+  buildWhatsAppLink,
+  isValidWhatsAppPhone,
+} from "@/lib/communication";
+import {
+  TableToolbar,
+  ToolbarAction,
+  type FilterDefinition,
+  type FilterValues,
+  type SortOption,
+} from "@/components/ui/table-toolbar";
+import { useRealtimeTable } from "@/lib/realtime";
+import { QUERY_KEYS } from "@/lib/query-keys";
 
 export const Route = createFileRoute("/_app/sales")({
   head: () => ({ meta: [{ title: "المبيعات والفواتير — فورتيكس ERP" }] }),
@@ -94,18 +111,20 @@ interface Line {
 }
 
 type StatusTab = "all" | "paid" | "partial" | "unpaid" | "cancelled";
-type ViewMode = "table" | "grid";
+type ViewMode = "cards" | "list" | "table";
 
 export function SalesPage() {
   const { t, lang } = useI18n();
   const { isModuleEnabled } = useModules();
   const hasMultiWarehouse = isModuleEnabled("multi_warehouse");
+  const navigate = useNavigate();
+  const qc = useQueryClient();
 
-  const [rows, setRows] = useState<Invoice[]>([]);
-  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [statusTab, setStatusTab] = useState<StatusTab>("all");
-  const [viewMode, setViewMode] = useState<ViewMode>("table");
+  const [filters, setFilters] = useState<FilterValues>({});
+  const [sortKey, setSortKey] = useState<string>("date_desc");
+  const [viewMode, setViewMode] = useState<ViewMode>("cards");
 
   // Filter Sheet State
   const [filterOpen, setFilterOpen] = useState(false);
@@ -137,9 +156,9 @@ export function SalesPage() {
   const whName = (w: { name: string; name_ar: string | null } | null | undefined) =>
     !w ? undefined : lang === "ar" ? w.name_ar || w.name : w.name || w.name_ar || undefined;
 
-  async function load() {
-    setLoading(true);
-    try {
+  const { data: rows = [], isLoading: loading, refetch: load } = useQuery({
+    queryKey: QUERY_KEYS.invoices,
+    queryFn: async () => {
       const { data, error } = await supabase
         .from("sales_invoices")
         .select(
@@ -151,17 +170,21 @@ export function SalesPage() {
       if (error) {
         console.error("Failed to load sales invoices:", error);
         toast.error(isRtl ? "تعذر تحميل فواتير المبيعات" : "Failed to load sales invoices");
-      } else {
-        setRows((data ?? []) as any);
+        throw error;
       }
-    } finally {
-      setLoading(false);
-    }
-  }
+      return (data ?? []) as any as Invoice[];
+    },
+    staleTime: 60_000,
+  });
 
-  useEffect(() => {
-    void load();
-  }, []);
+  useRealtimeTable<Invoice>(
+    {
+      table: "sales_invoices",
+      queryKey: QUERY_KEYS.invoices,
+      debounceMs: 100,
+    },
+    qc,
+  );
 
   async function openInvoice(inv: Invoice) {
     setSelected(inv);
@@ -273,42 +296,49 @@ export function SalesPage() {
     }
   };
 
-  // WhatsApp Message Generator
+  // WhatsApp Message Generator via Unified Communication Engine
   const shareInvoiceWhatsApp = (inv: Invoice) => {
-    const customerName = inv.customers?.name || (isRtl ? "العميل الكريم" : "Valued Customer");
-    const remaining = Math.max(0, Number(inv.total) - Number(inv.paid));
-    const formattedTotal = toSystemDigits(money(Number(inv.total)));
-    const formattedPaid = toSystemDigits(money(Number(inv.paid)));
-    const formattedRemaining = toSystemDigits(money(remaining));
-    const dateFormatted = new Date(inv.created_at).toLocaleDateString(isRtl ? "ar-EG" : "en-US");
-
-    let text = "";
-    if (isRtl) {
-      text =
-        `السلام عليكم ورحمة الله وبركاته،\nعزيزنا *${customerName}*،\nتفاصيل فاتورة المبيعات الخاصة بكم:\n` +
-        `🧾 *رقم الفاتورة:* ${inv.invoice_number}\n` +
-        `📅 *التاريخ:* ${dateFormatted}\n` +
-        `💵 *الإجمالي:* ${formattedTotal}\n` +
-        `✅ *المدفوع:* ${formattedPaid}\n` +
-        (remaining > 0 ? `⏳ *المتبقي:* ${formattedRemaining}\n` : `✨ *الحالة:* مسددة بالكامل\n`) +
-        `\nشكراً لتعاملكم معنا ونسعد بخدمتكم دائماً!`;
-    } else {
-      text =
-        `Hello ${customerName},\nHere are the details for your sales invoice:\n` +
-        `🧾 *Invoice #:* ${inv.invoice_number}\n` +
-        `📅 *Date:* ${dateFormatted}\n` +
-        `💵 *Total:* ${formattedTotal}\n` +
-        `✅ *Paid:* ${formattedPaid}\n` +
-        (remaining > 0 ? `⏳ *Remaining:* ${formattedRemaining}\n` : `✨ *Status:* Fully Paid\n`) +
-        `\nThank you for choosing us!`;
+    const hasPhone = Boolean(inv.customers?.phone && inv.customers.phone.trim().length > 0);
+    if (!hasPhone) {
+      toast.warning(
+        isRtl
+          ? "هذا العميل لا يوجد لديه رقم هاتف مسجل في النظام"
+          : "This customer has no phone number registered in the system",
+      );
+      return;
     }
 
-    const cleanPhone = (inv.customers?.phone || "").replace(/[^0-9]/g, "");
-    const waUrl = cleanPhone
-      ? `https://wa.me/${cleanPhone}?text=${encodeURIComponent(text)}`
-      : `https://wa.me/?text=${encodeURIComponent(text)}`;
+    const remaining = Math.max(0, Number(inv.total) - Number(inv.paid));
+    const ctx = buildUnifiedContext({
+      event: "invoice_share",
+      customer: {
+        id: inv.customer_id || "",
+        name: inv.customers?.name || (isRtl ? "العميل الكريم" : "Valued Customer"),
+        phone: inv.customers?.phone,
+        balance: remaining,
+      },
+      invoice: {
+        id: inv.id,
+        invoiceNumber: inv.invoice_number,
+        date: new Date(inv.created_at).toLocaleDateString(isRtl ? "ar-YE" : "en-US"),
+        subtotal: Number(inv.subtotal || inv.total),
+        total: Number(inv.total),
+        paid: Number(inv.paid),
+        remaining,
+      },
+      language: isRtl ? "ar" : "en",
+    });
 
-    window.open(waUrl, "_blank");
+    const rendered = renderMessage(ctx);
+    if (rendered.canSendWhatsApp && rendered.whatsAppUrl) {
+      window.open(rendered.whatsAppUrl, "_blank", "noopener,noreferrer");
+    } else {
+      toast.error(
+        isRtl
+          ? "رقم الهاتف المسجل للعميل غير صالح للإرسال"
+          : "Customer phone number is invalid for WhatsApp",
+      );
+    }
   };
 
   // Quick Collect trigger
@@ -525,9 +555,75 @@ export function SalesPage() {
     };
   }, [rows]);
 
-  // Filter Rows
+  // Unique Warehouses for Filter
+  const availableWarehouses = useMemo(() => {
+    const map = new Map<string, string>();
+    rows.forEach((r) => {
+      if (r.warehouse_id && r.warehouses) {
+        map.set(r.warehouse_id, whName(r.warehouses) || r.warehouses.name);
+      }
+    });
+    return Array.from(map.entries());
+  }, [rows, lang]);
+
+  const salesFilterDefinitions: FilterDefinition[] = useMemo(() => {
+    const defs: FilterDefinition[] = [
+      {
+        key: "created_at",
+        label: isRtl ? "الفترة الزمنية (تاريخ الفاتورة)" : "Date Range",
+        type: "date-range",
+      },
+      {
+        key: "status",
+        label: isRtl ? "حالة السداد" : "Payment Status",
+        type: "select",
+        options: [
+          { value: "paid", label: isRtl ? "مسددة بالكامل" : "Fully Paid" },
+          { value: "partial", label: isRtl ? "دفع جزئي" : "Partial Payment" },
+          { value: "unpaid", label: isRtl ? "غير مسددة (آجلة)" : "Unpaid" },
+          { value: "cancelled", label: isRtl ? "ملغاة" : "Cancelled" },
+        ],
+      },
+      {
+        key: "payment_method",
+        label: isRtl ? "طريقة السداد" : "Payment Method",
+        type: "select",
+        options: [
+          { value: "cash", label: isRtl ? "نقدي (كاش)" : "Cash" },
+          { value: "card", label: isRtl ? "شبكة / بطاقة" : "Card" },
+          { value: "bank_transfer", label: isRtl ? "تحويل بنكي" : "Bank Transfer" },
+          { value: "split", label: isRtl ? "دفع مجزأ" : "Split Payment" },
+        ],
+      },
+    ];
+
+    if (hasMultiWarehouse && availableWarehouses.length > 0) {
+      defs.push({
+        key: "warehouse_id",
+        label: isRtl ? "المستودع / المخزن" : "Warehouse",
+        type: "select",
+        options: availableWarehouses.map(([id, name]) => ({ value: id, label: name })),
+      });
+    }
+
+    return defs;
+  }, [isRtl, hasMultiWarehouse, availableWarehouses]);
+
+  const salesSortOptions: SortOption[] = useMemo(
+    () => [
+      { value: "date_desc", label: isRtl ? "الأحدث تاريخاً" : "Newest Date" },
+      { value: "date_asc", label: isRtl ? "الأقدم تاريخاً" : "Oldest Date" },
+      { value: "total_desc", label: isRtl ? "الأعلى قيمة (الإجمالي)" : "Highest Total" },
+      { value: "total_asc", label: isRtl ? "الأقل قيمة (الإجمالي)" : "Lowest Total" },
+      { value: "remaining_desc", label: isRtl ? "الأعلى متبقي (الآجل)" : "Highest Due" },
+      { value: "number_asc", label: isRtl ? "رقم الفاتورة" : "Invoice Number" },
+    ],
+    [isRtl],
+  );
+
+  // Filter & Sort Rows
   const filteredRows = useMemo(() => {
-    return rows.filter((r) => {
+    let list = rows.filter((r) => {
       // 1. Status Tab
       if (statusTab !== "all" && r.status !== statusTab) {
         return false;
@@ -535,7 +631,7 @@ export function SalesPage() {
 
       // 2. Search query
       if (search.trim()) {
-        const q = search.toLowerCase();
+        const q = search.toLowerCase().trim();
         const invNum = r.invoice_number.toLowerCase();
         const custName = (r.customers?.name ?? "").toLowerCase();
         const custPhone = (r.customers?.phone ?? "").toLowerCase();
@@ -550,29 +646,52 @@ export function SalesPage() {
         }
       }
 
-      // 3. Payment Method filter
-      if (filterPaymentMethod !== "all") {
-        if (filterPaymentMethod === "split") {
+      // 3. Payment Method filter (from toolbar or sheet)
+      const activePm =
+        (typeof filters.payment_method === "string" ? filters.payment_method : "") ||
+        (filterPaymentMethod !== "all" ? filterPaymentMethod : "");
+      if (activePm) {
+        if (activePm === "split") {
           const isSplit = Boolean(
             r.note && (r.note.includes("[دفع مجزأ:") || r.note.includes("[Split:")),
           );
           if (!isSplit && r.payment_method !== "split") return false;
-        } else if (r.payment_method !== filterPaymentMethod) {
+        } else if (r.payment_method !== activePm) {
           return false;
         }
       }
 
       // 4. Warehouse filter
-      if (filterWarehouse !== "all" && r.warehouse_id !== filterWarehouse) {
+      const activeWh =
+        (typeof filters.warehouse_id === "string" ? filters.warehouse_id : "") ||
+        (filterWarehouse !== "all" ? filterWarehouse : "");
+      if (activeWh && r.warehouse_id !== activeWh) {
         return false;
       }
 
-      // 5. Min / Max amount
+      // 5. Status filter from toolbar
+      if (filters.status && r.status !== filters.status) {
+        return false;
+      }
+
+      // 6. Min / Max amount
       const tot = Number(r.total) || 0;
       if (minAmount && tot < Number(minAmount)) return false;
       if (maxAmount && tot > Number(maxAmount)) return false;
 
-      // 6. Date preset filter
+      // 7. Date filter from toolbar
+      if (filters.created_at && typeof filters.created_at === "object") {
+        const rowTime = new Date(r.created_at).getTime();
+        if (filters.created_at.from && rowTime < new Date(filters.created_at.from).getTime())
+          return false;
+        if (filters.created_at.to) {
+          const toDate = new Date(filters.created_at.to);
+          toDate.setHours(23, 59, 59, 999);
+          if (rowTime > toDate.getTime()) return false;
+        }
+      }
+
+      // 8. Date preset filter from sheet
       if (filterDatePreset !== "all") {
         const rowDate = new Date(r.created_at);
         const now = new Date();
@@ -593,27 +712,44 @@ export function SalesPage() {
 
       return true;
     });
+
+    list = [...list].sort((a, b) => {
+      const aTotal = Number(a.total) || 0;
+      const bTotal = Number(b.total) || 0;
+      const aRem = Math.max(0, aTotal - (Number(a.paid) || 0));
+      const bRem = Math.max(0, bTotal - (Number(b.paid) || 0));
+
+      switch (sortKey) {
+        case "date_desc":
+          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+        case "date_asc":
+          return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+        case "total_desc":
+          return bTotal - aTotal;
+        case "total_asc":
+          return aTotal - bTotal;
+        case "remaining_desc":
+          return bRem - aRem;
+        case "number_asc":
+          return a.invoice_number.localeCompare(b.invoice_number);
+        default:
+          return 0;
+      }
+    });
+
+    return list;
   }, [
     rows,
     statusTab,
     search,
+    filters,
+    sortKey,
     filterPaymentMethod,
     filterWarehouse,
     minAmount,
     maxAmount,
     filterDatePreset,
   ]);
-
-  // Unique Warehouses for Filter
-  const availableWarehouses = useMemo(() => {
-    const map = new Map<string, string>();
-    rows.forEach((r) => {
-      if (r.warehouse_id && r.warehouses) {
-        map.set(r.warehouse_id, whName(r.warehouses) || r.warehouses.name);
-      }
-    });
-    return Array.from(map.entries());
-  }, [rows, lang]);
 
   // Count active filters
   const activeFiltersCount = useMemo(() => {
@@ -633,6 +769,7 @@ export function SalesPage() {
     setMinAmount("");
     setMaxAmount("");
     setSearch("");
+    setFilters({});
     setStatusTab("all");
   };
 
@@ -701,146 +838,103 @@ export function SalesPage() {
         />
       </div>
 
-      {/* Status Segment Tabs */}
-      <div className="flex flex-wrap items-center gap-1.5 border-b border-border pb-2 text-xs">
-        <button
-          onClick={() => setStatusTab("all")}
-          className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 font-medium transition ${
-            statusTab === "all"
-              ? "bg-primary text-primary-foreground shadow-sm"
-              : "text-muted-foreground hover:bg-surface hover:text-foreground"
-          }`}
-        >
-          <span>{isRtl ? "الكل" : "All"}</span>
-          <span
-            className={`rounded-full px-1.5 py-0.2 text-[10px] ${
-              statusTab === "all"
-                ? "bg-primary-foreground/20 text-primary-foreground"
-                : "bg-surface-2 text-muted-foreground"
-            }`}
-          >
-            {toSystemDigits(rows.length.toString())}
-          </span>
-        </button>
-
-        <button
-          onClick={() => setStatusTab("paid")}
-          className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 font-medium transition ${
-            statusTab === "paid"
-              ? "bg-emerald-600 text-white shadow-sm"
-              : "text-muted-foreground hover:bg-surface hover:text-foreground"
-          }`}
-        >
-          <span>{isRtl ? "مسددة" : "Paid"}</span>
-          <span
-            className={`rounded-full px-1.5 py-0.2 text-[10px] ${
-              statusTab === "paid" ? "bg-white/20 text-white" : "bg-emerald-500/10 text-emerald-500"
-            }`}
-          >
-            {toSystemDigits(metrics.paidCount.toString())}
-          </span>
-        </button>
-
-        <button
-          onClick={() => setStatusTab("partial")}
-          className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 font-medium transition ${
-            statusTab === "partial"
-              ? "bg-amber-600 text-white shadow-sm"
-              : "text-muted-foreground hover:bg-surface hover:text-foreground"
-          }`}
-        >
-          <span>{isRtl ? "دفع جزئي" : "Partial"}</span>
-          <span
-            className={`rounded-full px-1.5 py-0.2 text-[10px] ${
-              statusTab === "partial" ? "bg-white/20 text-white" : "bg-amber-500/10 text-amber-500"
-            }`}
-          >
-            {toSystemDigits(metrics.partialCount.toString())}
-          </span>
-        </button>
-
-        <button
-          onClick={() => setStatusTab("unpaid")}
-          className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 font-medium transition ${
-            statusTab === "unpaid"
-              ? "bg-rose-600 text-white shadow-sm"
-              : "text-muted-foreground hover:bg-surface hover:text-foreground"
-          }`}
-        >
-          <span>{isRtl ? "غير مسددة (آجلة)" : "Unpaid"}</span>
-          <span
-            className={`rounded-full px-1.5 py-0.2 text-[10px] ${
-              statusTab === "unpaid" ? "bg-white/20 text-white" : "bg-rose-500/10 text-rose-500"
-            }`}
-          >
-            {toSystemDigits(metrics.unpaidCount.toString())}
-          </span>
-        </button>
-
-        <button
-          onClick={() => setStatusTab("cancelled")}
-          className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 font-medium transition ${
-            statusTab === "cancelled"
-              ? "bg-red-600 text-white shadow-sm"
-              : "text-muted-foreground hover:bg-surface hover:text-foreground"
-          }`}
-        >
-          <span>{isRtl ? "ملغاة" : "Cancelled"}</span>
-          <span
-            className={`rounded-full px-1.5 py-0.2 text-[10px] ${
-              statusTab === "cancelled" ? "bg-white/20 text-white" : "bg-red-500/10 text-red-500"
-            }`}
-          >
-            {toSystemDigits(metrics.cancelledCount.toString())}
-          </span>
-        </button>
-      </div>
-
-      {/* Search and Filters Bar
-          عمود واحد حتى md: عند 768px بالضبط لا يوجد متسع للبحث وزر التصفية
-          في صف واحد، فينضغط البحث ويصبح غير قابل للاستخدام. */}
-      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-        <div className="md:flex-1">
-          <VortexSearchInput
-            value={search}
-            onChange={setSearch}
-            placeholder={
-              isRtl
-                ? "البحث برقم الفاتورة، اسم العميل، رقم الهاتف أو الملاحظات..."
-                : "Search invoice #, customer name, phone or notes..."
+      {/* ─── Standard VORTEX TableToolbar: Search + Filters + Sort + View Toggle + Action ─── */}
+      <TableToolbar
+        sticky
+        search={{
+          value: search,
+          onValueChange: setSearch,
+          placeholder: isRtl
+            ? "البحث برقم الفاتورة، اسم العميل، رقم الهاتف أو الملاحظات..."
+            : "Search invoice #, customer name, phone or notes...",
+          resultCount: filteredRows.length,
+        }}
+        filters={{
+          definitions: salesFilterDefinitions,
+          values: filters,
+          onValueChange: setFilters,
+        }}
+        sort={{
+          options: salesSortOptions,
+          value: sortKey,
+          onValueChange: setSortKey,
+          label: isRtl ? "ترتيب" : "Sort",
+        }}
+        viewToggle={
+          <ToolbarAction
+            label={
+              viewMode === "cards"
+                ? isRtl
+                  ? "بطاقات"
+                  : "Cards"
+                : viewMode === "list"
+                  ? isRtl
+                    ? "قائمة"
+                    : "List"
+                  : isRtl
+                    ? "جدول"
+                    : "Table"
             }
+            icon={
+              viewMode === "cards" ? (
+                <LayoutGrid />
+              ) : viewMode === "list" ? (
+                <List />
+              ) : (
+                <TableProperties />
+              )
+            }
+            onClick={() =>
+              setViewMode((prev) =>
+                prev === "cards" ? "list" : prev === "list" ? "table" : "cards",
+              )
+            }
+            tone="ghost"
           />
-        </div>
-
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setFilterOpen(true)}
-            className={`relative inline-flex h-10 items-center gap-2 rounded-lg border px-3 text-xs font-medium transition ${
-              activeFiltersCount > 0
-                ? "border-primary/50 bg-primary/10 text-primary"
-                : "border-border bg-surface text-foreground hover:bg-surface-2"
-            }`}
-          >
-            <SlidersHorizontal className="h-4 w-4" />
-            <span>{isRtl ? "تصفية متقدمة" : "Filters"}</span>
-            {activeFiltersCount > 0 && (
-              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">
-                {activeFiltersCount}
-              </span>
-            )}
-          </button>
-
-          {activeFiltersCount > 0 && (
+        }
+        action={
+          <ToolbarAction
+            label={isRtl ? "فاتورة جديدة" : "New Invoice"}
+            icon={<Plus />}
+            tone="primary"
+            onClick={() => void navigate({ to: "/pos" })}
+          />
+        }
+      >
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 scrollbar-x-none">
+          {[
+            { id: "all", label: isRtl ? "الكل" : "All", count: rows.length },
+            { id: "paid", label: isRtl ? "مسددة" : "Paid", count: metrics.paidCount },
+            { id: "partial", label: isRtl ? "دفع جزئي" : "Partial", count: metrics.partialCount },
+            { id: "unpaid", label: isRtl ? "غير مسددة" : "Unpaid", count: metrics.unpaidCount },
+            {
+              id: "cancelled",
+              label: isRtl ? "ملغاة" : "Cancelled",
+              count: metrics.cancelledCount,
+            },
+          ].map((f) => (
             <button
-              onClick={clearAllFilters}
-              className="inline-flex h-10 items-center gap-1 rounded-lg border border-border bg-surface px-2.5 text-xs text-muted-foreground transition hover:bg-surface-2 hover:text-foreground"
+              key={f.id}
+              type="button"
+              onClick={() => setStatusTab(f.id as StatusTab)}
+              className={`flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-bold transition ${
+                statusTab === f.id
+                  ? "border-primary bg-primary text-primary-foreground shadow-xs shadow-primary/20"
+                  : "border-border/70 bg-surface/70 text-muted-foreground hover:bg-surface-2 hover:text-foreground"
+              }`}
             >
-              <X className="h-3.5 w-3.5" />
-              <span>{isRtl ? "إلغاء التصفية" : "Reset"}</span>
+              <span>{f.label}</span>
+              <span
+                className={`rounded-full px-1.5 py-0.2 text-[10px] font-mono ${
+                  statusTab === f.id ? "bg-white/20 text-white" : "bg-muted text-muted-foreground"
+                }`}
+              >
+                {toSystemDigits(f.count.toString())}
+              </span>
             </button>
-          )}
+          ))}
         </div>
-      </div>
+      </TableToolbar>
 
       {/* Main Content: Table or Grid View */}
       {loading ? (
@@ -1005,9 +1099,22 @@ export function SalesPage() {
                     <div className="flex items-center gap-1.5">
                       <button
                         type="button"
+                        disabled={!inv.customers?.phone}
                         onClick={() => shareInvoiceWhatsApp(inv)}
-                        className="grid size-8 place-items-center rounded-lg border border-border/70 text-muted-foreground transition hover:bg-surface-2 hover:text-emerald-500"
-                        title={isRtl ? "مشاركة عبر واتساب" : "Share via WhatsApp"}
+                        className={`grid size-8 place-items-center rounded-lg border transition ${
+                          inv.customers?.phone
+                            ? "border-border/70 text-muted-foreground hover:bg-surface-2 hover:text-emerald-500 cursor-pointer"
+                            : "border-border/40 text-muted-foreground/30 cursor-not-allowed opacity-50"
+                        }`}
+                        title={
+                          !inv.customers?.phone
+                            ? isRtl
+                              ? "هذا العميل لا يوجد لديه رقم هاتف مسجل في النظام"
+                              : "This customer has no phone number registered"
+                            : isRtl
+                              ? "مشاركة عبر واتساب"
+                              : "Share via WhatsApp"
+                        }
                       >
                         <WhatsAppIcon className="h-4 w-4" />
                       </button>
@@ -1196,9 +1303,22 @@ export function SalesPage() {
                               {/* WhatsApp Share */}
                               <button
                                 type="button"
+                                disabled={!inv.customers?.phone}
                                 onClick={() => shareInvoiceWhatsApp(inv)}
-                                className="rounded-md p-1.5 text-muted-foreground hover:bg-surface hover:text-emerald-500 transition"
-                                title={isRtl ? "مشاركة عبر واتساب" : "Share via WhatsApp"}
+                                className={`rounded-md p-1.5 transition ${
+                                  inv.customers?.phone
+                                    ? "text-muted-foreground hover:bg-surface hover:text-emerald-500 cursor-pointer"
+                                    : "text-muted-foreground/30 cursor-not-allowed opacity-50"
+                                }`}
+                                title={
+                                  !inv.customers?.phone
+                                    ? isRtl
+                                      ? "هذا العميل لا يوجد لديه رقم هاتف مسجل في النظام"
+                                      : "This customer has no phone number registered"
+                                    : isRtl
+                                      ? "مشاركة عبر واتساب"
+                                      : "Share via WhatsApp"
+                                }
                               >
                                 <WhatsAppIcon className="h-4 w-4" />
                               </button>
@@ -1316,9 +1436,22 @@ export function SalesPage() {
                     <div className="flex items-center gap-1">
                       <button
                         type="button"
+                        disabled={!inv.customers?.phone}
                         onClick={() => shareInvoiceWhatsApp(inv)}
-                        className="rounded-lg p-1.5 text-muted-foreground hover:bg-surface-2 hover:text-emerald-500 transition"
-                        title={isRtl ? "واتساب" : "WhatsApp"}
+                        className={`rounded-lg p-1.5 transition ${
+                          inv.customers?.phone
+                            ? "text-muted-foreground hover:bg-surface-2 hover:text-emerald-500 cursor-pointer"
+                            : "text-muted-foreground/30 cursor-not-allowed opacity-50"
+                        }`}
+                        title={
+                          !inv.customers?.phone
+                            ? isRtl
+                              ? "هذا العميل لا يوجد لديه رقم هاتف مسجل في النظام"
+                              : "This customer has no phone number registered"
+                            : isRtl
+                              ? "واتساب"
+                              : "WhatsApp"
+                        }
                       >
                         <WhatsAppIcon className="h-4 w-4" />
                       </button>
@@ -1716,14 +1849,38 @@ export function SalesPage() {
             <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border/80 bg-surface-2/40 px-6 py-4">
               <div className="flex items-center gap-2">
                 {/* WhatsApp invoice share */}
-                <button
-                  type="button"
-                  onClick={() => shareInvoiceWhatsApp(selected)}
-                  className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 text-xs font-semibold text-emerald-500 hover:bg-emerald-500/20 transition"
-                >
-                  <WhatsAppIcon className="h-4 w-4" />
-                  <span>{isRtl ? "مشاركة واتساب" : "WhatsApp"}</span>
-                </button>
+                <div className="flex flex-col items-start gap-1">
+                  {!selected.customers?.phone && (
+                    <span className="flex items-center gap-1 text-[11px] text-amber-500 font-semibold">
+                      <AlertCircle className="size-3" />
+                      {isRtl
+                        ? "هذا العميل لا يوجد لديه رقم هاتف مسجل في النظام."
+                        : "This customer has no phone number registered in the system."}
+                    </span>
+                  )}
+                  <button
+                    type="button"
+                    disabled={!selected.customers?.phone}
+                    onClick={() => shareInvoiceWhatsApp(selected)}
+                    title={
+                      !selected.customers?.phone
+                        ? isRtl
+                          ? "هذا العميل لا يوجد لديه رقم هاتف مسجل في النظام"
+                          : "This customer has no phone number registered"
+                        : isRtl
+                          ? "مشاركة واتساب"
+                          : "WhatsApp"
+                    }
+                    className={`inline-flex h-9 items-center gap-1.5 rounded-lg px-3 text-xs font-semibold transition ${
+                      selected.customers?.phone
+                        ? "border border-emerald-500/30 bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20 cursor-pointer"
+                        : "border border-border/60 bg-muted/40 text-muted-foreground/40 cursor-not-allowed opacity-50"
+                    }`}
+                  >
+                    <WhatsAppIcon className="h-4 w-4" />
+                    <span>{isRtl ? "مشاركة واتساب" : "WhatsApp"}</span>
+                  </button>
+                </div>
 
                 {/* PDF */}
                 <button
