@@ -143,6 +143,44 @@ for (const r of (
 ).rows)
   note("صنف مخزني بلا وحدة", `${r.sku}`);
 
+// 16. درجات الحبوب: منتج مفقود أو درجة خدمة غير موجودة
+for (const r of (
+  await c.query(
+    `select g.grade_code, g.grade_name_ar from milling_grain_grades g
+      left join products p on p.id = g.product_id
+      where g.product_id is not null and p.id is null`,
+  )
+).rows)
+  note("درجة حبوب بلا منتج", `${r.grade_code} (${r.grade_name_ar})`);
+
+for (const r of (
+  await c.query(
+    `select g.grade_code, g.default_service_sku from milling_grain_grades g
+      where g.default_service_sku is not null
+        and not exists (select 1 from products p where p.sku = g.default_service_sku)`,
+  )
+).rows)
+  note("درجة تشير إلى خدمة غير موجودة", `${r.grade_code} → ${r.default_service_sku}`);
+
+// 17. درجة حبوب مكرّرة لنفس المنتج
+for (const r of (
+  await c.query(
+    `select product_id, count(*) n from milling_grain_grades
+      where product_id is not null group by 1 having count(*)>1`,
+  )
+).rows)
+  note("أكثر من درجة لنفس المنتج", `${r.product_id} (${r.n})`);
+
+// 18. رصيد مخزون بلا حركة مصدره
+for (const r of (
+  await c.query(
+    `select p.sku, i.quantity from inventory i join products p on p.id=i.product_id
+      where i.quantity <> 0
+        and not exists (select 1 from stock_movements m where m.product_id=i.product_id)`,
+  )
+).rows)
+  note("رصيد بلا حركة", `${r.sku}: ${r.quantity}`);
+
 console.log(`\nعدد الملاحظات: ${problems.length}\n`);
 const byArea = {};
 for (const p of problems) (byArea[p.area] ??= []).push(p.detail);

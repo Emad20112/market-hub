@@ -1,0 +1,35 @@
+fix(catalogue): reconcile the index with the data it actually holds
+
+A full audit (scripts/audit-catalogue.mjs) found 22 inconsistencies and
+one integrity break. All are fixed and the audit now reports zero.
+
+Data
+- Two items had lost their SKU when their twins were deleted, leaving
+  them nameless in every lookup; RM-WHEAT-HARD and SRV-MILL-TON restored.
+- A packaging screen wrote the Arabic name into the English column, which
+  is why every item listed its name twice. It also wrote a column that
+  does not exist and created stock items with no unit, so the balance had
+  no meaning and no movement could be posted against them.
+- Bags were named "flour bags"; they serve every product the mill makes.
+- A 50kg sack was called a bag in English and a sack in Arabic. It is a
+  sack. Bag/sack/kilogram/ton/piece now have one Arabic symbol each
+  (ك / ش / كجم / طن / ق), and the unused 40kg bag is gone.
+- A milling service was purchasable; services are sold, not bought.
+- An empty category removed itself from the index.
+
+Settings
+- Five ready-made profiles (spare parts, grocery, retail, mill, custom)
+  are gone. They promised dimensions this catalogue does not have, and
+  the dialog offered toggles for tables that hold nothing. Three real
+  dimensions remain, and a legacy stored setting can no longer switch
+  the closed ones back on.
+
+Screens
+- The packaging screen no longer asserts a fixed margin and sack price;
+  both are computed from the items on screen.
+- Category and unit are read separately from brand, so an unreadable
+  optional relation can no longer blank them together.
+
+Still outstanding, and deliberately not touched: one 5 r.y manual line
+on a test invoice whose product was deleted. It is a record, not a
+defect, so it needs an owner's decision.
