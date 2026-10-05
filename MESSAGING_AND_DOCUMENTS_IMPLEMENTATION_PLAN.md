@@ -365,4 +365,52 @@ Business Operation (Sale / Payment / Statement)
 ---
 
 ## Implementation Report
-*(سيتم ملء هذا القسم فور انتهاء تنفيذ المراحل بالكامل)*
+
+> **التاريخ:** 2026-10-05 · **الفرع:** `feature/communication-and-document-sharing`
+> **الالتزام:** قواعد `docs/VORTEX_AI_DEVELOPMENT_RULES (1).md`
+
+### Implemented (ما تم تنفيذه في هذه الجلسة)
+
+| # | الملف / المكوّن | التغيير المنفّذ |
+|---|---|---|
+| 1 | `src/routes/_app.pos.tsx` | ربط `OperationSuccessModal` بإتمام عملية البيع: حالة `saleSuccess` تحمل بيانات الفاتورة والعميل، وتُعرض نافذة النجاح (✓ متحركة + صوت تأكيد + زر إرسال الفاتورة عبر واتساب) بعد كل بيع مؤكد لعميل مسجّل. |
+| 2 | `src/routes/_app.account-statement.tsx` | إضافة زر **«مشاركة الكشف»** في شريط الأدوات + ربط `DocumentShareDialog` (ملخص واتساب / طباعة PDF / تصدير Excel) عبر `statementToContext` من المحرك المركزي، مع تعطيل الزر لحساب الصندوق وحظر المشاركة عند عدم وجود حركات في الفترة. |
+| 3 | `src/lib/whatsapp-templates.ts` | (مُنجز مسبقاً في commit النواة) القوالب الثلاثة مرتبطة بـ `template-engine` المركزي وتقرأ اسم المنشأة الحقيقي من `CompanyProfile` — تحقّقت من ذلك وأكّدته. |
+| 4 | `src/routes/_app.debts.tsx` | زر تذكير واتساب يعمل عبر `WhatsAppButton` الموحّد: يتعطّل تلقائياً عند غياب رقم صالح، والقوالب مرتبطة بالمحرك المركزي (اسم المنشأة الفعلي). |
+| 5 | `src/routes/_app.suppliers.tsx` | رسالة المورد تُبنى عبر المحرك المركزي (`supplier_notice`) بسم المنشأة الحقيقي بدل النص الثابت. |
+| 6 | `package.json` | إضافة `tsx` إلى `devDependencies` (كان مفقوداً رغم اعتماد كل سكربتات الاختبار عليه) + سكربت `test:communication`. |
+
+### Preserved (ما تم الحفاظ عليه ولم يتغيّر)
+
+- التوافق الرجعي الكامل لـ `src/lib/whatsapp.ts` (`openWhatsApp` / `buildWhatsAppLink` / `normalizeWhatsAppPhone`) — كل التوقيعات السابقة كما هي.
+- تواقيع دوال `whatsapp-templates.ts` الثلاثة دون أي كسر.
+- سلوك `WhatsAppButton` الحالي في الديون والموردين (تعطيل + تلميح عند رقم غير صالح).
+- منطق Statement Engine — لا منطق حسابي أُضيف داخل الشاشات.
+- نافذة الطباعة ما بعد البيع في POS وتدفق الطباعة/القالب كما هو.
+- **Zero DB Migrations** — لم يُمس أي schema أو جدول أو صلاحية.
+
+### Not Changed (خارج نطاق المهمة — لم تُلمس)
+
+- `poweredBy: "Vortex ERP"` في قوالب الطباعة الداخلية لـ `_app.pos.tsx` (أسطر 1281، 2489) — مخالفة موثّقة لبند "تسمية البرنامج الصلبة" لكنها في مسار الطباعة لا المراسلة، وتعديلها خارج نطاق هذه الجلسة.
+- تكرار بناء قالب الفاتورة داخل `_app.sales-invoice.tsx` و`_app.pos.tsx` بدل توحيده في `template-engine`.
+- أخطاء `prettier/prettier` (CRLF) الموجودة مسبقاً في كامل المشروع (5,890 خطأ قبل تعديلاتي — مُثبت بـ `git stash`).
+- تحذيرات `prefer-const` الخمسة في `_app.pos.tsx` (أسطر 535-539) — سابقة لعملي.
+- لم يُستخدم `whatsapp-share-button.tsx` في أي شاشة بعد (المكوّن متاح للمرحلة القادمة).
+
+### Conflicts
+
+- **لا تعارضات.** لم تُجرَ أي عملية `merge` أو `rebase`، ولم يُحذف أي ملف أو ميزة.
+- **قرار مطلوب من المطور (اختياري):** توحيد قالب الفاتورة الداخلي في POS والفواتير مع `template-engine`، وتحديث `poweredBy` ليُقرأ من `CompanyProfile` بدل النص الثابت — كلاهما خارج النطاق الحالي.
+
+### Validation (الفحوص التي نُفّذت ونتائجها)
+
+| الفحص | الأمر | النتيجة |
+|---|---|---|
+| اختبارات محرك المراسلات | `npm run test:communication` | ✅ **13/13 نجحت · 0 فشل** |
+| اختبارات محرك الكشوفات | `npm run test:statements` | ✅ **81/81 نجحت** |
+| اختبارات الطباعة الموحّدة | `npm run test:unified-printing` | ✅ **81 نجحت** |
+| اختبارات ملف المنشأة | `npm run test:company-profile` | ✅ **46 نجحت** |
+| فحص الأنواع | `npx tsc --noEmit` | ✅ **نظيف — 0 أخطاء** |
+| ESLint على الملفين المُعدّلين | `eslint _app.pos.tsx _app.account-statement.tsx` | ✅ **0 خطأ في تعديلاتي** (5 أخطاء `prefer-const` سابقة) |
+
+**الإجمالي:** 221 اختبار ناجح، 0 فشل، 0 أخطاء أنواع.
