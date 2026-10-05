@@ -44,9 +44,16 @@ export interface InvoiceDoc {
   discount: number;
   total: number;
   paid?: number;
-  company?: { name?: string; address?: string; phone?: string; vat?: string; logo?: string };
+  company?: {
+    name?: string;
+    address?: string;
+    phone?: string;
+    vat?: string;
+    logo?: string;
+    email?: string;
+    footerContact?: string;
+  };
   currency?: string;
-  brandingText?: string;
 }
 
 export interface ReportColumn {
@@ -66,7 +73,7 @@ export interface ReportPrintData {
   rows: Record<string, string | number>[];
   totalsRow?: Record<string, string | number>;
   summaryCards?: { label: string; value: string; color?: string }[];
-  company?: { name?: string; address?: string; phone?: string; vat?: string };
+  company?: { name?: string; address?: string; phone?: string; vat?: string; email?: string };
   currency?: string;
   rtl?: boolean;
 }
@@ -96,9 +103,7 @@ function esc(s: unknown) {
 // Generate Invoice PDF & Print
 // ---------------------------------------------------------------------------
 
-import { printInvoice, DEFAULT_BRANDING, Labels } from "./invoice-print";
-
-export { DEFAULT_BRANDING };
+import { printInvoice, Labels } from "./invoice-print";
 
 export function getDefaultArabicLabels(): Labels {
   return {
@@ -119,7 +124,7 @@ export function getDefaultArabicLabels(): Labels {
     paid: "المدفوع",
     balance: "المتبقي",
     thanks: "شكرًا لتعاملكم معنا",
-    poweredBy: DEFAULT_BRANDING,
+    poweredBy: "",
   };
 }
 
@@ -159,7 +164,7 @@ async function generateInvoicePdfDoc(doc: InvoiceDoc) {
   const rtl = true;
 
   pdf.setFontSize(18).setFont("helvetica", "bold");
-  pdf.text(doc.company?.name ?? "Vortex ERP", rtl ? w - 14 : 14, 18, {
+  pdf.text(doc.company?.name ?? "", rtl ? w - 14 : 14, 18, {
     align: rtl ? "right" : "left",
   });
   pdf.setFontSize(9).setFont("helvetica", "normal").setTextColor(120);
@@ -387,7 +392,7 @@ export function printReport(data: ReportPrintData) {
 <div class="page">
   <div class="report-header">
     <div class="co-info">
-      <h1>${esc(data.company?.name ?? "Vortex ERP")}</h1>
+      <h1>${esc(data.company?.name ?? "")}</h1>
       <div class="sub">
         ${data.company?.address ? `${esc(data.company.address)}<br>` : ""}
         ${data.company?.phone ? `${esc(data.company.phone)}<br>` : ""}
@@ -416,7 +421,7 @@ export function printReport(data: ReportPrintData) {
   </div>
 
   <div class="report-footer">
-    <div class="stamp">${rtl ? "طُبع بواسطة نظام فورتكس المحاسبي" : "Printed by Vortex ERP"} — ${new Date().toLocaleString(rtl ? "ar-YE" : "en-US")} — ${DEFAULT_BRANDING}</div>
+    <div class="stamp">${rtl ? "طُبع بواسطة نظام فورتكس المحاسبي" : "Printed by Vortex ERP"} — ${new Date().toLocaleString(rtl ? "ar-YE" : "en-US")}</div>
     <div class="branding">VORTEX ERP</div>
   </div>
 </div></body></html>`;
@@ -440,7 +445,7 @@ export interface FinancialStatementData {
   periodLabel?: string;
   sections: FinancialStatementSection[];
   grandTotal?: { label: string; value: number; color?: string };
-  company?: { name?: string; address?: string; phone?: string; vat?: string };
+  company?: { name?: string; address?: string; phone?: string; vat?: string; email?: string };
   currency?: string;
   rtl?: boolean;
   twoColumn?: boolean;
@@ -555,7 +560,7 @@ export function printFinancialStatement(data: FinancialStatementData) {
 </style></head><body onload="setTimeout(()=>window.print(),400)">
 <div class="page">
   <div class="fs-header">
-    <h1>${esc(data.company?.name ?? "Vortex ERP")}</h1>
+    <h1>${esc(data.company?.name ?? "")}</h1>
     ${data.company?.address ? `<div style="color:var(--muted);font-size:11px">${esc(data.company.address)}</div>` : ""}
     <h2>${esc(data.title)}</h2>
     ${data.subtitle ? `<div class="meta">${esc(data.subtitle)}</div>` : ""}
@@ -582,7 +587,7 @@ export function printFinancialStatement(data: FinancialStatementData) {
   </div>
 
   <div class="fs-footer">
-    <div class="stamp">${rtl ? "طُبع بواسطة نظام فورتكس المحاسبي" : "Printed by Vortex ERP"} — ${new Date().toLocaleString(rtl ? "ar-YE" : "en-US")} — ${DEFAULT_BRANDING}</div>
+    <div class="stamp">${rtl ? "طُبع بواسطة نظام فورتكس المحاسبي" : "Printed by Vortex ERP"} — ${new Date().toLocaleString(rtl ? "ar-YE" : "en-US")}</div>
     <div class="branding">VORTEX ERP</div>
   </div>
 </div></body></html>`;

@@ -169,7 +169,9 @@ export function SalesPage() {
     try {
       const { data, error } = await supabase
         .from("sales_invoice_items")
-        .select("id,quantity,unit_price,tax,total,line_type,stock_effect,products(name,name_ar,sku)")
+        .select(
+          "id,quantity,unit_price,tax,total,line_type,stock_effect,products(name,name_ar,sku)",
+        )
         .eq("invoice_id", inv.id);
 
       if (!error) {
@@ -282,7 +284,8 @@ export function SalesPage() {
 
     let text = "";
     if (isRtl) {
-      text = `السلام عليكم ورحمة الله وبركاته،\nعزيزنا *${customerName}*،\nتفاصيل فاتورة المبيعات الخاصة بكم:\n` +
+      text =
+        `السلام عليكم ورحمة الله وبركاته،\nعزيزنا *${customerName}*،\nتفاصيل فاتورة المبيعات الخاصة بكم:\n` +
         `🧾 *رقم الفاتورة:* ${inv.invoice_number}\n` +
         `📅 *التاريخ:* ${dateFormatted}\n` +
         `💵 *الإجمالي:* ${formattedTotal}\n` +
@@ -290,7 +293,8 @@ export function SalesPage() {
         (remaining > 0 ? `⏳ *المتبقي:* ${formattedRemaining}\n` : `✨ *الحالة:* مسددة بالكامل\n`) +
         `\nشكراً لتعاملكم معنا ونسعد بخدمتكم دائماً!`;
     } else {
-      text = `Hello ${customerName},\nHere are the details for your sales invoice:\n` +
+      text =
+        `Hello ${customerName},\nHere are the details for your sales invoice:\n` +
         `🧾 *Invoice #:* ${inv.invoice_number}\n` +
         `📅 *Date:* ${dateFormatted}\n` +
         `💵 *Total:* ${formattedTotal}\n` +
@@ -354,7 +358,10 @@ export function SalesPage() {
       const invTotal = Number(inv.total) || 0;
       const currentPaid = Number(inv.paid) || 0;
       const remaining = Math.max(0, Math.round((invTotal - currentPaid) * 100) / 100);
-      const payAmt = Math.min(Number(payment.amount) || 0, remaining > 0 ? remaining : Number(payment.amount) || 0);
+      const payAmt = Math.min(
+        Number(payment.amount) || 0,
+        remaining > 0 ? remaining : Number(payment.amount) || 0,
+      );
       const newPaid = Math.min(invTotal, Math.round((currentPaid + payAmt) * 100) / 100);
       const newStatus = newPaid >= invTotal ? "paid" : newPaid > 0 ? "partial" : "unpaid";
 
@@ -391,7 +398,9 @@ export function SalesPage() {
       }
     }
 
-    toast.success(isRtl ? "تم تسجيل التحصيل وتحديث الفاتورة بنجاح" : "Payment collected successfully");
+    toast.success(
+      isRtl ? "تم تسجيل التحصيل وتحديث الفاتورة بنجاح" : "Payment collected successfully",
+    );
     await load();
     return { receiptNumber: String(Date.now()).slice(-6) };
   };
@@ -422,15 +431,18 @@ export function SalesPage() {
       paid: Number(selected.paid),
       company: cs
         ? {
-            name: (cs as any).name || "طاحونتي",
-            phone: (cs as any).phone || "772217218",
+            // Company Profile only — never invent a company name or phone.
+            name: (cs as any).name || undefined,
+            phone: (cs as any).phone || undefined,
             logo: (cs as any).logo_url || undefined,
+            address: (cs as any).address || undefined,
+            email: (cs as any).email || undefined,
+            vat: (cs as any).tax_number || undefined,
+            footerContact: (cs as any).footer_contact || undefined,
           }
         : undefined,
       currency:
-        (cs as any)?.currency_symbol?.trim() ||
-        (cs as any)?.currency ||
-        (isRtl ? "ريال" : ""),
+        (cs as any)?.currency_symbol?.trim() || (cs as any)?.currency || (isRtl ? "ريال" : ""),
     };
   }
 
@@ -528,7 +540,12 @@ export function SalesPage() {
         const custName = (r.customers?.name ?? "").toLowerCase();
         const custPhone = (r.customers?.phone ?? "").toLowerCase();
         const note = (r.note ?? "").toLowerCase();
-        if (!invNum.includes(q) && !custName.includes(q) && !custPhone.includes(q) && !note.includes(q)) {
+        if (
+          !invNum.includes(q) &&
+          !custName.includes(q) &&
+          !custPhone.includes(q) &&
+          !note.includes(q)
+        ) {
           return false;
         }
       }
@@ -536,7 +553,9 @@ export function SalesPage() {
       // 3. Payment Method filter
       if (filterPaymentMethod !== "all") {
         if (filterPaymentMethod === "split") {
-          const isSplit = Boolean(r.note && (r.note.includes("[دفع مجزأ:") || r.note.includes("[Split:")));
+          const isSplit = Boolean(
+            r.note && (r.note.includes("[دفع مجزأ:") || r.note.includes("[Split:")),
+          );
           if (!isSplit && r.payment_method !== "split") return false;
         } else if (r.payment_method !== filterPaymentMethod) {
           return false;
@@ -563,7 +582,10 @@ export function SalesPage() {
           const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
           if (rowDate < sevenDaysAgo) return false;
         } else if (filterDatePreset === "thisMonth") {
-          if (rowDate.getMonth() !== now.getMonth() || rowDate.getFullYear() !== now.getFullYear()) {
+          if (
+            rowDate.getMonth() !== now.getMonth() ||
+            rowDate.getFullYear() !== now.getFullYear()
+          ) {
             return false;
           }
         }
@@ -571,7 +593,16 @@ export function SalesPage() {
 
       return true;
     });
-  }, [rows, statusTab, search, filterPaymentMethod, filterWarehouse, minAmount, maxAmount, filterDatePreset]);
+  }, [
+    rows,
+    statusTab,
+    search,
+    filterPaymentMethod,
+    filterWarehouse,
+    minAmount,
+    maxAmount,
+    filterDatePreset,
+  ]);
 
   // Unique Warehouses for Filter
   const availableWarehouses = useMemo(() => {
@@ -628,8 +659,6 @@ export function SalesPage() {
             <span className="hidden sm:inline">{isRtl ? "تحديث" : "Refresh"}</span>
           </button>
 
-
-
           <Link
             to="/pos"
             className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-primary px-3.5 text-xs font-semibold text-primary-foreground shadow-sm transition hover:opacity-95"
@@ -685,7 +714,9 @@ export function SalesPage() {
           <span>{isRtl ? "الكل" : "All"}</span>
           <span
             className={`rounded-full px-1.5 py-0.2 text-[10px] ${
-              statusTab === "all" ? "bg-primary-foreground/20 text-primary-foreground" : "bg-surface-2 text-muted-foreground"
+              statusTab === "all"
+                ? "bg-primary-foreground/20 text-primary-foreground"
+                : "bg-surface-2 text-muted-foreground"
             }`}
           >
             {toSystemDigits(rows.length.toString())}
@@ -815,7 +846,9 @@ export function SalesPage() {
       {loading ? (
         <div className="panel-elevated flex min-h-[300px] flex-col items-center justify-center gap-3 p-8 text-center text-muted-foreground">
           <RefreshCw className="h-8 w-8 animate-spin text-primary opacity-80" />
-          <p className="text-sm">{isRtl ? "جاري تحميل بيانات المبيعات..." : "Loading sales data..."}</p>
+          <p className="text-sm">
+            {isRtl ? "جاري تحميل بيانات المبيعات..." : "Loading sales data..."}
+          </p>
         </div>
       ) : filteredRows.length === 0 ? (
         <div className="panel-elevated flex min-h-[300px] flex-col items-center justify-center gap-3 p-8 text-center text-muted-foreground">
@@ -857,196 +890,361 @@ export function SalesPage() {
         </div>
       ) : (
         <>
-      {/* Mobile Cards — < 768px فقط. لا تعتمد على viewMode حتى لا يحتاج
+          {/* Mobile Cards — < 768px فقط. لا تعتمد على viewMode حتى لا يحتاج
           المستخدم لتبديل الواجهة يدويًا على الهاتف. */}
-      <div className="grid grid-cols-1 gap-3 md:hidden">
-        {filteredRows.map((inv) => {
-          const total = Number(inv.total) || 0;
-          const paid = Number(inv.paid) || 0;
-          const remaining = Math.max(0, total - paid);
-          const customerName = inv.customers?.name ?? (isRtl ? "عميل نقدي" : "Walk-in");
+          <div className="grid grid-cols-1 gap-3 md:hidden">
+            {filteredRows.map((inv) => {
+              const total = Number(inv.total) || 0;
+              const paid = Number(inv.paid) || 0;
+              const remaining = Math.max(0, total - paid);
+              const customerName = inv.customers?.name ?? (isRtl ? "عميل نقدي" : "Walk-in");
 
-          return (
-            <div
-              key={inv.id}
-              data-qa="sales-card"
-              onClick={() => openInvoice(inv)}
-              className="group flex cursor-pointer flex-col rounded-xl border border-border/80 bg-surface p-3.5 shadow-sm transition active:scale-[0.995]"
-            >
-              {/* Header: رقم الفاتورة + نسخ + الحالة */}
-              <div className="flex items-start justify-between gap-2">
-                <div className="min-w-0">
-                  <div className="flex items-center gap-1">
-                    {/* رقم الفاتورة معرّف أساسي: يُلتف بدل أن يُقص. القص في
+              return (
+                <div
+                  key={inv.id}
+                  data-qa="sales-card"
+                  onClick={() => openInvoice(inv)}
+                  className="group flex cursor-pointer flex-col rounded-xl border border-border/80 bg-surface p-3.5 shadow-sm transition active:scale-[0.995]"
+                >
+                  {/* Header: رقم الفاتورة + نسخ + الحالة */}
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-1">
+                        {/* رقم الفاتورة معرّف أساسي: يُلتف بدل أن يُقص. القص في
                         RTL يقطع أول الرقم لا آخره، فيصير "...NV-000123". */}
-                    <span className="break-all font-mono text-sm font-bold text-foreground">
-                      {inv.invoice_number}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        copyInvoiceNumber(inv.invoice_number, inv.id);
-                      }}
-                      className="grid size-8 shrink-0 place-items-center rounded-lg text-muted-foreground hover:bg-surface-2 hover:text-foreground"
-                      aria-label={isRtl ? "نسخ رقم الفاتورة" : "Copy invoice number"}
-                    >
-                      {copiedInvoiceId === inv.id ? (
-                        <Check className="h-3.5 w-3.5 text-emerald-500" />
-                      ) : (
-                        <Copy className="h-3.5 w-3.5" />
-                      )}
-                    </button>
+                        <span className="break-all font-mono text-sm font-bold text-foreground">
+                          {inv.invoice_number}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            copyInvoiceNumber(inv.invoice_number, inv.id);
+                          }}
+                          className="grid size-8 shrink-0 place-items-center rounded-lg text-muted-foreground hover:bg-surface-2 hover:text-foreground"
+                          aria-label={isRtl ? "نسخ رقم الفاتورة" : "Copy invoice number"}
+                        >
+                          {copiedInvoiceId === inv.id ? (
+                            <Check className="h-3.5 w-3.5 text-emerald-500" />
+                          ) : (
+                            <Copy className="h-3.5 w-3.5" />
+                          )}
+                        </button>
+                      </div>
+                      <div className="mt-1">
+                        <VortexDateBadge date={inv.created_at} variant="subtle" size="sm" />
+                      </div>
+                    </div>
+                    <div className="shrink-0">{statusBadge(inv.status)}</div>
                   </div>
-                  <div className="mt-1">
-                    <VortexDateBadge date={inv.created_at} variant="subtle" size="sm" />
-                  </div>
-                </div>
-                <div className="shrink-0">{statusBadge(inv.status)}</div>
-              </div>
 
-              {/* Customer + payment method */}
-              <div className="mt-3 flex items-center justify-between gap-2 border-t border-border/60 pt-2.5 text-xs">
-                <div className="flex min-w-0 items-center gap-1.5">
-                  <div className="grid size-6 shrink-0 place-items-center rounded-full bg-surface-2 text-[10px] font-bold">
-                    {customerName.slice(0, 1).toUpperCase()}
+                  {/* Customer + payment method */}
+                  <div className="mt-3 flex items-center justify-between gap-2 border-t border-border/60 pt-2.5 text-xs">
+                    <div className="flex min-w-0 items-center gap-1.5">
+                      <div className="grid size-6 shrink-0 place-items-center rounded-full bg-surface-2 text-[10px] font-bold">
+                        {customerName.slice(0, 1).toUpperCase()}
+                      </div>
+                      <div className="min-w-0">
+                        {/* اسم العميل: سطران بلا قص مزعج، والأرقام تبقى منفصلة */}
+                        <div className="line-clamp-2 font-medium text-foreground">
+                          {customerName}
+                        </div>
+                        {inv.customers?.phone && (
+                          <div className="dir-ltr truncate text-[10px] text-muted-foreground">
+                            {toSystemDigits(inv.customers.phone)}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    <div className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-border/80 bg-surface px-2 py-1 text-[11px] text-muted-foreground">
+                      {pmIcon(inv.payment_method, inv.note)}
+                      <span className="whitespace-nowrap">
+                        {pmLabel(inv.payment_method, inv.note)}
+                      </span>
+                    </div>
                   </div>
-                  <div className="min-w-0">
-                    {/* اسم العميل: سطران بلا قص مزعج، والأرقام تبقى منفصلة */}
-                    <div className="line-clamp-2 font-medium text-foreground">{customerName}</div>
-                    {inv.customers?.phone && (
-                      <div className="dir-ltr truncate text-[10px] text-muted-foreground">
-                        {toSystemDigits(inv.customers.phone)}
+
+                  {hasMultiWarehouse && inv.warehouses && (
+                    <div className="mt-2 truncate text-[11px] text-muted-foreground">
+                      {isRtl ? "المستودع: " : "Warehouse: "}
+                      {whName(inv.warehouses)}
+                    </div>
+                  )}
+
+                  {/* Financial summary */}
+                  <div className="mt-3 space-y-1.5 rounded-lg border border-border/60 bg-surface-2/40 p-2.5 text-xs">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-muted-foreground">
+                        {isRtl ? "إجمالي الفاتورة" : "Total"}
+                      </span>
+                      <span className="whitespace-nowrap font-mono text-sm font-semibold text-foreground">
+                        {toSystemDigits(money(total))}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-muted-foreground">{isRtl ? "المدفوع" : "Paid"}</span>
+                      <span className="whitespace-nowrap font-mono font-medium text-emerald-500">
+                        {toSystemDigits(money(paid))}
+                      </span>
+                    </div>
+                    {remaining > 0 && (
+                      <div className="flex items-center justify-between gap-2 border-t border-border/40 pt-1.5 font-semibold text-rose-500">
+                        <span>{isRtl ? "المتبقي" : "Remaining"}</span>
+                        <span className="whitespace-nowrap font-mono">
+                          {toSystemDigits(money(remaining))}
+                        </span>
                       </div>
                     )}
                   </div>
-                </div>
-                <div className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-border/80 bg-surface px-2 py-1 text-[11px] text-muted-foreground">
-                  {pmIcon(inv.payment_method, inv.note)}
-                  <span className="whitespace-nowrap">{pmLabel(inv.payment_method, inv.note)}</span>
-                </div>
-              </div>
 
-              {hasMultiWarehouse && inv.warehouses && (
-                <div className="mt-2 truncate text-[11px] text-muted-foreground">
-                  {isRtl ? "المستودع: " : "Warehouse: "}
-                  {whName(inv.warehouses)}
-                </div>
-              )}
+                  {/* Actions — نفس وظائف الجدول، بأحجام لمس مريحة */}
+                  <div
+                    className="mt-3 flex items-center justify-between gap-2 border-t border-border/60 pt-3"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => shareInvoiceWhatsApp(inv)}
+                        className="grid size-8 place-items-center rounded-lg border border-border/70 text-muted-foreground transition hover:bg-surface-2 hover:text-emerald-500"
+                        title={isRtl ? "مشاركة عبر واتساب" : "Share via WhatsApp"}
+                      >
+                        <WhatsAppIcon className="h-4 w-4" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => openInvoice(inv)}
+                        className="grid size-8 place-items-center rounded-lg border border-border/70 text-muted-foreground transition hover:bg-surface-2 hover:text-foreground"
+                        title={isRtl ? "عرض التفاصيل" : "View Details"}
+                      >
+                        <Eye className="h-4 w-4" />
+                      </button>
+                    </div>
 
-              {/* Financial summary */}
-              <div className="mt-3 space-y-1.5 rounded-lg border border-border/60 bg-surface-2/40 p-2.5 text-xs">
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-muted-foreground">
-                    {isRtl ? "إجمالي الفاتورة" : "Total"}
-                  </span>
-                  <span className="whitespace-nowrap font-mono text-sm font-semibold text-foreground">
-                    {toSystemDigits(money(total))}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-muted-foreground">{isRtl ? "المدفوع" : "Paid"}</span>
-                  <span className="whitespace-nowrap font-mono font-medium text-emerald-500">
-                    {toSystemDigits(money(paid))}
-                  </span>
-                </div>
-                {remaining > 0 && (
-                  <div className="flex items-center justify-between gap-2 border-t border-border/40 pt-1.5 font-semibold text-rose-500">
-                    <span>{isRtl ? "المتبقي" : "Remaining"}</span>
-                    <span className="whitespace-nowrap font-mono">
-                      {toSystemDigits(money(remaining))}
-                    </span>
+                    {remaining > 0 && inv.status !== "cancelled" ? (
+                      <button
+                        type="button"
+                        onClick={() => triggerQuickCollect(inv)}
+                        className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-amber-500/10 px-3 text-xs font-semibold text-amber-500 transition hover:bg-amber-500/20"
+                      >
+                        <Wallet className="h-3.5 w-3.5" />
+                        <span>{isRtl ? "تحصيل فوري" : "Collect"}</span>
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelected(inv);
+                          setPrintOpen(true);
+                        }}
+                        className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-border bg-surface px-3 text-xs font-medium text-foreground transition hover:bg-surface-2"
+                      >
+                        <Printer className="h-3.5 w-3.5" />
+                        <span>{isRtl ? "طباعة" : "Print"}</span>
+                      </button>
+                    )}
                   </div>
-                )}
-              </div>
-
-              {/* Actions — نفس وظائف الجدول، بأحجام لمس مريحة */}
-              <div
-                className="mt-3 flex items-center justify-between gap-2 border-t border-border/60 pt-3"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <div className="flex items-center gap-1.5">
-                  <button
-                    type="button"
-                    onClick={() => shareInvoiceWhatsApp(inv)}
-                    className="grid size-8 place-items-center rounded-lg border border-border/70 text-muted-foreground transition hover:bg-surface-2 hover:text-emerald-500"
-                    title={isRtl ? "مشاركة عبر واتساب" : "Share via WhatsApp"}
-                  >
-                    <WhatsAppIcon className="h-4 w-4" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => openInvoice(inv)}
-                    className="grid size-8 place-items-center rounded-lg border border-border/70 text-muted-foreground transition hover:bg-surface-2 hover:text-foreground"
-                    title={isRtl ? "عرض التفاصيل" : "View Details"}
-                  >
-                    <Eye className="h-4 w-4" />
-                  </button>
                 </div>
+              );
+            })}
+          </div>
 
-                {remaining > 0 && inv.status !== "cancelled" ? (
-                  <button
-                    type="button"
-                    onClick={() => triggerQuickCollect(inv)}
-                    className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-amber-500/10 px-3 text-xs font-semibold text-amber-500 transition hover:bg-amber-500/20"
-                  >
-                    <Wallet className="h-3.5 w-3.5" />
-                    <span>{isRtl ? "تحصيل فوري" : "Collect"}</span>
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSelected(inv);
-                      setPrintOpen(true);
-                    }}
-                    className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-border bg-surface px-3 text-xs font-medium text-foreground transition hover:bg-surface-2"
-                  >
-                    <Printer className="h-3.5 w-3.5" />
-                    <span>{isRtl ? "طباعة" : "Print"}</span>
-                  </button>
-                )}
+          {/* Desktop: جدول كما كان، أو شبكة البطاقات عند اختيار المستخدم */}
+          <div className={viewMode === "table" ? "hidden md:block" : "hidden"}>
+            <div className="panel-elevated overflow-hidden border border-border/80">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="border-b border-border bg-surface-2/60 text-xs font-medium text-muted-foreground">
+                    <tr>
+                      <th className="px-4 py-3 text-start">
+                        {isRtl ? "رقم الفاتورة والتاريخ" : "Invoice & Date"}
+                      </th>
+                      <th className="px-4 py-3 text-start">{isRtl ? "العميل" : "Customer"}</th>
+                      {hasMultiWarehouse && (
+                        <th className="px-4 py-3 text-start">{isRtl ? "المستودع" : "Warehouse"}</th>
+                      )}
+                      <th className="px-4 py-3 text-start">{isRtl ? "طريقة السداد" : "Payment"}</th>
+                      <th className="px-4 py-3 text-start">{isRtl ? "الحالة" : "Status"}</th>
+                      <th className="px-4 py-3 text-end">{isRtl ? "الإجمالي" : "Total"}</th>
+                      <th className="px-4 py-3 text-end">
+                        {isRtl ? "المدفوع / المتبقي" : "Paid / Due"}
+                      </th>
+                      <th className="px-4 py-3 text-center">{isRtl ? "الإجراءات" : "Actions"}</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border/60">
+                    {filteredRows.map((inv) => {
+                      const total = Number(inv.total) || 0;
+                      const paid = Number(inv.paid) || 0;
+                      const remaining = Math.max(0, total - paid);
+
+                      return (
+                        <tr
+                          key={inv.id}
+                          className="group transition hover:bg-surface-2/40 cursor-pointer"
+                          onClick={() => openInvoice(inv)}
+                        >
+                          {/* Invoice & Date */}
+                          <td className="px-4 py-3">
+                            <div className="flex items-center gap-2">
+                              <span className="font-mono text-xs font-semibold text-foreground group-hover:text-primary transition">
+                                {inv.invoice_number}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  copyInvoiceNumber(inv.invoice_number, inv.id);
+                                }}
+                                className="rounded p-1 text-muted-foreground hover:bg-surface hover:text-foreground"
+                                title={isRtl ? "نسخ الرقم" : "Copy number"}
+                              >
+                                {copiedInvoiceId === inv.id ? (
+                                  <Check className="h-3 w-3 text-emerald-500" />
+                                ) : (
+                                  <Copy className="h-3 w-3" />
+                                )}
+                              </button>
+                            </div>
+                            <div className="mt-1">
+                              <VortexDateBadge date={inv.created_at} variant="subtle" />
+                            </div>
+                          </td>
+
+                          {/* Customer */}
+                          <td className="px-4 py-3">
+                            <div className="flex items-center gap-2">
+                              <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-surface-2 text-xs font-semibold text-foreground">
+                                {(inv.customers?.name ?? (isRtl ? "ع" : "W"))
+                                  .slice(0, 1)
+                                  .toUpperCase()}
+                              </div>
+                              <div>
+                                <div className="font-medium text-foreground">
+                                  {inv.customers?.name ?? (isRtl ? "عميل نقدي" : "Walk-in")}
+                                </div>
+                                {inv.customers?.phone && (
+                                  <div className="text-[11px] text-muted-foreground dir-ltr">
+                                    {toSystemDigits(inv.customers.phone)}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </td>
+
+                          {/* Warehouse (if multi-warehouse enabled) */}
+                          {hasMultiWarehouse && (
+                            <td className="px-4 py-3 text-xs text-muted-foreground">
+                              {whName(inv.warehouses) ?? "—"}
+                            </td>
+                          )}
+
+                          {/* Payment Method */}
+                          <td className="px-4 py-3">
+                            <div className="inline-flex items-center gap-1.5 rounded-lg border border-border/80 bg-surface px-2.5 py-1 text-xs">
+                              {pmIcon(inv.payment_method, inv.note)}
+                              <span>{pmLabel(inv.payment_method, inv.note)}</span>
+                            </div>
+                          </td>
+
+                          {/* Status Badge */}
+                          <td className="px-4 py-3">{statusBadge(inv.status)}</td>
+
+                          {/* Total */}
+                          <td className="px-4 py-3 text-end font-semibold text-foreground">
+                            {toSystemDigits(money(total))}
+                          </td>
+
+                          {/* Paid / Due */}
+                          <td className="px-4 py-3 text-end text-xs">
+                            <div className="font-medium text-emerald-500">
+                              {toSystemDigits(money(paid))}
+                            </div>
+                            {remaining > 0 ? (
+                              <div className="text-[11px] font-semibold text-rose-500">
+                                {isRtl ? "متبقي: " : "Due: "}
+                                {toSystemDigits(money(remaining))}
+                              </div>
+                            ) : (
+                              <div className="text-[10px] text-muted-foreground">
+                                {isRtl ? "خالص" : "Settled"}
+                              </div>
+                            )}
+                          </td>
+
+                          {/* Actions */}
+                          <td
+                            className="px-4 py-3 text-center"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <div className="flex items-center justify-center gap-1">
+                              {/* Quick Collect button if due */}
+                              {remaining > 0 && inv.status !== "cancelled" && (
+                                <button
+                                  type="button"
+                                  onClick={() => triggerQuickCollect(inv)}
+                                  className="inline-flex items-center gap-1 rounded-md bg-amber-500/10 px-2 py-1 text-xs font-semibold text-amber-500 hover:bg-amber-500/20 transition"
+                                  title={isRtl ? "تحصيل سريع" : "Quick Collect"}
+                                >
+                                  <Wallet className="h-3.5 w-3.5" />
+                                  <span className="hidden xl:inline">
+                                    {isRtl ? "تحصيل" : "Collect"}
+                                  </span>
+                                </button>
+                              )}
+
+                              {/* WhatsApp Share */}
+                              <button
+                                type="button"
+                                onClick={() => shareInvoiceWhatsApp(inv)}
+                                className="rounded-md p-1.5 text-muted-foreground hover:bg-surface hover:text-emerald-500 transition"
+                                title={isRtl ? "مشاركة عبر واتساب" : "Share via WhatsApp"}
+                              >
+                                <WhatsAppIcon className="h-4 w-4" />
+                              </button>
+
+                              {/* Details */}
+                              <button
+                                type="button"
+                                onClick={() => openInvoice(inv)}
+                                className="rounded-md p-1.5 text-muted-foreground hover:bg-surface hover:text-foreground transition"
+                                title={isRtl ? "عرض التفاصيل" : "View Details"}
+                              >
+                                <Eye className="h-4 w-4" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
               </div>
             </div>
-          );
-        })}
-      </div>
+          </div>
 
-      {/* Desktop: جدول كما كان، أو شبكة البطاقات عند اختيار المستخدم */}
-      <div className={viewMode === "table" ? "hidden md:block" : "hidden"}>
-        <div className="panel-elevated overflow-hidden border border-border/80">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="border-b border-border bg-surface-2/60 text-xs font-medium text-muted-foreground">
-                <tr>
-                  <th className="px-4 py-3 text-start">{isRtl ? "رقم الفاتورة والتاريخ" : "Invoice & Date"}</th>
-                  <th className="px-4 py-3 text-start">{isRtl ? "العميل" : "Customer"}</th>
-                  {hasMultiWarehouse && (
-                    <th className="px-4 py-3 text-start">{isRtl ? "المستودع" : "Warehouse"}</th>
-                  )}
-                  <th className="px-4 py-3 text-start">{isRtl ? "طريقة السداد" : "Payment"}</th>
-                  <th className="px-4 py-3 text-start">{isRtl ? "الحالة" : "Status"}</th>
-                  <th className="px-4 py-3 text-end">{isRtl ? "الإجمالي" : "Total"}</th>
-                  <th className="px-4 py-3 text-end">{isRtl ? "المدفوع / المتبقي" : "Paid / Due"}</th>
-                  <th className="px-4 py-3 text-center">{isRtl ? "الإجراءات" : "Actions"}</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border/60">
-                {filteredRows.map((inv) => {
-                  const total = Number(inv.total) || 0;
-                  const paid = Number(inv.paid) || 0;
-                  const remaining = Math.max(0, total - paid);
+          <div
+            className={
+              viewMode === "grid" ? "hidden gap-3 md:grid md:grid-cols-2 lg:grid-cols-3" : "hidden"
+            }
+          >
+            {filteredRows.map((inv) => {
+              const total = Number(inv.total) || 0;
+              const paid = Number(inv.paid) || 0;
+              const remaining = Math.max(0, total - paid);
 
-                  return (
-                    <tr
-                      key={inv.id}
-                      className="group transition hover:bg-surface-2/40 cursor-pointer"
-                      onClick={() => openInvoice(inv)}
-                    >
-                      {/* Invoice & Date */}
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-2">
-                          <span className="font-mono text-xs font-semibold text-foreground group-hover:text-primary transition">
+              return (
+                <div
+                  key={inv.id}
+                  onClick={() => openInvoice(inv)}
+                  className="group relative flex flex-col justify-between rounded-xl border border-border/80 bg-surface p-4 shadow-sm transition hover:border-primary/40 hover:shadow-md cursor-pointer"
+                >
+                  <div>
+                    {/* Top: Invoice # & Status */}
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-mono text-sm font-bold text-foreground group-hover:text-primary transition">
                             {inv.invoice_number}
                           </span>
                           <button
@@ -1055,8 +1253,7 @@ export function SalesPage() {
                               e.stopPropagation();
                               copyInvoiceNumber(inv.invoice_number, inv.id);
                             }}
-                            className="rounded p-1 text-muted-foreground hover:bg-surface hover:text-foreground"
-                            title={isRtl ? "نسخ الرقم" : "Copy number"}
+                            className="rounded p-1 text-muted-foreground hover:text-foreground"
                           >
                             {copiedInvoiceId === inv.id ? (
                               <Check className="h-3 w-3 text-emerald-500" />
@@ -1068,248 +1265,100 @@ export function SalesPage() {
                         <div className="mt-1">
                           <VortexDateBadge date={inv.created_at} variant="subtle" />
                         </div>
-                      </td>
+                      </div>
+                      <div>{statusBadge(inv.status)}</div>
+                    </div>
 
-                      {/* Customer */}
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-2">
-                          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-surface-2 text-xs font-semibold text-foreground">
-                            {(inv.customers?.name ?? (isRtl ? "ع" : "W")).slice(0, 1).toUpperCase()}
-                          </div>
-                          <div>
-                            <div className="font-medium text-foreground">
-                              {inv.customers?.name ?? (isRtl ? "عميل نقدي" : "Walk-in")}
-                            </div>
-                            {inv.customers?.phone && (
-                              <div className="text-[11px] text-muted-foreground dir-ltr">
-                                {toSystemDigits(inv.customers.phone)}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </td>
-
-                      {/* Warehouse (if multi-warehouse enabled) */}
-                      {hasMultiWarehouse && (
-                        <td className="px-4 py-3 text-xs text-muted-foreground">
-                          {whName(inv.warehouses) ?? "—"}
-                        </td>
-                      )}
-
-                      {/* Payment Method */}
-                      <td className="px-4 py-3">
-                        <div className="inline-flex items-center gap-1.5 rounded-lg border border-border/80 bg-surface px-2.5 py-1 text-xs">
-                          {pmIcon(inv.payment_method, inv.note)}
-                          <span>{pmLabel(inv.payment_method, inv.note)}</span>
-                        </div>
-                      </td>
-
-                      {/* Status Badge */}
-                      <td className="px-4 py-3">{statusBadge(inv.status)}</td>
-
-                      {/* Total */}
-                      <td className="px-4 py-3 text-end font-semibold text-foreground">
-                        {toSystemDigits(money(total))}
-                      </td>
-
-                      {/* Paid / Due */}
-                      <td className="px-4 py-3 text-end text-xs">
-                        <div className="font-medium text-emerald-500">{toSystemDigits(money(paid))}</div>
-                        {remaining > 0 ? (
-                          <div className="text-[11px] font-semibold text-rose-500">
-                            {isRtl ? "متبقي: " : "Due: "}
-                            {toSystemDigits(money(remaining))}
-                          </div>
-                        ) : (
-                          <div className="text-[10px] text-muted-foreground">{isRtl ? "خالص" : "Settled"}</div>
-                        )}
-                      </td>
-
-                      {/* Actions */}
-                      <td
-                        className="px-4 py-3 text-center"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <div className="flex items-center justify-center gap-1">
-                          {/* Quick Collect button if due */}
-                          {remaining > 0 && inv.status !== "cancelled" && (
-                            <button
-                              type="button"
-                              onClick={() => triggerQuickCollect(inv)}
-                              className="inline-flex items-center gap-1 rounded-md bg-amber-500/10 px-2 py-1 text-xs font-semibold text-amber-500 hover:bg-amber-500/20 transition"
-                              title={isRtl ? "تحصيل سريع" : "Quick Collect"}
-                            >
-                              <Wallet className="h-3.5 w-3.5" />
-                              <span className="hidden xl:inline">{isRtl ? "تحصيل" : "Collect"}</span>
-                            </button>
-                          )}
-
-                          {/* WhatsApp Share */}
-                          <button
-                            type="button"
-                            onClick={() => shareInvoiceWhatsApp(inv)}
-                            className="rounded-md p-1.5 text-muted-foreground hover:bg-surface hover:text-emerald-500 transition"
-                            title={isRtl ? "مشاركة عبر واتساب" : "Share via WhatsApp"}
-                          >
-                            <WhatsAppIcon className="h-4 w-4" />
-                          </button>
-
-                          {/* Details */}
-                          <button
-                            type="button"
-                            onClick={() => openInvoice(inv)}
-                            className="rounded-md p-1.5 text-muted-foreground hover:bg-surface hover:text-foreground transition"
-                            title={isRtl ? "عرض التفاصيل" : "View Details"}
-                          >
-                            <Eye className="h-4 w-4" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-
-      <div
-        className={
-          viewMode === "grid" ? "hidden gap-3 md:grid md:grid-cols-2 lg:grid-cols-3" : "hidden"
-        }
-      >
-          {filteredRows.map((inv) => {
-            const total = Number(inv.total) || 0;
-            const paid = Number(inv.paid) || 0;
-            const remaining = Math.max(0, total - paid);
-
-            return (
-              <div
-                key={inv.id}
-                onClick={() => openInvoice(inv)}
-                className="group relative flex flex-col justify-between rounded-xl border border-border/80 bg-surface p-4 shadow-sm transition hover:border-primary/40 hover:shadow-md cursor-pointer"
-              >
-                <div>
-                  {/* Top: Invoice # & Status */}
-                  <div className="flex items-start justify-between gap-2">
-                    <div>
+                    {/* Customer and Payment method */}
+                    <div className="mt-3 flex items-center justify-between border-t border-border/60 pt-2.5 text-xs">
                       <div className="flex items-center gap-1.5">
-                        <span className="font-mono text-sm font-bold text-foreground group-hover:text-primary transition">
-                          {inv.invoice_number}
+                        <div className="flex h-6 w-6 items-center justify-center rounded-full bg-surface-2 text-[10px] font-bold">
+                          {(inv.customers?.name ?? (isRtl ? "ع" : "W")).slice(0, 1).toUpperCase()}
+                        </div>
+                        <span className="font-medium text-foreground">
+                          {inv.customers?.name ?? (isRtl ? "عميل نقدي" : "Walk-in")}
                         </span>
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            copyInvoiceNumber(inv.invoice_number, inv.id);
-                          }}
-                          className="rounded p-1 text-muted-foreground hover:text-foreground"
-                        >
-                          {copiedInvoiceId === inv.id ? (
-                            <Check className="h-3 w-3 text-emerald-500" />
-                          ) : (
-                            <Copy className="h-3 w-3" />
-                          )}
-                        </button>
                       </div>
-                      <div className="mt-1">
-                        <VortexDateBadge date={inv.created_at} variant="subtle" />
+                      <div className="flex items-center gap-1 text-muted-foreground">
+                        {pmIcon(inv.payment_method, inv.note)}
+                        <span className="text-[11px]">{pmLabel(inv.payment_method, inv.note)}</span>
                       </div>
                     </div>
-                    <div>{statusBadge(inv.status)}</div>
-                  </div>
 
-                  {/* Customer and Payment method */}
-                  <div className="mt-3 flex items-center justify-between border-t border-border/60 pt-2.5 text-xs">
-                    <div className="flex items-center gap-1.5">
-                      <div className="flex h-6 w-6 items-center justify-center rounded-full bg-surface-2 text-[10px] font-bold">
-                        {(inv.customers?.name ?? (isRtl ? "ع" : "W")).slice(0, 1).toUpperCase()}
+                    {/* Financial Breakdown */}
+                    <div className="mt-3 rounded-lg border border-border/60 bg-surface-2/40 p-2.5 text-xs space-y-1">
+                      <div className="flex items-center justify-between text-muted-foreground">
+                        <span>{isRtl ? "إجمالي الفاتورة:" : "Total:"}</span>
+                        <span className="font-semibold text-foreground text-sm">
+                          {toSystemDigits(money(total))}
+                        </span>
                       </div>
-                      <span className="font-medium text-foreground">
-                        {inv.customers?.name ?? (isRtl ? "عميل نقدي" : "Walk-in")}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-1 text-muted-foreground">
-                      {pmIcon(inv.payment_method, inv.note)}
-                      <span className="text-[11px]">{pmLabel(inv.payment_method, inv.note)}</span>
+                      <div className="flex items-center justify-between text-muted-foreground text-[11px]">
+                        <span>{isRtl ? "المسدد:" : "Paid:"}</span>
+                        <span className="font-medium text-emerald-500">
+                          {toSystemDigits(money(paid))}
+                        </span>
+                      </div>
+                      {remaining > 0 && (
+                        <div className="flex items-center justify-between border-t border-border/40 pt-1 text-xs font-semibold text-rose-500">
+                          <span>{isRtl ? "المتبقي (آجل):" : "Remaining Due:"}</span>
+                          <span>{toSystemDigits(money(remaining))}</span>
+                        </div>
+                      )}
                     </div>
                   </div>
 
-                  {/* Financial Breakdown */}
-                  <div className="mt-3 rounded-lg border border-border/60 bg-surface-2/40 p-2.5 text-xs space-y-1">
-                    <div className="flex items-center justify-between text-muted-foreground">
-                      <span>{isRtl ? "إجمالي الفاتورة:" : "Total:"}</span>
-                      <span className="font-semibold text-foreground text-sm">
-                        {toSystemDigits(money(total))}
-                      </span>
+                  {/* Footer Quick Actions */}
+                  <div
+                    className="mt-3 flex items-center justify-between border-t border-border/60 pt-3"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <div className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => shareInvoiceWhatsApp(inv)}
+                        className="rounded-lg p-1.5 text-muted-foreground hover:bg-surface-2 hover:text-emerald-500 transition"
+                        title={isRtl ? "واتساب" : "WhatsApp"}
+                      >
+                        <WhatsAppIcon className="h-4 w-4" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => openInvoice(inv)}
+                        className="rounded-lg p-1.5 text-muted-foreground hover:bg-surface-2 hover:text-foreground transition"
+                        title={isRtl ? "تفاصيل" : "Details"}
+                      >
+                        <Eye className="h-4 w-4" />
+                      </button>
                     </div>
-                    <div className="flex items-center justify-between text-muted-foreground text-[11px]">
-                      <span>{isRtl ? "المسدد:" : "Paid:"}</span>
-                      <span className="font-medium text-emerald-500">
-                        {toSystemDigits(money(paid))}
-                      </span>
-                    </div>
-                    {remaining > 0 && (
-                      <div className="flex items-center justify-between border-t border-border/40 pt-1 text-xs font-semibold text-rose-500">
-                        <span>{isRtl ? "المتبقي (آجل):" : "Remaining Due:"}</span>
-                        <span>{toSystemDigits(money(remaining))}</span>
-                      </div>
+
+                    {remaining > 0 && inv.status !== "cancelled" ? (
+                      <button
+                        type="button"
+                        onClick={() => triggerQuickCollect(inv)}
+                        className="inline-flex items-center gap-1.5 rounded-lg bg-amber-500/10 px-2.5 py-1 text-xs font-semibold text-amber-500 hover:bg-amber-500/20 transition"
+                      >
+                        <Wallet className="h-3.5 w-3.5" />
+                        <span>{isRtl ? "تحصيل فوري" : "Collect"}</span>
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelected(inv);
+                          setPrintOpen(true);
+                        }}
+                        className="inline-flex items-center gap-1 rounded-lg border border-border bg-surface px-2.5 py-1 text-xs font-medium text-foreground hover:bg-surface-2 transition"
+                      >
+                        <Printer className="h-3.5 w-3.5" />
+                        <span>{isRtl ? "طباعة" : "Print"}</span>
+                      </button>
                     )}
                   </div>
                 </div>
-
-                {/* Footer Quick Actions */}
-                <div
-                  className="mt-3 flex items-center justify-between border-t border-border/60 pt-3"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <div className="flex items-center gap-1">
-                    <button
-                      type="button"
-                      onClick={() => shareInvoiceWhatsApp(inv)}
-                      className="rounded-lg p-1.5 text-muted-foreground hover:bg-surface-2 hover:text-emerald-500 transition"
-                      title={isRtl ? "واتساب" : "WhatsApp"}
-                    >
-                      <WhatsAppIcon className="h-4 w-4" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => openInvoice(inv)}
-                      className="rounded-lg p-1.5 text-muted-foreground hover:bg-surface-2 hover:text-foreground transition"
-                      title={isRtl ? "تفاصيل" : "Details"}
-                    >
-                      <Eye className="h-4 w-4" />
-                    </button>
-                  </div>
-
-                  {remaining > 0 && inv.status !== "cancelled" ? (
-                    <button
-                      type="button"
-                      onClick={() => triggerQuickCollect(inv)}
-                      className="inline-flex items-center gap-1.5 rounded-lg bg-amber-500/10 px-2.5 py-1 text-xs font-semibold text-amber-500 hover:bg-amber-500/20 transition"
-                    >
-                      <Wallet className="h-3.5 w-3.5" />
-                      <span>{isRtl ? "تحصيل فوري" : "Collect"}</span>
-                    </button>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setSelected(inv);
-                        setPrintOpen(true);
-                      }}
-                      className="inline-flex items-center gap-1 rounded-lg border border-border bg-surface px-2.5 py-1 text-xs font-medium text-foreground hover:bg-surface-2 transition"
-                    >
-                      <Printer className="h-3.5 w-3.5" />
-                      <span>{isRtl ? "طباعة" : "Print"}</span>
-                    </button>
-                  )}
-                </div>
-              </div>
-            );
-          })}
-      </div>
+              );
+            })}
+          </div>
         </>
       )}
 
@@ -1395,7 +1444,9 @@ export function SalesPage() {
         <VortexFilterSection title={isRtl ? "نطاق قيمة الفاتورة" : "Invoice Amount Range"}>
           <div className="grid grid-cols-2 gap-2 text-xs">
             <div>
-              <label className="text-[10px] text-muted-foreground">{isRtl ? "من (الحد الأدنى)" : "Min"}</label>
+              <label className="text-[10px] text-muted-foreground">
+                {isRtl ? "من (الحد الأدنى)" : "Min"}
+              </label>
               <input
                 type="number"
                 value={minAmount}
@@ -1405,7 +1456,9 @@ export function SalesPage() {
               />
             </div>
             <div>
-              <label className="text-[10px] text-muted-foreground">{isRtl ? "إلى (الحد الأقصى)" : "Max"}</label>
+              <label className="text-[10px] text-muted-foreground">
+                {isRtl ? "إلى (الحد الأقصى)" : "Max"}
+              </label>
               <input
                 type="number"
                 value={maxAmount}
@@ -1543,10 +1596,18 @@ export function SalesPage() {
                   <table className="w-full text-xs">
                     <thead className="bg-surface-2/70 text-muted-foreground">
                       <tr>
-                        <th className="px-3 py-2.5 text-start font-medium">{isRtl ? "المنتج / الصنف" : "Item"}</th>
-                        <th className="px-3 py-2.5 text-center font-medium">{isRtl ? "الكمية" : "Qty"}</th>
-                        <th className="px-3 py-2.5 text-end font-medium">{isRtl ? "سعر الوحدة" : "Unit Price"}</th>
-                        <th className="px-3 py-2.5 text-end font-medium">{isRtl ? "الإجمالي" : "Total"}</th>
+                        <th className="px-3 py-2.5 text-start font-medium">
+                          {isRtl ? "المنتج / الصنف" : "Item"}
+                        </th>
+                        <th className="px-3 py-2.5 text-center font-medium">
+                          {isRtl ? "الكمية" : "Qty"}
+                        </th>
+                        <th className="px-3 py-2.5 text-end font-medium">
+                          {isRtl ? "سعر الوحدة" : "Unit Price"}
+                        </th>
+                        <th className="px-3 py-2.5 text-end font-medium">
+                          {isRtl ? "الإجمالي" : "Total"}
+                        </th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-border/60">
@@ -1576,7 +1637,9 @@ export function SalesPage() {
                                   إظهاره يمنع افتراض أنه بضاعة مخزنية. */}
                               {l.line_type === "SERVICE" && (
                                 <div className="mt-0.5 text-[10px] font-bold text-amber-600 dark:text-amber-400">
-                                  {isRtl ? "بند خدمة — لا يخصم مخزوناً" : "Service line — no stock impact"}
+                                  {isRtl
+                                    ? "بند خدمة — لا يخصم مخزوناً"
+                                    : "Service line — no stock impact"}
                                 </div>
                               )}
                               {l.products?.sku && (
@@ -1608,12 +1671,16 @@ export function SalesPage() {
               <div className="rounded-xl border border-border/80 bg-surface-2/30 p-4 text-xs space-y-1.5">
                 <div className="flex justify-between text-muted-foreground">
                   <span>{isRtl ? "المجموع الفرعي (قبل الضريبة):" : "Subtotal:"}</span>
-                  <span className="font-mono">{toSystemDigits(money(Number(selected.subtotal)))}</span>
+                  <span className="font-mono">
+                    {toSystemDigits(money(Number(selected.subtotal)))}
+                  </span>
                 </div>
                 {Number(selected.discount) > 0 && (
                   <div className="flex justify-between text-emerald-500">
                     <span>{isRtl ? "الخصم الممنوح:" : "Discount:"}</span>
-                    <span className="font-mono">-{toSystemDigits(money(Number(selected.discount)))}</span>
+                    <span className="font-mono">
+                      -{toSystemDigits(money(Number(selected.discount)))}
+                    </span>
                   </div>
                 )}
                 {Number(selected.tax) > 0 && (
@@ -1624,7 +1691,9 @@ export function SalesPage() {
                 )}
                 <div className="flex justify-between border-t border-border pt-1.5 text-sm font-bold text-foreground">
                   <span>{isRtl ? "الإجمالي الكلي:" : "Grand Total:"}</span>
-                  <span className="font-mono text-base">{toSystemDigits(money(Number(selected.total)))}</span>
+                  <span className="font-mono text-base">
+                    {toSystemDigits(money(Number(selected.total)))}
+                  </span>
                 </div>
                 <div className="flex justify-between text-emerald-500 font-medium">
                   <span>{isRtl ? "المسدد نقداً / مدفوع:" : "Paid:"}</span>
@@ -1634,7 +1703,9 @@ export function SalesPage() {
                   <div className="flex justify-between text-rose-500 font-bold border-t border-border/60 pt-1 text-xs">
                     <span>{isRtl ? "المتبقي (دين آجل مستحق):" : "Remaining Due:"}</span>
                     <span className="font-mono">
-                      {toSystemDigits(money(Math.max(0, Number(selected.total) - Number(selected.paid))))}
+                      {toSystemDigits(
+                        money(Math.max(0, Number(selected.total) - Number(selected.paid))),
+                      )}
                     </span>
                   </div>
                 )}
@@ -1710,14 +1781,19 @@ export function SalesPage() {
           className="fixed inset-0 z-[60] grid place-items-center bg-background/80 backdrop-blur-sm p-4"
           onClick={() => setPrintOpen(false)}
         >
-          <div className="panel-elevated w-full max-w-xl p-6 shadow-2xl border border-border/80" onClick={(e) => e.stopPropagation()}>
+          <div
+            className="panel-elevated w-full max-w-xl p-6 shadow-2xl border border-border/80"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="mb-5 flex items-center justify-between">
               <div>
                 <h3 className="text-lg font-bold text-foreground">
                   {isRtl ? "خيارات ونماذج الطباعة الفاخرة" : "Invoice Print Templates"}
                 </h3>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  {isRtl ? "اختر القالب الأنسب لطابعتك ونوع الورق" : "Select the best template for your printer"}
+                  {isRtl
+                    ? "اختر القالب الأنسب لطابعتك ونوع الورق"
+                    : "Select the best template for your printer"}
                 </p>
               </div>
               <button
@@ -1799,7 +1875,9 @@ export function SalesPage() {
           العرض لا معنى له — يُخفى بلا حذف حتى يبقى متاحًا على الشاشات الكبيرة. */}
       <div className="sticky bottom-4 z-20 mx-auto mt-6 flex max-w-fit items-center gap-3 rounded-2xl border border-border/80 bg-background/90 px-4 py-2 shadow-lg backdrop-blur-md">
         <span className="text-xs font-medium text-muted-foreground">
-          {isRtl ? `إجمالي الفواتير: ${filteredRows.length}` : `Total Invoices: ${filteredRows.length}`}
+          {isRtl
+            ? `إجمالي الفواتير: ${filteredRows.length}`
+            : `Total Invoices: ${filteredRows.length}`}
         </span>
         <div className="hidden h-4 w-px bg-border md:block" />
         <div

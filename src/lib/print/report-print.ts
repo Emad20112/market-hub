@@ -16,6 +16,8 @@
  */
 
 import { openPrintWindow } from "./print-window";
+import { renderUniversalFooter, UNIVERSAL_FOOTER_CSS } from "@/lib/printing/footer";
+import { getCachedCompanyProfile } from "@/lib/printing/company-profile";
 
 export interface PrintTableColumn {
   /** Machine key, used only to look values up in the row object. */
@@ -165,7 +167,11 @@ td.empty { text-align:center; padding:16px; color:var(--muted); }
 
 export function buildReportHtml(options: ReportPrintOptions): string {
   const { lang, title, subtitle, period, generatedAt, kpis, sections, footerNote } = options;
-  const systemName = options.systemName ?? "Vortex ERP · Market Hub";
+  const company = getCachedCompanyProfile();
+  // Company Profile is the single source of company identity — the report never
+  // invents a name of its own.
+  const systemName = options.systemName ?? company.name;
+  const rtl = lang === "ar";
 
   const kpiHtml =
     kpis && kpis.length
@@ -220,7 +226,7 @@ export function buildReportHtml(options: ReportPrintOptions): string {
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&family=IBM+Plex+Mono:wght@400;700&display=swap" rel="stylesheet">
-<style>${reportPrintStyles(lang)}</style>
+<style>${reportPrintStyles(lang)}${UNIVERSAL_FOOTER_CSS}</style>
 </head>
 <body><div class="page">
   <div class="rpt-head">
@@ -241,6 +247,7 @@ export function buildReportHtml(options: ReportPrintOptions): string {
     <div>${esc(footerNote ?? "")}</div>
     <div class="sys">${esc(systemName)}</div>
   </div>
+  ${renderUniversalFooter(company, rtl, true)}
 </div></body></html>`;
 }
 

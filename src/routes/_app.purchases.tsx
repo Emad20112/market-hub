@@ -6,6 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/page-header";
 import { useI18n } from "@/lib/i18n";
 import { money } from "@/lib/format";
+import { printUnifiedDocument } from "@/lib/printing";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_app/purchases")({
@@ -352,7 +353,34 @@ function ViewDialog({
         </div>
         <div className="mt-4 flex justify-end gap-2">
           <button
-            onClick={() => window.print()}
+            onClick={() =>
+              printUnifiedDocument({
+                doc: {
+                  docType: "purchase_invoice",
+                  title: t("purchases.title"),
+                  number: invoice.invoice_number,
+                  date: new Date(invoice.created_at).toLocaleString(),
+                  partyLabel: t("common.supplier"),
+                  partyName: invoice.suppliers?.name ?? "",
+                  warehouse: hasMultiWarehouse ? whLabel : undefined,
+                  payment: pmLabel(invoice.payment_method),
+                  status: statusLabel(invoice.status),
+                  lines: lines.map((l) => ({
+                    product: l.products?.name ?? "—",
+                    qty: Number(l.quantity),
+                    price: Number(l.unit_cost),
+                    total: Number(l.total),
+                  })),
+                  subtotal: Number(invoice.subtotal),
+                  tax: Number(invoice.tax),
+                  discount: Number(invoice.discount),
+                  total: Number(invoice.total),
+                  paid: Number(invoice.paid),
+                },
+                documentType: "purchase_invoice",
+                rtl: lang === "ar",
+              })
+            }
             className="h-9 rounded-md border border-border px-4 text-sm hover:bg-surface-2"
           >
             {t("common.print")}

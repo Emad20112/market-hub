@@ -2,15 +2,13 @@ import type { InvoiceDoc } from "./pdf";
 import {
   InvoiceLabels,
   InvoiceTemplateId,
-  renderInvoiceHTML,
   UnifiedInvoiceData,
-  DEFAULT_BRANDING,
   getPrintSettings,
 } from "./templates";
+import { printUnifiedDocument } from "./printing";
 
 export type { InvoiceLabels as Labels };
 export type InvoiceTemplate = InvoiceTemplateId;
-export { DEFAULT_BRANDING };
 
 export function printInvoice(
   doc: InvoiceDoc | UnifiedInvoiceData,
@@ -18,45 +16,18 @@ export function printInvoice(
   labels: InvoiceLabels,
   rtl: boolean,
 ) {
-  // Honour the "no printing" mode configured in settings
+  // Honour the existing legacy off switch while the unified store migrates.
   if (getPrintSettings().printMode === "off") return;
 
-  // Ensure default branding is present
-  const fullDoc: UnifiedInvoiceData = {
-    ...doc,
-    brandingText: "brandingText" in doc && doc.brandingText ? doc.brandingText : DEFAULT_BRANDING,
-  };
+  // Company identity comes from Company Profile — never from a constant here.
+  const fullDoc = doc as UnifiedInvoiceData;
 
-  // Pass undefined options so renderInvoiceHTML merges the saved field-visibility
-  // settings (showLogo, showFinancialDetails, paper size, ...) from the store.
-  const html = renderInvoiceHTML(template, fullDoc, labels, rtl);
-
-  // Always use a hidden iframe — never open a new tab/window
-  const iframe = document.createElement("iframe");
-  iframe.style.cssText =
-    "position:fixed;top:-9999px;left:-9999px;width:1px;height:1px;border:0;visibility:hidden;";
-  document.body.appendChild(iframe);
-
-  const cw = iframe.contentWindow!;
-  cw.document.open();
-  cw.document.write(html);
-  cw.document.close();
-
-  // Wait for fonts / images to load then print silently
-  const delay = template === "elegant" ? 600 : 300;
-  setTimeout(() => {
-    try {
-      cw.focus();
-      cw.print();
-    } finally {
-      // Remove iframe after the print dialog is dismissed
-      setTimeout(() => {
-        try {
-          document.body.removeChild(iframe);
-        } catch {
-          /* already removed */
-        }
-      }, 2000);
-    }
-  }, delay);
+  // Route invoices through the shared engine; the document snapshot is reused.
+  void printUnifiedDocument({
+    doc: fullDoc,
+    documentType: fullDoc.docType ?? "customer_invoice",
+    templateId: template,
+    labels,
+    rtl,
+  });
 }

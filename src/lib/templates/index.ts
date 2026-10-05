@@ -7,7 +7,6 @@ import {
   DocumentType,
   PrintJobItem,
   CustomFieldOptions,
-  DEFAULT_BRANDING,
   PrintProfile,
 } from "./types";
 import {
@@ -21,6 +20,7 @@ import { renderStandardTemplate } from "./standard";
 import { renderElegantTemplate } from "./elegant";
 import { renderInventoryThermalTemplate, renderInventoryStandardTemplate } from "./inventory";
 import { getPrintSettings } from "./settings-store";
+import { renderFormalTemplate } from "@/lib/printing/formal";
 
 export * from "./types";
 export * from "./settings-store";
@@ -29,6 +29,7 @@ export { renderThermalTemplate } from "./thermal";
 export { renderStandardTemplate } from "./standard";
 export { renderElegantTemplate } from "./elegant";
 export { renderInventoryThermalTemplate, renderInventoryStandardTemplate } from "./inventory";
+export { renderFormalTemplate } from "@/lib/printing/formal";
 export { numberToArabicWords } from "./tafqeet";
 
 interface RegisteredTemplate {
@@ -55,8 +56,11 @@ export function getTemplateRenderer(
   // If document is an inventory document and default thermal/standard requested, use specialized inventory layout
   if (docType === "inventory_document") {
     if (id === "thermal") return renderInventoryThermalTemplate;
-    if (id === "standard" || id === "elegant") return renderInventoryStandardTemplate;
+    if (id === "standard" || id === "elegant" || id === "unified-modern")
+      return renderInventoryStandardTemplate;
   }
+  if (id === "formal")
+    return (doc, labels, rtl, options) => renderFormalTemplate(doc, labels, rtl, options);
 
   const registered = templateRegistry.get(id);
   if (registered) {
@@ -69,6 +73,10 @@ export function getTemplateRenderer(
       return renderThermalTemplate;
     case "elegant":
       return renderElegantTemplate;
+    case "unified-modern":
+      return renderStandardTemplate;
+    case "formal":
+      return (doc, labels, rtl, options) => renderFormalTemplate(doc, labels, rtl, options);
     case "standard":
     default:
       return renderStandardTemplate;
@@ -91,8 +99,10 @@ export function getCompatibleTemplates(
   paperProfileId?: PaperProfileId,
 ): PrintTemplateMeta[] {
   return getAvailableTemplates().filter((template) => {
-    const supportsDocument = !template.supportedDocTypes || template.supportedDocTypes.includes(documentType);
-    const supportsPaper = !paperProfileId || template.supportedPaperProfiles.includes(paperProfileId);
+    const supportsDocument =
+      !template.supportedDocTypes || template.supportedDocTypes.includes(documentType);
+    const supportsPaper =
+      !paperProfileId || template.supportedPaperProfiles.includes(paperProfileId);
     return supportsDocument && supportsPaper;
   });
 }
@@ -103,20 +113,29 @@ export function resolvePrintProfile(
   paperProfileId?: PaperProfileId,
 ): PrintProfile {
   const settings = getPrintSettings();
-  const requestedTemplate = templateId ||
-    (documentType === "inventory_document" ? settings.defaultInventoryTemplate : settings.defaultCustomerTemplate);
+  const requestedTemplate =
+    templateId ||
+    (documentType === "inventory_document"
+      ? settings.defaultInventoryTemplate
+      : settings.defaultCustomerTemplate);
   const legacyPaper = paperProfileForLegacySize(settings.paperSize);
   const requested = templateRegistry.get(requestedTemplate);
   const compatible = getCompatibleTemplates(documentType);
-  const template = requested &&
+  const template =
+    requested &&
     (!requested.meta.supportedDocTypes || requested.meta.supportedDocTypes.includes(documentType))
-    ? requested.meta
-    : compatible[0] || templateRegistry.get("thermal")!.meta;
-  const storedPaper = documentType === "inventory_document"
-    ? settings.defaultInventoryPaperProfile
-    : settings.defaultCustomerPaperProfile;
-  const requestedPaper = paperProfileId || storedPaper ||
-    (template.supportedPaperProfiles.includes(legacyPaper) ? legacyPaper : template.supportedPaperProfiles[0]);
+      ? requested.meta
+      : compatible[0] || templateRegistry.get("thermal")!.meta;
+  const storedPaper =
+    documentType === "inventory_document"
+      ? settings.defaultInventoryPaperProfile
+      : settings.defaultCustomerPaperProfile;
+  const requestedPaper =
+    paperProfileId ||
+    storedPaper ||
+    (template.supportedPaperProfiles.includes(legacyPaper)
+      ? legacyPaper
+      : template.supportedPaperProfiles[0]);
   const resolvedPaper = template.supportedPaperProfiles.includes(requestedPaper)
     ? requestedPaper
     : template.supportedPaperProfiles[0];
@@ -141,12 +160,43 @@ registerTemplate(
 registerTemplate(
   {
     id: "standard",
-    nameAr: "قياسي (A4)",
-    nameEn: "Standard (A4)",
+    nameAr: "موحد حديث (A4)",
+    nameEn: "Unified Modern (A4)",
     category: "standard",
     paperSize: "A4",
     supportedPaperProfiles: ["a4"],
-    supportedDocTypes: ["customer_invoice", "inventory_document"],
+    supportedDocTypes: [
+      "customer_invoice",
+      "purchase_invoice",
+      "sales_return",
+      "purchase_return",
+      "payment_receipt",
+      "quotation",
+      "delivery_note",
+      "inventory_document",
+    ],
+  },
+  renderStandardTemplate,
+);
+
+registerTemplate(
+  {
+    id: "unified-modern",
+    nameAr: "موحد حديث",
+    nameEn: "Unified Modern",
+    category: "standard",
+    paperSize: "A4",
+    supportedPaperProfiles: ["a4"],
+    supportedDocTypes: [
+      "customer_invoice",
+      "purchase_invoice",
+      "sales_return",
+      "purchase_return",
+      "payment_receipt",
+      "quotation",
+      "delivery_note",
+      "inventory_document",
+    ],
   },
   renderStandardTemplate,
 );
@@ -159,9 +209,42 @@ registerTemplate(
     category: "standard",
     paperSize: "A4",
     supportedPaperProfiles: ["a4"],
-    supportedDocTypes: ["customer_invoice"],
+    supportedDocTypes: [
+      "customer_invoice",
+      "purchase_invoice",
+      "sales_return",
+      "purchase_return",
+      "payment_receipt",
+      "quotation",
+      "delivery_note",
+    ],
   },
   renderElegantTemplate,
+);
+
+registerTemplate(
+  {
+    id: "formal",
+    nameAr: "رسمي مؤسسي",
+    nameEn: "Formal Corporate",
+    category: "standard",
+    paperSize: "A4",
+    supportedPaperProfiles: ["a4"],
+    supportedDocTypes: [
+      "customer_invoice",
+      "purchase_invoice",
+      "sales_return",
+      "purchase_return",
+      "stock_transfer",
+      "stock_receipt",
+      "stock_issue",
+      "payment_receipt",
+      "quotation",
+      "delivery_note",
+      "inventory_document",
+    ],
+  },
+  (doc, labels, rtl, options) => renderFormalTemplate(doc, labels, rtl, options),
 );
 
 /**
@@ -200,20 +283,32 @@ export function renderDocumentHTML(
     paid: rtl ? "المدفوع" : "Paid",
     balance: rtl ? "المتبقي" : "Balance",
     thanks: rtl ? "شكرًا لتعاملكم معنا" : "Thank you for your business",
-    poweredBy: doc.brandingText || DEFAULT_BRANDING,
+    poweredBy: "",
     ...labels,
   };
 
+  // Precedence: legacy settings (defaults) → document snapshot → explicit
+  // caller options. The caller must always win, otherwise a preview that
+  // disables the footer cannot honour its own request.
   const mergedOptions: CustomFieldOptions = {
     ...settings,
-    ...options,
     ...doc.options,
+    ...options,
   };
 
-  const profile = resolvePrintProfile(doc.docType || "customer_invoice", effectiveTemplateId, paperProfileId);
+  const profile = resolvePrintProfile(
+    doc.docType || "customer_invoice",
+    effectiveTemplateId,
+    paperProfileId,
+  );
   const renderer = getTemplateRenderer(profile.templateId, doc.docType);
   const html = renderer(doc, mergedLabels, rtl, mergedOptions);
-  return html.replace("</head>", `<style data-print-profile="${profile.paperProfileId}">${paperCss(PAPER_PROFILES[profile.paperProfileId])}</style></head>`).replace(/\s+onload="[^"]*"/gi, "");
+  return html
+    .replace(
+      "</head>",
+      `<style data-print-profile="${profile.paperProfileId}">${paperCss(PAPER_PROFILES[profile.paperProfileId])}</style></head>`,
+    )
+    .replace(/\s+onload="[^"]*"/gi, "");
 }
 
 /**
