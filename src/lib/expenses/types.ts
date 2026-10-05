@@ -117,6 +117,7 @@ export interface ExpensePayment {
   amount: number;
   payment_date: string;
   payment_method: string;
+  account_id?: string | null;
   account_label: string | null;
   reference_no: string | null;
   note: string | null;
@@ -278,6 +279,13 @@ export interface ExpenseLookups {
   projects: { id: string; code: string | null; name: string; name_ar: string | null }[];
   suppliers: { id: string; name: string }[];
   employees: { id: string; name: string | null }[];
+  financial_accounts?: {
+    id: string;
+    code: string;
+    name_ar: string;
+    account_type: string;
+    requires_reconciliation?: boolean;
+  }[];
 }
 
 /* ------------------------------------------------------------------ */

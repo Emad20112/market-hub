@@ -116,29 +116,35 @@ function DailyJournalPage() {
     });
 
     // 3. Expenses
-    const { data: exp } = await supabase
-      .from("expenses")
-      .select("id,amount,expense_date,note,created_at,expense_categories(name_ar,name)")
+    const { data: exp } = await (supabase as any)
+      .from("expense_entries")
+      .select(
+        "id,reference,total_amount,expense_date,description,note,created_at,expense_lines(gross_amount,expense_categories(name_ar,name))",
+      )
+      .in("status", ["POSTED", "PARTIALLY_PAID", "PAID", "CLOSED"])
       .gte("created_at", start)
       .lte("created_at", end);
 
     (exp ?? []).forEach((e: any) => {
+      const firstLine = e.expense_lines?.[0];
+      const cat = firstLine?.expense_categories;
       const catName =
         lang === "ar"
-          ? e.expense_categories?.name_ar || e.expense_categories?.name
-          : e.expense_categories?.name || e.expense_categories?.name_ar;
+          ? cat?.name_ar || cat?.name || e.description || "عامة"
+          : cat?.name || cat?.name_ar || e.description || "General";
       journalList.push({
-        id: `EXP-${e.id.slice(0, 6)}`,
+        id: e.id,
         date: e.created_at || `${e.expense_date}T12:00:00`,
-        voucherNo: `EXP-${e.id.slice(0, 4)}`,
+        voucherNo: e.reference || `EXP-${e.id.slice(0, 6)}`,
         source: lang === "ar" ? "قيد مصروف تشغيلي" : "Expense Entry",
         accountDebit:
           lang === "ar"
-            ? `حـ/ مصروفات (${catName || "عامة"})`
-            : `Expense (${catName || "General"})`,
+            ? `حـ/ مصروفات (${catName})`
+            : `Expense (${catName})`,
         accountCredit: lang === "ar" ? "حـ/ الصندوق / الخزينة" : "Cash Fund",
-        amount: Number(e.amount),
-        note: e.note || (lang === "ar" ? "صرف مصروفات تشغيلية" : "Operating Expense Payment"),
+        amount: Number(e.total_amount || 0),
+        note:
+          e.note || e.description || (lang === "ar" ? "صرف مصروفات تشغيلية" : "Operating Expense Payment"),
       });
     });
 

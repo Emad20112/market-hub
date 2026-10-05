@@ -27,7 +27,7 @@ import { FieldInput } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { VortexDrawerDialog } from "@/components/vortex-ui";
 import { ExpenseStatusBadge, ExpensePaymentBadge } from "./expense-status-badge";
-import { useExpenseDetail, useExpenseMutations } from "@/hooks/use-expenses";
+import { useExpenseDetail, useExpenseLookups, useExpenseMutations } from "@/hooks/use-expenses";
 import { isOverdue, paymentProgress, parseAmount, today } from "@/lib/expenses/query-keys";
 import type { ExpenseApproval, ExpenseDetail } from "@/lib/expenses/types";
 import {
@@ -61,6 +61,7 @@ export function ExpenseDetailDrawer({
   const ar = lang === "ar";
   const { data, isLoading, error, refetch } = useExpenseDetail(open ? entryId : null);
   const mutations = useExpenseMutations();
+  const lookups = useExpenseLookups();
 
   const [tab, setTab] = useState<TabKey>("lines");
   const [payOpen, setPayOpen] = useState(false);
@@ -444,6 +445,7 @@ export function ExpenseDetailDrawer({
             remaining={Number(entry.remaining_amount)}
             defaultDate={today()}
             busy={mutations.isBusy}
+            financialAccounts={lookups.data?.financial_accounts}
             onSubmit={async (values) => {
               await run(() =>
                 mutations.pay.mutateAsync({
@@ -451,6 +453,7 @@ export function ExpenseDetailDrawer({
                   amount: values.amount,
                   paymentDate: values.date,
                   paymentMethod: values.method,
+                  accountId: values.accountId,
                   accountLabel: values.label,
                   note: values.note,
                 }),
@@ -741,6 +744,7 @@ function PaymentModal({
   remaining,
   defaultDate,
   busy,
+  financialAccounts,
   onSubmit,
 }: {
   open: boolean;
@@ -748,10 +752,12 @@ function PaymentModal({
   remaining: number;
   defaultDate: string;
   busy: boolean;
+  financialAccounts?: { id: string; code: string; name_ar: string }[];
   onSubmit: (values: {
     amount: number;
     date: string;
     method: string;
+    accountId?: string | null;
     label: string;
     note: string;
   }) => Promise<void>;
@@ -761,6 +767,7 @@ function PaymentModal({
   const [amount, setAmount] = useState(String(remaining));
   const [date, setDate] = useState(defaultDate);
   const [method, setMethod] = useState("cash");
+  const [accountId, setAccountId] = useState("");
   const [label, setLabel] = useState("");
   const [note, setNote] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -772,6 +779,8 @@ function PaymentModal({
     if (open) {
       setAmount(String(remaining));
       setDate(defaultDate);
+      setAccountId("");
+      setLabel("");
       setError(null);
     }
   }, [open, remaining, defaultDate]);
@@ -791,7 +800,14 @@ function PaymentModal({
       return;
     }
     setError(null);
-    await onSubmit({ amount: parsed.value, date, method, label, note });
+    await onSubmit({
+      amount: parsed.value,
+      date,
+      method,
+      accountId: accountId || null,
+      label,
+      note,
+    });
   }
 
   return (
@@ -859,12 +875,38 @@ function PaymentModal({
               <option value="mobile_money">{t("pos.pm.mobile_money")}</option>
             </select>
           </label>
-          <label className="flex flex-col gap-1.5">
-            <span className="text-[11px] font-medium text-muted-foreground">
-              {ar ? "المصدر" : "Source"}
-            </span>
-            <FieldInput value={label} onValueChange={setLabel} placeholder={t("common.optional")} />
-          </label>
+
+          {(financialAccounts ?? []).length > 0 ? (
+            <label className="flex flex-col gap-1.5">
+              <span className="text-[11px] font-medium text-muted-foreground">
+                {ar ? "الحساب المالي" : "Financial Account"}
+              </span>
+              <select
+                value={accountId}
+                onChange={(event) => {
+                  const val = event.target.value;
+                  setAccountId(val);
+                  const matched = financialAccounts?.find((a) => a.id === val);
+                  if (matched) setLabel(matched.name_ar);
+                }}
+                className="h-9 rounded-[12px] border border-input bg-surface/70 px-3 text-sm text-foreground focus:border-primary/60 focus:outline-none focus:ring-4 focus:ring-primary/10"
+              >
+                <option value="">{ar ? "— اختياري (تلقائي) —" : "— Optional —"}</option>
+                {(financialAccounts ?? []).map((acct) => (
+                  <option key={acct.id} value={acct.id}>
+                    {acct.code} — {acct.name_ar}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ) : (
+            <label className="flex flex-col gap-1.5">
+              <span className="text-[11px] font-medium text-muted-foreground">
+                {ar ? "المصدر" : "Source"}
+              </span>
+              <FieldInput value={label} onValueChange={setLabel} placeholder={t("common.optional")} />
+            </label>
+          )}
         </div>
 
         <label className="flex flex-col gap-1.5">
