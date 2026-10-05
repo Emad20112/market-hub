@@ -1,26 +1,57 @@
 import { useState, useEffect } from "react";
+import { useLocation } from "@tanstack/react-router";
 import { Check, ChevronLeft, ChevronRight, Layers, Phone, ShieldCheck, Sparkles, X } from "lucide-react";
 
+/**
+ * نافذة الترحيب.
+ *
+ * تُركّب في جذر الشجرة، فتظهر في كل صفحة — بما فيها تسجيل الدخول. وطبقتها
+ * `bg-black/60` مع z-[99990] تمنع النقر عمّا تحتها، فكانت أوّل ما يراه الزائر
+ * على شاشة الدخول حاجزاً أسود لا يمكن تجاوزه إلا بإغلاقه.
+ *
+ * ولا معنى لترحيب بـ«المبيعات والمخزون» لمن لم يسجّل دخوله بعد، فصارت
+ * تظهر لأهل النظام فقط.
+ */
 export function VortexWelcomeOnboarding() {
   const [open, setOpen] = useState(false);
   const [step, setStep] = useState(0);
+  const location = useLocation();
+
+  // صفحات الدخول والأخطاء ليست «أهل النظام»: لا ترحيب فيها.
+  // الجذر `/` يعرض صفحة الدخول لمن لم يسجّل، فلا يُعدّ جذراً داخلياً.
+  const path = location.pathname.replace(/\/+$/, "") || "/";
+  const isAppRoute =
+    path !== "/" &&
+    !/^\/(login|register|forgot-password|reset-password|verify|auth|404|500)/.test(path);
 
   useEffect(() => {
-    const seen = localStorage.getItem("vortex_welcome_seen");
-    if (!seen) {
-      const timer = setTimeout(() => {
-        setOpen(true);
-      }, 1600);
-      return () => clearTimeout(timer);
+    if (!isAppRoute) {
+      setOpen(false);
+      return;
     }
-  }, []);
+    let seen = false;
+    try {
+      seen = localStorage.getItem("vortex_welcome_seen") === "true";
+    } catch {
+      // التخزين محظور: لا ترحيب، فموعد النافذة ليس سبباً لتعطيل الواجهة.
+      return;
+    }
+    if (seen) return;
+    // بعد شاشة البداية: أن تخرج طبقتان في الوقت نفسه يجعل الإغلاق يبدو عطلاً.
+    const timer = setTimeout(() => setOpen(true), 2200);
+    return () => clearTimeout(timer);
+  }, [isAppRoute]);
 
   const handleFinish = () => {
-    localStorage.setItem("vortex_welcome_seen", "true");
+    try {
+      localStorage.setItem("vortex_welcome_seen", "true");
+    } catch {
+      /* لا شيء: الإغلاق هو المهم */
+    }
     setOpen(false);
   };
 
-  if (!open) return null;
+  if (!open || !isAppRoute) return null;
 
   const steps = [
     {

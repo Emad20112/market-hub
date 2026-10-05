@@ -184,6 +184,8 @@
   --border: oklch(1 0 0 / 0.09);
   --input: oklch(1 0 0 / 0.10);
   --ring: oklch(0.66 0.22 255 / 0.6);
+  --scrollbar-thumb: oklch(1 0 0 / 0.14);
+  --scrollbar-thumb-hover: oklch(1 0 0 / 0.28);
 
   --chart-1: oklch(0.66 0.22 255);
   --chart-2: oklch(0.72 0.19 175);
@@ -250,6 +252,8 @@
   --border: oklch(0.20 0.03 258 / 0.09);
   --input: oklch(0.20 0.03 258 / 0.09);
   --ring: oklch(0.55 0.22 258 / 0.5);
+  --scrollbar-thumb: oklch(0.30 0.03 258 / 0.24);
+  --scrollbar-thumb-hover: oklch(0.30 0.03 258 / 0.42);
   --sidebar: oklch(0.99 0.004 60);
   --sidebar-foreground: oklch(0.22 0.035 258);
   /* لازم معرّفة هنا أيضاً: هي ما يلوّن عنصر القائمة النشط، وغيابها في الوضع
@@ -355,7 +359,9 @@
     color: color-mix(in oklab, var(--muted-foreground) 60%, transparent);
   }
 
-  /* Minimalist overlay scrollbar — the track remains invisible. */
+  /* Minimalist overlay scrollbar — the track remains invisible.
+   * اللون يعتمد على السمة: كان أبيضَ شبه شفاف في الاثنتين، فيختفي تماماً على
+   * خلفية الوضع الفاتح ويصبح شريط التمرير غير مرئي. */
   ::-webkit-scrollbar {
     width: 6px;
     height: 6px;
@@ -367,13 +373,13 @@
     box-shadow: none !important;
   }
   ::-webkit-scrollbar-thumb {
-    background: oklch(1 0 0 / 0.12);
+    background: var(--scrollbar-thumb);
     border-radius: 9999px;
     border: 1px solid transparent;
     background-clip: padding-box;
   }
   ::-webkit-scrollbar-thumb:hover {
-    background: oklch(1 0 0 / 0.25);
+    background: var(--scrollbar-thumb-hover);
     background-clip: padding-box;
   }
 }

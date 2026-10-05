@@ -1,4 +1,4 @@
- /**
+/**
  * Market-Hub ERP — How an item's role is shown, in one place.
  *
  * WHY THIS EXISTS
@@ -131,13 +131,19 @@ export function ItemRoleBadge({
   compact?: boolean;
 }): ReactNode {
   const style = ITEM_ROLE_STYLES[resolveItemClass(itemClass, itemNature, inventoryPolicy)];
+  const label = isRtl ? style.labelAr : style.labelEn;
   return (
     <span
       className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold whitespace-nowrap ${style.chip}`}
-      title={isRtl ? style.labelAr : style.labelEn}
+      title={label}
     >
       <span className="text-[9px] leading-none">{style.mark}</span>
-      {!compact && (isRtl ? style.labelAr : style.labelEn)}
+      {/*
+        على البطاقات يُرسَل compact لتوفير المساحة، لكن إخفاء النص تماماً
+        يترك رمزاً ملوّناً لا يُعرف معناه إلا بتمرير المؤشر. الرمز يبقى،
+        والنص يظهر على الشاشات العرضية حيث تسمح المساحة بالقراءة.
+      */}
+      <span className={compact ? "hidden sm:inline" : undefined}>{label}</span>
     </span>
   );
 }

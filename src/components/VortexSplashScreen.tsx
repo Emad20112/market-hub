@@ -1,39 +1,68 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
+/**
+ * شاشة البداية.
+ *
+ * كانت مؤقتين داخل useEffect وحدها. إن لم يُشغَّل التأثير إطلاقاً — أو حُجز
+ * التبويب فلم تُنفَّذ المؤقتات في وقتها — تبقى الطبقة بلون الخلفية فوق كل
+ * شيء بـ z-[99999]، وهي طبقة تمنع النقر: لا زر يعمل، ولا حقل يُضغط، لأن
+ * عنصراً غيره هو الذي يستقبل النقرة. ولأن غيابها هو الافتراض، فالحراسة
+ * هنا لا تُترك للمؤقت.
+ */
 export function VortexSplashScreen() {
   const [visible, setVisible] = useState(true);
   const [fading, setFading] = useState(false);
+  const dismissed = useRef(false);
+
+  // تُعرَّف قبل التأثير: استدعاؤها من داخل setTimeout قبل تعريف const
+  // يرمي ReferenceError، فيموت التأثير كله وتبقى طبقة البداية تغطي الشاشة.
+  const dismiss = useCallback(() => {
+    if (dismissed.current) return;
+    dismissed.current = true;
+    // إزالة فورية بدل انتظار انتقال CSS: الغرض هو تحرير الشاشة للنقر، لا
+    // إظهار تلاشٍ جميل.
+    setFading(true);
+    setVisible(false);
+    try {
+      sessionStorage.setItem("vortex_splash_shown", "true");
+    } catch {
+      /* لا شيء: الغرض إخفاء الشاشة، لا الكتابة */
+    }
+  }, []);
 
   useEffect(() => {
-    const hasShown = sessionStorage.getItem("vortex_splash_shown");
-    if (hasShown) {
+    let hidden = false;
+    try {
+      hidden = sessionStorage.getItem("vortex_splash_shown") === "true";
+    } catch {
+      // التخزين محظور (تصفح خاص أو سياسة صرامة): اعرض الشاشة، فالوقت القصير
+      // أفضل من تعطيل التطبيق.
+    }
+    if (hidden) {
+      dismissed.current = true;
       setVisible(false);
       return;
     }
 
-    const fadeTimer = setTimeout(() => {
-      setFading(true);
-    }, 1100);
-
-    const removeTimer = setTimeout(() => {
-      setVisible(false);
-      sessionStorage.setItem("vortex_splash_shown", "true");
-    }, 1500);
+    const fadeTimer = setTimeout(() => setFading(true), 1100);
+    const removeTimer = setTimeout(dismiss, 1500);
 
     return () => {
       clearTimeout(fadeTimer);
       clearTimeout(removeTimer);
     };
-  }, []);
+  }, [dismiss]);
 
   if (!visible) return null;
 
   return (
     <div
-      className={`fixed inset-0 z-[99999] flex flex-col items-center justify-center bg-background transition-opacity duration-400 ease-out ${
+      className={`fixed inset-0 z-[99999] flex flex-col items-center justify-center bg-background transition-opacity duration-300 ease-out ${
         fading ? "opacity-0 pointer-events-none" : "opacity-100"
       }`}
       aria-hidden="true"
+      onClick={dismiss}
+      onPointerDown={dismiss}
     >
       <div className="flex flex-col items-center justify-center space-y-4 px-4 text-center">
         <img

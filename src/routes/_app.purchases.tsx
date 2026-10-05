@@ -435,7 +435,7 @@ function CreateDialog({
         supabase
           .from("products")
           .select(
-            "id,name,name_ar,sku,barcode,cost_price,tax_rate,unit:units(short_name,name,name_ar),category:categories(name,name_ar),inventory(warehouse_id,quantity)",
+            "id,name,name_ar,sku,barcode,cost_price,tax_rate,unit:units!products_unit_id_fkey(short_name,name,name_ar),category:categories(name,name_ar),inventory!inventory_product_id_fkey(warehouse_id,quantity)",
           )
           .eq("is_active", true)
           .order("name")
