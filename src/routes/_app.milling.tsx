@@ -1,6 +1,8 @@
 import { createFileRoute, Link, Outlet, useLocation } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
+import { useMillingMode } from "@/lib/milling-mode";
+import { UnifiedMillingDesk } from "@/components/milling/unified-milling-desk";
 import {
   Scale,
   PackagePlus,
@@ -27,6 +29,7 @@ import {
   Pill,
   MillingEmpty,
   Cell,
+  QueryErrorState,
 } from "@/components/milling/milling-ui";
 import type { PageGuideConfig } from "@/components/page-guide";
 
@@ -45,10 +48,58 @@ export const Route = createFileRoute("/_app/milling")({
 function MillingLayout() {
   const { pathname } = useLocation();
   const isDashboard = pathname.replace(/\/+$/, "") === "/milling";
+  const { mode: millingMode } = useMillingMode();
+  const [hybridView, setHybridView] = useState<"desk" | "dashboard">("desk");
+
+  if (!isDashboard) {
+    return (
+      <ModuleGuard moduleId="milling_operations">
+        <Outlet />
+      </ModuleGuard>
+    );
+  }
 
   return (
     <ModuleGuard moduleId="milling_operations">
-      {isDashboard ? <MillingDashboard /> : <Outlet />}
+      {millingMode === "manufacturing" ? (
+        <MillingDashboard />
+      ) : millingMode === "hybrid" ? (
+        <div className="space-y-4">
+          <div className="flex flex-wrap items-center justify-between border-b border-border pb-3 gap-3">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold text-muted-foreground">وضع العرض الهجين:</span>
+              <div className="flex rounded-xl bg-muted p-1 border border-border">
+                <button
+                  type="button"
+                  onClick={() => setHybridView("desk")}
+                  className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
+                    hybridView === "desk"
+                      ? "bg-amber-500 text-white shadow-xs"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  كاونتر الطحن السريع الموحد
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setHybridView("dashboard")}
+                  className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
+                    hybridView === "dashboard"
+                      ? "bg-primary text-primary-foreground shadow-xs"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  لوحة المؤشرات والرقابة
+                </button>
+              </div>
+            </div>
+          </div>
+          {hybridView === "desk" ? <UnifiedMillingDesk /> : <MillingDashboard />}
+        </div>
+      ) : (
+        /* Simplified Mode - Default for Standard Mills */
+        <UnifiedMillingDesk />
+      )}
     </ModuleGuard>
   );
 }
@@ -213,17 +264,27 @@ const tiles = [
     title: "كشف حساب الأمانات المزدوج",
     description: "كشف عيني (أكياس وأطنان) وكشف مالي لأجور الطحن.",
   },
+  {
+    to: "/milling/operations-guide",
+    icon: Layers,
+    title: "دليل العمليات ودورة الحياة",
+    description: "تعليمات متسلسلة للطحن للغير، تجارة منتجات المطحنة، وتخزين الأمانات.",
+  },
 ];
 
 function MillingDashboard() {
   const { data: warehouses } = useQuery({
     queryKey: ["milling", "warehouses"],
     queryFn: async () => {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("warehouses")
         .select("id, name, name_ar, is_default")
         .eq("is_active", true)
         .order("is_default", { ascending: false });
+      // Throw rather than defaulting to []: an empty warehouse list would leave
+      // every query below disabled, and the dashboard would sit on its loading
+      // state forever instead of reporting a failure.
+      if (error) throw error;
       return (data ?? []) as {
         id: string;
         name: string;
@@ -238,29 +299,66 @@ function MillingDashboard() {
     [warehouses],
   );
 
-  const { data: stats } = useQuery({
+  const {
+    data: stats,
+    isError: statsError,
+    error: statsErr,
+    refetch: refetchStats,
+  } = useQuery({
     queryKey: ["milling", "stats", storeId],
     queryFn: () => fetchDashboardStats(storeId),
     enabled: Boolean(warehouses && warehouses.length > 0),
   });
 
-  const { data: intakes } = useQuery({
+  const {
+    data: intakes,
+    isError: intakesError,
+    error: intakesErr,
+    refetch: refetchIntakes,
+  } = useQuery({
     queryKey: ["milling", "intakes", storeId],
     queryFn: () => fetchIntakes(storeId),
     enabled: Boolean(warehouses && warehouses.length > 0),
   });
 
-  const { data: jobs } = useQuery({
+  const {
+    data: jobs,
+    isError: jobsError,
+    error: jobsErr,
+    refetch: refetchJobs,
+  } = useQuery({
     queryKey: ["milling", "jobs", storeId],
     queryFn: () => fetchJobs(storeId),
     enabled: Boolean(warehouses && warehouses.length > 0),
   });
 
-  const { data: deliveries } = useQuery({
+  const {
+    data: deliveries,
+    isError: deliveriesError,
+    error: deliveriesErr,
+    refetch: refetchDeliveries,
+  } = useQuery({
     queryKey: ["milling", "deliveries", storeId],
     queryFn: () => fetchDeliveries(storeId),
     enabled: Boolean(warehouses && warehouses.length > 0),
   });
+
+  /*
+   * Without this, a dead connection renders the mill dashboard as four zeros
+   * and two empty tables - which a user reads as a mill that received nothing,
+   * ground nothing and is owed nothing today. The `loading` flag below treats
+   * "not loaded" as "loading", so it never resolves; only isError ends that.
+   */
+  const failedQuery = [
+    { isError: statsError, error: statsErr, refetch: refetchStats },
+    { isError: intakesError, error: intakesErr, refetch: refetchIntakes },
+    { isError: jobsError, error: jobsErr, refetch: refetchJobs },
+    { isError: deliveriesError, error: deliveriesErr, refetch: refetchDeliveries },
+  ].find((q) => q.isError);
+
+  // The guard below is placed AFTER every hook on purpose: an early return
+  // ahead of the useMemo further down would change hook order between renders
+  // and crash the screen.
 
   const loading = !warehouses || (warehouses.length > 0 && !stats);
 
@@ -277,6 +375,18 @@ function MillingDashboard() {
     for (const j of jobs ?? []) map.set(j.customer_id, j.customer_id);
     return map;
   }, [intakes, jobs]);
+
+  if (failedQuery) {
+    return (
+      <MillingPanel>
+        <QueryErrorState
+          what="لوحة المطحنة"
+          error={failedQuery.error}
+          onRetry={() => void failedQuery.refetch()}
+        />
+      </MillingPanel>
+    );
+  }
 
   return (
     <>

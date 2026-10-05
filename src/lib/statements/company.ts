@@ -1,23 +1,20 @@
 /**
- * Statement Company Info — ترويسة المنشأة + هوية Inama Soft
+ * Statement Company Info — ترويسة المنشأة للكشوفات.
  *
- * يُعاد استخدام كل ما هو موجود أصلًا:
- *   - company_settings: name, legal_name, logo_url, address, phone, email, tax_number
- *   - public/inama-soft-logo.ico (موجود) — مع fallback عند غياب logo_url
- *   - نفس بيانات هوية Inama Soft الموجودة في src/components/inama-soft-footer.tsx
- *
- * قرار المستخدم #6: الاكتفاء بـ .ico (لا نضيف ملف png).
- * قراءة فقط — صفر تغيير في قاعدة البيانات.
+ * بيانات الشركة تأتي من Company Profile (`company_settings` عبر
+ * `printing/company-profile.ts`). الثوابت هنا هي fallback فقط عند غياب
+ * بيانات الشركة تمامًا — ولا تُكتب أرقام تواصل أو أسماء داخل أي مستند
+ * إن وُجدت بيانات حقيقية.
  */
 
 import { supabase } from "@/integrations/supabase/client";
 
-/** هوية صانع النظام — مصدرها inama-soft-footer.tsx */
+/** هوية صانع النظام — بيانات دعم، تُعرض في تذييل التطبيق فقط. */
 export const INAMA_SOFT_BRAND = {
   name: "انماء سوفت",
   owner: "",
   tagline: "",
-  phone: "+967 772 217 218",
+  phone: "",
   website: "inma-soft.vercel.app",
   logoUrl: "/inama-soft-logo.ico",
   softwareName: "انماء سوفت",
@@ -25,9 +22,9 @@ export const INAMA_SOFT_BRAND = {
 
 /** القيم الافتراضية للطباعة قبل وصول بيانات قاعدة البيانات */
 export const DEFAULT_COMPANY_INFO = {
-  name: "انماء سوفت",
+  name: "",
   currency: "YER",
-  currencySymbol: "﷼",
+  currencySymbol: "ر.ي",
 };
 
 export interface StatementCompanyInfo {
@@ -87,9 +84,9 @@ export async function loadStatementCompany(): Promise<StatementCompanyInfo> {
   const row = (data ?? null) as CompanySettingsRow | null;
 
   return {
-    name: row?.name?.trim() || DEFAULT_COMPANY_INFO.name,
+    name: row?.name?.trim() || "",
     legalName: row?.legal_name?.trim() || null,
-    // fallback إلى شعار Inama Soft — نفس منطق app-shell.tsx
+    // fallback إلى شعار النظام عند غياب logo_url من company_settings
     logoUrl: row?.logo_url?.trim() || INAMA_SOFT_BRAND.logoUrl,
     address: row?.address?.trim() || null,
     phone: row?.phone?.trim() || null,

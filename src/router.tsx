@@ -37,19 +37,19 @@ export function createQueryClient() {
       queries: {
         retry: isRetryable,
         retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 8000),
-        staleTime: 30_000,
-        gcTime: 5 * 60_000,
+        staleTime: 120_000, // 2 minutes to prevent aggressive re-fetching
+        gcTime: 15 * 60_000, // 15 minutes cache retention
         refetchOnWindowFocus: false,
         refetchOnReconnect: true,
         // Keep the previous page visible while the next one loads instead of
         // flashing a skeleton on every filter change.
         placeholderData: (previous: unknown) => previous,
-        networkMode: "online",
+        networkMode: "offlineFirst",
       },
       mutations: {
-        // Mutations are not idempotent — never auto-retry.
+        // Mutations retry handling managed by offline SyncEngine.
         retry: 0,
-        networkMode: "online",
+        networkMode: "offlineFirst",
       },
     },
   });

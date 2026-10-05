@@ -23,6 +23,7 @@ import {
   Building2,
   Wallet,
   ClipboardList,
+  Eye,
 } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { useI18n } from "@/lib/i18n";
@@ -47,6 +48,7 @@ import { useStatement } from "@/hooks/use-statement";
 import { useStatementSettings } from "@/lib/statements/settings";
 import { printStatementDocument } from "@/lib/statements/print";
 import { exportStatementToCsv, statementFilename } from "@/lib/statements/export";
+import { Ltr } from "@/components/ltr-value";
 import { fmtAmount, fmtOrDash } from "@/lib/statements/format";
 import { directionLabel } from "@/lib/statements/format";
 import { kindLabel } from "@/lib/statements/engine";
@@ -210,7 +212,8 @@ function AccountStatementPage() {
         .from(table)
         .select("id, name, phone, balance")
         .eq("is_active", true)
-        .order("name");
+        .order("name")
+        .limit(1000);
 
       if (cancelled) return;
       const list = (data ?? []) as PartyOption[];
@@ -297,7 +300,7 @@ function AccountStatementPage() {
     });
   }
 
-  function handleExportExcel() {
+  function handleExportCsv() {
     if (!result || !layout) return;
     exportStatementToCsv({
       result,
@@ -306,7 +309,7 @@ function AccountStatementPage() {
       filename: statementFilename(result, lang),
       currencySymbol,
     });
-    toast.success(ar ? "تم تصدير الملف" : "File exported");
+    toast.success(ar ? "تم تصدير الملف (CSV)" : "File exported (CSV)");
   }
 
   function handleReportSelect(nextType: ReportType) {
@@ -342,6 +345,68 @@ function AccountStatementPage() {
     label: column.label,
   }));
 
+  /**
+   * محتوى خلية واحدة — نفس المنطق يُستخدم في الجدول وفي بطاقة الهاتف،
+   * حتى لا تتباعد الواجهتان. لا حساب مالي هنا: كل الأرقام تأتي من الـ Engine.
+   */
+  const renderCell = (row: StatementTransaction, key: StatementFieldKey): React.ReactNode => {
+    switch (key) {
+      case "index":
+        return <Ltr className="font-mono text-xs text-muted-foreground">{row.index}</Ltr>;
+      case "date":
+        return (
+          <Ltr className="text-xs text-muted-foreground">
+            {new Date(row.occurredAt).toLocaleString(ar ? "ar-YE" : "en-GB")}
+          </Ltr>
+        );
+      case "kind":
+        return (
+          <span className="text-xs font-semibold">{kindLabel(row.kind, partyType, lang)}</span>
+        );
+      case "reference":
+        return <Ltr className="font-mono text-xs text-primary">{row.reference ?? "—"}</Ltr>;
+      case "description":
+        return <span className="text-xs text-muted-foreground">{row.description ?? "—"}</span>;
+      case "debit":
+        return <Ltr className="font-mono text-rose-500">{fmtOrDash(row.debit)}</Ltr>;
+      case "credit":
+        return <Ltr className="font-mono text-emerald-500">{fmtOrDash(row.credit)}</Ltr>;
+      case "balance":
+        return <Ltr className="font-mono font-bold">{fmtAmount(row.runningBalance)}</Ltr>;
+      case "paymentMethod": {
+        const rawPm = String(row.meta?.paymentMethod ?? "")
+          .trim()
+          .toLowerCase();
+        const breakdown = String(row.meta?.paymentBreakdown ?? "").trim();
+        const labels: Record<string, string> = {
+          cash: ar ? "نقدي" : "Cash",
+          card: ar ? "بطاقة" : "Card",
+          bank_transfer: ar ? "تحويل بنكي" : "Bank transfer",
+          bank: ar ? "تحويل بنكي" : "Bank transfer",
+          mobile_money: ar ? "محفظة إلكترونية" : "Mobile money",
+          credit: ar ? "آجل" : "Credit",
+          split: ar ? "دفع مجزأ" : "Split payment",
+        };
+        const pmLabel = labels[rawPm] ?? (rawPm || "—");
+        return (
+          <span
+            className={`text-xs ${rawPm ? "font-medium text-foreground" : "text-muted-foreground"}`}
+            title={breakdown || undefined}
+          >
+            {pmLabel}
+            {breakdown && (
+              <span className="block text-[10px] font-normal text-muted-foreground">
+                {breakdown}
+              </span>
+            )}
+          </span>
+        );
+      }
+      default:
+        return "—";
+    }
+  };
+
   return (
     <>
       <PageHeader
@@ -365,13 +430,13 @@ function AccountStatementPage() {
             {["customer-account", "supplier-account", "cash-account"].includes(reportType) && (
               <>
                 <Button
-                  onClick={handleExportExcel}
+                  onClick={handleExportCsv}
                   variant="outline"
                   disabled={!result}
                   className="gap-2 text-emerald-500 border-emerald-500/30 hover:bg-emerald-500/10"
                 >
                   <FileSpreadsheet className="h-4 w-4" />
-                  {ar ? "تصدير Excel" : "Export Excel"}
+                  {ar ? "تصدير CSV" : "Export CSV"}
                 </Button>
                 <Button onClick={handlePrintPDF} disabled={!result} className="gap-2 bg-primary">
                   <Printer className="h-4 w-4" />
@@ -483,31 +548,31 @@ function AccountStatementPage() {
               )}
             </div>
 
-            {/* المجاميع — كما كانت */}
+            {/* المجاميع — عمود واحد على الهاتف حتى لا تُضغط الأرقام */}
             {result && (
-              <div className="flex items-center gap-6">
-                <div className="text-end">
+              <div className="grid w-full grid-cols-1 gap-2 sm:flex sm:w-auto sm:items-center sm:gap-6">
+                <div className="flex items-center justify-between gap-3 sm:block sm:text-end">
                   <span className="text-xs text-muted-foreground">
                     {ar ? "إجمالي المدين (له):" : "Total Debit:"}{" "}
                   </span>
                   <span className="font-bold font-mono text-rose-500 text-sm block">
-                    {money(totalDebit)}
+                    <Ltr>{money(totalDebit)}</Ltr>
                   </span>
                 </div>
-                <div className="text-end">
+                <div className="flex items-center justify-between gap-3 border-t border-border/60 pt-2 sm:border-0 sm:pt-0 sm:block sm:text-end">
                   <span className="text-xs text-muted-foreground">
                     {ar ? "إجمالي الدائن (عليه):" : "Total Credit:"}{" "}
                   </span>
                   <span className="font-bold font-mono text-emerald-500 text-sm block">
-                    {money(totalCredit)}
+                    <Ltr>{money(totalCredit)}</Ltr>
                   </span>
                 </div>
-                <div className="text-end border-r pr-6 border-border">
+                <div className="flex items-center justify-between gap-3 border-t border-border/60 pt-2 sm:border-0 sm:pt-0 sm:block sm:text-end sm:border-r sm:pr-6">
                   <span className="text-xs text-muted-foreground">
                     {ar ? "الرصيد المتبقي الحالي:" : "Net Balance:"}{" "}
                   </span>
                   <span className="font-bold font-mono text-primary text-base block">
-                    {money(closingBalance)}
+                    <Ltr>{money(closingBalance)}</Ltr>
                   </span>
                 </div>
               </div>
@@ -575,249 +640,362 @@ function AccountStatementPage() {
             <div className="mb-2 text-[11px] text-muted-foreground">
               {result ? `${ar ? "الفترة" : "Period"}: ${result.period.label}` : ""}
             </div>
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    {columns.map((col) => (
-                      <TableHead
-                        key={col.key}
-                        className={cn(
-                          col.key === "debit" && "text-end text-rose-500 font-semibold",
-                          col.key === "credit" && "text-end text-emerald-500 font-semibold",
-                          col.key === "balance" && "text-end font-semibold",
-                          alignClass(col.align),
-                        )}
-                        style={col.width ? { width: col.width } : undefined}
-                      >
-                        {col.label}
-                      </TableHead>
-                    ))}
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {isLoading ? (
+            {/* ═══ الجدول والبطاقات — ترتيب مختلف حسب المقاس ═══
+                على الهاتف تظهر البطاقات أولًا (order-1) والجدول مخفي،
+                وعلى سطح المكتب يظهر الجدول أولًا والبطاقات مخفية. */}
+            <div className="flex flex-col">
+              {/* ═══ الجدول — Desktop ≥ 768px فقط ═══ */}
+              <div className="order-2 hidden overflow-x-auto md:block">
+                <Table>
+                  <TableHeader>
                     <TableRow>
-                      <TableCell colSpan={Math.max(columns.length, 1)} className="py-8 text-center">
-                        <Loader2 className="mx-auto h-5 w-5 animate-spin text-muted-foreground" />
-                      </TableCell>
-                    </TableRow>
-                  ) : !partyId ? (
-                    <TableRow>
-                      <TableCell
-                        colSpan={Math.max(columns.length, 1)}
-                        className="py-12 text-center text-muted-foreground"
-                      >
-                        {ar ? "اختر حسابًا لعرض الكشف" : "Select an account to view the statement"}
-                      </TableCell>
-                    </TableRow>
-                  ) : statementRows.length === 0 ? (
-                    <TableRow>
-                      <TableCell
-                        colSpan={Math.max(columns.length, 1)}
-                        className="py-12 text-center text-muted-foreground"
-                      >
-                        {ar
-                          ? "لا توجد حركات حسابية مسجلة لهذه الفترة"
-                          : "No statement records for this period"}
-                        {result && Math.abs(result.openingBalance) > 0.005 && (
-                          <div className="mt-1 text-[11px]">
-                            {ar
-                              ? `يوجد رصيد سابق بمقدار ${fmtAmount(result.openingBalance)}`
-                              : `Opening balance carried: ${fmtAmount(result.openingBalance)}`}
-                          </div>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    <>
-                      {/* سطر الرصيد الافتتاحي */}
-                      {layout?.showOpeningRow && (
-                        <TableRow className="bg-surface/70 hover:bg-surface/70">
-                          {columns.map((col) => {
-                            let content: React.ReactNode = "—";
-                            if (col.key === "index")
-                              content = (
-                                <span className="font-mono text-xs text-muted-foreground">—</span>
-                              );
-                            else if (col.key === "kind")
-                              content = (
-                                <span className="text-xs font-medium italic text-muted-foreground">
-                                  {kindLabel("opening", partyType, lang)}
-                                </span>
-                              );
-                            else if (col.key === "description")
-                              content = (
-                                <span className="text-xs italic text-muted-foreground">
-                                  {ar ? "رصيد ما قبل بداية الفترة" : "Balance before period start"}
-                                </span>
-                              );
-                            else if (col.key === "date")
-                              content = (
-                                <span className="font-mono text-xs text-muted-foreground">
-                                  {result?.period.from ?? "—"}
-                                </span>
-                              );
-                            else if (col.key === "balance")
-                              content = (
-                                <span className="font-mono text-xs font-bold">
-                                  {fmtAmount(result?.openingBalance ?? 0)}
-                                </span>
-                              );
-                            return (
-                              <TableCell key={col.key} className={alignClass(col.align)}>
-                                {content}
-                              </TableCell>
-                            );
-                          })}
-                        </TableRow>
-                      )}
-
-                      {statementRows.map((row) => (
-                        <TableRow
-                          key={row.id}
-                          className="cursor-pointer hover:bg-surface-2/60"
-                          onClick={() => setDetailEntry(row)}
-                          title={ar ? "عرض تفاصيل القيد" : "View entry details"}
+                      {columns.map((col) => (
+                        <TableHead
+                          key={col.key}
+                          className={cn(
+                            col.key === "debit" && "text-end text-rose-500 font-semibold",
+                            col.key === "credit" && "text-end text-emerald-500 font-semibold",
+                            col.key === "balance" && "text-end font-semibold",
+                            alignClass(col.align),
+                          )}
+                          style={col.width ? { width: col.width } : undefined}
                         >
-                          {columns.map((col) => {
-                            let content: React.ReactNode = "—";
-                            switch (col.key) {
-                              case "index":
+                          {col.label}
+                        </TableHead>
+                      ))}
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {isLoading ? (
+                      <TableRow>
+                        <TableCell
+                          colSpan={Math.max(columns.length, 1)}
+                          className="py-8 text-center"
+                        >
+                          <Loader2 className="mx-auto h-5 w-5 animate-spin text-muted-foreground" />
+                        </TableCell>
+                      </TableRow>
+                    ) : !partyId ? (
+                      <TableRow>
+                        <TableCell
+                          colSpan={Math.max(columns.length, 1)}
+                          className="py-12 text-center text-muted-foreground"
+                        >
+                          {ar
+                            ? "اختر حسابًا لعرض الكشف"
+                            : "Select an account to view the statement"}
+                        </TableCell>
+                      </TableRow>
+                    ) : statementRows.length === 0 ? (
+                      <TableRow>
+                        <TableCell
+                          colSpan={Math.max(columns.length, 1)}
+                          className="py-12 text-center text-muted-foreground"
+                        >
+                          {ar
+                            ? "لا توجد حركات حسابية مسجلة لهذه الفترة"
+                            : "No statement records for this period"}
+                          {result && Math.abs(result.openingBalance) > 0.005 && (
+                            <div className="mt-1 text-[11px]">
+                              {ar
+                                ? `يوجد رصيد سابق بمقدار ${fmtAmount(result.openingBalance)}`
+                                : `Opening balance carried: ${fmtAmount(result.openingBalance)}`}
+                            </div>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      <>
+                        {/* سطر الرصيد الافتتاحي */}
+                        {layout?.showOpeningRow && (
+                          <TableRow className="bg-surface/70 hover:bg-surface/70">
+                            {columns.map((col) => {
+                              let content: React.ReactNode = "—";
+                              if (col.key === "index")
                                 content = (
-                                  <span className="font-mono text-xs text-muted-foreground">
-                                    {row.index}
+                                  <span className="font-mono text-xs text-muted-foreground">—</span>
+                                );
+                              else if (col.key === "kind")
+                                content = (
+                                  <span className="text-xs font-medium italic text-muted-foreground">
+                                    {kindLabel("opening", partyType, lang)}
                                   </span>
                                 );
-                                break;
-                              case "date":
+                              else if (col.key === "description")
                                 content = (
-                                  <span className="text-xs text-muted-foreground">
+                                  <span className="text-xs italic text-muted-foreground">
+                                    {ar
+                                      ? "رصيد ما قبل بداية الفترة"
+                                      : "Balance before period start"}
+                                  </span>
+                                );
+                              else if (col.key === "date")
+                                content = (
+                                  <span className="font-mono text-xs text-muted-foreground">
+                                    <Ltr>{result?.period.from ?? "—"}</Ltr>
+                                  </span>
+                                );
+                              else if (col.key === "balance")
+                                content = (
+                                  <span className="font-mono text-xs font-bold">
+                                    <Ltr>{fmtAmount(result?.openingBalance ?? 0)}</Ltr>
+                                  </span>
+                                );
+                              return (
+                                <TableCell key={col.key} className={alignClass(col.align)}>
+                                  {content}
+                                </TableCell>
+                              );
+                            })}
+                          </TableRow>
+                        )}
+
+                        {statementRows.map((row) => (
+                          <TableRow
+                            key={row.id}
+                            className="cursor-pointer hover:bg-surface-2/60"
+                            onClick={() => setDetailEntry(row)}
+                            title={ar ? "عرض تفاصيل القيد" : "View entry details"}
+                          >
+                            {columns.map((col) => (
+                              <TableCell key={col.key} className={alignClass(col.align)}>
+                                {renderCell(row, col.key)}
+                              </TableCell>
+                            ))}
+                          </TableRow>
+                        ))}
+                      </>
+                    )}
+
+                    {/* سطر الإجماليات — كما كان */}
+                    {statementRows.length > 0 && (
+                      <TableRow className="border-t-2 border-border font-bold bg-surface-2/50">
+                        {columns.map((col) => {
+                          let content: React.ReactNode = "";
+                          if (col.key === "kind")
+                            content = (
+                              <span className="text-sm">{ar ? "الإجمالي الكلي:" : "Total:"}</span>
+                            );
+                          else if (col.key === "debit")
+                            content = (
+                              <span className="font-mono text-rose-500">
+                                <Ltr>{money(totalDebit)}</Ltr>
+                              </span>
+                            );
+                          else if (col.key === "credit")
+                            content = (
+                              <span className="font-mono text-emerald-500">
+                                <Ltr>{fmtOrDash(totalCredit)}</Ltr>
+                              </span>
+                            );
+                          else if (col.key === "balance")
+                            content = (
+                              <span className="font-mono text-primary text-base">
+                                <Ltr>{money(closingBalance)}</Ltr>
+                              </span>
+                            );
+                          return (
+                            <TableCell
+                              key={col.key}
+                              className={cn(alignClass(col.align), "text-sm")}
+                            >
+                              {content}
+                            </TableCell>
+                          );
+                        })}
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+
+              {/* ═══ Mobile Statement Cards — < 768px فقط ═══
+                نفس الحقول ونفس الأرقام، مع احترام Column Visibility.
+                النقر على البطاقة يفتح نفس لوحة تفاصيل القيد. */}
+              <div className="order-1 space-y-2.5 md:hidden">
+                {isLoading ? (
+                  <div className="grid place-items-center rounded-xl border border-border/70 py-10">
+                    <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                  </div>
+                ) : !partyId ? (
+                  <div className="rounded-xl border border-border/70 py-10 text-center text-xs text-muted-foreground">
+                    {ar ? "اختر حسابًا لعرض الكشف" : "Select an account to view the statement"}
+                  </div>
+                ) : statementRows.length === 0 ? (
+                  <div className="rounded-xl border border-border/70 py-10 text-center text-xs text-muted-foreground">
+                    <div>
+                      {ar
+                        ? "لا توجد حركات حسابية مسجلة لهذه الفترة"
+                        : "No statement records for this period"}
+                    </div>
+                    {result && Math.abs(result.openingBalance) > 0.005 && (
+                      <div className="mt-1 text-[11px]">
+                        {ar
+                          ? `يوجد رصيد سابق بمقدار ${fmtAmount(result.openingBalance)}`
+                          : `Opening balance carried: ${fmtAmount(result.openingBalance)}`}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <>
+                    {/* الرصيد الافتتاحي — لا يختفي على الهاتف */}
+                    {layout?.showOpeningRow && (
+                      <div className="rounded-xl border border-primary/25 bg-primary/5 p-3.5">
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="min-w-0">
+                            <div className="text-xs font-semibold text-foreground">
+                              {ar ? "الرصيد الافتتاحي" : "Opening balance"}
+                            </div>
+                            <div className="mt-0.5 text-[11px] italic text-muted-foreground">
+                              {ar ? "رصيد ما قبل بداية الفترة" : "Balance before period start"}
+                              {result?.period.from ? ` · ${result.period.from}` : ""}
+                            </div>
+                          </div>
+                          <span className="shrink-0 font-mono text-sm font-bold text-primary">
+                            <Ltr>{fmtAmount(result?.openingBalance ?? 0)}</Ltr>
+                          </span>
+                        </div>
+                      </div>
+                    )}
+
+                    {statementRows.map((row) => {
+                      const paymentMethod =
+                        visibleColumns.paymentMethod &&
+                        String(row.meta?.paymentMethod ?? "").trim();
+                      return (
+                        <button
+                          key={row.id}
+                          type="button"
+                          data-qa="statement-card"
+                          onClick={() => setDetailEntry(row)}
+                          className="w-full rounded-xl border border-border/80 bg-surface p-3.5 text-start transition active:bg-surface-2/60"
+                        >
+                          {/* رأس البطاقة: نوع الحركة + التاريخ + المرجع */}
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-1.5">
+                                {visibleColumns.index && (
+                                  <span className="font-mono text-[10px] text-muted-foreground">
+                                    <Ltr>#{row.index}</Ltr>
+                                  </span>
+                                )}
+                                <span className="truncate text-xs font-semibold text-foreground">
+                                  {kindLabel(row.kind, partyType, lang)}
+                                </span>
+                              </div>
+                              {visibleColumns.date && (
+                                <div className="mt-0.5 text-[11px] text-muted-foreground">
+                                  <Ltr>
                                     {new Date(row.occurredAt).toLocaleString(
                                       ar ? "ar-YE" : "en-GB",
                                     )}
-                                  </span>
-                                );
-                                break;
-                              case "kind":
-                                content = (
-                                  <span className="text-xs font-semibold">
-                                    {kindLabel(row.kind, partyType, lang)}
-                                  </span>
-                                );
-                                break;
-                              case "reference":
-                                content = (
-                                  <span className="font-mono text-xs text-primary">
-                                    {row.reference ?? "—"}
-                                  </span>
-                                );
-                                break;
-                              case "description":
-                                content = (
-                                  <span className="text-xs text-muted-foreground">
-                                    {row.description ?? "—"}
-                                  </span>
-                                );
-                                break;
-                              case "debit":
-                                content = (
-                                  <span className="font-mono text-rose-500">
-                                    {fmtOrDash(row.debit)}
-                                  </span>
-                                );
-                                break;
-                              case "credit":
-                                content = (
-                                  <span className="font-mono text-emerald-500">
-                                    {fmtOrDash(row.credit)}
-                                  </span>
-                                );
-                                break;
-                              case "balance":
-                                content = (
-                                  <span className="font-mono font-bold">
-                                    {fmtAmount(row.runningBalance)}
-                                  </span>
-                                );
-                                break;
-                              case "paymentMethod": {
-                                const rawPm = String(row.meta?.paymentMethod ?? "")
-                                  .trim()
-                                  .toLowerCase();
-                                const breakdown = String(row.meta?.paymentBreakdown ?? "").trim();
-                                const labels: Record<string, string> = {
-                                  cash: ar ? "نقدي" : "Cash",
-                                  card: ar ? "بطاقة" : "Card",
-                                  bank_transfer: ar ? "تحويل بنكي" : "Bank transfer",
-                                  bank: ar ? "تحويل بنكي" : "Bank transfer",
-                                  mobile_money: ar ? "محفظة إلكترونية" : "Mobile money",
-                                  credit: ar ? "آجل" : "Credit",
-                                  split: ar ? "دفع مجزأ" : "Split payment",
-                                };
-                                const pmLabel = labels[rawPm] ?? (rawPm || "—");
-                                content = (
-                                  <span
-                                    className={`text-xs ${rawPm ? "font-medium text-foreground" : "text-muted-foreground"}`}
-                                    title={breakdown || undefined}
-                                  >
-                                    {pmLabel}
-                                    {breakdown && (
-                                      <span className="block text-[10px] font-normal text-muted-foreground">
-                                        {breakdown}
-                                      </span>
-                                    )}
-                                  </span>
-                                );
-                                break;
-                              }
-                            }
-                            return (
-                              <TableCell key={col.key} className={alignClass(col.align)}>
-                                {content}
-                              </TableCell>
-                            );
-                          })}
-                        </TableRow>
-                      ))}
-                    </>
-                  )}
+                                  </Ltr>
+                                </div>
+                              )}
+                            </div>
+                            {visibleColumns.reference && row.reference && (
+                              <span className="shrink-0 font-mono text-xs text-primary">
+                                <Ltr>{row.reference}</Ltr>
+                              </span>
+                            )}
+                          </div>
 
-                  {/* سطر الإجماليات — كما كان */}
-                  {statementRows.length > 0 && (
-                    <TableRow className="border-t-2 border-border font-bold bg-surface-2/50">
-                      {columns.map((col) => {
-                        let content: React.ReactNode = "";
-                        if (col.key === "kind")
-                          content = (
-                            <span className="text-sm">{ar ? "الإجمالي الكلي:" : "Total:"}</span>
-                          );
-                        else if (col.key === "debit")
-                          content = (
-                            <span className="font-mono text-rose-500">{money(totalDebit)}</span>
-                          );
-                        else if (col.key === "credit")
-                          content = (
-                            <span className="font-mono text-emerald-500">
-                              {fmtOrDash(totalCredit)}
+                          {/* البيان / الوصف */}
+                          {visibleColumns.description && row.description && (
+                            <div className="mt-2 line-clamp-2 text-[11px] text-muted-foreground">
+                              {row.description}
+                            </div>
+                          )}
+
+                          {/* مدين / دائن — شبكة بدل صف أفقي ضيق */}
+                          {(visibleColumns.debit || visibleColumns.credit) && (
+                            <div className="mt-2.5 grid grid-cols-2 gap-2 border-t border-border/60 pt-2.5">
+                              {visibleColumns.debit && (
+                                <div>
+                                  <div className="text-[10px] text-muted-foreground">
+                                    {ar ? "مدين" : "Debit"}
+                                  </div>
+                                  <div className="font-mono text-xs font-semibold text-rose-500">
+                                    <Ltr>{fmtOrDash(row.debit)}</Ltr>
+                                  </div>
+                                </div>
+                              )}
+                              {visibleColumns.credit && (
+                                <div>
+                                  <div className="text-[10px] text-muted-foreground">
+                                    {ar ? "دائن" : "Credit"}
+                                  </div>
+                                  <div className="font-mono text-xs font-semibold text-emerald-500">
+                                    <Ltr>{fmtOrDash(row.credit)}</Ltr>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          )}
+
+                          {/* الرصيد الجاري */}
+                          {visibleColumns.balance && (
+                            <div className="mt-2 flex items-center justify-between gap-2 rounded-lg bg-surface-2/50 px-2.5 py-1.5">
+                              <span className="text-[11px] text-muted-foreground">
+                                {ar ? "الرصيد الجاري" : "Running balance"}
+                              </span>
+                              <span className="font-mono text-xs font-bold text-foreground">
+                                <Ltr>{fmtAmount(row.runningBalance)}</Ltr>
+                              </span>
+                            </div>
+                          )}
+
+                          {/* طريقة الدفع + زر التفاصيل */}
+                          <div className="mt-2.5 flex items-center justify-between gap-2 border-t border-border/60 pt-2.5">
+                            <span className="truncate text-[11px] text-muted-foreground">
+                              {paymentMethod
+                                ? `${ar ? "طريقة الدفع" : "Payment"}: ${renderCell(row, "paymentMethod")}`
+                                : ""}
                             </span>
-                          );
-                        else if (col.key === "balance")
-                          content = (
-                            <span className="font-mono text-primary text-base">
-                              {money(closingBalance)}
+                            <span className="inline-flex shrink-0 items-center gap-1 text-[11px] font-medium text-primary">
+                              <Eye className="h-3.5 w-3.5" />
+                              {ar ? "عرض التفاصيل" : "View details"}
                             </span>
-                          );
-                        return (
-                          <TableCell key={col.key} className={cn(alignClass(col.align), "text-sm")}>
-                            {content}
-                          </TableCell>
-                        );
-                      })}
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
+                          </div>
+                        </button>
+                      );
+                    })}
+
+                    {/* الإجماليات — عمودان على الهاتف */}
+                    <div className="rounded-xl border border-border/80 bg-surface-2/50 p-3.5">
+                      <div className="mb-2 text-xs font-bold text-foreground">
+                        {ar ? "الإجمالي الكلي" : "Total"}
+                      </div>
+                      <div className="grid grid-cols-2 gap-2.5">
+                        <div>
+                          <div className="text-[10px] text-muted-foreground">
+                            {ar ? "إجمالي المدين" : "Total debit"}
+                          </div>
+                          <div className="font-mono text-sm font-semibold text-rose-500">
+                            <Ltr>{money(totalDebit)}</Ltr>
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-[10px] text-muted-foreground">
+                            {ar ? "إجمالي الدائن" : "Total credit"}
+                          </div>
+                          <div className="font-mono text-sm font-semibold text-emerald-500">
+                            <Ltr>{fmtOrDash(totalCredit)}</Ltr>
+                          </div>
+                        </div>
+                        <div className="col-span-2 border-t border-border/60 pt-2">
+                          <div className="text-[10px] text-muted-foreground">
+                            {ar ? "الرصيد الحالي" : "Closing balance"}
+                          </div>
+                          <div className="font-mono text-base font-bold text-primary">
+                            <Ltr>{money(closingBalance)}</Ltr>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
             </div>
 
             {/* تذييل الجدول */}

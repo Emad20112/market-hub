@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { PageHeader } from "@/components/page-header";
 import { useI18n } from "@/lib/i18n";
 import { supabase } from "@/integrations/supabase/client";
-import { money } from "@/lib/format";
+import { getCompanyCurrencySymbol, money } from "@/lib/format";
 import { printReport } from "@/lib/pdf";
 import { exportToCSV } from "@/lib/excel-export";
 import { Button } from "@/components/ui/button";
@@ -17,6 +17,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Printer, Scale, FileSpreadsheet } from "lucide-react";
+import { fetchUnifiedExpenseStats } from "@/lib/expenses/financial-bridge";
 
 export const Route = createFileRoute("/_app/trial-balance")({
   head: () => ({ meta: [{ title: "ميزان المراجعة — Vortex ERP" }] }),
@@ -42,18 +43,18 @@ function TrialBalancePage() {
 
   const loadTrialBalance = useCallback(async () => {
     setLoading(true);
-    const [sales, purchases, expenses, customers, suppliers, inv] = await Promise.all([
-      supabase.from("sales_invoices").select("total,paid"),
-      supabase.from("purchase_invoices").select("total,paid"),
-      supabase.from("expenses").select("amount"),
-      supabase.from("customers").select("balance"),
-      supabase.from("suppliers").select("balance"),
+    const [sales, purchases, expenseStats, customers, suppliers, inv] = await Promise.all([
+      supabase.from("sales_invoices").select("total,paid").limit(3000),
+      supabase.from("purchase_invoices").select("total,paid").limit(3000),
+      fetchUnifiedExpenseStats(),
+      supabase.from("customers").select("balance").limit(2000),
+      supabase.from("suppliers").select("balance").limit(2000),
       /*
        * Inventory valuation comes from the owner-aware view, so it counts
        * company-owned TRACKED goods only — never customer-owned material, an
        * untracked good, or a service.
        */
-      supabase.from("inventory_valuation" as never).select("quantity,reference_valuation"),
+      supabase.from("inventory_valuation" as never).select("quantity,reference_valuation").limit(3000),
     ]);
 
     const salesTotal = (sales.data ?? []).reduce((a, r) => a + Number(r.total), 0);
@@ -62,7 +63,10 @@ function TrialBalancePage() {
     const purchaseTotal = (purchases.data ?? []).reduce((a, r) => a + Number(r.total), 0);
     const purchasePaidCash = (purchases.data ?? []).reduce((a, r) => a + Number(r.paid), 0);
 
-    const expensesTotal = (expenses.data ?? []).reduce((a, r) => a + Number(r.amount), 0);
+    const expensesTotal = expenseStats.postedTotal;
+    const expenseCashPaid = expenseStats.paidCashOut;
+    const expensePayables = expenseStats.outstandingTotal;
+
     const receivables = (customers.data ?? []).reduce(
       (a, c) => a + Math.max(0, Number(c.balance || 0)),
       0,
@@ -75,7 +79,7 @@ function TrialBalancePage() {
       (a, row: { reference_valuation?: number | null }) => a + Number(row.reference_valuation ?? 0),
       0,
     );
-    const netCashOnHand = Math.max(0, salesPaidCash - purchasePaidCash - expensesTotal);
+    const netCashOnHand = Math.max(0, salesPaidCash - purchasePaidCash - expenseCashPaid);
 
     const result: TrialBalanceAccount[] = [
       {
@@ -107,6 +111,14 @@ function TrialBalancePage() {
         type: "liability",
         debit: 0,
         credit: payables,
+      },
+      {
+        accountCode: "2020",
+        accountName:
+          lang === "ar" ? "ذمم مصروفات مستحقة الدفع" : "Accrued Expenses Payable",
+        type: "liability",
+        debit: 0,
+        credit: expensePayables,
       },
       {
         accountCode: "4010",
@@ -158,7 +170,7 @@ function TrialBalancePage() {
           : "Variance Detected",
       date: new Date().toLocaleDateString(lang === "ar" ? "ar-YE" : "en-US"),
       periodLabel: lang === "ar" ? "مطابقة أرصدة الشجرة الحسابية" : "General Ledger Verification",
-      currency: "﷼",
+      currency: getCompanyCurrencySymbol(),
       summaryCards: [
         {
           label: lang === "ar" ? "إجمالي المدين (Debit)" : "Total Debit",
@@ -209,7 +221,7 @@ function TrialBalancePage() {
     exportToCSV({
       filename: `ميزان_المراجعة_${new Date().toISOString().slice(0, 10)}`,
       title: "ميزان المراجعة المحاسبي العام",
-      currency: "﷼",
+      currency: getCompanyCurrencySymbol(),
       columns: [
         { key: "accountCode", header: "رمز الحساب" },
         { key: "accountName", header: "اسم الحساب المحاسبي" },

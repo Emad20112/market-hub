@@ -28,6 +28,7 @@ import {
   Pill,
   MillingEmpty,
   Cell,
+  QueryErrorGuard,
 } from "@/components/milling/milling-ui";
 import type { PageGuideConfig } from "@/components/page-guide";
 import { cn } from "@/lib/utils";
@@ -122,7 +123,12 @@ function MillingDeliveryPage() {
   const [lines, setLines] = useState<Record<string, { bags: number; weight: number }>>({});
   const [lastNoteId, setLastNoteId] = useState<string>("");
 
-  const { data: warehouses } = useQuery({
+  const {
+    data: warehouses,
+    isError: warehousesError,
+    error: warehousesDetail,
+    refetch: warehousesRefetch,
+  } = useQuery({
     queryKey: ["milling", "warehouses"],
     queryFn: async () => {
       const { data } = await supabase
@@ -139,7 +145,12 @@ function MillingDeliveryPage() {
     },
   });
 
-  const { data: customers } = useQuery({
+  const {
+    data: customers,
+    isError: customersError,
+    error: customersDetail,
+    refetch: customersRefetch,
+  } = useQuery({
     queryKey: ["milling", "customers"],
     queryFn: async () => {
       const { data } = await supabase
@@ -156,7 +167,12 @@ function MillingDeliveryPage() {
     [warehouses],
   );
 
-  const { data: jobs } = useQuery({
+  const {
+    data: jobs,
+    isError: jobsError,
+    error: jobsDetail,
+    refetch: jobsRefetch,
+  } = useQuery({
     queryKey: ["milling", "jobs", storeId],
     queryFn: () => fetchJobs(storeId),
     enabled: Boolean(storeId),
@@ -167,7 +183,12 @@ function MillingDeliveryPage() {
     (j) => j.status === "COMPLETED" || j.status === "DELIVERED",
   );
 
-  const { data: customerJobs } = useQuery({
+  const {
+    data: customerJobs,
+    isError: customerJobsError,
+    error: customerJobsDetail,
+    refetch: customerJobsRefetch,
+  } = useQuery({
     queryKey: ["milling", "jobs", storeId, "byCustomer", customerId],
     queryFn: () => fetchJobs(storeId, undefined),
     enabled: Boolean(storeId),
@@ -180,13 +201,23 @@ function MillingDeliveryPage() {
       )
     : deliverableJobs;
 
-  const { data: outputs } = useQuery({
+  const {
+    data: outputs,
+    isError: outputsError,
+    error: outputsDetail,
+    refetch: outputsRefetch,
+  } = useQuery({
     queryKey: ["milling", "outputs", jobId],
     queryFn: () => fetchOutputs(jobId),
     enabled: Boolean(jobId),
   });
 
-  const { data: deliveries } = useQuery({
+  const {
+    data: deliveries,
+    isError: deliveriesError,
+    error: deliveriesDetail,
+    refetch: deliveriesRefetch,
+  } = useQuery({
     queryKey: ["milling", "deliveries", storeId],
     queryFn: () => fetchDeliveries(storeId),
     enabled: Boolean(storeId),
@@ -279,6 +310,25 @@ function MillingDeliveryPage() {
       p,
     );
   };
+
+  /*
+   * These 6 queries feed the tables and the counters below. A failed
+   * one used to render as an empty table or a row of zeros, which reads as a
+   * quiet day rather than a broken connection. The guard below turns any
+   * failure into a stated error.
+   */
+  const queryStates = [
+    { isError: warehousesError, error: warehousesDetail, refetch: warehousesRefetch },
+    { isError: customersError, error: customersDetail, refetch: customersRefetch },
+    { isError: jobsError, error: jobsDetail, refetch: jobsRefetch },
+    { isError: customerJobsError, error: customerJobsDetail, refetch: customerJobsRefetch },
+    { isError: outputsError, error: outputsDetail, refetch: outputsRefetch },
+    { isError: deliveriesError, error: deliveriesDetail, refetch: deliveriesRefetch },
+  ];
+
+  if (queryStates.some((q) => q.isError)) {
+    return <QueryErrorGuard what="إذن التسليم" queries={queryStates} />;
+  }
 
   return (
     <ModuleGuard moduleId="milling_operations">

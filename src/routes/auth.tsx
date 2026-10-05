@@ -1,25 +1,69 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { z } from "zod";
-import { ShieldCheck, Mail, Lock, Eye, EyeOff, CheckCircle2, LogIn, Sparkles } from "lucide-react";
+import {
+  ShieldCheck,
+  Mail,
+  Phone,
+  Lock,
+  Eye,
+  EyeOff,
+  CheckCircle2,
+  LogIn,
+  Sparkles,
+} from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import { useI18n } from "@/lib/i18n";
 import { toast } from "sonner";
 import { InamaSoftFooter } from "@/components/inama-soft-footer";
 import { Button } from "@/components/ui/button";
+import { CountrySelector } from "@/components/country-selector";
+import { DEFAULT_COUNTRY, Country } from "@/lib/country-data";
+import { formatPhoneE164, phoneToAuthEmail } from "@/lib/phone-utils";
 
 export const Route = createFileRoute("/auth")({
   head: () => ({ meta: [{ title: "تسجيل الدخول — فورتيكس ERP" }] }),
   component: AuthPage,
 });
 
-const loginSchema = (t: (key: string) => string) =>
+function resolveCandidates(input: string, countryCode: string): string[] {
+  const trimmed = input.trim();
+  if (trimmed.includes("@")) {
+    return [trimmed.toLowerCase()];
+  }
+  const digits = trimmed.replace(/\D/g, "");
+  const candidates: string[] = [];
+
+  // 1) Digits formatted with selected country dial code (E.164 without '+') -> cleanDigits@vortex.local
+  const fullE164 = formatPhoneE164(digits, countryCode);
+  const fullClean = fullE164.replace(/\D/g, "");
+  candidates.push(phoneToAuthEmail(fullClean));
+
+  // 2) Stripped leading zero -> e.g. 771234567@vortex.local
+  const stripped = digits.replace(/^0+/, "");
+  if (stripped && !candidates.includes(phoneToAuthEmail(stripped))) {
+    candidates.push(phoneToAuthEmail(stripped));
+  }
+
+  // 3) Raw digits directly -> digits@vortex.local
+  if (!candidates.includes(phoneToAuthEmail(digits))) {
+    candidates.push(phoneToAuthEmail(digits));
+  }
+
+  return candidates;
+}
+
+const loginSchema = (t: (key: string) => string, isRtl: boolean) =>
   z.object({
-    email: z
+    identifier: z
       .string()
       .trim()
-      .email({ message: t("auth.invalid_email") })
+      .min(1, {
+        message: isRtl
+          ? "يرجى إدخال رقم الهاتف أو البريد الإلكتروني"
+          : "Please enter phone number or email",
+      })
       .max(255, { message: t("auth.email_too_long") }),
     password: z
       .string()
@@ -31,13 +75,15 @@ function AuthPage() {
   const { t, dir } = useI18n();
   const { session } = useAuth();
   const navigate = useNavigate();
-  const [email, setEmail] = useState("");
+  const [country, setCountry] = useState<Country>(DEFAULT_COUNTRY);
+  const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const logoMarkUrl = "/vortex-erp-mark.png";
   const logoWordmarkUrl = "/vortex-erp-wordmark.png";
   const isRtl = dir === "rtl";
+  const isEmailInput = identifier.includes("@");
 
   useEffect(() => {
     if (session) navigate({ to: "/dashboard", replace: true });
@@ -45,29 +91,43 @@ function AuthPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    const parsed = loginSchema(t).safeParse({ email, password });
+    const parsed = loginSchema(t, isRtl).safeParse({ identifier, password });
     if (!parsed.success) {
       toast.error(parsed.error.issues[0].message);
       return;
     }
 
-    const cleanEmail = email.trim().toLowerCase();
+    const candidates = resolveCandidates(identifier, country.dialCode);
     setLoading(true);
 
     try {
-      const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
-        email: cleanEmail,
-        password,
-      });
+      let lastError: any = null;
+      let sessionEstablished = false;
 
-      if (signInError) {
-        throw signInError;
+      for (const email of candidates) {
+        const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
+
+        if (!signInError && signInData?.session) {
+          sessionEstablished = true;
+          break;
+        }
+
+        if (signInError) {
+          lastError = signInError;
+        }
       }
 
-      if (signInData?.session) {
+      if (sessionEstablished) {
         toast.success(t("auth.signin_success"));
         navigate({ to: "/dashboard", replace: true });
         return;
+      }
+
+      if (lastError) {
+        throw lastError;
       }
 
       // Shouldn't reach here, but handle gracefully
@@ -95,12 +155,12 @@ function AuthPage() {
       const translatedError =
         message.includes("invalid login credentials") || message.includes("invalid_credentials")
           ? isRtl
-            ? "بيانات الدخول غير صحيحة. يرجى التحقق من البريد وكلمة المرور."
-            : t("auth.invalid_credentials")
+            ? "بيانات الدخول غير صحيحة. يرجى التحقق من رقم الهاتف/البريد وكلمة المرور."
+            : "Invalid credentials. Please check your phone/email and password."
           : message.includes("email not confirmed")
             ? isRtl
-              ? "البريد الإلكتروني بحاجة لتأكيد. يرجى مراجعة بريدك أو التواصل مع الإدارة."
-              : "Email not confirmed yet."
+              ? "الحساب بحاجة لتأكيد. يرجى مراجعة الإدارة."
+              : "Account not confirmed yet."
             : message.includes("network") || message.includes("fetch")
               ? t("auth.network_error")
               : rawMsg ||
@@ -216,29 +276,48 @@ function AuthPage() {
 
                 <form onSubmit={handleSubmit} className="mt-8 space-y-5">
                   <div className="space-y-2">
-                    <label htmlFor="login-email" className="block text-xs font-bold text-slate-200">
-                      {t("common.email")}
+                    <label
+                      htmlFor="login-identifier"
+                      className="block text-xs font-bold text-slate-200"
+                    >
+                      {isRtl ? "رقم الهاتف أو البريد الإلكتروني" : "Phone number or email"}
                     </label>
-                    <div className="relative">
-                      <Mail
-                        className="pointer-events-none absolute start-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
-                        aria-hidden
-                      />
-                      <input
-                        id="login-email"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        type="email"
-                        inputMode="email"
-                        autoComplete="email"
-                        autoCapitalize="none"
-                        spellCheck={false}
-                        required
-                        disabled={loading}
-                        dir="ltr"
-                        className="h-12 w-full rounded-2xl border border-white/10 bg-[#071125] px-4 ps-10 text-sm text-white shadow-sm outline-none transition-[border-color,box-shadow,background-color] placeholder:text-slate-500 hover:border-primary/45 focus:border-primary focus:ring-4 focus:ring-primary/15 disabled:cursor-not-allowed disabled:opacity-60 motion-reduce:transition-none"
-                        placeholder="name@company.com"
-                      />
+                    <div className="flex gap-2">
+                      {!isEmailInput && (
+                        <CountrySelector value={country} onChange={setCountry} disabled={loading} />
+                      )}
+                      <div className="relative flex-1">
+                        {isEmailInput ? (
+                          <Mail
+                            className="pointer-events-none absolute start-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+                            aria-hidden
+                          />
+                        ) : (
+                          <Phone
+                            className="pointer-events-none absolute start-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+                            aria-hidden
+                          />
+                        )}
+                        <input
+                          id="login-identifier"
+                          value={identifier}
+                          onChange={(e) => setIdentifier(e.target.value)}
+                          type="text"
+                          autoComplete="username"
+                          autoCapitalize="none"
+                          spellCheck={false}
+                          required
+                          disabled={loading}
+                          dir="ltr"
+                          className="h-12 w-full rounded-2xl border border-white/10 bg-[#071125] px-4 ps-10 text-sm text-white shadow-sm outline-none transition-[border-color,box-shadow,background-color] placeholder:text-slate-500 hover:border-primary/45 focus:border-primary focus:ring-4 focus:ring-primary/15 disabled:cursor-not-allowed disabled:opacity-60 motion-reduce:transition-none"
+                          placeholder={
+                            isRtl
+                              ? "7xxxxxxxx أو name@company.com"
+                              : "7xxxxxxxx or name@company.com"
+                          }
+                          maxLength={isEmailInput ? 255 : country.maxLength + 6}
+                        />
+                      </div>
                     </div>
                   </div>
 

@@ -287,9 +287,7 @@ export async function loadCashStatement(lang: "ar" | "en" = "ar"): Promise<CashS
     };
 
     bridgedLegacyIds = new Set(
-      (bridged ?? [])
-        .map((row) => row.legacy_expense_id)
-        .filter((id): id is string => Boolean(id)),
+      (bridged ?? []).map((row) => row.legacy_expense_id).filter((id): id is string => Boolean(id)),
     );
   }
 

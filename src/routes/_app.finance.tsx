@@ -1,12 +1,11 @@
 import { ModuleGuard, useModules } from "@/lib/modules";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { PageHeader } from "@/components/page-header";
 import { useI18n } from "@/lib/i18n";
 import { supabase } from "@/integrations/supabase/client";
 import { money } from "@/lib/format";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
@@ -18,25 +17,6 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Badge } from "@/components/ui/badge";
-import { toast } from "sonner";
-import {
   Plus,
   TrendingUp,
   TrendingDown,
@@ -44,8 +24,18 @@ import {
   Receipt,
   Users,
   Truck,
-  Trash2,
+  Eye,
+  ArrowUpRight,
 } from "lucide-react";
+import { ExpenseFormDialog } from "@/components/expenses/expense-form";
+import { ExpenseDetailDrawer } from "@/components/expenses/expense-detail-drawer";
+import {
+  ExpenseStatusBadge,
+  ExpensePaymentBadge,
+} from "@/components/expenses/expense-status-badge";
+import { useExpenseLookups } from "@/hooks/use-expenses";
+import { fetchUnifiedExpenseStats } from "@/lib/expenses/financial-bridge";
+import type { ExpenseListRow } from "@/lib/expenses/types";
 
 export const Route = createFileRoute("/_app/finance")({
   head: () => ({ meta: [{ title: "Finance — Vortex ERP" }] }),
@@ -71,30 +61,34 @@ interface Stats {
 function FinancePage() {
   const { isModuleEnabled } = useModules();
   const { t, lang } = useI18n();
+  const ar = lang === "ar";
+
   const [stats, setStats] = useState<Stats | null>(null);
-  const [expenses, setExpenses] = useState<any[]>([]);
-  const [categories, setCategories] = useState<any[]>([]);
+  const [expenses, setExpenses] = useState<ExpenseListRow[]>([]);
   const [debtors, setDebtors] = useState<any[]>([]);
   const [creditors, setCreditors] = useState<any[]>([]);
-  const [open, setOpen] = useState(false);
-  const [form, setForm] = useState({
-    category_id: "",
-    amount: "",
-    payment_method: "cash",
-    note: "",
-    expense_date: new Date().toISOString().slice(0, 10),
-  });
 
-  async function load() {
-    const [sales, purchases, exp, cats, custs, supps] = await Promise.all([
-      supabase.from("sales_invoices").select("total,paid,payment_method"),
-      supabase.from("purchase_invoices").select("total,paid,payment_method"),
+  // Dialog and drawer states
+  const [formOpen, setFormOpen] = useState(false);
+  const [detailOpen, setDetailOpen] = useState(false);
+  const [selectedEntryId, setSelectedEntryId] = useState<string | null>(null);
+
+  const lookups = useExpenseLookups();
+
+  const load = useCallback(async () => {
+    const [sales, purchases, expRes, expenseStats, custs, supps] = await Promise.all([
       supabase
-        .from("expenses")
-        .select("*, expense_categories(name,name_ar)")
-        .order("expense_date", { ascending: false })
-        .limit(100),
-      supabase.from("expense_categories").select("*").order("name"),
+        .from("sales_invoices")
+        .select("total,paid,payment_method")
+        .order("created_at", { ascending: false })
+        .limit(3000),
+      supabase
+        .from("purchase_invoices")
+        .select("total,paid,payment_method")
+        .order("created_at", { ascending: false })
+        .limit(3000),
+      (supabase as any).rpc("list_expenses", { p_limit: 50 }),
+      fetchUnifiedExpenseStats(),
       supabase
         .from("customers")
         .select("id,name,balance")
@@ -111,12 +105,14 @@ function FinancePage() {
 
     const s = sales.data ?? [];
     const p = purchases.data ?? [];
-    const e = exp.data ?? [];
-    const salesTotal = s.reduce((a, r: any) => a + Number(r.total), 0);
-    const salesPaid = s.reduce((a, r: any) => a + Number(r.paid), 0);
-    const purchasesTotal = p.reduce((a, r: any) => a + Number(r.total), 0);
-    const purchasesPaid = p.reduce((a, r: any) => a + Number(r.paid), 0);
-    const expensesTotal = e.reduce((a, r: any) => a + Number(r.amount), 0);
+    const salesTotal = s.reduce((a, r: any) => a + Number(r.total || 0), 0);
+    const salesPaid = s.reduce((a, r: any) => a + Number(r.paid || 0), 0);
+    const purchasesTotal = p.reduce((a, r: any) => a + Number(r.total || 0), 0);
+    const purchasesPaid = p.reduce((a, r: any) => a + Number(r.paid || 0), 0);
+
+    // Accrual expense is recognized total; Cash out includes actual paid amount
+    const expensesTotal = expenseStats.postedTotal;
+    const expenseCashPaid = expenseStats.paidCashOut;
 
     setStats({
       salesTotal,
@@ -124,54 +120,25 @@ function FinancePage() {
       purchasesTotal,
       purchasesPaid,
       receivables: salesTotal - salesPaid,
-      payables: purchasesTotal - purchasesPaid,
+      payables: purchasesTotal - purchasesPaid + expenseStats.outstandingTotal,
       expensesTotal,
       cashIn: salesPaid,
-      cashOut: purchasesPaid + expensesTotal,
+      cashOut: purchasesPaid + expenseCashPaid,
     });
-    setExpenses(e);
-    setCategories(cats.data ?? []);
+
+    setExpenses((expRes.data ?? []) as ExpenseListRow[]);
     setDebtors(custs.data ?? []);
     setCreditors(supps.data ?? []);
-  }
-  useEffect(() => {
-    load();
   }, []);
 
-  async function saveExpense() {
-    if (!form.category_id || !form.amount) {
-      toast.error(t("common.fill_form"));
-      return;
-    }
-    const { error } = await supabase.from("expenses").insert({
-      category_id: form.category_id,
-      amount: Number(form.amount),
-      payment_method: form.payment_method as any,
-      expense_date: form.expense_date,
-      note: form.note || null,
-    });
-    if (error) {
-      toast.error(error.message);
-      return;
-    }
-    toast.success(t("common.saved") || t("common.success"));
-    setOpen(false);
-    setForm({
-      category_id: "",
-      amount: "",
-      payment_method: "cash",
-      note: "",
-      expense_date: new Date().toISOString().slice(0, 10),
-    });
-    load();
-  }
+  useEffect(() => {
+    void load();
+  }, [load]);
 
-  async function delExpense(id: string) {
-    if (!confirm(t("common.confirm_delete"))) return;
-    const { error } = await supabase.from("expenses").delete().eq("id", id);
-    if (error) return toast.error(error.message);
-    load();
-  }
+  const handleOpenDetail = (id: string) => {
+    setSelectedEntryId(id);
+    setDetailOpen(true);
+  };
 
   const netCash = useMemo(() => (stats ? stats.cashIn - stats.cashOut : 0), [stats]);
   const grossProfit = useMemo(() => (stats ? stats.salesTotal - stats.purchasesTotal : 0), [stats]);
@@ -182,106 +149,22 @@ function FinancePage() {
       <PageHeader
         title={t("finance.title")}
         subtitle={
-          lang === "ar"
-            ? "الذمم، التدفق النقدي، المصروفات والأرباح"
+          ar
+            ? "الذمم، التدفق النقدي، المصروفات والأرباح الموحدة"
             : "Receivables, payables, cashflow and profit"
         }
         actions={
           <div className="flex items-center gap-2">
-            {/*
-             * The full expense register lives in its own module now. This link
-             * is the bridge: the finance screen keeps its summary and its
-             * debtors/creditors tabs, while anything that needs lines, approval,
-             * posting or payments goes where those exist.
-             */}
             <Link to="/expenses">
               <Button variant="outline">
                 <Receipt className="h-4 w-4 me-1" />
-                {lang === "ar" ? "سجل المصروفات" : "Expense register"}
+                {ar ? "سجل المصروفات الكامل" : "Expense register"}
               </Button>
             </Link>
-            <Dialog open={open} onOpenChange={setOpen}>
-              <DialogTrigger asChild>
-                <Button>
-                  <Plus className="h-4 w-4 me-1" />
-                  {lang === "ar" ? "مصروف جديد" : "New expense"}
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>{lang === "ar" ? "إضافة مصروف" : "Add expense"}</DialogTitle>
-                </DialogHeader>
-                <div className="grid gap-3">
-                  <div className="grid gap-1.5">
-                    <Label>{lang === "ar" ? "الفئة" : "Category"}</Label>
-                    <Select
-                      value={form.category_id}
-                      onValueChange={(v) => setForm({ ...form, category_id: v })}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="—" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {categories.map((c) => (
-                          <SelectItem key={c.id} value={c.id}>
-                            {lang === "ar" ? (c.name_ar ?? c.name) : c.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="grid gap-1.5">
-                      <Label>{lang === "ar" ? "المبلغ" : "Amount"}</Label>
-                      <Input
-                        type="number"
-                        step="0.01"
-                        value={form.amount}
-                        onChange={(e) => setForm({ ...form, amount: e.target.value })}
-                      />
-                    </div>
-                    <div className="grid gap-1.5">
-                      <Label>{lang === "ar" ? "التاريخ" : "Date"}</Label>
-                      <Input
-                        type="date"
-                        value={form.expense_date}
-                        onChange={(e) => setForm({ ...form, expense_date: e.target.value })}
-                      />
-                    </div>
-                  </div>
-                  <div className="grid gap-1.5">
-                    <Label>{lang === "ar" ? "طريقة الدفع" : "Payment method"}</Label>
-                    <Select
-                      value={form.payment_method}
-                      onValueChange={(v) => setForm({ ...form, payment_method: v })}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="cash">Cash</SelectItem>
-                        <SelectItem value="card">Card</SelectItem>
-                        <SelectItem value="bank">Bank</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="grid gap-1.5">
-                    <Label>{lang === "ar" ? "ملاحظات" : "Note"}</Label>
-                    <Textarea
-                      rows={2}
-                      value={form.note}
-                      onChange={(e) => setForm({ ...form, note: e.target.value })}
-                    />
-                  </div>
-                </div>
-                <DialogFooter>
-                  <Button variant="ghost" onClick={() => setOpen(false)}>
-                    {t("common.cancel")}
-                  </Button>
-                  <Button onClick={saveExpense}>{t("common.save")}</Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
+            <Button onClick={() => setFormOpen(true)}>
+              <Plus className="h-4 w-4 me-1" />
+              {ar ? "مصروف جديد" : "New expense"}
+            </Button>
           </div>
         }
       />
@@ -289,49 +172,49 @@ function FinancePage() {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
         <StatCard
           icon={<TrendingUp className="h-4 w-4" />}
-          label={lang === "ar" ? "الإيرادات" : "Revenue"}
+          label={ar ? "الإيرادات" : "Revenue"}
           value={money(stats?.salesTotal ?? 0)}
           tone="pos"
         />
         <StatCard
           icon={<TrendingDown className="h-4 w-4" />}
-          label={lang === "ar" ? "المشتريات" : "Purchases"}
+          label={ar ? "المشتريات" : "Purchases"}
           value={money(stats?.purchasesTotal ?? 0)}
           tone="neg"
         />
         <StatCard
           icon={<Receipt className="h-4 w-4" />}
-          label={lang === "ar" ? "المصروفات" : "Expenses"}
+          label={ar ? "المصروفات المرحلة" : "Expenses"}
           value={money(stats?.expensesTotal ?? 0)}
           tone="neg"
         />
         <StatCard
           icon={<Wallet className="h-4 w-4" />}
-          label={lang === "ar" ? "صافي الربح" : "Net profit"}
+          label={ar ? "صافي الربح" : "Net profit"}
           value={money(netProfit)}
           tone={netProfit >= 0 ? "pos" : "neg"}
         />
         <StatCard
           icon={<Users className="h-4 w-4" />}
-          label={lang === "ar" ? "ذمم مدينة" : "Receivables"}
+          label={ar ? "ذمم مدينة" : "Receivables"}
           value={money(stats?.receivables ?? 0)}
           tone="warn"
         />
         <StatCard
           icon={<Truck className="h-4 w-4" />}
-          label={lang === "ar" ? "ذمم دائنة" : "Payables"}
+          label={ar ? "ذمم دائنة شاملة" : "Payables"}
           value={money(stats?.payables ?? 0)}
           tone="warn"
         />
         <StatCard
           icon={<TrendingUp className="h-4 w-4" />}
-          label={lang === "ar" ? "تدفق نقدي داخل" : "Cash in"}
+          label={ar ? "تدفق نقدي داخل" : "Cash in"}
           value={money(stats?.cashIn ?? 0)}
           tone="pos"
         />
         <StatCard
           icon={<TrendingDown className="h-4 w-4" />}
-          label={lang === "ar" ? "صافي النقدية" : "Net cash"}
+          label={ar ? "صافي النقدية" : "Net cash"}
           value={money(netCash)}
           tone={netCash >= 0 ? "pos" : "neg"}
         />
@@ -339,70 +222,109 @@ function FinancePage() {
 
       <Tabs defaultValue="expenses">
         <TabsList>
-          <TabsTrigger value="expenses">{lang === "ar" ? "المصروفات" : "Expenses"}</TabsTrigger>
+          <TabsTrigger value="expenses">{ar ? "المصروفات" : "Expenses"}</TabsTrigger>
           {isModuleEnabled("payments") && (
             <TabsTrigger value="debtors">
-              {lang === "ar" ? "العملاء المدينون" : "Debtors"}
+              {ar ? "العملاء المدينون" : "Debtors"}
             </TabsTrigger>
           )}
           {isModuleEnabled("purchases") && (
             <TabsTrigger value="creditors">
-              {lang === "ar" ? "الموردون الدائنون" : "Creditors"}
+              {ar ? "الموردون الدائنون" : "Creditors"}
             </TabsTrigger>
           )}
         </TabsList>
 
         <TabsContent value="expenses">
           <Card>
-            <CardHeader>
+            <CardHeader className="flex flex-row items-center justify-between py-4">
               <CardTitle className="text-base">
-                {lang === "ar" ? "آخر المصروفات" : "Recent expenses"}
+                {ar ? "آخر المصروفات المسجلة" : "Recent expenses"}
               </CardTitle>
+              <Link to="/expenses">
+                <Button variant="ghost" size="sm" className="text-xs">
+                  {ar ? "عرض السجل التفصيلي" : "View full register"}
+                  <ArrowUpRight className="h-3.5 w-3.5 ms-1" />
+                </Button>
+              </Link>
             </CardHeader>
             <CardContent className="p-0">
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>{lang === "ar" ? "التاريخ" : "Date"}</TableHead>
-                    <TableHead>{lang === "ar" ? "الفئة" : "Category"}</TableHead>
-                    <TableHead>{lang === "ar" ? "الطريقة" : "Method"}</TableHead>
-                    <TableHead>{lang === "ar" ? "الملاحظة" : "Note"}</TableHead>
+                    <TableHead>{ar ? "المرجع" : "Reference"}</TableHead>
+                    <TableHead>{ar ? "التاريخ" : "Date"}</TableHead>
+                    <TableHead>{ar ? "التصنيف / الوصف" : "Category / Description"}</TableHead>
+                    <TableHead>{ar ? "الحالة" : "Status"}</TableHead>
+                    <TableHead>{ar ? "السداد" : "Settlement"}</TableHead>
                     <TableHead className="text-end">
-                      {lang === "ar" ? "المبلغ" : "Amount"}
+                      {ar ? "المبلغ الإجمالي" : "Total amount"}
                     </TableHead>
-                    <TableHead></TableHead>
+                    <TableHead className="text-end">
+                      {ar ? "المتبقي" : "Remaining"}
+                    </TableHead>
+                    <TableHead className="w-12"></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {expenses.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
-                        {lang === "ar" ? "لا توجد مصروفات" : "No expenses yet"}
+                      <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
+                        {ar ? "لا توجد مصروفات مسجلة" : "No expenses yet"}
                       </TableCell>
                     </TableRow>
                   ) : (
                     expenses.map((e) => (
-                      <TableRow key={e.id}>
+                      <TableRow
+                        key={e.id}
+                        className="cursor-pointer hover:bg-muted/50"
+                        onClick={() => handleOpenDetail(e.id)}
+                      >
+                        <TableCell className="font-mono text-xs font-semibold text-primary">
+                          {e.reference}
+                        </TableCell>
                         <TableCell className="font-mono text-xs">{e.expense_date}</TableCell>
                         <TableCell>
-                          {lang === "ar"
-                            ? (e.expense_categories?.name_ar ?? e.expense_categories?.name)
-                            : e.expense_categories?.name}
+                          <div className="font-medium text-xs">
+                            {ar ? e.primary_category_ar || e.primary_category || "—" : e.primary_category || "—"}
+                          </div>
+                          {e.description ? (
+                            <div className="text-[11px] text-muted-foreground truncate max-w-[240px]">
+                              {e.description}
+                            </div>
+                          ) : null}
                         </TableCell>
                         <TableCell>
-                          <Badge variant="outline" className="capitalize">
-                            {e.payment_method}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="max-w-[300px] truncate text-muted-foreground">
-                          {e.note}
-                        </TableCell>
-                        <TableCell className="text-end font-mono">
-                          {money(Number(e.amount))}
+                          <ExpenseStatusBadge status={e.status} />
                         </TableCell>
                         <TableCell>
-                          <Button size="icon" variant="ghost" onClick={() => delExpense(e.id)}>
-                            <Trash2 className="h-4 w-4" />
+                          <ExpensePaymentBadge
+                            paid={Number(e.paid_amount || 0)}
+                            total={Number(e.total_amount || 0)}
+                            status={e.status}
+                          />
+                        </TableCell>
+                        <TableCell className="text-end font-mono font-medium">
+                          {money(Number(e.total_amount || 0))}
+                        </TableCell>
+                        <TableCell className="text-end font-mono text-xs text-muted-foreground">
+                          {Number(e.remaining_amount || 0) > 0.005 ? (
+                            <span className="text-amber-600 font-semibold">
+                              {money(Number(e.remaining_amount || 0))}
+                            </span>
+                          ) : (
+                            <span className="text-emerald-600">—</span>
+                          )}
+                        </TableCell>
+                        <TableCell onClick={(ev) => ev.stopPropagation()}>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="size-7"
+                            onClick={() => handleOpenDetail(e.id)}
+                            title={ar ? "معاينة المستند" : "View document"}
+                          >
+                            <Eye className="h-3.5 w-3.5" />
                           </Button>
                         </TableCell>
                       </TableRow>
@@ -417,16 +339,44 @@ function FinancePage() {
         <TabsContent value="debtors">
           <BalanceTable
             rows={debtors}
-            emptyMsg={lang === "ar" ? "لا توجد ذمم" : "No outstanding"}
+            emptyMsg={ar ? "لا توجد ذمم مدينة" : "No outstanding debtors"}
           />
         </TabsContent>
         <TabsContent value="creditors">
           <BalanceTable
             rows={creditors}
-            emptyMsg={lang === "ar" ? "لا توجد ذمم" : "No outstanding"}
+            emptyMsg={ar ? "لا توجد ذمم دائنة" : "No outstanding creditors"}
           />
         </TabsContent>
       </Tabs>
+
+      {/* Unified Expense Form Dialog */}
+      <ExpenseFormDialog
+        open={formOpen}
+        onOpenChange={setFormOpen}
+        lookups={lookups.data}
+        onSaved={(id) => {
+          void load();
+          if (id) {
+            setSelectedEntryId(id);
+            setDetailOpen(true);
+          }
+        }}
+      />
+
+      {/* Unified Expense Detail Drawer */}
+      <ExpenseDetailDrawer
+        entryId={selectedEntryId}
+        open={detailOpen}
+        onOpenChange={(open) => {
+          setDetailOpen(open);
+          if (!open) setSelectedEntryId(null);
+        }}
+        onEdit={() => {
+          setDetailOpen(false);
+          setFormOpen(true);
+        }}
+      />
     </>
   );
 }

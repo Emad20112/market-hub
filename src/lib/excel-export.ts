@@ -1,3 +1,5 @@
+import { getCompanyCurrencySymbol } from "./format";
+
 /**
  * Excel / CSV Export Module for Vortex ERP
  *
@@ -12,6 +14,24 @@ export interface ExportColumn {
   key: string;
   header: string;
   format?: "money" | "number" | "text";
+}
+
+/**
+ * Export cells carry plain ASCII digits and a plain `.` decimal separator.
+ * Using an Arabic locale here would emit Arabic-Indic digits (١٢٬٥٠٠٫٠٠),
+ * which Excel treats as text and which break reconciliation.
+ */
+const EXPORT_LOCALE = "en-US";
+
+/**
+ * Money cells are written as bare numbers so they stay numeric in Excel; the
+ * currency is declared once in the column header instead of on every cell.
+ */
+function numericCell(value: number, decimals: number): string {
+  const fixed = value.toFixed(decimals);
+  // Avoid "-0.00" noise and exponent notation for very large amounts.
+  const normalized = Number(fixed) === 0 ? (0).toFixed(decimals) : fixed;
+  return normalized;
 }
 
 export interface ExportOptions {
@@ -30,19 +50,28 @@ export interface ExportOptions {
  * Uses UTF-8 BOM to ensure Excel opens the file with correct encoding.
  */
 export function exportToCSV(options: ExportOptions) {
-  const { columns, rows, totalsRow, filename, currency = "﷼" } = options;
+  const { rows, totalsRow, filename, currency = getCompanyCurrencySymbol() } = options;
+  const rtl = options.rtl ?? true;
+
+  // In Arabic the first logical column belongs on the right, so the column
+  // order is mirrored for the spreadsheet to read the way the report does.
+  const columns = rtl ? [...options.columns].reverse() : options.columns;
 
   const formatCell = (val: string | number | null | undefined, col: ExportColumn): string => {
     if (val == null || val === "") return "";
     if (col.format === "money" && typeof val === "number") {
-      return `${new Intl.NumberFormat("ar-YE", { minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(val)} ${currency}`;
+      return numericCell(val, 2);
     }
     if (col.format === "number" && typeof val === "number") {
-      return new Intl.NumberFormat("ar-YE").format(val);
+      return numericCell(val, Number.isInteger(val) ? 0 : 3);
     }
-    // Escape double quotes for CSV
-    return String(val).replace(/"/g, '""');
+    return String(val);
   };
+
+  // Currency travels in the header, not inside every cell, so the values
+  // remain numeric and reconcilable.
+  const headerFor = (c: ExportColumn) =>
+    c.format === "money" && currency ? `${c.header} (${currency})` : c.header;
 
   const csvLines: string[] = [];
 
@@ -53,17 +82,21 @@ export function exportToCSV(options: ExportOptions) {
   }
 
   // Header row
-  csvLines.push(columns.map((c) => `"${c.header.replace(/"/g, '""')}"`).join(","));
+  csvLines.push(columns.map((c) => `"${headerFor(c).replace(/"/g, '""')}"`).join(","));
 
   // Data rows
   for (const row of rows) {
-    csvLines.push(columns.map((c) => `"${formatCell(row[c.key], c)}"`).join(","));
+    csvLines.push(
+      columns.map((c) => `"${formatCell(row[c.key], c).replace(/"/g, '""')}"`).join(","),
+    );
   }
 
   // Totals row
   if (totalsRow) {
     csvLines.push(""); // Empty separator
-    csvLines.push(columns.map((c) => `"${formatCell(totalsRow[c.key], c)}"`).join(","));
+    csvLines.push(
+      columns.map((c) => `"${formatCell(totalsRow[c.key], c).replace(/"/g, '""')}"`).join(","),
+    );
   }
 
   // UTF-8 BOM + CSV content
@@ -90,31 +123,46 @@ export function exportToCSV(options: ExportOptions) {
  * The user can also print directly from this view.
  */
 export function exportToHTMLTable(options: ExportOptions) {
-  const { columns, rows, totalsRow, title, currency = "﷼" } = options;
+  const { rows, totalsRow, title, currency = getCompanyCurrencySymbol() } = options;
   const rtl = options.rtl ?? true;
+  const columns = rtl ? [...options.columns].reverse() : options.columns;
 
   const formatCell = (val: string | number | null | undefined, col: ExportColumn): string => {
     if (val == null || val === "") return "";
-    if (col.format === "money" && typeof val === "number") {
-      return `${new Intl.NumberFormat("ar-YE", { minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(val)} ${currency}`;
-    }
-    if (col.format === "number" && typeof val === "number") {
-      return new Intl.NumberFormat("ar-YE").format(val);
-    }
+    if (col.format === "money" && typeof val === "number") return numericCell(val, 2);
+    if (col.format === "number" && typeof val === "number")
+      return numericCell(val, Number.isInteger(val) ? 0 : 3);
     return String(val);
   };
 
   const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
-  const headerCells = columns.map((c) => `<th>${esc(c.header)}</th>`).join("");
+  const headerFor = (c: ExportColumn) =>
+    c.format === "money" && currency ? `${c.header} (${currency})` : c.header;
+
+  const headerCells = columns.map((c) => `<th>${esc(headerFor(c))}</th>`).join("");
   const bodyRows = rows
     .map(
       (row) =>
-        `<tr>${columns.map((c) => `<td>${esc(formatCell(row[c.key], c))}</td>`).join("")}</tr>`,
+        `<tr>${columns
+          .map(
+            (c) =>
+              `<td${c.format === "money" || c.format === "number" ? ' class="num"' : ""}>${esc(
+                formatCell(row[c.key], c),
+              )}</td>`,
+          )
+          .join("")}</tr>`,
     )
     .join("");
   const totalsHtml = totalsRow
-    ? `<tr class="total">${columns.map((c) => `<td>${esc(formatCell(totalsRow[c.key], c))}</td>`).join("")}</tr>`
+    ? `<tr class="total">${columns
+        .map(
+          (c) =>
+            `<td${c.format === "money" || c.format === "number" ? ' class="num"' : ""}>${esc(
+              formatCell(totalsRow[c.key], c),
+            )}</td>`,
+        )
+        .join("")}</tr>`
     : "";
 
   const html = `<!doctype html><html dir="${rtl ? "rtl" : "ltr"}" lang="${rtl ? "ar" : "en"}"><head><meta charset="utf-8">
@@ -123,7 +171,10 @@ export function exportToHTMLTable(options: ExportOptions) {
   * { box-sizing: border-box; }
   body { font-family: 'Segoe UI', Tahoma, Arial, sans-serif; font-size: 13px; padding: 20px; background: #f5f5f5; }
   h1 { font-size: 20px; margin-bottom: 12px; }
+  td.num { direction: ltr; unicode-bidi: isolate; font-family: 'IBM Plex Mono', Consolas, monospace; }
   table { width: 100%; border-collapse: collapse; background: #fff; box-shadow: 0 2px 8px rgba(0,0,0,.1); }
+  thead { display: table-header-group; }
+  tr { page-break-inside: avoid; }
   th { background: #1a1a2e; color: #fff; padding: 10px 12px; font-size: 12px; white-space: nowrap; }
   td { padding: 8px 12px; border-bottom: 1px solid #eee; }
   tr:nth-child(even) { background: #fafafa; }

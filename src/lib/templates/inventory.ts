@@ -1,10 +1,4 @@
-import {
-  UnifiedDocumentData,
-  InvoiceLabels,
-  escapeHtml,
-  DEFAULT_BRANDING,
-  CustomFieldOptions,
-} from "./types";
+import { UnifiedDocumentData, InvoiceLabels, escapeHtml, CustomFieldOptions } from "./types";
 
 export function renderInventoryThermalTemplate(
   doc: UnifiedDocumentData,
@@ -13,7 +7,6 @@ export function renderInventoryThermalTemplate(
   options?: CustomFieldOptions,
 ): string {
   const esc = escapeHtml;
-  const branding = doc.brandingText || DEFAULT_BRANDING;
   const opts = {
     showLogo: true,
     showCompanyInfo: true,
@@ -21,7 +14,6 @@ export function renderInventoryThermalTemplate(
     showMovementInfo: true,
     showSignatures: true,
     showFooter: true,
-    showBranding: true,
     ...options,
     ...doc.options,
   };
@@ -40,10 +32,10 @@ export function renderInventoryThermalTemplate(
 
   return `<!doctype html><html dir="${rtl ? "rtl" : "ltr"}" lang="${rtl ? "ar" : "en"}"><head><meta charset="utf-8"><title>${esc(doc.number)}</title>
 <style>
-  @page { size: 80mm auto; margin: 0; }
+  @page { size: var(--print-paper-width, 80mm) auto; margin: 0; }
   * { box-sizing: border-box; }
   html,body { margin:0; padding:0; background:#fff; color:#000; font-family: 'Courier New', ui-monospace, monospace; }
-  .r { width: 80mm; padding: 6mm 5mm; font-size: 12px; line-height: 1.35; }
+  .r { width: var(--print-paper-width, 80mm); padding: 6mm 5mm; font-size: 12px; line-height: 1.35; }
   .c { text-align: center; }
   .badge { display:inline-block; border: 1px solid #000; padding: 2px 8px; font-weight:700; font-size:12px; margin-bottom:4px; text-transform:uppercase; }
   h1 { font-size: 15px; margin: 0 0 2px; letter-spacing: .5px; }
@@ -55,7 +47,6 @@ export function renderInventoryThermalTemplate(
   .code { font-size: 10px; color: #555; }
   .lr { display:flex; justify-content:space-between; font-size: 11.5px; margin-top: 2px; }
   .foot { text-align:center; font-size: 10px; margin-top: 8px; }
-  .branding { text-align:center; font-size: 9px; color:#555; margin-top: 6px; border-top: 1px dotted #aaa; padding-top: 4px; font-weight: 500; }
   .sign-box { margin-top: 14px; border-top: 1px dashed #000; padding-top: 6px; font-size: 10px; text-align: center; }
   @media screen { body { background:#eee; padding: 20px 0; } .r { margin: 0 auto; background:#fff; box-shadow: 0 2px 20px rgba(0,0,0,.15); } }
 </style></head><body onload="window.print()">
@@ -75,7 +66,7 @@ export function renderInventoryThermalTemplate(
   `
       : ""
   }
-  
+
   ${
     opts.showMovementInfo
       ? `
@@ -114,7 +105,6 @@ export function renderInventoryThermalTemplate(
   }
 
   ${opts.showFooter ? `<div class="foot">${L.thanks || (rtl ? "مستند موثق مخزنياً" : "Verified Stock Record")}</div>` : ""}
-  ${opts.showBranding ? `<div class="branding">${esc(branding)}</div>` : ""}
 </div></body></html>`;
 }
 
@@ -125,7 +115,6 @@ export function renderInventoryStandardTemplate(
   options?: CustomFieldOptions,
 ): string {
   const esc = escapeHtml;
-  const branding = doc.brandingText || DEFAULT_BRANDING;
   const opts = {
     showLogo: true,
     showCompanyInfo: true,
@@ -133,7 +122,6 @@ export function renderInventoryStandardTemplate(
     showMovementInfo: true,
     showSignatures: true,
     showFooter: true,
-    showBranding: true,
     ...options,
     ...doc.options,
   };
@@ -182,7 +170,6 @@ export function renderInventoryStandardTemplate(
   .signatures { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; margin-top: 40px; text-align: center; }
   .sig-line { border-top: 1px solid #0f172a; padding-top: 6px; font-size: 11px; font-weight: 600; color: #475569; }
   footer { margin-top: 30px; padding-top: 12px; border-top: 1px solid #cbd5e1; text-align:center; color:#64748b; font-size: 10.5px; }
-  .branding { font-size: 9.5px; color: #94a3b8; font-weight: 600; margin-top: 4px; }
   @media screen { body { background:#f1f5f9; padding: 20px; } .doc { background:#fff; padding: 30px; box-shadow: 0 4px 30px rgba(0,0,0,.08); border-radius: 12px; } }
 </style></head><body onload="window.print()">
 <div class="doc">
@@ -262,7 +249,6 @@ export function renderInventoryStandardTemplate(
       ? `
   <footer>
     <div>${rtl ? "تم إنشاء وتوثيق هذا المستند عبر نظام فورتكس ERP للمخزون" : "System Generated Stock Movement Document"}</div>
-    ${opts.showBranding ? `<div class="branding">${esc(branding)}</div>` : ""}
   </footer>
   `
       : ""

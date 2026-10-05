@@ -411,7 +411,7 @@ The following points describe implemented behavior and its boundaries; the repos
 # SUPABASE_SERVICE_ROLE_KEY=<server-only-key; only when admin client is used>
 ```
 
-4. Apply the SQL migrations in `supabase/migrations/` to the configured Supabase project. The repository also enables the seed definition at `supabase/seeds/seed.sql`; no repository-specific Supabase CLI command is documented.
+4. Apply the SQL migrations in `supabase/migrations/` to the configured Supabase project. The repository also enables the seed definition at `supabase/seeds/reference.sql` (safe reference rows only; demo datasets live in `supabase/seeds/demo/` and never run automatically — see `supabase/seeds/README.md`); no repository-specific Supabase CLI command is documented.
 5. Run the available quality and build scripts.
 
 ```bash

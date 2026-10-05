@@ -31,6 +31,7 @@ import {
   TrendingDown,
   Wallet,
   PackagePlus,
+  RefreshCw,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -51,6 +52,7 @@ import { moneyCell, qtyCell } from "@/lib/format";
 import { useBreakpoint } from "@/design/breakpoints";
 import { useRealtimeTable } from "@/lib/realtime";
 import { QUERY_KEYS } from "@/lib/query-keys";
+import { ItemRoleBadge } from "@/components/item-role-badge";
 
 export const Route = createFileRoute("/_app/inventory")({
   head: () => ({ meta: [{ title: "Inventory — Vortex ERP" }] }),
@@ -84,7 +86,11 @@ type Row = {
   shelf_location: string | null;
   category?: { name: string; name_ar: string | null } | null;
   brand?: { name: string; name_ar: string | null } | null;
-  unit?: { short_name: string; name_ar: string | null } | null;
+  unit?: { name?: string; short_name: string; name_ar: string | null } | null;
+  /** Role columns, used to colour-code the row (see item-role-badge). */
+  item_nature?: string | null;
+  item_class?: string | null;
+  inventory_policy?: string | null;
   byWarehouse: Record<string, number>;
 };
 
@@ -259,7 +265,7 @@ function InventoryPage() {
       if (ids.length) {
         const { data: detailRows } = await (supabase.from("products") as any)
           .select(
-            "id, barcode, min_stock, cost_price, shelf_location, category:categories(name, name_ar), brand:brands(name, name_ar), unit:units(short_name, name_ar)",
+            "id, barcode, min_stock, cost_price, shelf_location, item_nature, item_class, inventory_policy, category:categories(name, name_ar), brand:brands(name, name_ar), unit:units(name, short_name, name_ar)",
           )
           .in("id", ids);
         details = (detailRows ?? []) as any[];
@@ -277,6 +283,11 @@ function InventoryPage() {
           category: meta.category ?? null,
           brand: meta.brand ?? null,
           unit: meta.unit ?? null,
+          // Carried so the row can be colour-coded by role. On a mill screen a
+          // sack of grain and a sack of flour look identical until they do not.
+          item_nature: meta.item_nature ?? null,
+          item_class: meta.item_class ?? null,
+          inventory_policy: meta.inventory_policy ?? null,
         };
       });
       return { rows, hasMore: from + INVENTORY_PAGE_SIZE < orderedIds.length };
@@ -299,11 +310,12 @@ function InventoryPage() {
     queryFn: async () => {
       const { data, error: valueError } = await (supabase.from("products") as any)
         .select("id, cost_price")
-        .eq("is_active", true);
+        .eq("is_active", true)
+        .limit(3000);
       if (valueError) throw valueError;
       return (data ?? []) as ValueRow[];
     },
-    staleTime: 60_000,
+    staleTime: 5 * 60_000,
   });
 
   const rows = useMemo(() => rowPages?.pages.flatMap((page) => page.rows) ?? [], [rowPages]);
@@ -541,6 +553,20 @@ function InventoryPage() {
         ),
       },
       {
+        key: "role",
+        header: lang === "ar" ? "الدور" : "Role",
+        width: "w-[120px]",
+        cell: (r) => (
+          <ItemRoleBadge
+            itemClass={r.item_class}
+            itemNature={r.item_nature}
+            inventoryPolicy={r.inventory_policy}
+            isRtl={lang === "ar"}
+            compact
+          />
+        ),
+      },
+      {
         key: "min_stock",
         header: t("products.min"),
         align: "end",
@@ -573,8 +599,15 @@ function InventoryPage() {
                     ? "text-emerald-500"
                     : "text-muted-foreground";
           return (
-            <span className={`font-mono text-xs font-bold tabular-nums ${tone}`}>
-              {qtyCell(qtyFor(r))}
+            <span
+              className={`font-mono text-xs font-bold tabular-nums ${tone} inline-flex items-center gap-1`}
+            >
+              <span>{qtyCell(qtyFor(r))}</span>
+              {(r.unit?.name_ar || r.unit?.name || r.unit?.short_name) && (
+                <span className="text-[10px] font-normal text-muted-foreground">
+                  {r.unit.name_ar || r.unit.name || r.unit.short_name}
+                </span>
+              )}
             </span>
           );
         },
@@ -627,6 +660,32 @@ function InventoryPage() {
       <p className="max-w-sm text-xs text-muted-foreground">{t("inventory.empty_hint")}</p>
     </div>
   );
+
+  // A failed read must never look like an empty warehouse. That concealed
+  // permissions/schema problems behind a misleading "no inventory" card.
+  const inventoryLoadError = error ? (
+    <div className="card-mullak flex flex-col items-center justify-center space-y-3 p-12 text-center">
+      <div className="grid size-14 place-items-center rounded-2xl bg-destructive/10 text-destructive">
+        <AlertTriangle className="size-8" />
+      </div>
+      <h4 className="text-base font-bold text-foreground">
+        {lang === "ar" ? "تعذر تحميل بيانات المخزون" : "Could not load inventory"}
+      </h4>
+      <p className="max-w-sm text-xs text-muted-foreground">
+        {lang === "ar"
+          ? "لم يتم اعتبار الخطأ مخزوناً فارغاً. أعد المحاولة، وإذا استمر الخطأ راجع صلاحية المستخدم أو اتصال قاعدة البيانات."
+          : "The error is not shown as an empty inventory. Retry, then check access and database connectivity if it persists."}
+      </p>
+      <Button
+        size="sm"
+        variant="outline"
+        icon={<RefreshCw className="size-4" />}
+        onClick={() => void refetch()}
+      >
+        {lang === "ar" ? "إعادة المحاولة" : "Retry"}
+      </Button>
+    </div>
+  ) : null;
 
   return (
     <div className="space-y-4 pb-12">
@@ -830,6 +889,8 @@ function InventoryPage() {
                 />
               ))}
             </div>
+          ) : inventoryLoadError ? (
+            inventoryLoadError
           ) : sortedRows.length === 0 ? (
             emptyState
           ) : (
@@ -860,13 +921,22 @@ function InventoryPage() {
                       }`}
                     >
                       <div className="mb-2.5 flex items-center justify-between gap-2">
-                        <span className="inline-flex max-w-[150px] items-center gap-1 truncate rounded-full border border-primary/20 bg-primary/10 px-2.5 py-0.5 text-[11px] font-semibold text-primary">
-                          <Tag className="size-3 shrink-0" />
-                          <span className="truncate">
-                            {label(r.category?.name, r.category?.name_ar) ||
-                              (lang === "ar" ? "عام" : "General")}
+                        <div className="flex items-center gap-1 min-w-0">
+                          <span className="inline-flex max-w-[110px] items-center gap-1 truncate rounded-full border border-primary/20 bg-primary/10 px-2.5 py-0.5 text-[11px] font-semibold text-primary">
+                            <Tag className="size-3 shrink-0" />
+                            <span className="truncate">
+                              {label(r.category?.name, r.category?.name_ar) ||
+                                (lang === "ar" ? "عام" : "General")}
+                            </span>
                           </span>
-                        </span>
+                          <ItemRoleBadge
+                            itemClass={r.item_class}
+                            itemNature={r.item_nature}
+                            inventoryPolicy={r.inventory_policy}
+                            isRtl={lang === "ar"}
+                            compact
+                          />
+                        </div>
                         <span
                           className={`size-2 shrink-0 rounded-full ${
                             s === "out"
@@ -890,22 +960,9 @@ function InventoryPage() {
                         >
                           {primary}
                         </h4>
-                        {secondary && (
-                          <p
-                            className="mt-0.5 line-clamp-1 text-[11px] text-muted-foreground/80"
-                            dir={lang === "ar" ? "ltr" : "rtl"}
-                          >
-                            {secondary}
-                          </p>
-                        )}
                       </div>
 
                       <div className="mb-3.5 flex flex-wrap items-center gap-1.5 text-[11px] text-muted-foreground">
-                        {r.sku && (
-                          <span className="rounded-md border border-border/50 bg-surface-2/70 px-2 py-0.5 font-mono text-[10px]">
-                            {r.sku}
-                          </span>
-                        )}
                         {r.barcode && (
                           <span className="inline-flex items-center gap-1 rounded-md border border-border/50 bg-surface-2/70 px-2 py-0.5 font-mono text-[10px]">
                             <Barcode className="size-2.5" />
@@ -931,21 +988,28 @@ function InventoryPage() {
                           <p className="text-[10px] font-medium text-muted-foreground">
                             {t("inventory.on_hand")}
                           </p>
-                          <p
-                            className={`font-mono text-lg font-bold tracking-tight ${
-                              s === "out"
-                                ? "text-red-500"
-                                : s === "low"
-                                  ? "text-amber-500"
-                                  : s === "near"
-                                    ? "text-orange-400"
-                                    : s === "healthy"
-                                      ? "text-emerald-500"
-                                      : "text-foreground"
-                            }`}
-                          >
-                            {qtyCell(qty)}
-                          </p>
+                          <div className="flex items-baseline gap-1.5">
+                            <p
+                              className={`font-mono text-lg font-bold tracking-tight ${
+                                s === "out"
+                                  ? "text-red-500"
+                                  : s === "low"
+                                    ? "text-amber-500"
+                                    : s === "near"
+                                      ? "text-orange-400"
+                                      : s === "healthy"
+                                        ? "text-emerald-500"
+                                        : "text-foreground"
+                              }`}
+                            >
+                              {qtyCell(qty)}
+                            </p>
+                            {(r.unit?.name_ar || r.unit?.name || r.unit?.short_name) && (
+                              <span className="text-xs font-semibold text-muted-foreground">
+                                {r.unit.name_ar || r.unit.name || r.unit.short_name}
+                              </span>
+                            )}
+                          </div>
                           {min > 0 && qty < min && (
                             <p className="text-[10px] font-mono text-red-500/80">
                               {t("inventory.diff")}: {qtyCell(min - qty)}
@@ -1006,6 +1070,8 @@ function InventoryPage() {
                 />
               ))}
             </div>
+          ) : inventoryLoadError ? (
+            inventoryLoadError
           ) : sortedRows.length === 0 ? (
             emptyState
           ) : (
@@ -1042,6 +1108,13 @@ function InventoryPage() {
                               {label(r.category?.name, r.category?.name_ar) ||
                                 (lang === "ar" ? "عام" : "General")}
                             </span>
+                            <ItemRoleBadge
+                              itemClass={r.item_class}
+                              itemNature={r.item_nature}
+                              inventoryPolicy={r.inventory_policy}
+                              isRtl={lang === "ar"}
+                              compact
+                            />
                           </div>
                           <div className="mt-1 flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
                             {r.sku ? (
@@ -1151,6 +1224,8 @@ function InventoryPage() {
             </>
           )}
         </div>
+      ) : inventoryLoadError ? (
+        inventoryLoadError
       ) : (
         /* ─── Classic table view with infinite scroll sentinel ─── */
         <div className="panel-elevated -mx-1 overflow-hidden rounded-2xl border border-border/70 sm:mx-0">

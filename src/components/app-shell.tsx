@@ -1,5 +1,6 @@
+import { useCompanyCurrency } from "@/hooks/use-company-currency";
 import { Link, useRouterState, useNavigate } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { memo, useEffect, useMemo, useState } from "react";
 import {
   LayoutDashboard,
   ScanBarcode,
@@ -22,6 +23,7 @@ import {
   Sun,
   Sparkles,
   RotateCcw,
+  RotateCw,
   ArrowRightLeft,
   CalendarClock,
   Barcode,
@@ -30,7 +32,8 @@ import {
   Layers,
   Boxes,
   Menu,
-  HandCoins,
+  PanelLeftOpen,
+  PanelLeftClose,
   AlertTriangle,
   LineChart,
   FileText,
@@ -38,440 +41,32 @@ import {
   Scale,
   Landmark,
   PieChart,
-  PanelLeftClose,
-  PanelLeftOpen,
   Crown,
   ClipboardList,
   Cog,
   PackagePlus,
+  Zap,
+  ChartColumn,
+  ReceiptText,
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { canAccessRoute, getRouteRule } from "@/lib/route-access";
 import { useAuth } from "@/lib/auth";
 import { useModules } from "@/lib/modules";
 import { CommandPalette } from "@/components/command-palette";
+import { VortexHeaderOmnisearch } from "@/components/vortex-header-omnisearch";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { ConnectionBanner } from "@/components/ui/connection";
 import { cn } from "@/lib/utils";
 import { InamaSoftFooter } from "@/components/inama-soft-footer";
+import { supabase } from "@/integrations/supabase/client";
+import { setCompanySettingsCache } from "@/lib/format";
+import { checkBackupReminderStatus } from "@/lib/backup/reminder";
+import { useMillingMode, isRouteVisibleByMillingMode } from "@/lib/milling-mode";
+import { getSidebarSections, type SidebarSection } from "@/lib/navigation";
+import { routeIcon } from "@/lib/navigation/route-icons";
 
-type Item = {
-  to: string;
-  icon: typeof LayoutDashboard;
-  key: string;
-  moduleId?: string;
-  color?: string;
-  bg?: string;
-};
-
-type Section = {
-  titleKey: string;
-  items: Item[];
-};
-
-const sections: Section[] = [
-  // ─────────────────────────────
-  // 1) لوحة القيادة والمؤشرات — متابعة الأداء والتحليلات العامة
-  // ─────────────────────────────
-  {
-    titleKey: "nav.section.command_center",
-    items: [
-      {
-        to: "/dashboard",
-        icon: LayoutDashboard,
-        key: "nav.dashboard",
-        moduleId: "core",
-        color: "text-sky-500",
-        bg: "bg-sky-500/15",
-      },
-      {
-        to: "/analytics",
-        icon: LineChart,
-        key: "nav.analytics",
-        moduleId: "analytics",
-        color: "text-indigo-500",
-        bg: "bg-indigo-500/15",
-      },
-      {
-        to: "/reports",
-        icon: BarChart3,
-        key: "nav.reports",
-        moduleId: "analytics",
-        color: "text-sky-400",
-        bg: "bg-sky-500/15",
-      },
-    ],
-  },
-
-  // ─────────────────────────────
-  // 2) المبيعات ونقاط البيع — العمليات اليومية الأكثر استخداماً وتكراراً
-  // ─────────────────────────────
-  {
-    titleKey: "nav.section.sales",
-    items: [
-      {
-        to: "/pos",
-        icon: ScanBarcode,
-        key: "nav.pos",
-        moduleId: "pos",
-        color: "text-emerald-500",
-        bg: "bg-emerald-500/15",
-      },
-      {
-        to: "/sales",
-        icon: Receipt,
-        key: "nav.sales",
-        moduleId: "core",
-        color: "text-emerald-400",
-        bg: "bg-emerald-500/15",
-      },
-      {
-        to: "/sales-returns",
-        icon: RotateCcw,
-        key: "nav.sales_returns",
-        moduleId: "returns",
-        color: "text-rose-400",
-        bg: "bg-rose-500/15",
-      },
-      {
-        to: "/customers",
-        icon: Users,
-        key: "nav.customers",
-        moduleId: "core",
-        color: "text-teal-400",
-        bg: "bg-teal-500/15",
-      },
-      {
-        to: "/payments",
-        icon: HandCoins,
-        key: "nav.payments",
-        moduleId: "payments",
-        color: "text-amber-500",
-        bg: "bg-amber-500/15",
-      },
-      {
-        to: "/debts",
-        icon: AlertTriangle,
-        key: "nav.debts",
-        moduleId: "payments",
-        color: "text-red-500",
-        bg: "bg-red-500/15",
-      },
-      {
-        to: "/account-statement",
-        icon: FileText,
-        key: "nav.account_statement",
-        moduleId: "payments",
-        color: "text-yellow-500",
-        bg: "bg-yellow-500/15",
-      },
-      {
-        to: "/loyalty",
-        icon: Gift,
-        key: "nav.loyalty",
-        moduleId: "loyalty",
-        color: "text-pink-500",
-        bg: "bg-pink-500/15",
-      },
-    ],
-  },
-
-  // ─────────────────────────────
-  // 3) المنتجات والمخزون — الأكثر طلباً أولاً بحسب دورة العمل والتجميعات
-  // ─────────────────────────────
-  {
-    titleKey: "nav.section.inventory",
-    items: [
-      {
-        to: "/products",
-        icon: Package,
-        key: "nav.products",
-        moduleId: "core",
-        color: "text-teal-500",
-        bg: "bg-teal-500/15",
-      },
-      {
-        to: "/inventory",
-        icon: Warehouse,
-        key: "nav.inventory",
-        moduleId: "core",
-        color: "text-cyan-500",
-        bg: "bg-cyan-500/15",
-      },
-      {
-        to: "/catalog",
-        icon: Layers,
-        key: "nav.catalog",
-        moduleId: "core",
-        color: "text-amber-500",
-        bg: "bg-amber-500/15",
-      },
-      {
-        to: "/barcodes",
-        icon: Barcode,
-        key: "nav.barcodes",
-        moduleId: "barcode",
-        color: "text-violet-500",
-        bg: "bg-violet-500/15",
-      },
-      {
-        to: "/settlements",
-        icon: ClipboardList,
-        key: "nav.settlements",
-        moduleId: "core",
-        color: "text-amber-500",
-        bg: "bg-amber-500/15",
-      },
-      {
-        to: "/transfers",
-        icon: ArrowRightLeft,
-        key: "nav.transfers",
-        moduleId: "multi_warehouse",
-        color: "text-purple-400",
-        bg: "bg-purple-500/15",
-      },
-      {
-        to: "/warehouses",
-        icon: Boxes,
-        key: "nav.warehouses",
-        moduleId: "multi_warehouse",
-        color: "text-blue-500",
-        bg: "bg-blue-500/15",
-      },
-      {
-        to: "/batches",
-        icon: CalendarClock,
-        key: "nav.batches",
-        moduleId: "batches",
-        color: "text-orange-500",
-        bg: "bg-orange-500/15",
-      },
-    ],
-  },
-
-  // ─────────────────────────────
-  // 4) الشراء والتوريد — دخول البضائع وإدارة الموردين
-  // ─────────────────────────────
-  {
-    titleKey: "nav.section.procurement",
-    items: [
-      {
-        to: "/purchase-pos",
-        icon: ShoppingBag,
-        key: "nav.purchase_pos",
-        moduleId: "purchases",
-        color: "text-indigo-400",
-        bg: "bg-indigo-500/15",
-      },
-      {
-        to: "/purchases",
-        icon: Truck,
-        key: "nav.purchases",
-        moduleId: "purchases",
-        color: "text-blue-400",
-        bg: "bg-blue-500/15",
-      },
-      {
-        to: "/suppliers",
-        icon: Building2,
-        key: "nav.suppliers",
-        moduleId: "purchases",
-        color: "text-blue-500",
-        bg: "bg-blue-500/15",
-      },
-      {
-        to: "/purchase-returns",
-        icon: RotateCcw,
-        key: "nav.purchase_returns",
-        moduleId: "returns",
-        color: "text-rose-500",
-        bg: "bg-rose-500/15",
-      },
-    ],
-  },
-
-  // ─────────────────────────────
-  // 5) المحاسبة والمالية — القيود والحسابات والتقارير الختامية
-  // ─────────────────────────────
-  {
-    titleKey: "nav.section.finance",
-    items: [
-      {
-        // The dedicated register. Roles here match the entry point's audience:
-        // an owner, manager or accountant works the queue, while a cashier
-        // reaches the module through the dashboard action instead.
-        to: "/expenses",
-        icon: Receipt,
-        key: "nav.expenses",
-        moduleId: "expenses",
-        color: "text-rose-500",
-        bg: "bg-rose-500/15",
-      },
-      {
-        to: "/finance",
-        icon: Wallet,
-        key: "nav.finance",
-        moduleId: "expenses",
-        color: "text-emerald-500",
-        bg: "bg-emerald-500/15",
-      },
-      {
-        to: "/daily-journal",
-        icon: BookOpen,
-        key: "nav.daily_journal",
-        moduleId: "advanced_accounting",
-        color: "text-emerald-500",
-        bg: "bg-emerald-500/15",
-      },
-      {
-        to: "/trial-balance",
-        icon: Scale,
-        key: "nav.trial_balance",
-        moduleId: "advanced_accounting",
-        color: "text-cyan-400",
-        bg: "bg-cyan-500/15",
-      },
-      {
-        to: "/income-statement",
-        icon: PieChart,
-        key: "nav.income_statement",
-        moduleId: "advanced_accounting",
-        color: "text-lime-500",
-        bg: "bg-lime-500/15",
-      },
-      {
-        to: "/balance-sheet",
-        icon: Landmark,
-        key: "nav.balance_sheet",
-        moduleId: "advanced_accounting",
-        color: "text-indigo-400",
-        bg: "bg-indigo-500/15",
-      },
-    ],
-  },
-
-  // ─────────────────────────────
-  // 7) المطحنة والأمانات — يظهر فقط لمن اشترى وحدة المطحنة
-  // ─────────────────────────────
-  {
-    titleKey: "nav.section.milling",
-    items: [
-      {
-        to: "/milling",
-        icon: Scale,
-        key: "nav.milling",
-        moduleId: "milling_operations",
-        allowedRoles: ["owner", "manager", "accountant", "warehouse"],
-        color: "text-amber-500",
-        bg: "bg-amber-500/15",
-      },
-      {
-        to: "/milling/intake",
-        icon: PackagePlus,
-        key: "nav.milling_intake",
-        moduleId: "milling_operations",
-        allowedRoles: ["owner", "manager", "warehouse"],
-        color: "text-amber-400",
-        bg: "bg-amber-500/15",
-      },
-      {
-        to: "/milling/jobs",
-        icon: Cog,
-        key: "nav.milling_jobs",
-        moduleId: "milling_operations",
-        allowedRoles: ["owner", "manager", "warehouse"],
-        color: "text-orange-500",
-        bg: "bg-orange-500/15",
-      },
-      {
-        to: "/milling/delivery",
-        icon: Truck,
-        key: "nav.milling_delivery",
-        moduleId: "milling_operations",
-        allowedRoles: ["owner", "manager", "warehouse"],
-        color: "text-lime-500",
-        bg: "bg-lime-500/15",
-      },
-      {
-        to: "/milling/customer-statement",
-        icon: FileText,
-        key: "nav.milling_statement",
-        moduleId: "milling_operations",
-        allowedRoles: ["owner", "manager", "accountant"],
-        color: "text-yellow-500",
-        bg: "bg-yellow-500/15",
-      },
-    ],
-  },
-
-  // ─────────────────────────────
-  // 8) الإدارة والنظام — الصلاحيات والتهيئة والاشتراك
-  // 6) الإدارة والنظام — الموظفين والتهيئة والأمان
-
-  // ─────────────────────────────
-  {
-    titleKey: "nav.section.admin",
-    items: [
-      {
-        to: "/users",
-        icon: ShieldCheck,
-        key: "nav.users",
-        moduleId: "core",
-        color: "text-violet-400",
-        bg: "bg-violet-500/15",
-      },
-      {
-        to: "/notifications",
-        icon: Bell,
-        key: "nav.notifications",
-        moduleId: "core",
-        color: "text-yellow-400",
-        bg: "bg-yellow-500/15",
-      },
-      {
-        to: "/audit",
-        icon: History,
-        key: "nav.audit",
-        moduleId: "audit",
-        color: "text-orange-400",
-        bg: "bg-orange-500/15",
-      },
-      {
-        to: "/settings",
-        icon: Settings,
-        key: "nav.settings",
-        moduleId: "core",
-        color: "text-slate-400",
-        bg: "bg-slate-500/15",
-      },
-      {
-        to: "/vortex-ui",
-        icon: Sparkles,
-        key: "nav.vortex_ui",
-        moduleId: "core",
-        color: "text-primary",
-        bg: "bg-primary/15",
-      },
-      {
-        to: "/plans",
-        icon: Crown,
-        key: "nav.plans",
-        moduleId: "core",
-        color: "text-amber-500",
-        bg: "bg-amber-500/15",
-      },
-      {
-        to: "/platform-admin",
-        icon: Crown,
-        key: "nav.platform_admin",
-        color: "text-amber-500",
-        bg: "bg-amber-500/15",
-      },
-    ],
-  },
-];
-
-function SidebarContents({
+const SidebarContents = memo(function SidebarContents({
   onNavigate,
   collapsed = false,
   onToggleCollapse,
@@ -481,9 +76,9 @@ function SidebarContents({
   onToggleCollapse?: () => void;
 }) {
   const { t, dir, lang } = useI18n();
+  const isAr = lang === "ar";
 
   const { user, signOut, isPlatformAdmin, isPlatformSuperadmin, roles } = useAuth();
-
 
   const { isModuleEnabled } = useModules();
 
@@ -501,19 +96,16 @@ function SidebarContents({
   // The company logo remains available in invoices and printable documents.
   const logoUrl = "/vortex-erp-mark.png";
 
-  const filteredSections = useMemo(() => {
-    return sections
-      .map((sec) => ({
-        ...sec,
-        items: sec.items.filter((it) => {
-          if (!canAccessRoute(it.to, { roles, isPlatformAdmin, isPlatformSuperadmin })) {
-            return false;
-          }
-          return isModuleEnabled(it.moduleId);
-        }),
-      }))
-      .filter((sec) => sec.items.length > 0);
-  }, [isModuleEnabled, isPlatformAdmin, isPlatformSuperadmin, roles]);
+  const { mode: millingMode } = useMillingMode();
+
+  const filteredSections = useMemo<SidebarSection[]>(() => {
+    return getSidebarSections({
+      isModuleEnabled,
+      isVisibleByMillingMode: (path) => isRouteVisibleByMillingMode(path, millingMode),
+      canAccess: (entry) =>
+        canAccessRoute(entry.path.split("?")[0], { roles, isPlatformAdmin, isPlatformSuperadmin }),
+    });
+  }, [isModuleEnabled, isPlatformAdmin, isPlatformSuperadmin, roles, millingMode]);
 
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden bg-sidebar text-sidebar-foreground">
@@ -569,15 +161,17 @@ function SidebarContents({
             )}
 
             <ul className={cn(collapsed ? "space-y-1.5" : "space-y-1")}>
-              {sec.items.map((it) => {
+              {sec.entries.map((it) => {
                 const active =
-                  pathname === it.to ||
-                  (it.to !== "/dashboard" && pathname.startsWith(`${it.to}/`));
+                  pathname === it.path ||
+                  (it.path !== "/dashboard" && pathname.startsWith(`${it.path}/`));
+                const Icon = routeIcon(it.id);
+                const title = it.i18nKey ? t(it.i18nKey) : isAr ? it.titleAr : it.titleEn;
 
                 return (
-                  <li key={it.to} className="relative">
+                  <li key={it.id} className="relative">
                     <Link
-                      to={it.to}
+                      to={it.path}
                       onClick={onNavigate}
                       className={cn(
                         "group relative flex items-center transition-all duration-200",
@@ -612,33 +206,27 @@ function SidebarContents({
                             ? "h-full w-full"
                             : cn(
                                 "h-7 w-7 rounded-lg group-hover:scale-110",
-                                it.bg || "bg-surface-2/60",
+                                "bg-surface-2/60",
                                 active && "ring-1 ring-primary/40 shadow-sm",
                               ),
                         )}
                       >
-                        <it.icon
+                        <Icon
                           className={cn(
                             "shrink-0 transition-colors",
 
                             collapsed
                               ? active
                                 ? "h-5 w-5 text-primary-foreground stroke-[2.2]"
-                                : cn(
-                                    "h-5 w-5",
-                                    it.color || "text-muted-foreground group-hover:text-foreground",
-                                  )
+                                : "h-5 w-5 text-muted-foreground group-hover:text-foreground"
                               : active
                                 ? "h-4 w-4 text-primary stroke-[2.5]"
-                                : cn(
-                                    "h-4 w-4",
-                                    it.color || "text-muted-foreground group-hover:text-foreground",
-                                  ),
+                                : "h-4 w-4 text-muted-foreground group-hover:text-foreground",
                           )}
                         />
                       </div>
 
-                      {!collapsed && <span className="truncate leading-normal">{t(it.key)}</span>}
+                      {!collapsed && <span className="truncate leading-normal">{title}</span>}
 
                       {/* Tooltip in Icon-only mode */}
                       {collapsed && (
@@ -649,9 +237,9 @@ function SidebarContents({
                           )}
                         >
                           <div className="flex items-center gap-1.5">
-                            <span>{t(it.key)}</span>
+                            <span>{title}</span>
 
-                            {getRouteRule(it.to)?.superadminOnly && (
+                            {(it.superadminOnly || getRouteRule(it.path)?.superadminOnly) && (
                               <Crown className="h-3 w-3 text-amber-500 shrink-0" />
                             )}
                           </div>
@@ -735,7 +323,7 @@ function SidebarContents({
       </div>
     </div>
   );
-}
+});
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const { t, dir } = useI18n();
@@ -751,10 +339,19 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     pathname.startsWith("/pos/") ||
     pathname === "/purchase-pos" ||
     pathname.startsWith("/purchase-pos/");
+  const isSettingsRoute = pathname === "/settings" || pathname.startsWith("/settings/");
 
   const [paletteOpen, setPaletteOpen] = useState(false);
 
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [settingsSidebarOpen, setSettingsSidebarOpen] = useState(false);
+  const [searchFocused, setSearchFocused] = useState(false);
+
+  // لا يتم تحميل قائمة التنبيهات كاملة داخل الغلاف؛ صفحة التنبيهات هي المسؤولة عن ذلك.
+  // إبقاء الملخص بقيمة آمنة يمنع تعطل الغلاف قبل فتح صفحة التنبيهات، بينما يظل
+  // تنبيه النسخة الاحتياطية الفوري يعمل بشكل مستقل.
+  const alertsSummary = { total: 0, hasDanger: false };
 
   const [collapsed, setCollapsed] = useState<boolean>(() => {
     if (typeof window !== "undefined") {
@@ -776,11 +373,20 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     });
   };
 
+  useEffect(() => {
+    if (isSettingsRoute) {
+      setSettingsSidebarOpen(false);
+    }
+  }, [isSettingsRoute]);
+
   const [theme, setTheme] = useState<"dark" | "light">(
     () =>
       (typeof window !== "undefined" && (localStorage.getItem("theme") as "dark" | "light")) ||
-      "dark",
+      "light",
   );
+
+  // Use centralized company currency with TanStack Query cache (5min staleTime)
+  useCompanyCurrency();
 
   useEffect(() => {
     const root = document.documentElement;
@@ -815,13 +421,22 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         className={cn(
           "hidden md:flex h-full shrink-0 flex-col overflow-hidden transition-all duration-300 ease-in-out",
 
-          collapsed ? "w-[72px]" : "w-64",
+          isSettingsRoute
+            ? settingsSidebarOpen
+              ? "w-64"
+              : "w-[72px]"
+            : collapsed
+              ? "w-[72px]"
+              : "w-64",
 
           sideEdge,
           "border-sidebar-border/60",
         )}
       >
-        <SidebarContents collapsed={collapsed} onToggleCollapse={toggleCollapsed} />
+        <SidebarContents
+          collapsed={isSettingsRoute ? !settingsSidebarOpen : collapsed}
+          onToggleCollapse={toggleCollapsed}
+        />
       </aside>
 
       {/* Mobile drawer */}
@@ -841,62 +456,120 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
         {/* Top bar */}
         <header className="sticky top-0 z-30 flex h-16 items-center gap-2.5 border-b border-border/60 bg-background/70 px-4 backdrop-blur-xl sm:px-6">
+          {/* Mobile menu toggle - smoothly hides when search is focused */}
           <button
+            type="button"
             onClick={() => setMobileOpen(true)}
-            className="md:hidden grid h-10 w-10 place-items-center rounded-full border border-border/60 bg-surface text-muted-foreground hover:text-foreground transition-colors"
-            aria-label="Open menu"
+            className={cn(
+              "grid h-10 w-10 shrink-0 place-items-center rounded-full border border-border/60 bg-surface text-muted-foreground transition-all duration-300 hover:border-ring/40 hover:bg-surface-2 hover:text-foreground active:scale-95 md:hidden",
+              searchFocused
+                ? "w-0 max-w-0 opacity-0 pointer-events-none scale-0 -ms-2"
+                : "w-10 opacity-100 scale-100",
+            )}
+            aria-label={dir === "rtl" ? "فتح القائمة الجانبية" : "Open sidebar"}
           >
             <Menu className="h-4.5 w-4.5" />
           </button>
 
-          {/* Desktop Sidebar Collapse / Expand Toggle */}
+          {/* Desktop Sidebar Collapse / Expand Toggle - circular button with PanelLeftOpen/Close */}
           <button
             type="button"
-            onClick={toggleCollapsed}
-            className="hidden md:grid h-10 w-10 shrink-0 place-items-center rounded-full border border-border/60 bg-surface text-muted-foreground hover:text-foreground hover:border-ring/40 transition-colors"
+            onClick={() =>
+              isSettingsRoute ? setSettingsSidebarOpen((open) => !open) : toggleCollapsed()
+            }
+            className={cn(
+              "hidden md:grid h-10 w-10 shrink-0 place-items-center rounded-full border border-border/60 bg-surface text-muted-foreground transition-all duration-300 hover:border-ring/40 hover:bg-surface-2 hover:text-foreground active:scale-95",
+              searchFocused && "md:hidden lg:grid",
+            )}
             title={
-              collapsed
+              isSettingsRoute
+                ? settingsSidebarOpen
+                  ? dir === "rtl"
+                    ? "إغلاق القائمة الجانبية"
+                    : "Close sidebar"
+                  : dir === "rtl"
+                    ? "فتح القائمة الجانبية"
+                    : "Open sidebar"
+                : collapsed
+                  ? dir === "rtl"
+                    ? "توسيع القائمة الجانبية"
+                    : "Expand sidebar"
+                  : dir === "rtl"
+                    ? "طي القائمة (أيقونات فقط)"
+                    : "Collapse sidebar"
+            }
+            aria-label={
+              isSettingsRoute && settingsSidebarOpen
                 ? dir === "rtl"
-                  ? "توسيع القائمة الجانبية"
-                  : "Expand sidebar"
+                  ? "إغلاق القائمة الجانبية"
+                  : "Close sidebar"
                 : dir === "rtl"
-                  ? "طي القائمة (أيقونات فقط)"
-                  : "Collapse sidebar"
+                  ? "القائمة الجانبية"
+                  : "Sidebar menu"
             }
           >
-            {collapsed ? (
+            {isSettingsRoute ? (
+              <Menu className="h-4.5 w-4.5" />
+            ) : collapsed ? (
               <PanelLeftOpen className="h-4.5 w-4.5" />
             ) : (
               <PanelLeftClose className="h-4.5 w-4.5" />
             )}
           </button>
 
-          <button
-            onClick={() => setPaletteOpen(true)}
-            className="group flex h-10 flex-1 max-w-xl items-center gap-2.5 rounded-full border border-border/60 bg-surface/80 px-4 text-sm text-muted-foreground transition-all hover:border-ring/40 hover:bg-surface hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+          <VortexHeaderOmnisearch onFocusChange={setSearchFocused} />
+
+          <div
+            className={cn(
+              "ms-auto flex items-center gap-2 transition-all duration-300",
+              searchFocused
+                ? "max-w-0 overflow-hidden opacity-0 pointer-events-none scale-90 sm:max-w-none sm:opacity-100 sm:pointer-events-auto sm:scale-100"
+                : "max-w-[300px] opacity-100 scale-100",
+            )}
           >
-            <Search className="h-4 w-4" />
+            {/* زر تحديث الصفحة الحالية في نفس المكان بدون انتقال */}
+            <button
+              type="button"
+              onClick={() => {
+                setIsRefreshing(true);
+                window.location.reload();
+              }}
+              className="grid h-10 w-10 place-items-center rounded-full border border-border/60 bg-surface text-muted-foreground hover:text-foreground hover:border-ring/40 hover:bg-surface-2 transition-all active:scale-95"
+              title={dir === "rtl" ? "تحديث الصفحة الحالية" : "Refresh page"}
+              aria-label={dir === "rtl" ? "تحديث الصفحة" : "Refresh"}
+            >
+              <RotateCw
+                className={cn(
+                  "h-4 w-4 transition-all duration-300",
+                  isRefreshing && "animate-spin text-primary",
+                )}
+              />
+            </button>
 
-            <span className="flex-1 text-start truncate">{t("common.search")}</span>
-
-            <kbd className="hidden sm:inline-flex items-center gap-1 rounded-full border border-border/60 bg-background/60 px-2 py-0.5 text-[10px] font-mono text-muted-foreground">
-              <CommandIcon className="h-3 w-3" /> K
-            </kbd>
-          </button>
-
-          <div className="ms-auto flex items-center gap-2">
+            {/* زر تبديل الوضع (فاتح / مظلم) */}
             <button
               onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-              className="grid h-10 w-10 place-items-center rounded-full border border-border/60 bg-surface text-muted-foreground hover:text-foreground hover:border-ring/40 transition-colors"
+              className="grid h-10 w-10 place-items-center rounded-full border border-border/60 bg-surface text-muted-foreground hover:text-foreground hover:border-ring/40 hover:bg-surface-2 transition-all active:scale-95"
               title={t("common.theme")}
               aria-label={t("common.theme")}
             >
-              {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+              {theme === "dark" ? (
+                <Sun className="h-4 w-4 text-amber-400" />
+              ) : (
+                <Moon className="h-4 w-4 text-sky-500" />
+              )}
             </button>
 
+            {/* زر الإشعارات مع الشارة الذكية والرقم الصغير */}
             <button
-              className="relative grid h-10 w-10 place-items-center rounded-full border border-border/60 bg-surface text-muted-foreground hover:text-foreground hover:border-ring/40 transition-colors"
-              title={t("nav.notifications")}
+              className="relative grid h-10 w-10 place-items-center rounded-full border border-border/60 bg-surface text-muted-foreground hover:text-foreground hover:border-ring/40 hover:bg-surface-2 transition-all active:scale-95"
+              title={
+                checkBackupReminderStatus().isDue
+                  ? "تنبيه: حان موعد تنزيل نسخة احتياطية محلية للجهاز!"
+                  : alertsSummary?.total
+                    ? `لديك ${alertsSummary.total} تنبيهات نشطة`
+                    : t("nav.notifications")
+              }
               aria-label={t("nav.notifications")}
               onClick={() =>
                 navigate({
@@ -906,7 +579,21 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             >
               <Bell className="h-4 w-4" />
 
-              <span className="absolute top-2 end-2 h-1.5 w-1.5 rounded-full bg-primary ring-2 ring-background" />
+              {/* الشارة الذكية: دائرة نابضة للتنبيهات العاجلة ورقم أنيق مصغر */}
+              {checkBackupReminderStatus().isDue || alertsSummary?.hasDanger ? (
+                <span className="absolute -top-1 -end-1 flex items-center justify-center">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-500 opacity-75" />
+                  <span className="relative flex h-4 min-w-[16px] items-center justify-center rounded-full bg-gradient-to-r from-red-600 to-rose-500 px-1 text-[9px] font-extrabold text-white shadow-md ring-2 ring-background">
+                    {alertsSummary?.total || "!"}
+                  </span>
+                </span>
+              ) : alertsSummary?.total && alertsSummary.total > 0 ? (
+                <span className="absolute -top-0.5 -end-0.5 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-amber-500 px-1 text-[9px] font-bold text-white shadow-sm ring-2 ring-background">
+                  {alertsSummary.total}
+                </span>
+              ) : (
+                <span className="absolute top-2 end-2 h-2 w-2 rounded-full bg-primary/70 ring-2 ring-background" />
+              )}
             </button>
           </div>
         </header>

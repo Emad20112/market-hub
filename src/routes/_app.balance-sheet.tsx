@@ -4,11 +4,12 @@ import { useEffect, useState } from "react";
 import { PageHeader } from "@/components/page-header";
 import { useI18n } from "@/lib/i18n";
 import { supabase } from "@/integrations/supabase/client";
-import { money } from "@/lib/format";
+import { getCompanyCurrencySymbol, money } from "@/lib/format";
 import { printFinancialStatement } from "@/lib/pdf";
 import { exportToCSV } from "@/lib/excel-export";
 import { Button } from "@/components/ui/button";
 import { Printer, Landmark, Wallet, FileSpreadsheet } from "lucide-react";
+import { fetchUnifiedExpenseStats } from "@/lib/expenses/financial-bridge";
 
 export const Route = createFileRoute("/_app/balance-sheet")({
   head: () => ({ meta: [{ title: "الميزانية العمومية — Vortex ERP" }] }),
@@ -39,12 +40,12 @@ function BalanceSheetPage() {
 
   async function loadBalanceSheet() {
     setLoading(true);
-    const [sales, purchases, expenses, customers, suppliers, inv] = await Promise.all([
-      supabase.from("sales_invoices").select("total,paid"),
-      supabase.from("purchase_invoices").select("total,paid"),
-      supabase.from("expenses").select("amount"),
-      supabase.from("customers").select("balance"),
-      supabase.from("suppliers").select("balance"),
+    const [sales, purchases, expenseStats, customers, suppliers, inv] = await Promise.all([
+      supabase.from("sales_invoices").select("total,paid").order("created_at", { ascending: false }).limit(3000),
+      supabase.from("purchase_invoices").select("total,paid").order("created_at", { ascending: false }).limit(3000),
+      fetchUnifiedExpenseStats(),
+      supabase.from("customers").select("balance").limit(2000),
+      supabase.from("suppliers").select("balance").limit(2000),
       /*
        * Inventory is read from public.inventory_valuation, which is built on the
        * owner-aware stock positions. That means the figure covers company-owned
@@ -54,14 +55,16 @@ function BalanceSheetPage() {
        */
       supabase
         .from("inventory_valuation" as never)
-        .select("quantity,reference_valuation,valuation_is_reference_based"),
+        .select("quantity,reference_valuation,valuation_is_reference_based")
+        .limit(3000),
     ]);
 
     const salesPaidCash = (sales.data ?? []).reduce((a, r) => a + Number(r.paid), 0);
     const purchasePaidCash = (purchases.data ?? []).reduce((a, r) => a + Number(r.paid), 0);
-    const expensesTotal = (expenses.data ?? []).reduce((a, r) => a + Number(r.amount), 0);
+    const expenseCashPaid = expenseStats.paidCashOut;
+    const expensePayables = expenseStats.outstandingTotal;
 
-    const cashOnHand = Math.max(0, salesPaidCash - purchasePaidCash - expensesTotal);
+    const cashOnHand = Math.max(0, salesPaidCash - purchasePaidCash - expenseCashPaid);
     const receivables = (customers.data ?? []).reduce(
       (a, c) => a + Math.max(0, Number(c.balance || 0)),
       0,
@@ -72,11 +75,11 @@ function BalanceSheetPage() {
     );
     const totalAssets = cashOnHand + receivables + inventoryValue;
 
-    const payables = (suppliers.data ?? []).reduce(
+    const supplierPayables = (suppliers.data ?? []).reduce(
       (a, s) => a + Math.max(0, Number(s.balance || 0)),
       0,
     );
-    const totalLiabilities = payables;
+    const totalLiabilities = supplierPayables + expensePayables;
 
     const equity = totalAssets - totalLiabilities;
     const totalLiabilitiesAndEquity = totalLiabilities + equity;
@@ -86,7 +89,7 @@ function BalanceSheetPage() {
       receivables,
       inventoryValue,
       totalAssets,
-      payables,
+      payables: totalLiabilities,
       totalLiabilities,
       equity,
       totalLiabilitiesAndEquity,
@@ -105,7 +108,7 @@ function BalanceSheetPage() {
         lang === "ar"
           ? `بتاريخ: ${new Date().toLocaleDateString("ar-YE")}`
           : `As of ${new Date().toLocaleDateString()}`,
-      currency: "﷼",
+      currency: getCompanyCurrencySymbol(),
       twoColumn: true,
       columnTitles: [
         lang === "ar" ? "الأصول والموجودات (Assets)" : "Assets",
@@ -168,11 +171,11 @@ function BalanceSheetPage() {
     exportToCSV({
       filename: `الميزانية_العمومية_${new Date().toISOString().slice(0, 10)}`,
       title: "بيان الميزانية العمومية والمركز المالي",
-      currency: "﷼",
+      currency: getCompanyCurrencySymbol(),
       columns: [
         { key: "category", header: "التصنيف المحاسبي" },
         { key: "item", header: "بند الميزانية العمومية" },
-        { key: "amount", header: "القيمة المالية بالريال اليمني", format: "money" },
+        { key: "amount", header: "القيمة المالية بالعملة المحددة", format: "money" },
       ],
       rows: [
         { category: "الأصول", item: "النقدية بالصندوق والبنك", amount: bs.cashOnHand },

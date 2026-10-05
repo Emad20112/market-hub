@@ -21,15 +21,22 @@ import {
   CheckCircle2,
   CreditCard,
   Banknote,
-  Building2,
   Clock,
-  Wallet,
   Printer,
   Receipt,
   FileText,
   SkipForward,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import {
+  posOfflineService,
+  productsRepo,
+  warehousesRepo,
+  customersRepo,
+  categoriesRepo,
+  brandsRepo,
+  unitsRepo,
+} from "@/lib/offline";
 import { useI18n } from "@/lib/i18n";
 import { money } from "@/lib/format";
 import { PageHeader } from "@/components/page-header";
@@ -73,6 +80,10 @@ interface Product {
   unit_id?: string | null;
   origin_id?: string | null;
   quality_grade_id?: string | null;
+  /** تُستعلم في addToCart لتحديد مسار الخدمة؛ بدونها لا يمكن بيع أجرة الطحن. */
+  is_service?: boolean | null;
+  item_nature?: string | null;
+  inventory_policy?: string | null;
   unit?: { short_name: string; name_ar: string | null; name: string } | null;
   category?: { name: string; name_ar: string | null } | null;
   brand?: { name: string; name_ar: string | null } | null;
@@ -87,6 +98,8 @@ interface CartLine {
   tax_rate: number;
   quantity: number;
   is_service?: boolean;
+  item_nature?: string;
+  inventory_policy?: string;
 }
 
 interface Warehouse {
@@ -288,9 +301,7 @@ function POSPage() {
   const [cart, setCart] = useState<CartLine[]>([]);
   const [paid, setPaid] = useState<string>("");
   const [discount, setDiscount] = useState<string>("");
-  const [paymentMethod, setPaymentMethod] = useState<
-    "cash" | "card" | "bank_transfer" | "credit" | "mobile_money"
-  >("cash");
+  const [paymentMethod, setPaymentMethod] = useState<"cash" | "card" | "credit">("cash");
   const [note, setNote] = useState("");
   const [saleDate, setSaleDate] = useState(() => new Date().toISOString().slice(0, 10));
 
@@ -326,7 +337,6 @@ function POSPage() {
   const [isSplitPayment, setIsSplitPayment] = useState(false);
   const [splitCash, setSplitCash] = useState("");
   const [splitCard, setSplitCard] = useState("");
-  const [splitBank, setSplitBank] = useState("");
 
   const [newCustomerOpen, setNewCustomerOpen] = useState(false);
   const [creatingCustomer, setCreatingCustomer] = useState(false);
@@ -463,23 +473,27 @@ function POSPage() {
   async function loadAll() {
     try {
       const [
-        { data: ws },
-        { data: cs },
-        { data: ps },
-        { data: cats },
-        { data: brs },
-        { data: uns },
-        { data: origs },
-        { data: quals },
-        { data: vMakes },
-        { data: vModels },
-        { data: compats },
-      ] = await Promise.all([
+        wsRes,
+        csRes,
+        psRes,
+        catsRes,
+        brsRes,
+        unsRes,
+        origsRes,
+        qualsRes,
+        vMakesRes,
+        vModelsRes,
+        compatsRes,
+      ] = await Promise.allSettled([
         supabase.from("warehouses").select("id,name,name_ar").eq("is_active", true).order("name"),
-        supabase.from("customers").select("id,name,phone,balance,credit_limit").eq("is_active", true).order("name"),
+        supabase
+          .from("customers")
+          .select("id,name,phone,balance,credit_limit")
+          .eq("is_active", true)
+          .order("name"),
         (supabase.from("products") as any)
           .select(
-            "id,sku,barcode,name,name_ar,sale_price,tax_rate,image_url,category_id,brand_id,unit_id,origin_id,quality_grade_id,is_active",
+            "id,sku,barcode,name,name_ar,sale_price,tax_rate,image_url,category_id,brand_id,unit_id,origin_id,quality_grade_id,is_active,is_service,item_nature,inventory_policy",
           )
           .neq("is_active", false)
           .order("name")
@@ -497,6 +511,36 @@ function POSPage() {
         (supabase as any).from("product_compatibilities").select("product_id,vehicle_model_id"),
       ]);
 
+      let ws = wsRes.status === "fulfilled" ? wsRes.value.data : null;
+      let cs = csRes.status === "fulfilled" ? csRes.value.data : null;
+      let ps = psRes.status === "fulfilled" ? psRes.value.data : null;
+      let cats = catsRes.status === "fulfilled" ? catsRes.value.data : null;
+      let brs = brsRes.status === "fulfilled" ? brsRes.value.data : null;
+      let uns = unsRes.status === "fulfilled" ? unsRes.value.data : null;
+      let origs = origsRes.status === "fulfilled" ? origsRes.value.data : [];
+      let quals = qualsRes.status === "fulfilled" ? qualsRes.value.data : [];
+      let vMakes = vMakesRes.status === "fulfilled" ? vMakesRes.value.data : [];
+      let vModels = vModelsRes.status === "fulfilled" ? vModelsRes.value.data : [];
+      let compats = compatsRes.status === "fulfilled" ? compatsRes.value.data : [];
+
+      // Offline fallbacks from local repositories
+      if (!ws || ws.length === 0) ws = (await warehousesRepo.getAll()) as any;
+      if (!cs || cs.length === 0) cs = (await customersRepo.getAll()) as any;
+      if (!ps || ps.length === 0) ps = (await productsRepo.getAll()) as any;
+      if (!cats || cats.length === 0) cats = (await categoriesRepo.getAll()) as any;
+      if (!brs || brs.length === 0) brs = (await brandsRepo.getAll()) as any;
+      if (!uns || uns.length === 0) uns = (await unitsRepo.getAll()) as any;
+
+      // Seed local repositories for future offline usage when fetch succeeds
+      if (ws && ws.length > 0) ws.forEach((w) => warehousesRepo.create(w as any).catch(() => {}));
+      if (cs && cs.length > 0) cs.forEach((c) => customersRepo.create(c as any).catch(() => {}));
+      if (ps && ps.length > 0)
+        ps.forEach((p: any) => productsRepo.create(p as any).catch(() => {}));
+      if (cats && cats.length > 0)
+        cats.forEach((c) => categoriesRepo.create(c as any).catch(() => {}));
+      if (brs && brs.length > 0) brs.forEach((b) => brandsRepo.create(b as any).catch(() => {}));
+      if (uns && uns.length > 0) uns.forEach((u) => unitsRepo.create(u as any).catch(() => {}));
+
       const loadedWarehouses = ws ?? [];
       setWarehouses(loadedWarehouses);
       setCustomers(cs ?? []);
@@ -513,7 +557,9 @@ function POSPage() {
       if (!rawProducts.length) {
         try {
           const { data: fallbackPs } = await (supabase.from("products") as any)
-            .select("id,sku,barcode,name,name_ar,sale_price,tax_rate,image_url,category_id,brand_id,unit_id")
+            .select(
+              "id,sku,barcode,name,name_ar,sale_price,tax_rate,image_url,category_id,brand_id,unit_id",
+            )
             .limit(1000);
           if (fallbackPs && fallbackPs.length) rawProducts = fallbackPs;
         } catch (e) {
@@ -700,24 +746,51 @@ function POSPage() {
   ]);
 
   function addToCart(p: Product) {
-    const stock = stockMap[p.id] ?? 0;
     const prodName = lang === "ar" && p.name_ar ? p.name_ar : p.name;
-    if (stock <= 0) {
-      return toast.error(
-        lang === "ar" ? `نفد المخزون من: ${prodName}` : `${p.name} ${t("pos.out_of_stock")}`,
-      );
+    // الخدمات (SERVICE) لا مخزون لها إطلاقاً — item_nature = SERVICE يعني
+    // inventory_policy = UNTRACKED. فحص "نفد المخزون" كان يرفضها لأن
+    // stockMap لا يحملها، فيستحيل بيع أجرة الطحن من نقطة البيع.
+    const isService = p.is_service === true;
+
+    if (!isService) {
+      const stock = stockMap[p.id] ?? 0;
+      if (stock <= 0) {
+        return toast.error(
+          lang === "ar" ? `نفد المخزون من: ${prodName}` : `${p.name} ${t("pos.out_of_stock")}`,
+        );
+      }
+      setCart((c) => {
+        const existing = c.find((l) => l.product_id === p.id);
+        if (existing) {
+          if (existing.quantity >= stock) {
+            toast.error(
+              lang === "ar"
+                ? `الحد الأقصى المتاح في المخزون: ${stock}`
+                : `${t("pos.max_stock")}: ${stock}`,
+            );
+            return c;
+          }
+          return c.map((l) => (l.product_id === p.id ? { ...l, quantity: l.quantity + 1 } : l));
+        }
+        return [
+          ...c,
+          {
+            product_id: p.id,
+            name: prodName,
+            unit_price: Number(p.sale_price),
+            tax_rate: Number(p.tax_rate ?? 0),
+            quantity: 1,
+            is_service: false,
+          },
+        ];
+      });
+      return;
     }
+
+    // مسار الخدمة: بلا فحص مخزون، والحمولة تحمل is_service = true.
     setCart((c) => {
       const existing = c.find((l) => l.product_id === p.id);
       if (existing) {
-        if (existing.quantity >= stock) {
-          toast.error(
-            lang === "ar"
-              ? `الحد الأقصى المتاح في المخزون: ${stock}`
-              : `${t("pos.max_stock")}: ${stock}`,
-          );
-          return c;
-        }
         return c.map((l) => (l.product_id === p.id ? { ...l, quantity: l.quantity + 1 } : l));
       }
       return [
@@ -728,6 +801,7 @@ function POSPage() {
           unit_price: Number(p.sale_price),
           tax_rate: Number(p.tax_rate ?? 0),
           quantity: 1,
+          is_service: true,
         },
       ];
     });
@@ -866,12 +940,10 @@ function POSPage() {
   // Split payment amounts
   const splitCashN = Math.max(0, Number(splitCash || 0));
   const splitCardN = Math.max(0, Number(splitCard || 0));
-  const splitBankN = Math.max(0, Number(splitBank || 0));
-  const splitPaidTotal = Math.round((splitCashN + splitCardN + splitBankN) * 100) / 100;
+  const splitPaidTotal = Math.round((splitCashN + splitCardN) * 100) / 100;
   // عدد وسائل الدفع غير الصفرية في الدفع المجزأ:
   //  0 -> لم يدفع شيء،  1 -> وسيلة واحدة (تُسجل بوسيلتها الحقيقية)،  2+ -> دفع مجزأ حقيقي
-  const splitMethodCount =
-    (splitCashN > 0 ? 1 : 0) + (splitCardN > 0 ? 1 : 0) + (splitBankN > 0 ? 1 : 0);
+  const splitMethodCount = (splitCashN > 0 ? 1 : 0) + (splitCardN > 0 ? 1 : 0);
   const isMultiMethodSplit = isSplitPayment && splitMethodCount > 1;
 
   // Auto-Paid & Smart Payment Logic
@@ -991,14 +1063,7 @@ function POSPage() {
       // وسيلة الدفع المحفوظة على الفاتورة:
       //  * وسيلة واحدة -> تُسجل باسمها الحقيقي (نقد/بطاقة/بنك/آجل)
       //  * أكثر من وسيلة -> 'split' كي تبقى قابلة للفلترة والتقارير
-      const singleSplitMethod =
-        splitMethodCount === 1
-          ? splitCashN > 0
-            ? "cash"
-            : splitCardN > 0
-              ? "card"
-              : "bank_transfer"
-          : null;
+      const singleSplitMethod = splitMethodCount === 1 ? (splitCashN > 0 ? "cash" : "card") : null;
       let finalMethod: string = isSplitPayment
         ? isMultiMethodSplit
           ? "split"
@@ -1022,7 +1087,6 @@ function POSPage() {
         ? [
             splitCashN > 0 ? { method: "cash", amount: splitCashN } : null,
             splitCardN > 0 ? { method: "card", amount: splitCardN } : null,
-            splitBankN > 0 ? { method: "bank_transfer", amount: splitBankN } : null,
           ].filter((part): part is { method: string; amount: number } => part !== null)
         : [];
 
@@ -1032,7 +1096,6 @@ function POSPage() {
         if (splitCashN > 0) parts.push(`${lang === "ar" ? "نقد" : "Cash"}: ${money(splitCashN)}`);
         if (splitCardN > 0)
           parts.push(`${lang === "ar" ? "شبكة/بطاقة" : "Card"}: ${money(splitCardN)}`);
-        if (splitBankN > 0) parts.push(`${lang === "ar" ? "بنك" : "Bank"}: ${money(splitBankN)}`);
         if (remainingDebt > 0)
           parts.push(`${lang === "ar" ? "آجل" : "Debt"}: ${money(remainingDebt)}`);
         splitNote = `[${lang === "ar" ? "دفع مجزأ" : "Split"}: ${parts.join(" | ")}]`;
@@ -1044,37 +1107,101 @@ function POSPage() {
           : note.trim()
         : splitNote || null;
 
-      const { data, error } = await supabase.rpc("create_sale", {
-        _warehouse_id: warehouseId,
-        _customer_id: (customerId || null) as any,
-        _payment_method: finalMethod as any,
-        _paid: Math.min(Math.max(effectivePaid, 0), total),
-        _discount: discountN,
-        _note: finalNote as any,
-        _sale_date: saleDate,
-        _payment_splits: paymentSplits as any,
-        _items: cart.map((l) => ({
-          product_id: l.product_id,
-          quantity: l.quantity,
-          unit_price: l.unit_price,
-          tax_rate: l.tax_rate,
-          is_service: !!l.is_service,
-          name: l.name,
-        })),
-      });
-      if (error) throw error;
-      const invoiceId = data as string;
-      const { data: inv } = await supabase
-        .from("sales_invoices")
-        .select("invoice_number")
-        .eq("id", invoiceId)
-        .maybeSingle();
-      setLastInvoice({ id: invoiceId, number: inv?.invoice_number ?? "" });
-      toast.success(
-        lang === "ar"
-          ? `تمت عملية البيع بنجاح — فاتورة #${inv?.invoice_number ?? ""}`
-          : `${t("pos.sale_complete")} — #${inv?.invoice_number ?? ""}`,
-      );
+      let invoiceId: string;
+      let invoiceNumber: string;
+
+      const isOfflineMode = typeof navigator !== "undefined" && !navigator.onLine;
+
+      if (isOfflineMode) {
+        const offlineResult = await posOfflineService.processOfflineSale({
+          warehouse_id: warehouseId,
+          customer_id: customerId || null,
+          items: cart.map((l) => ({
+            product_id: l.product_id,
+            product_name: l.name,
+            quantity: l.quantity,
+            unit_price: l.unit_price,
+            subtotal: l.quantity * l.unit_price,
+          })),
+          subtotal,
+          discount: discountN,
+          tax: 0,
+          total,
+          paid: Math.min(Math.max(effectivePaid, 0), total),
+          payment_method: finalMethod as any,
+          notes: finalNote as any,
+        });
+        invoiceId = offlineResult.invoice_id;
+        invoiceNumber = offlineResult.local_document_ref;
+        setLastInvoice({ id: invoiceId, number: invoiceNumber });
+        toast.success(
+          lang === "ar"
+            ? `تم حفظ الفاتورة محلياً (Offline) — مرجع #${invoiceNumber}`
+            : `Invoice saved offline — Ref #${invoiceNumber}`,
+        );
+      } else {
+        try {
+          const { data, error } = await supabase.rpc("create_sale", {
+            _warehouse_id: warehouseId,
+            _customer_id: (customerId || null) as any,
+            _payment_method: finalMethod as any,
+            _paid: Math.min(Math.max(effectivePaid, 0), total),
+            _discount: discountN,
+            _note: finalNote as any,
+            _sale_date: saleDate,
+            _payment_splits: paymentSplits as any,
+            _items: cart.map((l) => ({
+              product_id: l.product_id,
+              quantity: l.quantity,
+              unit_price: l.unit_price,
+              tax_rate: l.tax_rate,
+              is_service: !!l.is_service,
+              name: l.name,
+            })),
+          });
+          if (error) throw error;
+          invoiceId = data as string;
+          const { data: inv } = await supabase
+            .from("sales_invoices")
+            .select("invoice_number")
+            .eq("id", invoiceId)
+            .maybeSingle();
+          invoiceNumber = inv?.invoice_number ?? invoiceId.slice(0, 8);
+          setLastInvoice({ id: invoiceId, number: invoiceNumber });
+          toast.success(
+            lang === "ar"
+              ? `تمت عملية البيع بنجاح — فاتورة #${invoiceNumber}`
+              : `${t("pos.sale_complete")} — #${invoiceNumber}`,
+          );
+        } catch (netErr: any) {
+          const offlineResult = await posOfflineService.processOfflineSale({
+            warehouse_id: warehouseId,
+            customer_id: customerId || null,
+            items: cart.map((l) => ({
+              product_id: l.product_id,
+              product_name: l.name,
+              quantity: l.quantity,
+              unit_price: l.unit_price,
+              subtotal: l.quantity * l.unit_price,
+            })),
+            subtotal,
+            discount: discountN,
+            tax: 0,
+            total,
+            paid: Math.min(Math.max(effectivePaid, 0), total),
+            payment_method: finalMethod as any,
+            notes: finalNote as any,
+          });
+          invoiceId = offlineResult.invoice_id;
+          invoiceNumber = offlineResult.local_document_ref;
+          setLastInvoice({ id: invoiceId, number: invoiceNumber });
+          toast.success(
+            lang === "ar"
+              ? `تعذر الاتصال بالخادم، تم حفظ الفاتورة محلياً — مرجع #${invoiceNumber}`
+              : `Connection error, saved offline — Ref #${invoiceNumber}`,
+          );
+        }
+      }
 
       // Build invoice doc for printing
       const customer = customers.find((c) => c.id === customerId);
@@ -1082,7 +1209,7 @@ function POSPage() {
       const cur = companySettings?.currency_symbol ?? companySettings?.currency ?? "";
       const invoiceDoc: InvoiceDoc = {
         title: lang === "ar" ? "فاتورة بيع" : "Sales Invoice",
-        number: inv?.invoice_number ?? invoiceId.slice(0, 8),
+        number: invoiceNumber,
         date: saleDate,
         partyLabel: lang === "ar" ? "العميل" : "Bill To",
         partyName: customer?.name ?? (lang === "ar" ? "عميل نقدي" : "Walk-in Customer"),
@@ -1170,7 +1297,6 @@ function POSPage() {
       setIsSplitPayment(false);
       setSplitCash("");
       setSplitCard("");
-      setSplitBank("");
       setSaleDate(new Date().toISOString().slice(0, 10));
       await loadStock(warehouseId);
       searchRef.current?.focus();
@@ -1519,10 +1645,13 @@ function POSPage() {
                 lang === "ar"
                   ? p.category?.name_ar || p.category?.name
                   : p.category?.name || p.category?.name_ar;
+              // العرض العربي يجب أن يفضّل التسمية العربية دائماً. كان الرمز
+              // الإنجليزي (short_name) يُعرض كبديل عن name_ar الغائب، فيظهر
+              // "kg" وسط واجهة عربية — وهذا ما يُفسد قراءة الشاشة للقبّان.
               const unitLabel =
                 lang === "ar"
-                  ? p.unit?.name_ar || p.unit?.short_name
-                  : p.unit?.short_name || p.unit?.name_ar;
+                  ? p.unit?.name_ar || p.unit?.name || p.unit?.short_name || ""
+                  : p.unit?.short_name || p.unit?.name || p.unit?.name_ar || "";
               const originLabel =
                 lang === "ar"
                   ? p.origin?.name_ar || p.origin?.name
@@ -1741,34 +1870,39 @@ function POSPage() {
           </div>
 
           {/* Selected Customer Balance & Credit Info */}
-          {customerId && (() => {
-            const cust = customers.find((c) => c.id === customerId);
-            if (!cust) return null;
-            const bal = Number(cust.balance || 0);
-            const limit = Number(cust.credit_limit || 0);
-            const remainingCredit = limit > 0 ? limit - bal : null;
-            return (
-              <div className="shrink-0 mb-2 flex items-center justify-between rounded-xl bg-surface-2/60 border border-border/60 px-3 py-1 text-[11px]">
-                <div className="flex items-center gap-1.5 text-muted-foreground">
-                  <span>{lang === "ar" ? "رصيد العميل:" : "Customer Balance:"}</span>
-                  <span className={`font-mono font-bold ${bal > 0 ? "text-amber-500" : "text-emerald-500"}`}>
-                    {money(bal)}
-                  </span>
-                </div>
-                {limit > 0 && (
-                  <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
-                    <span>{lang === "ar" ? "حد الائتمان:" : "Credit Limit:"}</span>
-                    <span className="font-mono">{money(limit)}</span>
-                    {remainingCredit !== null && (
-                      <span className={`font-mono font-semibold ${remainingCredit < remainingDebt ? "text-rose-500" : "text-emerald-500"}`}>
-                        ({lang === "ar" ? "المتاح:" : "Avail:"} {money(remainingCredit)})
-                      </span>
-                    )}
+          {customerId &&
+            (() => {
+              const cust = customers.find((c) => c.id === customerId);
+              if (!cust) return null;
+              const bal = Number(cust.balance || 0);
+              const limit = Number(cust.credit_limit || 0);
+              const remainingCredit = limit > 0 ? limit - bal : null;
+              return (
+                <div className="shrink-0 mb-2 flex items-center justify-between rounded-xl bg-surface-2/60 border border-border/60 px-3 py-1 text-[11px]">
+                  <div className="flex items-center gap-1.5 text-muted-foreground">
+                    <span>{lang === "ar" ? "رصيد العميل:" : "Customer Balance:"}</span>
+                    <span
+                      className={`font-mono font-bold ${bal > 0 ? "text-amber-500" : "text-emerald-500"}`}
+                    >
+                      {money(bal)}
+                    </span>
                   </div>
-                )}
-              </div>
-            );
-          })()}
+                  {limit > 0 && (
+                    <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                      <span>{lang === "ar" ? "حد الائتمان:" : "Credit Limit:"}</span>
+                      <span className="font-mono">{money(limit)}</span>
+                      {remainingCredit !== null && (
+                        <span
+                          className={`font-mono font-semibold ${remainingCredit < remainingDebt ? "text-rose-500" : "text-emerald-500"}`}
+                        >
+                          ({lang === "ar" ? "المتاح:" : "Avail:"} {money(remainingCredit)})
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
 
           {/* Dedicated Internal Scroll Area for Cart Items (Single Row Layout) */}
           <div className="flex-1 min-h-0 overflow-y-auto pr-1 space-y-2 my-1 custom-scrollbar">
@@ -1879,7 +2013,9 @@ function POSPage() {
                   <span>{t("pos.discount")}</span>
                   {discountN > 0 && (
                     <span className="text-[10px] text-primary font-mono font-bold">
-                      (-{money(discountN)})
+                      <span dir="ltr" className="[unicode-bidi:isolate]">
+                        (-{money(discountN)})
+                      </span>
                     </span>
                   )}
                 </span>
@@ -1901,15 +2037,17 @@ function POSPage() {
                   {t("pos.total")}
                 </span>
                 <span className="text-base font-extrabold font-mono text-primary tracking-tight">
-                  {money(total)}
+                  <span dir="ltr" className="[unicode-bidi:isolate]">
+                    {money(total)}
+                  </span>
                 </span>
               </div>
             </div>
 
             {/* Payment Method Switcher: Cash | Card | Bank | Credit | Split */}
             <div className="space-y-1.5">
-              <div className="grid grid-cols-6 gap-1">
-                {(["cash", "card", "bank_transfer", "mobile_money", "credit"] as const).map((m) => (
+              <div className="grid grid-cols-4 gap-1">
+                {(["cash", "card", "credit"] as const).map((m) => (
                   <button
                     key={m}
                     type="button"
@@ -1930,10 +2068,14 @@ function POSPage() {
                   >
                     {m === "cash" && <Banknote className="h-3 w-3" />}
                     {m === "card" && <CreditCard className="h-3 w-3" />}
-                    {m === "bank_transfer" && <Building2 className="h-3 w-3" />}
-                    {m === "mobile_money" && <Wallet className="h-3 w-3" />}
                     {m === "credit" && <Clock className="h-3 w-3" />}
-                    <span className="truncate">{t(`pos.pm.${m}`)}</span>
+                    <span className="truncate">
+                      {m === "card"
+                        ? lang === "ar"
+                          ? "بطاقة/حوالة"
+                          : "Card/Transfer"
+                        : t(`pos.pm.${m}`)}
+                    </span>
                   </button>
                 ))}
 
@@ -1958,7 +2100,7 @@ function POSPage() {
                   <div className="flex items-center justify-between text-xs font-semibold text-violet-700 dark:text-violet-300">
                     <span>
                       {lang === "ar"
-                        ? "توزيع الدفعات (شبكة / نقد / بنك / آجل):"
+                        ? "توزيع الدفعات (نقد / بطاقة أو حوالة / آجل):"
                         : "Split Allocation:"}
                     </span>
                     <button
@@ -1966,7 +2108,6 @@ function POSPage() {
                       onClick={() => {
                         setSplitCash(String(total));
                         setSplitCard("");
-                        setSplitBank("");
                       }}
                       className="text-[10px] text-violet-600 underline"
                     >
@@ -1974,7 +2115,7 @@ function POSPage() {
                     </button>
                   </div>
 
-                  <div className="grid grid-cols-3 gap-2">
+                  <div className="grid grid-cols-2 gap-2">
                     <div>
                       <label className="text-[10px] text-muted-foreground block mb-0.5">
                         {lang === "ar" ? "نقدًا:" : "Cash:"}
@@ -1982,50 +2123,38 @@ function POSPage() {
                       <input
                         type="number"
                         min="0"
+                        dir="ltr"
                         value={splitCash}
                         onChange={(e) => setSplitCash(e.target.value)}
                         placeholder="0"
-                        className="h-8 w-full rounded-xl border border-border bg-surface px-2 text-xs font-mono outline-none focus:border-violet-500"
+                        className="h-8 w-full rounded-xl border border-border bg-surface px-2 text-xs font-mono outline-none focus:border-violet-500 [unicode-bidi:plaintext]"
                       />
                       {splitCash && Number(splitCash) > 0 && (
                         <span className="text-[9px] text-muted-foreground font-mono block text-end">
-                          {formatWithCommas(splitCash)}
+                          <span dir="ltr" className="[unicode-bidi:isolate]">
+                            {formatWithCommas(splitCash)}
+                          </span>
                         </span>
                       )}
                     </div>
                     <div>
                       <label className="text-[10px] text-muted-foreground block mb-0.5">
-                        {lang === "ar" ? "شبكة/بطاقة:" : "Card:"}
+                        {lang === "ar" ? "بطاقة/حوالة:" : "Card/Transfer:"}
                       </label>
                       <input
                         type="number"
                         min="0"
+                        dir="ltr"
                         value={splitCard}
                         onChange={(e) => setSplitCard(e.target.value)}
                         placeholder="0"
-                        className="h-8 w-full rounded-xl border border-border bg-surface px-2 text-xs font-mono outline-none focus:border-violet-500"
+                        className="h-8 w-full rounded-xl border border-border bg-surface px-2 text-xs font-mono outline-none focus:border-violet-500 [unicode-bidi:plaintext]"
                       />
                       {splitCard && Number(splitCard) > 0 && (
                         <span className="text-[9px] text-muted-foreground font-mono block text-end">
-                          {formatWithCommas(splitCard)}
-                        </span>
-                      )}
-                    </div>
-                    <div>
-                      <label className="text-[10px] text-muted-foreground block mb-0.5">
-                        {lang === "ar" ? "تحويل بنكي:" : "Bank:"}
-                      </label>
-                      <input
-                        type="number"
-                        min="0"
-                        value={splitBank}
-                        onChange={(e) => setSplitBank(e.target.value)}
-                        placeholder="0"
-                        className="h-8 w-full rounded-xl border border-border bg-surface px-2 text-xs font-mono outline-none focus:border-violet-500"
-                      />
-                      {splitBank && Number(splitBank) > 0 && (
-                        <span className="text-[9px] text-muted-foreground font-mono block text-end">
-                          {formatWithCommas(splitBank)}
+                          <span dir="ltr" className="[unicode-bidi:isolate]">
+                            {formatWithCommas(splitCard)}
+                          </span>
                         </span>
                       )}
                     </div>
@@ -2037,7 +2166,9 @@ function POSPage() {
                       {lang === "ar" ? "إجمالي المدفوع الآن:" : "Total Paid Now:"}
                     </span>
                     <span className="font-mono font-bold text-foreground">
-                      {money(splitPaidTotal)}
+                      <span dir="ltr" className="[unicode-bidi:isolate]">
+                        {money(splitPaidTotal)}
+                      </span>
                     </span>
                   </div>
 
@@ -2046,7 +2177,11 @@ function POSPage() {
                       <span>
                         {lang === "ar" ? "المتبقي كدين آجل على العميل:" : "Remaining Debt:"}
                       </span>
-                      <span className="font-bold">{money(remainingDebt)}</span>
+                      <span className="font-bold">
+                        <span dir="ltr" className="[unicode-bidi:isolate]">
+                          {money(remainingDebt)}
+                        </span>
+                      </span>
                     </div>
                   )}
                 </div>
@@ -2057,26 +2192,27 @@ function POSPage() {
                     <input
                       type="number"
                       min="0"
+                      dir="ltr"
                       value={paid}
                       onChange={(e) => handlePaidChange(e.target.value)}
                       placeholder={
                         isPaidEmpty
                           ? paymentMethod === "credit"
-                            ? lang === "ar"
-                              ? "آجل بالكامل (0 ﷼)"
-                              : "Full credit (0)"
-                            : `${lang === "ar" ? "مدفوع بالكامل" : "Full paid"} (${formatWithCommas(total)} ﷼)`
+                            ? `${lang === "ar" ? "آجل بالكامل" : "Full credit"} (${money(0)})`
+                            : `${lang === "ar" ? "مدفوع بالكامل" : "Full paid"} (${money(total)})`
                           : `${t("pos.paid")}`
                       }
                       className={`h-9 w-full rounded-2xl border px-3 text-xs font-mono outline-none transition ${
                         isOverpaid
                           ? "border-destructive bg-destructive/10 text-destructive focus:ring-2 focus:ring-destructive/30"
                           : "border-input/80 bg-surface/90 text-foreground focus:border-primary focus:ring-2 focus:ring-primary/20"
-                      }`}
+                      } [unicode-bidi:plaintext]`}
                     />
                     {paid.trim() !== "" && !isNaN(Number(paid)) && (
                       <span className="absolute end-3 top-1/2 -translate-y-1/2 text-[11px] font-mono text-muted-foreground pointer-events-none">
-                        = {formatWithCommas(paid)} ﷼
+                        <span dir="ltr" className="[unicode-bidi:isolate]">
+                          = {money(Number(paid))}
+                        </span>
                       </span>
                     )}
                   </div>
@@ -2134,7 +2270,11 @@ function POSPage() {
                       <span>
                         {lang === "ar" ? "المتبقي كدين آجل على العميل:" : "Remaining debt:"}
                       </span>
-                      <span className="font-bold">{money(remainingDebt)}</span>
+                      <span className="font-bold">
+                        <span dir="ltr" className="[unicode-bidi:isolate]">
+                          {money(remainingDebt)}
+                        </span>
+                      </span>
                     </div>
                   ) : isPaidEmpty ? (
                     <div className="flex items-center justify-between text-[11px] text-emerald-600 dark:text-emerald-400 font-medium px-2">
@@ -2144,7 +2284,11 @@ function POSPage() {
                           ? "المدفوع تلقائيًا: كامل الإجمالي"
                           : "Auto paid: Full invoice"}
                       </span>
-                      <span className="font-mono font-semibold">{money(total)}</span>
+                      <span className="font-mono font-semibold">
+                        <span dir="ltr" className="[unicode-bidi:isolate]">
+                          {money(total)}
+                        </span>
+                      </span>
                     </div>
                   ) : null}
                 </div>
@@ -2182,7 +2326,11 @@ function POSPage() {
                     <span>{t("pos.checkout")}</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="font-mono font-bold text-base">{money(total)}</span>
+                    <span className="font-mono font-bold text-base">
+                      <span dir="ltr" className="[unicode-bidi:isolate]">
+                        {money(total)}
+                      </span>
+                    </span>
                     <kbd className="hidden sm:inline-block rounded-md bg-primary-foreground/20 px-1.5 py-0.5 text-[10px] font-mono text-primary-foreground">
                       F9
                     </kbd>

@@ -4,13 +4,14 @@ import { useEffect, useState } from "react";
 import { PageHeader } from "@/components/page-header";
 import { useI18n } from "@/lib/i18n";
 import { supabase } from "@/integrations/supabase/client";
-import { money } from "@/lib/format";
+import { getCompanyCurrencySymbol, money } from "@/lib/format";
 import { printFinancialStatement } from "@/lib/pdf";
 import { exportToCSV } from "@/lib/excel-export";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Printer, FileSpreadsheet } from "lucide-react";
+import { fetchUnifiedExpenseStats } from "@/lib/expenses/financial-bridge";
 
 export const Route = createFileRoute("/_app/income-statement")({
   head: () => ({ meta: [{ title: "قائمة الدخل والأرباح — Vortex ERP" }] }),
@@ -57,7 +58,7 @@ function IncomeStatementPage() {
     const fromTs = `${range.from}T00:00:00`;
     const toTs = `${range.to}T23:59:59`;
 
-    const [salesRes, itemsRes, expRes] = await Promise.all([
+    const [salesRes, itemsRes, expenseStats] = await Promise.all([
       supabase
         .from("sales_invoices")
         .select("total,subtotal,discount,tax")
@@ -68,7 +69,7 @@ function IncomeStatementPage() {
         .select("quantity,unit_price,product_id,invoice_id,sales_invoices!inner(created_at)")
         .gte("sales_invoices.created_at", fromTs)
         .lte("sales_invoices.created_at", toTs),
-      supabase.from("expenses").select("amount").gte("created_at", fromTs).lte("created_at", toTs),
+      fetchUnifiedExpenseStats({ dateFrom: range.from, dateTo: range.to }),
     ]);
 
     const sales = salesRes.data ?? [];
@@ -118,7 +119,7 @@ function IncomeStatementPage() {
     }
 
     const grossProfit = netRevenue - cogs;
-    const operatingExpenses = (expRes.data ?? []).reduce((a, r) => a + Number(r.amount), 0);
+    const operatingExpenses = expenseStats.postedTotal;
     const netProfit = grossProfit - operatingExpenses;
 
     setPnl({
@@ -145,7 +146,7 @@ function IncomeStatementPage() {
         lang === "ar"
           ? `الفترة من ${range.from} إلى ${range.to}`
           : `Period ${range.from} to ${range.to}`,
-      currency: "﷼",
+      currency: getCompanyCurrencySymbol(),
       sections: [
         {
           title: lang === "ar" ? "1. إيرادات المبيعات والنشاط" : "1. Sales Revenue",
@@ -206,10 +207,10 @@ function IncomeStatementPage() {
     exportToCSV({
       filename: `قائمة_الدخل_${range.from}_إلى_${range.to}`,
       title: `قائمة الدخل والأرباح والخسائر للفترة ${range.from} - ${range.to}`,
-      currency: "﷼",
+      currency: getCompanyCurrencySymbol(),
       columns: [
         { key: "item", header: "بند قائمة الدخل" },
-        { key: "amount", header: "المبلغ بالريال اليمني", format: "money" },
+        { key: "amount", header: "المبلغ بالعملة المحددة", format: "money" },
       ],
       rows: [
         { item: "إجمالي إيرادات المبيعات", amount: pnl.salesTotal },

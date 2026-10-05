@@ -1,6 +1,6 @@
-import { MessageCircle } from "lucide-react";
 import { openWhatsApp, normalizeWhatsAppPhone } from "@/lib/whatsapp";
 import { useI18n } from "@/lib/i18n";
+import { WhatsAppIcon } from "@/components/whatsapp-icon";
 
 /**
  * زر «واتساب» موحّد — يفتح محادثة برسالة جاهزة.
@@ -46,7 +46,7 @@ export function WhatsAppButton({
         }`
       }
     >
-      <MessageCircle className="h-3.5 w-3.5" />
+      <WhatsAppIcon className="h-3.5 w-3.5" />
       {label}
     </button>
   );

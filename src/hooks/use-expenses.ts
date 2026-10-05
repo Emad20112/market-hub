@@ -443,6 +443,7 @@ export function useExpenseMutations() {
       version: number;
       payNow: boolean;
       paymentMethod?: string;
+      accountId?: string | null;
       accountLabel?: string | null;
       paymentDate?: string | null;
     }): Promise<ExpenseEntry> => {
@@ -454,6 +455,7 @@ export function useExpenseMutations() {
         p_account_label: input.accountLabel || null,
         p_payment_date: input.paymentDate || null,
         p_idempotency_key: input.payNow ? makeIdempotencyKey(`post:${input.id}`) : null,
+        p_account_id: input.accountId || null,
       });
       if (error) throw error;
       return data as ExpenseEntry;
@@ -466,8 +468,8 @@ export function useExpenseMutations() {
             ? "تم الترحيل والسداد معًا"
             : "Posted and settled in one step"
           : ar
-            ? "تم ترحيل المصروف وأصبح قيدًا محاسبيًا"
-            : "Expense posted and recognized",
+            ? "تم ترحيل المصروف وتثبيت بياناته"
+            : "Expense posted and recognized in register",
       );
     },
     onError: (error) => toast.error(describeExpenseError(error, lang)),
@@ -479,6 +481,7 @@ export function useExpenseMutations() {
       amount: number;
       paymentDate?: string;
       paymentMethod?: string;
+      accountId?: string | null;
       accountLabel?: string | null;
       referenceNo?: string | null;
       note?: string | null;
@@ -492,6 +495,7 @@ export function useExpenseMutations() {
         p_reference_no: input.referenceNo || null,
         p_note: input.note || null,
         p_idempotency_key: makeIdempotencyKey(`pay:${input.id}`),
+        p_account_id: input.accountId || null,
       });
       if (error) throw error;
       return data as ExpenseEntry;

@@ -48,7 +48,7 @@ import {
   ShieldCheck,
   Percent,
   X,
-  Copy
+  Copy,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/auth";
@@ -61,7 +61,7 @@ import {
   type ReferenceCounts,
 } from "@/lib/safety";
 import { fuzzySearch, buildSearchIndex } from "@/design/fuzzy";
-import { moneyCell, qtyCell } from "@/lib/format";
+import { getCompanyCurrencySymbol, moneyCell, qtyCell } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import { IconButton } from "@/components/ui/icon-button";
 import { FieldInput, NumberInput, fieldSurfaceClass } from "@/components/ui/input";
@@ -78,6 +78,10 @@ import {
   type SortOption,
 } from "@/components/ui/table-toolbar";
 import { StatusBadge } from "@/components/ui/status-badge";
+import { ItemRoleBadge, resolveItemClass } from "@/components/item-role-badge";
+import { ProductFieldSettings } from "@/components/products/product-field-settings";
+import { useProductFieldVisibility } from "@/hooks/use-product-field-visibility";
+import type { ProductFieldKey } from "@/lib/product-field-visibility";
 import { useBreakpoint } from "@/design/breakpoints";
 import { useRealtimeTable } from "@/lib/realtime";
 import { QUERY_KEYS } from "@/lib/query-keys";
@@ -92,6 +96,7 @@ import {
   INVENTORY_POLICY_LABELS,
   ITEM_NATURE_LABELS,
   TRACKING_LABELS,
+  validateItemPolicy,
   type CostingMethod,
   type InventoryPolicy,
   type ItemNature,
@@ -125,9 +130,15 @@ type ProductRow = {
   category_id: string | null;
   brand_id: string | null;
   unit_id: string | null;
+  /**
+   * The role the item plays — raw grain, finished flour, a by-product, a
+   * service or a consumable. Selected alongside item_nature so the screen can
+   * colour-code the row instead of asking the reader to interpret enum codes.
+   */
+  item_class: string | null;
   category?: { name: string; name_ar: string | null } | null;
   brand?: { name: string; name_ar: string | null } | null;
-  unit?: { short_name: string; name_ar: string | null } | null;
+  unit?: { name?: string; short_name: string; name_ar: string | null } | null;
   origin?: { id: string; name: string; name_ar: string | null; code: string } | null;
   quality?: {
     id: string;
@@ -202,6 +213,18 @@ function ProductsPage() {
   const [viewMode, setViewMode] = useState<"grid" | "list" | "table">("grid");
   const [selectedProductDetail, setSelectedProductDetail] = useState<ProductRow | null>(null);
   const [copiedBarcode, setCopiedBarcode] = useState<string | null>(null);
+  const {
+    visibility,
+    isVisible: isFieldVisible,
+    toggle: toggleField,
+    reset: resetFields,
+  } = useProductFieldVisibility();
+  /** حقل واحد يُسأل عنه كثيراً؛ اختصار يمنع تكرار السطر الطويل في القوالب. */
+  const show = (key: ProductFieldKey) => isFieldVisible("view", key);
+  /** نفس الاختصار لسطح التفاصيل. */
+  const showDetail = (key: ProductFieldKey) => isFieldVisible("detail", key);
+  /** وللسطح الثالث: حقول الإدخال. */
+  const showForm = (key: ProductFieldKey) => isFieldVisible("form", key);
 
   const toggleProductActiveMutation = useMutation({
     mutationFn: async ({ id, isActive }: { id: string; isActive: boolean }) => {
@@ -212,13 +235,19 @@ function ProductsPage() {
     onSuccess: (_, { isActive }) => {
       toast.success(
         isActive
-          ? (lang === "ar" ? "تم تفعيل المنتج بنجاح" : "Product activated")
-          : (lang === "ar" ? "تم تعطيل المنتج بنجاح" : "Product deactivated")
+          ? lang === "ar"
+            ? "تم تفعيل المنتج بنجاح"
+            : "Product activated"
+          : lang === "ar"
+            ? "تم تعطيل المنتج بنجاح"
+            : "Product deactivated",
       );
       qc.invalidateQueries({ queryKey: QUERY_KEYS.products });
     },
     onError: (err: any) => {
-      toast.error(err.message || (lang === "ar" ? "تعذر تغيير حالة المنتج" : "Failed to toggle status"));
+      toast.error(
+        err.message || (lang === "ar" ? "تعذر تغيير حالة المنتج" : "Failed to toggle status"),
+      );
     },
   });
 
@@ -249,7 +278,7 @@ function ProductsPage() {
       // disappear from the grid.
       const { data: page, error: productError } = await (supabase.from("products") as any)
         .select(
-          "id, name, name_ar, sku, barcode, sale_price, cost_price, tax_rate, min_stock, is_active, category_id, brand_id, unit_id, item_nature, inventory_policy, tracking, costing_method, is_sellable, is_purchasable",
+          "id, name, name_ar, sku, barcode, sale_price, cost_price, tax_rate, min_stock, is_active, category_id, brand_id, unit_id, item_nature, item_class, inventory_policy, tracking, costing_method, is_sellable, is_purchasable",
         )
         .order("created_at", { ascending: false })
         .range(from, to);
@@ -271,27 +300,61 @@ function ProductsPage() {
       const productIds = baseRows.map((product) => product.id);
 
       // These fields enrich cards and forms, but are not allowed to block the
-      // base catalogue. If an optional relation is unavailable, the defaults
-      // above keep the product safe to render.
-      const { data: enrichmentRows, error: enrichmentError } = productIds.length
-        ? await (supabase.from("products") as any)
-            .select(
-              "id, shelf_location, origin_id, quality_grade_id, category:categories(name, name_ar), brand:brands(name, name_ar), unit:units(short_name, name_ar), origin:countries_of_origin(id, name, name_ar, code), quality:quality_grades(id, name, name_ar, code, sort_order)",
-            )
-            .in("id", productIds)
-        : { data: [], error: null };
+      // base catalogue. They are fetched as SEPARATE reads on purpose: one
+      // unreadable relation used to fail the whole embed, which silently blanked
+      // the category, the unit and the shelf together — a product then looked
+      // uncategorised and unit-less even though both were perfectly valid.
+      //
+      // Category and unit share a read because a card cannot be read without
+      // them. Brand is isolated: it is optional in this catalogue, and it must
+      // never be able to cost the category.
+      const [enrichmentResult, brandResult, compatibilityResult] = await Promise.all([
+        productIds.length
+          ? (supabase.from("products") as any)
+              .select(
+                "id, shelf_location, category:categories(name, name_ar), unit:units(name, short_name, name_ar)",
+              )
+              .in("id", productIds)
+          : Promise.resolve({ data: [], error: null } as any),
 
-      const { data: compatibilityRows, error: compatibilityError } = productIds.length
-        ? await (supabase as any)
-            .from("product_compatibilities")
-            .select("product_id, vehicle_model_id")
-            .in("product_id", productIds)
-        : { data: [], error: null };
+        productIds.length
+          ? (supabase.from("products") as any)
+              .select("id, brand:brands(name, name_ar)")
+              .in("id", productIds)
+          : Promise.resolve({ data: [], error: null } as any),
+
+        productIds.length
+          ? (supabase as any)
+              .from("product_compatibilities")
+              .select("product_id, vehicle_model_id")
+              .in("product_id", productIds)
+          : Promise.resolve({ data: [], error: null } as any),
+      ]);
+
+      const enrichmentRows = enrichmentResult.data;
+      const enrichmentError = enrichmentResult.error;
+      const brandRows = brandResult.data;
+      const brandError = brandResult.error;
+      const compatibilityRows = compatibilityResult.data;
+      const compatibilityError = compatibilityResult.error;
+
+      if (enrichmentError) {
+        console.warn("[products] تعذّر جلب التصنيف/الوحدة:", enrichmentError.message);
+      }
+      if (brandError) {
+        console.warn("[products] تعذّر جلب العلامة التجارية:", brandError.message);
+      }
+      if (compatibilityError) {
+        console.warn("[products] تعذّر جلب التوافقات:", compatibilityError.message);
+      }
 
       const enrichmentByProduct = new Map<string, Partial<ProductRow>>(
         enrichmentError
           ? []
           : (enrichmentRows ?? []).map((product: ProductRow) => [product.id, product]),
+      );
+      const brandByProduct = new Map<string, ProductRow["brand"]>(
+        brandError ? [] : (brandRows ?? []).map((row: ProductRow) => [row.id, row.brand ?? null]),
       );
 
       const compatibilityByProduct: Record<string, { vehicle_model_id: string }[]> = {};
@@ -306,6 +369,7 @@ function ProductsPage() {
       const rows = baseRows.map((product) => ({
         ...product,
         ...enrichmentByProduct.get(product.id),
+        brand: brandByProduct.get(product.id) ?? null,
         compatibilities: compatibilityByProduct[product.id] ?? [],
       }));
       return { rows, hasMore: rows.length === PRODUCTS_PAGE_SIZE };
@@ -352,6 +416,7 @@ function ProductsPage() {
 
   const { data: meta } = useQuery({
     queryKey: ["products-meta"],
+    staleTime: 10 * 60 * 1000,
     queryFn: async () => {
       const [c, b, u, origins, qualities] = await Promise.all([
         supabase.from("categories").select("id, name, name_ar").order("name"),
@@ -428,7 +493,8 @@ function ProductsPage() {
         case "name":
         default:
           return (
-            (lang === "ar" ? product.name_ar || product.name : product.name || product.name_ar) ?? ""
+            (lang === "ar" ? product.name_ar || product.name : product.name || product.name_ar) ??
+            ""
           );
       }
     };
@@ -439,9 +505,7 @@ function ProductsPage() {
       if (typeof aValue === "number" && typeof bValue === "number") {
         return (aValue - bValue) * direction;
       }
-      return (
-        String(aValue).localeCompare(String(bValue), lang === "ar" ? "ar" : "en") * direction
-      );
+      return String(aValue).localeCompare(String(bValue), lang === "ar" ? "ar" : "en") * direction;
     });
   }, [displayRows, sort, lang]);
 
@@ -488,8 +552,9 @@ function ProductsPage() {
         options: meta.categories.map((category) => ({
           value: category.id,
           label:
-            (lang === "ar" ? category.name_ar || category.name : category.name || category.name_ar) ??
-            category.name,
+            (lang === "ar"
+              ? category.name_ar || category.name
+              : category.name || category.name_ar) ?? category.name,
         })),
       });
     }
@@ -500,7 +565,9 @@ function ProductsPage() {
         type: "select",
         options: meta.brands.map((brand) => ({
           value: brand.id,
-          label: (lang === "ar" ? brand.name_ar || brand.name : brand.name || brand.name_ar) ?? brand.name,
+          label:
+            (lang === "ar" ? brand.name_ar || brand.name : brand.name || brand.name_ar) ??
+            brand.name,
         })),
       });
     }
@@ -511,7 +578,8 @@ function ProductsPage() {
         type: "select",
         options: meta.units.map((unit) => ({
           value: unit.id,
-          label: (lang === "ar" ? unit.name_ar || unit.name : unit.name || unit.name_ar) ?? unit.name,
+          label:
+            (lang === "ar" ? unit.name_ar || unit.name : unit.name || unit.name_ar) ?? unit.name,
         })),
       });
     }
@@ -520,10 +588,12 @@ function ProductsPage() {
         key: "origin",
         label: lang === "ar" ? "بلد المنشأ" : "Origin",
         type: "select",
-        options: meta.origins.map((origin: { id: string; name: string; name_ar: string | null; code: string }) => ({
-          value: origin.id,
-          label: `${origin.name_ar || origin.name} (${origin.code})`,
-        })),
+        options: meta.origins.map(
+          (origin: { id: string; name: string; name_ar: string | null; code: string }) => ({
+            value: origin.id,
+            label: `${origin.name_ar || origin.name} (${origin.code})`,
+          }),
+        ),
       });
     }
 
@@ -578,6 +648,17 @@ function ProductsPage() {
   const label = (en?: string | null, ar?: string | null) =>
     (lang === "ar" ? ar || en : en || ar) ?? "—";
 
+  /**
+   * التصنيف الفارغ لا يجب أن يُعرض كشرطة: يوهم بأن الصنف مربوط باسم غير
+   * موجود. يعيد null ليقرر caller: «عام» في البطاقة، أو إخفاء السطر.
+   */
+  const categoryLabel = (category?: { name: string; name_ar: string | null } | null) => {
+    const raw =
+      lang === "ar" ? category?.name_ar || category?.name : category?.name || category?.name_ar;
+    const text = raw?.trim();
+    return text ? text : null;
+  };
+
   const productLoadError = (
     <div className="card-mullak flex flex-col items-center justify-center space-y-3 p-12 text-center">
       <div className="grid size-14 place-items-center rounded-2xl bg-destructive/10 text-destructive">
@@ -609,7 +690,10 @@ function ProductsPage() {
         cell: (p) => {
           const primary = lang === "ar" ? p.name_ar || p.name : p.name || p.name_ar || "—";
           const other = lang === "ar" ? p.name : p.name_ar;
-          const secondary = other && other.trim() && other.trim() !== primary.trim() ? other : null;
+          const secondary =
+            show("nameEn") && other && other.trim() && other.trim() !== primary.trim()
+              ? other
+              : null;
           return (
             <div className="flex flex-col py-0.5">
               <span
@@ -630,30 +714,60 @@ function ProductsPage() {
           );
         },
       },
-      {
+    ];
+
+    if (show("category")) {
+      cols.push({
         key: "category",
         header: t("products.category"),
         sortable: true,
         width: "w-[140px]",
-        sortValue: (p) => label(p.category?.name, p.category?.name_ar),
+        sortValue: (p) => categoryLabel(p.category) ?? "",
         cell: (p) => (
           <span className="text-xs text-muted-foreground truncate block">
-            {label(p.category?.name, p.category?.name_ar)}
+            {categoryLabel(p.category) ?? (lang === "ar" ? "بدون تصنيف" : "Uncategorized")}
           </span>
         ),
-      },
-    ];
+      });
+    }
 
-    cols.push({
-      key: "shelf_location",
-      header: lang === "ar" ? "الرف" : "Shelf",
-      width: "w-[110px]",
-      cell: (p) => (
-        <span className="font-mono text-xs text-muted-foreground">{p.shelf_location ?? "—"}</span>
-      ),
-    });
+    if (show("role")) {
+      cols.push({
+        /*
+         * The role column is what turns a list of products into something an
+         * operator can scan. On a mill screen full of wheat and flour the
+         * distinction that matters is not the SKU but whether the row is grain
+         * waiting to be milled, a finished product, or a fee — and a colour
+         * answers that before the text is read.
+         */
+        key: "role",
+        header: lang === "ar" ? "الدور" : "Role",
+        sortable: true,
+        width: "w-[130px]",
+        sortValue: (p) => resolveItemClass(p.item_class, p.item_nature, p.inventory_policy),
+        cell: (p) => (
+          <ItemRoleBadge
+            itemClass={p.item_class}
+            itemNature={p.item_nature}
+            inventoryPolicy={p.inventory_policy}
+            isRtl={lang === "ar"}
+          />
+        ),
+      });
+    }
 
-    if (canViewCost) {
+    if (show("shelf")) {
+      cols.push({
+        key: "shelf_location",
+        header: lang === "ar" ? "الرف" : "Shelf",
+        width: "w-[110px]",
+        cell: (p) => (
+          <span className="font-mono text-xs text-muted-foreground">{p.shelf_location ?? "—"}</span>
+        ),
+      });
+    }
+
+    if (canViewCost && show("cost")) {
       cols.push({
         key: "cost_price",
         header: t("common.cost"),
@@ -696,7 +810,10 @@ function ProductsPage() {
           </span>
         ),
       },
-      {
+    );
+
+    if (show("status")) {
+      cols.push({
         key: "is_active",
         header: t("common.status"),
         width: "w-[106px]",
@@ -705,48 +822,49 @@ function ProductsPage() {
             {p.is_active ? t("common.active") : t("common.inactive")}
           </StatusBadge>
         ),
-      },
-      {
-        key: "actions",
-        header: t("common.actions"),
-        align: "end",
-        width: "w-[110px]",
-        cell: (p) => (
-          <div className="inline-flex items-center gap-1.5 pe-2">
-            <IconButton
-              size="sm"
-              variant="outline"
-              tooltip
-              ariaLabel={t("common.edit")}
-              icon={<Pencil />}
-              round
-              onClick={(event) => {
-                event.stopPropagation();
-                setEditing(p);
-                setPrefillBarcode(undefined);
-                setOpen(true);
-              }}
-            />
-            <IconButton
-              size="sm"
-              variant="danger"
-              tooltip
-              ariaLabel={t("common.delete")}
-              icon={<Trash2 />}
-              round
-              onClick={(event) => {
-                event.stopPropagation();
-                setConfirmDelete(p);
-              }}
-            />
-          </div>
-        ),
-      },
-    );
+      });
+    }
+
+    cols.push({
+      key: "actions",
+      header: t("common.actions"),
+      align: "end",
+      width: "w-[110px]",
+      cell: (p) => (
+        <div className="inline-flex items-center gap-1.5 pe-2">
+          <IconButton
+            size="sm"
+            variant="outline"
+            tooltip
+            ariaLabel={t("common.edit")}
+            icon={<Pencil />}
+            round
+            onClick={(event) => {
+              event.stopPropagation();
+              setEditing(p);
+              setPrefillBarcode(undefined);
+              setOpen(true);
+            }}
+          />
+          <IconButton
+            size="sm"
+            variant="danger"
+            tooltip
+            ariaLabel={t("common.delete")}
+            icon={<Trash2 />}
+            round
+            onClick={(event) => {
+              event.stopPropagation();
+              setConfirmDelete(p);
+            }}
+          />
+        </div>
+      ),
+    });
 
     return cols;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [config, canViewCost, lang, t]);
+  }, [config, canViewCost, lang, t, visibility]);
 
   const openNew = () => {
     const qCheck = checkQuota("products", productCount ?? products.length);
@@ -764,8 +882,14 @@ function ProductsPage() {
       <PageHeader
         title={t("products.title")}
         subtitle={t("products.subtitle")}
-        action={
+        actions={
           <div className="flex items-center gap-2">
+            <ProductFieldSettings
+              isVisible={isFieldVisible}
+              toggle={toggleField}
+              reset={resetFields}
+              isRtl={lang === "ar"}
+            />
             <Button
               variant="outline"
               size="sm"
@@ -777,7 +901,9 @@ function ProductsPage() {
               }}
               className="rounded-xl border-border/80 shadow-xs"
             >
-              <span className="hidden sm:inline">{lang === "ar" ? "إضافة سريعة" : "Quick Add"}</span>
+              <span className="hidden sm:inline">
+                {lang === "ar" ? "إضافة سريعة" : "Quick Add"}
+              </span>
             </Button>
             <Button
               variant="primary"
@@ -814,7 +940,9 @@ function ProductsPage() {
           subtitle={
             totalProducts > 0
               ? `${toSystemDigits(Math.round((activeCount / totalProducts) * 100))}% ${lang === "ar" ? "متاح للبيع" : "for sale"}`
-              : (lang === "ar" ? "متاح للبيع" : "for sale")
+              : lang === "ar"
+                ? "متاح للبيع"
+                : "for sale"
           }
           icon={<CheckCircle2 className="size-5" />}
           iconClassName="bg-emerald-500/10 text-emerald-500 border border-emerald-500/20"
@@ -915,10 +1043,22 @@ function ProductsPage() {
           {viewMode === "grid" && (
             <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 scrollbar-x-none">
               {[
-                { id: "all", label: lang === "ar" ? "الكل" : "All", count: productCount ?? products.length },
+                {
+                  id: "all",
+                  label: lang === "ar" ? "الكل" : "All",
+                  count: productCount ?? products.length,
+                },
                 { id: "active", label: lang === "ar" ? "النشطة" : "Active", count: activeCount },
-                { id: "inactive", label: lang === "ar" ? "غير النشطة" : "Inactive", count: inactiveCount },
-                { id: "low_stock", label: lang === "ar" ? "تنبيه المخزون" : "Stock Alert", count: lowStockCount },
+                {
+                  id: "inactive",
+                  label: lang === "ar" ? "غير النشطة" : "Inactive",
+                  count: inactiveCount,
+                },
+                {
+                  id: "low_stock",
+                  label: lang === "ar" ? "تنبيه المخزون" : "Stock Alert",
+                  count: lowStockCount,
+                },
               ].map((filter) => (
                 <button
                   key={filter.id}
@@ -933,7 +1073,9 @@ function ProductsPage() {
                   <span>{filter.label}</span>
                   <span
                     className={`rounded-full px-1.5 py-0.2 text-[10px] font-mono ${
-                      quickFilter === filter.id ? "bg-white/20 text-white" : "bg-muted text-muted-foreground"
+                      quickFilter === filter.id
+                        ? "bg-white/20 text-white"
+                        : "bg-muted text-muted-foreground"
                     }`}
                   >
                     {filter.count}
@@ -977,9 +1119,7 @@ function ProductsPage() {
                 {sortedRows.map((p) => {
                   const primary = lang === "ar" ? p.name_ar || p.name : p.name || p.name_ar || "—";
                   const other = lang === "ar" ? p.name : p.name_ar;
-                  const secondary =
-                    other && other.trim() && other.trim() !== primary.trim() ? other : null;
-                  const categoryName = label(p.category?.name, p.category?.name_ar);
+                  const categoryName = categoryLabel(p.category);
                   const isLowStock = p.min_stock != null && Number(p.min_stock) > 0;
 
                   return (
@@ -998,15 +1138,33 @@ function ProductsPage() {
                     >
                       {/* Top Badges Row */}
                       <div className="flex items-center justify-between gap-1.5 mb-2">
-                        <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 border border-primary/20 px-2 py-0.5 text-[10px] sm:text-[11px] font-semibold text-primary truncate max-w-[110px] sm:max-w-[140px]">
-                          <Tag className="size-2.5 sm:size-3 shrink-0" />
-                          <span className="truncate">
-                            {categoryName || (lang === "ar" ? "عام" : "General")}
-                          </span>
-                        </span>
+                        <div className="flex items-center gap-1 min-w-0">
+                          {show("category") && (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 border border-primary/20 px-2 py-0.5 text-[10px] sm:text-[11px] font-semibold text-primary truncate max-w-[110px] sm:max-w-[140px]">
+                              <Tag className="size-2.5 sm:size-3 shrink-0" />
+                              <span className="truncate">
+                                {categoryName || (lang === "ar" ? "بدون تصنيف" : "Uncategorized")}
+                              </span>
+                            </span>
+                          )}
+                          {/* What role this item plays — grain waiting to be
+                              milled, a finished product, a fee, a consumable.
+                              On a mill screen this is the distinction that
+                              matters, and the grid is the default view, so it
+                              has to be readable here and not only in the table. */}
+                          {show("role") && (
+                            <ItemRoleBadge
+                              itemClass={p.item_class}
+                              itemNature={p.item_nature}
+                              inventoryPolicy={p.inventory_policy}
+                              isRtl={lang === "ar"}
+                              compact
+                            />
+                          )}
+                        </div>
 
                         <div className="flex items-center gap-1">
-                          {p.barcode ? (
+                          {show("barcode") && p.barcode ? (
                             <button
                               type="button"
                               onClick={(e) => {
@@ -1015,7 +1173,9 @@ function ProductsPage() {
                                   navigator.clipboard.writeText(p.barcode);
                                   setCopiedBarcode(p.id);
                                   setTimeout(() => setCopiedBarcode(null), 2000);
-                                  toast.success(lang === "ar" ? "تم نسخ الباركود" : "Barcode copied");
+                                  toast.success(
+                                    lang === "ar" ? "تم نسخ الباركود" : "Barcode copied",
+                                  );
                                 }
                               }}
                               className="inline-flex items-center gap-1 rounded-md bg-surface-2 px-1.5 py-0.5 font-mono text-[9px] sm:text-[10px] text-muted-foreground border border-border/60 hover:text-primary transition"
@@ -1026,12 +1186,10 @@ function ProductsPage() {
                               ) : (
                                 <Barcode className="size-2.5 sm:size-3" />
                               )}
-                              <span className="truncate max-w-[65px] sm:max-w-[85px]">{p.barcode}</span>
+                              <span className="truncate max-w-[65px] sm:max-w-[85px]">
+                                {p.barcode}
+                              </span>
                             </button>
-                          ) : p.sku ? (
-                            <span className="rounded-md bg-surface-2 px-1.5 py-0.5 font-mono text-[9px] sm:text-[10px] text-muted-foreground truncate max-w-[70px]">
-                              {p.sku}
-                            </span>
                           ) : null}
 
                           <span
@@ -1055,35 +1213,27 @@ function ProductsPage() {
                         >
                           {primary}
                         </h4>
-                        {secondary && (
-                          <p
-                            className="text-[10px] sm:text-[11px] text-muted-foreground/80 line-clamp-1 mt-0.5"
-                            dir={lang === "ar" ? "ltr" : "rtl"}
-                          >
-                            {secondary}
-                          </p>
-                        )}
                       </div>
 
                       {/* Attribute Pills: Brand, Unit, Shelf */}
                       <div className="flex flex-wrap items-center gap-1 mb-2.5 text-[10px] text-muted-foreground">
-                        {p.brand && (
+                        {show("brand") && p.brand && (
                           <span className="rounded-md bg-surface-2/70 px-1.5 py-0.2 border border-border/50 truncate max-w-[90px]">
                             {label(p.brand.name, p.brand.name_ar)}
                           </span>
                         )}
-                        {p.unit && (
-                          <span className="rounded-md bg-surface-2/70 px-1.5 py-0.2 border border-border/50">
-                            {label(p.unit.short_name, p.unit.name_ar)}
+                        {show("unit") && p.unit && (
+                          <span className="inline-flex items-center gap-1 rounded-md bg-primary/10 text-primary border border-primary/20 px-2 py-0.5 text-[10px] font-bold">
+                            <span>{p.unit.name_ar || p.unit.name || p.unit.short_name}</span>
                           </span>
                         )}
-                        {p.shelf_location && (
+                        {show("shelf") && p.shelf_location && (
                           <span className="inline-flex items-center gap-1 rounded-md bg-surface-2/70 px-1.5 py-0.2 border border-border/50">
                             <MapPin className="size-2 text-muted-foreground" />
                             <span className="truncate max-w-[60px]">{p.shelf_location}</span>
                           </span>
                         )}
-                        {isLowStock && (
+                        {show("minStock") && isLowStock && (
                           <span className="inline-flex items-center gap-1 rounded-md bg-amber-500/10 text-amber-500 border border-amber-500/20 px-1.5 py-0.2 font-mono">
                             <Boxes className="size-2" />
                             <span>{qtyCell(p.min_stock)}</span>
@@ -1100,7 +1250,7 @@ function ProductsPage() {
                           <p className="font-mono font-bold text-sm sm:text-base text-foreground tracking-tight truncate">
                             {moneyCell(p.sale_price)}
                           </p>
-                          {canViewCost && p.cost_price != null && (
+                          {canViewCost && show("cost") && p.cost_price != null && (
                             <p className="text-[9px] font-mono text-muted-foreground/70 truncate">
                               {lang === "ar" ? "التكلفة: " : "Cost: "}
                               {moneyCell(p.cost_price)}
@@ -1115,12 +1265,27 @@ function ProductsPage() {
                             size="sm"
                             variant="ghost"
                             tooltip
-                            ariaLabel={p.is_active ? (lang === "ar" ? "تعطيل المنتج" : "Deactivate") : (lang === "ar" ? "تفعيل المنتج" : "Activate")}
-                            icon={<Power className={`size-3.5 ${p.is_active ? "text-emerald-500" : "text-muted-foreground"}`} />}
+                            ariaLabel={
+                              p.is_active
+                                ? lang === "ar"
+                                  ? "تعطيل المنتج"
+                                  : "Deactivate"
+                                : lang === "ar"
+                                  ? "تفعيل المنتج"
+                                  : "Activate"
+                            }
+                            icon={
+                              <Power
+                                className={`size-3.5 ${p.is_active ? "text-emerald-500" : "text-muted-foreground"}`}
+                              />
+                            }
                             round
                             onClick={(event) => {
                               event.stopPropagation();
-                              toggleProductActiveMutation.mutate({ id: p.id, isActive: !p.is_active });
+                              toggleProductActiveMutation.mutate({
+                                id: p.id,
+                                isActive: !p.is_active,
+                              });
                             }}
                           />
                           <IconButton
@@ -1210,8 +1375,10 @@ function ProductsPage() {
                   const primary = lang === "ar" ? p.name_ar || p.name : p.name || p.name_ar || "—";
                   const other = lang === "ar" ? p.name : p.name_ar;
                   const secondary =
-                    other && other.trim() && other.trim() !== primary.trim() ? other : null;
-                  const categoryName = label(p.category?.name, p.category?.name_ar);
+                    show("nameEn") && other && other.trim() && other.trim() !== primary.trim()
+                      ? other
+                      : null;
+                  const categoryName = categoryLabel(p.category);
 
                   const isLowStock = p.min_stock != null && Number(p.min_stock) > 0;
                   const barColor = !p.is_active
@@ -1249,11 +1416,20 @@ function ProductsPage() {
                             >
                               {primary}
                             </h4>
-                            {categoryName && (
+                            {show("category") && categoryName && (
                               <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 border border-primary/20 px-2 py-0.5 text-[10px] font-semibold text-primary shrink-0">
                                 <Tag className="size-2.5" />
                                 <span>{categoryName}</span>
                               </span>
+                            )}
+                            {show("role") && (
+                              <ItemRoleBadge
+                                itemClass={p.item_class}
+                                itemNature={p.item_nature}
+                                inventoryPolicy={p.inventory_policy}
+                                isRtl={lang === "ar"}
+                                compact
+                              />
                             )}
                           </div>
 
@@ -1266,17 +1442,17 @@ function ProductsPage() {
                                 {secondary}
                               </span>
                             )}
-                            {p.brand && (
+                            {show("brand") && p.brand && (
                               <span className="rounded-md bg-surface-2/80 px-2 py-0.5 border border-border/50 text-[10px]">
                                 {label(p.brand.name, p.brand.name_ar)}
                               </span>
                             )}
-                            {p.barcode ? (
+                            {show("barcode") && p.barcode ? (
                               <span className="inline-flex items-center gap-1 rounded-md bg-surface-2 px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground border border-border/50">
                                 <Barcode className="size-2.5" />
                                 <span>{p.barcode}</span>
                               </span>
-                            ) : p.sku ? (
+                            ) : show("sku") && p.sku ? (
                               <span className="rounded-md bg-surface-2 px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
                                 {p.sku}
                               </span>
@@ -1287,23 +1463,25 @@ function ProductsPage() {
 
                       {/* Middle section: Shelf location, Min stock, Status */}
                       <div className="flex items-center gap-3 sm:gap-4 shrink-0 text-xs ps-4 md:ps-0">
-                        {p.shelf_location && (
+                        {show("shelf") && p.shelf_location && (
                           <div className="hidden sm:flex items-center gap-1 text-muted-foreground bg-surface-2/60 px-2.5 py-1 rounded-xl border border-border/40 text-[11px]">
                             <MapPin className="size-3 text-muted-foreground" />
                             <span className="font-mono">{p.shelf_location}</span>
                           </div>
                         )}
 
-                        {isLowStock && (
+                        {show("minStock") && isLowStock && (
                           <div className="flex items-center gap-1 text-amber-500 bg-amber-500/10 border border-amber-500/20 px-2.5 py-1 rounded-xl text-[11px] font-mono">
                             <Boxes className="size-3" />
                             <span>{qtyCell(p.min_stock)}</span>
                           </div>
                         )}
 
-                        <StatusBadge tone={p.is_active ? "success" : "neutral"} dot>
-                          {p.is_active ? t("common.active") : t("common.inactive")}
-                        </StatusBadge>
+                        {show("status") && (
+                          <StatusBadge tone={p.is_active ? "success" : "neutral"} dot>
+                            {p.is_active ? t("common.active") : t("common.inactive")}
+                          </StatusBadge>
+                        )}
                       </div>
 
                       {/* Left section: Price + Actions */}
@@ -1312,7 +1490,7 @@ function ProductsPage() {
                           <p className="font-mono font-bold text-base sm:text-lg text-foreground tracking-tight">
                             {moneyCell(p.sale_price)}
                           </p>
-                          {canViewCost && p.cost_price != null && (
+                          {canViewCost && show("cost") && p.cost_price != null && (
                             <p className="text-[10px] font-mono text-muted-foreground/70">
                               {lang === "ar" ? "التكلفة: " : "Cost: "}
                               {moneyCell(p.cost_price)}
@@ -1338,12 +1516,27 @@ function ProductsPage() {
                             size="sm"
                             variant="ghost"
                             tooltip
-                            ariaLabel={p.is_active ? (lang === "ar" ? "تعطيل المنتج" : "Deactivate") : (lang === "ar" ? "تفعيل المنتج" : "Activate")}
-                            icon={<Power className={`size-3.5 ${p.is_active ? "text-emerald-500" : "text-muted-foreground"}`} />}
+                            ariaLabel={
+                              p.is_active
+                                ? lang === "ar"
+                                  ? "تعطيل المنتج"
+                                  : "Deactivate"
+                                : lang === "ar"
+                                  ? "تفعيل المنتج"
+                                  : "Activate"
+                            }
+                            icon={
+                              <Power
+                                className={`size-3.5 ${p.is_active ? "text-emerald-500" : "text-muted-foreground"}`}
+                              />
+                            }
                             round
                             onClick={(event) => {
                               event.stopPropagation();
-                              toggleProductActiveMutation.mutate({ id: p.id, isActive: !p.is_active });
+                              toggleProductActiveMutation.mutate({
+                                id: p.id,
+                                isActive: !p.is_active,
+                              });
                             }}
                           />
                           <IconButton
@@ -1444,7 +1637,6 @@ function ProductsPage() {
         </div>
       )}
 
-
       {/* ─── Luxury Product Detail Sheet (Drawer) ─── */}
       {selectedProductDetail && (
         <div
@@ -1471,17 +1663,41 @@ function ProductsPage() {
                       ? selectedProductDetail.name_ar || selectedProductDetail.name
                       : selectedProductDetail.name || selectedProductDetail.name_ar}
                   </h3>
+                  {showDetail("nameEn") &&
+                    (lang === "ar"
+                      ? selectedProductDetail.name
+                      : selectedProductDetail.name_ar) && (
+                      <p
+                        className="text-xs text-muted-foreground"
+                        dir={lang === "ar" ? "ltr" : "rtl"}
+                      >
+                        {lang === "ar" ? selectedProductDetail.name : selectedProductDetail.name_ar}
+                      </p>
+                    )}
                   <div className="mt-0.5 flex items-center gap-2">
-                    <span
-                      className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] font-bold ${
-                        selectedProductDetail.is_active
-                          ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-400"
-                          : "border-border bg-muted text-muted-foreground"
-                      }`}
-                    >
-                      {selectedProductDetail.is_active ? t("common.active") : t("common.inactive")}
-                    </span>
-                    {selectedProductDetail.sku && (
+                    {showDetail("status") && (
+                      <span
+                        className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] font-bold ${
+                          selectedProductDetail.is_active
+                            ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-400"
+                            : "border-border bg-muted text-muted-foreground"
+                        }`}
+                      >
+                        {selectedProductDetail.is_active
+                          ? t("common.active")
+                          : t("common.inactive")}
+                      </span>
+                    )}
+                    {showDetail("role") && (
+                      <ItemRoleBadge
+                        itemClass={selectedProductDetail.item_class}
+                        itemNature={selectedProductDetail.item_nature}
+                        inventoryPolicy={selectedProductDetail.inventory_policy}
+                        isRtl={lang === "ar"}
+                        compact
+                      />
+                    )}
+                    {showDetail("sku") && selectedProductDetail.sku && (
                       <span className="font-mono text-xs text-muted-foreground">
                         SKU: {selectedProductDetail.sku}
                       </span>
@@ -1509,7 +1725,7 @@ function ProductsPage() {
                 </span>
               </div>
 
-              {canViewCost && (
+              {canViewCost && showDetail("cost") && (
                 <div className="rounded-2xl border border-border/70 bg-card p-4">
                   <span className="text-[11px] font-bold text-muted-foreground block mb-1">
                     {lang === "ar" ? "سعر التكلفة" : "Cost Price"}
@@ -1522,58 +1738,70 @@ function ProductsPage() {
                 </div>
               )}
 
-              <div className="rounded-2xl border border-border/70 bg-card p-4">
-                <span className="text-[11px] font-bold text-muted-foreground block mb-1">
-                  {lang === "ar" ? "حد أدنى المخزون" : "Min Stock Alert"}
-                </span>
-                <span className="text-lg font-black font-mono text-amber-500">
-                  {qtyCell(selectedProductDetail.min_stock)}
-                </span>
-              </div>
+              {showDetail("minStock") && (
+                <div className="rounded-2xl border border-border/70 bg-card p-4">
+                  <span className="text-[11px] font-bold text-muted-foreground block mb-1">
+                    {lang === "ar" ? "حد أدنى المخزون" : "Min Stock Alert"}
+                  </span>
+                  <span className="text-lg font-black font-mono text-amber-500">
+                    {qtyCell(selectedProductDetail.min_stock)}
+                  </span>
+                </div>
+              )}
 
-              <div className="rounded-2xl border border-border/70 bg-card p-4">
-                <span className="text-[11px] font-bold text-muted-foreground block mb-1">
-                  {lang === "ar" ? "الضريبة" : "Tax Rate"}
-                </span>
-                <span className="text-lg font-black font-mono text-foreground">
-                  {selectedProductDetail.tax_rate ? `${selectedProductDetail.tax_rate}%` : "0%"}
-                </span>
-              </div>
+              {showDetail("tax") && (
+                <div className="rounded-2xl border border-border/70 bg-card p-4">
+                  <span className="text-[11px] font-bold text-muted-foreground block mb-1">
+                    {lang === "ar" ? "الضريبة" : "Tax Rate"}
+                  </span>
+                  <span className="text-lg font-black font-mono text-foreground">
+                    {selectedProductDetail.tax_rate ? `${selectedProductDetail.tax_rate}%` : "0%"}
+                  </span>
+                </div>
+              )}
             </div>
 
             {/* Attribute & Specifications Grid */}
             <div className="mt-5 rounded-2xl border border-border/70 bg-card p-4 space-y-3 text-xs">
-              <div className="flex items-center justify-between border-b border-border/40 pb-2">
-                <span className="text-muted-foreground">{lang === "ar" ? "التصنيف" : "Category"}</span>
-                <span className="font-semibold text-foreground">
-                  {selectedProductDetail.category
-                    ? label(selectedProductDetail.category.name, selectedProductDetail.category.name_ar)
-                    : "—"}
-                </span>
-              </div>
-
-              {selectedProductDetail.brand && (
+              {showDetail("category") && (
                 <div className="flex items-center justify-between border-b border-border/40 pb-2">
-                  <span className="text-muted-foreground">{lang === "ar" ? "العلامة التجارية" : "Brand"}</span>
+                  <span className="text-muted-foreground">
+                    {lang === "ar" ? "التصنيف" : "Category"}
+                  </span>
+                  <span className="font-semibold text-foreground">
+                    {categoryLabel(selectedProductDetail.category) ??
+                      (lang === "ar" ? "بدون تصنيف" : "Uncategorized")}
+                  </span>
+                </div>
+              )}
+
+              {showDetail("brand") && selectedProductDetail.brand && (
+                <div className="flex items-center justify-between border-b border-border/40 pb-2">
+                  <span className="text-muted-foreground">
+                    {lang === "ar" ? "العلامة التجارية" : "Brand"}
+                  </span>
                   <span className="font-semibold text-foreground">
                     {label(selectedProductDetail.brand.name, selectedProductDetail.brand.name_ar)}
                   </span>
                 </div>
               )}
 
-              {selectedProductDetail.unit && (
+              {showDetail("unit") && selectedProductDetail.unit && (
                 <div className="flex items-center justify-between border-b border-border/40 pb-2">
-                  <span className="text-muted-foreground">{lang === "ar" ? "وحدة القياس" : "Unit"}</span>
+                  <span className="text-muted-foreground">
+                    {lang === "ar" ? "وحدة القياس" : "Unit"}
+                  </span>
                   <span className="font-semibold text-foreground">
-                    {label(selectedProductDetail.unit.name, selectedProductDetail.unit.name_ar)} (
-                    {selectedProductDetail.unit.short_name})
+                    {selectedProductDetail.unit.name_ar || selectedProductDetail.unit.name}
                   </span>
                 </div>
               )}
 
-              {selectedProductDetail.barcode && (
+              {showDetail("barcode") && selectedProductDetail.barcode && (
                 <div className="flex items-center justify-between border-b border-border/40 pb-2">
-                  <span className="text-muted-foreground">{lang === "ar" ? "الباركود" : "Barcode"}</span>
+                  <span className="text-muted-foreground">
+                    {lang === "ar" ? "الباركود" : "Barcode"}
+                  </span>
                   <div className="flex items-center gap-1.5 font-mono font-bold text-foreground">
                     <span>{selectedProductDetail.barcode}</span>
                     <button
@@ -1590,9 +1818,11 @@ function ProductsPage() {
                 </div>
               )}
 
-              {selectedProductDetail.shelf_location && (
+              {showDetail("shelf") && selectedProductDetail.shelf_location && (
                 <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground">{lang === "ar" ? "موقع الرف" : "Shelf Location"}</span>
+                  <span className="text-muted-foreground">
+                    {lang === "ar" ? "موقع الرف" : "Shelf Location"}
+                  </span>
                   <span className="font-mono text-foreground font-semibold">
                     {selectedProductDetail.shelf_location}
                   </span>
@@ -1647,7 +1877,6 @@ function ProductsPage() {
           </div>
         </div>
       )}
-
 
       {open && (
         <ProductDialog
@@ -1825,10 +2054,25 @@ function ProductDialog({
   const { t, lang } = useI18n();
   const { config } = useCatalogModules();
   const { isModuleEnabled } = useModules();
+  // إعدادات إظهار الحقول موحّدة عبر الشاشة والفورم: نفس المصدر، نفس الزر.
+  const { isVisible: isFieldVisible } = useProductFieldVisibility();
+  const showForm = (key: ProductFieldKey) => isFieldVisible("form", key);
   const [scannerOpen, setScannerOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<"general" | "pricing" | "specs" | "policy">("general");
+  const policyFromProduct = (product: ProductRow): UserItemPolicyPreferences => ({
+    item_nature: product.item_nature ?? "GOOD",
+    inventory_policy: product.inventory_policy ?? "TRACKED",
+    tracking: product.tracking ?? "NONE",
+    costing_method: product.costing_method ?? "MOVING_AVERAGE",
+    is_sellable: product.is_sellable ?? true,
+    is_purchasable: product.is_purchasable ?? true,
+  });
   const [policy, setPolicy] = useState<UserItemPolicyPreferences>(() =>
-    userId ? readUserItemPolicyPreferences(userId) : DEFAULT_USER_ITEM_POLICY_PREFERENCES,
+    initial
+      ? policyFromProduct(initial)
+      : userId
+        ? readUserItemPolicyPreferences(userId)
+        : DEFAULT_USER_ITEM_POLICY_PREFERENCES,
   );
   const [form, setForm] = useState({
     name: initial?.name ?? "",
@@ -1850,9 +2094,13 @@ function ProductDialog({
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    if (!initial && userId) {
-      setPolicy(readUserItemPolicyPreferences(userId));
-    }
+    setPolicy(
+      initial
+        ? policyFromProduct(initial)
+        : userId
+          ? readUserItemPolicyPreferences(userId)
+          : DEFAULT_USER_ITEM_POLICY_PREFERENCES,
+    );
   }, [initial, userId]);
 
   useKeyboardWedge({
@@ -1871,17 +2119,18 @@ function ProductDialog({
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (saving) return;
-    if (!form.name_ar.trim() && !form.name.trim()) {
-      toast.error(lang === "ar" ? "اسم المنتج مطلوب" : t("products.name_required"));
+    if (!form.name_ar.trim()) {
+      toast.error(
+        lang === "ar"
+          ? "اسم المنتج بالعربية مطلوب لظهوره بشكل صحيح في بطاقات النظام."
+          : "An Arabic product name is required for the Yemen catalogue.",
+      );
       setActiveTab("general");
       return;
     }
-    if (!policy.is_sellable && !policy.is_purchasable) {
-      toast.error(
-        lang === "ar"
-          ? "يجب أن يكون المنتج متاحًا للبيع أو الشراء على الأقل."
-          : "The product must be available for sales or purchases.",
-      );
+    const policyCheck = validateItemPolicy(policy);
+    if (!policyCheck.valid) {
+      toast.error(lang === "ar" ? policyCheck.errors[0] : "The selected item policy is not valid.");
       setActiveTab("policy");
       return;
     }
@@ -1902,6 +2151,12 @@ function ProductDialog({
       origin_id: config.enableOrigins ? form.origin_id || null : null,
       quality_grade_id: config.enableQualityGrades ? form.quality_grade_id || null : null,
       is_active: form.is_active,
+      item_nature: policy.item_nature,
+      inventory_policy: policy.inventory_policy,
+      tracking: policy.tracking,
+      costing_method: policy.costing_method,
+      is_sellable: policy.is_sellable,
+      is_purchasable: policy.is_purchasable,
     };
     const request: any = initial
       ? (supabase.from("products") as any)
@@ -1979,7 +2234,13 @@ function ProductDialog({
                 className="size-4 rounded border-border accent-primary"
               />
               <span className="text-xs font-semibold text-foreground/80">
-                {form.is_active ? (lang === "ar" ? "صنف نشط" : "Active") : (lang === "ar" ? "صنف معطل" : "Inactive")}
+                {form.is_active
+                  ? lang === "ar"
+                    ? "صنف نشط"
+                    : "Active"
+                  : lang === "ar"
+                    ? "صنف معطل"
+                    : "Inactive"}
               </span>
             </label>
           </div>
@@ -2012,12 +2273,16 @@ function ProductDialog({
             <div className="min-w-0 flex-1 space-y-1.5">
               <div className="flex flex-wrap items-center gap-2">
                 <span className="inline-flex items-center rounded-md bg-primary/10 px-2 py-0.5 text-[11px] font-semibold text-primary">
-                  {currentCategory ? labelOf(currentCategory.name, currentCategory.name_ar) : (lang === "ar" ? "بدون تصنيف" : "Uncategorized")}
+                  {currentCategory
+                    ? labelOf(currentCategory.name, currentCategory.name_ar)
+                    : lang === "ar"
+                      ? "بدون تصنيف"
+                      : "Uncategorized"}
                 </span>
                 {form.barcode && (
                   <span className="inline-flex items-center gap-1 rounded-md bg-muted/80 px-2 py-0.5 text-[11px] font-mono text-muted-foreground">
                     <Barcode className="size-3" />
-                    {toSystemDigits(form.barcode, lang)}
+                    {toSystemDigits(form.barcode)}
                   </span>
                 )}
                 <span
@@ -2028,12 +2293,25 @@ function ProductDialog({
                       : "bg-muted text-muted-foreground",
                   )}
                 >
-                  <span className={cn("size-1.5 rounded-full", form.is_active ? "bg-emerald-500" : "bg-muted-foreground")} />
-                  {form.is_active ? (lang === "ar" ? "نشط" : "Active") : (lang === "ar" ? "معطل" : "Inactive")}
+                  <span
+                    className={cn(
+                      "size-1.5 rounded-full",
+                      form.is_active ? "bg-emerald-500" : "bg-muted-foreground",
+                    )}
+                  />
+                  {form.is_active
+                    ? lang === "ar"
+                      ? "نشط"
+                      : "Active"
+                    : lang === "ar"
+                      ? "معطل"
+                      : "Inactive"}
                 </span>
               </div>
               <h3 className="truncate text-base font-bold text-foreground sm:text-lg">
-                {form.name_ar.trim() || form.name.trim() || (lang === "ar" ? "اسم المنتج الجديد..." : "New Product Name...")}
+                {form.name_ar.trim() ||
+                  form.name.trim() ||
+                  (lang === "ar" ? "اسم المنتج الجديد..." : "New Product Name...")}
               </h3>
               {form.name_ar.trim() && form.name.trim() && (
                 <p className="truncate text-xs text-muted-foreground">{form.name}</p>
@@ -2048,8 +2326,15 @@ function ProductDialog({
                     {lang === "ar" ? "هامش الربح المتوقع" : "Expected Margin"}
                   </div>
                   <div className="flex items-center justify-center gap-1 font-mono text-sm font-bold text-foreground sm:justify-end">
-                    <span className={cn(profitNum >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400")}>
-                      {profitNum > 0 ? "+" : ""}{toSystemDigits(profitNum.toFixed(2), lang)} ﷼
+                    <span
+                      className={cn(
+                        profitNum >= 0
+                          ? "text-emerald-600 dark:text-emerald-400"
+                          : "text-rose-600 dark:text-rose-400",
+                      )}
+                    >
+                      {profitNum > 0 ? "+" : ""}
+                      {toSystemDigits(profitNum.toFixed(2))} {getCompanyCurrencySymbol()}
                     </span>
                   </div>
                 </div>
@@ -2061,7 +2346,9 @@ function ProductDialog({
                       : "bg-rose-500/10 text-rose-700 dark:text-rose-300",
                   )}
                 >
-                  <span className="text-[10px] font-normal opacity-80">{lang === "ar" ? "العائد" : "ROI"}</span>
+                  <span className="text-[10px] font-normal opacity-80">
+                    {lang === "ar" ? "العائد" : "ROI"}
+                  </span>
                   <span>{marginPercent}%</span>
                 </div>
               </div>
@@ -2138,78 +2425,95 @@ function ProductDialog({
                     clearable
                     value={form.name_ar}
                     onChange={(e) => setForm({ ...form, name_ar: e.target.value })}
-                    placeholder={lang === "ar" ? "أدخل اسم الصنف بالعربية..." : "Arabic product name..."}
+                    placeholder={
+                      lang === "ar" ? "أدخل اسم الصنف بالعربية..." : "Arabic product name..."
+                    }
                   />
                 )}
               </FormField>
 
-              <FormField label={t("products.name_en")}>
-                {(p) => (
-                  <VortexTextInput
-                    id={p.id}
-                    aria-describedby={p["aria-describedby"]}
-                    dir="ltr"
-                    clearable
-                    value={form.name}
-                    onChange={(e) => setForm({ ...form, name: e.target.value })}
-                    placeholder={lang === "ar" ? "English product name..." : "English product name..."}
-                  />
-                )}
-              </FormField>
+              {showForm("nameEn") && (
+                <FormField label={t("products.name_en")}>
+                  {(p) => (
+                    <VortexTextInput
+                      id={p.id}
+                      aria-describedby={p["aria-describedby"]}
+                      dir="ltr"
+                      clearable
+                      value={form.name}
+                      onChange={(e) => setForm({ ...form, name: e.target.value })}
+                      placeholder={
+                        lang === "ar" ? "English product name..." : "English product name..."
+                      }
+                    />
+                  )}
+                </FormField>
+              )}
             </div>
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              <FormField label={t("products.category")}>
-                {(p) => (
-                  <select
-                    id={p.id}
-                    aria-describedby={p["aria-describedby"]}
-                    value={form.category_id}
-                    onChange={(e) => setForm({ ...form, category_id: e.target.value })}
-                    className={cn(fieldSurfaceClass, "text-sm font-medium")}
-                  >
-                    <option value="">{lang === "ar" ? "اختر التصنيف..." : "Select category..."}</option>
-                    {meta.categories.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {labelOf(c.name, c.name_ar)}
+              {showForm("category") && (
+                <FormField label={t("products.category")}>
+                  {(p) => (
+                    <select
+                      id={p.id}
+                      aria-describedby={p["aria-describedby"]}
+                      value={form.category_id}
+                      onChange={(e) => setForm({ ...form, category_id: e.target.value })}
+                      className={cn(fieldSurfaceClass, "text-sm font-medium")}
+                    >
+                      <option value="">
+                        {lang === "ar" ? "اختر التصنيف..." : "Select category..."}
                       </option>
-                    ))}
-                  </select>
-                )}
-              </FormField>
+                      {meta.categories.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {labelOf(c.name, c.name_ar)}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                </FormField>
+              )}
 
-              <FormField
-                label={t("products.sku")}
-                hint={lang === "ar" ? "معرّف الصنف الفريد" : "Unique SKU code"}
-              >
-                {(p) => (
-                  <VortexTextInput
-                    id={p.id}
-                    aria-describedby={p["aria-describedby"]}
-                    clearable
-                    value={form.sku}
-                    onChange={(e) => setForm({ ...form, sku: e.target.value })}
-                    placeholder="PRD-001"
-                  />
-                )}
-              </FormField>
+              {showForm("sku") && (
+                <FormField
+                  label={t("products.sku")}
+                  hint={lang === "ar" ? "معرّف الصنف الفريد" : "Unique SKU code"}
+                >
+                  {(p) => (
+                    <VortexTextInput
+                      id={p.id}
+                      aria-describedby={p["aria-describedby"]}
+                      clearable
+                      value={form.sku}
+                      onChange={(e) => setForm({ ...form, sku: e.target.value })}
+                      placeholder="PRD-001"
+                    />
+                  )}
+                </FormField>
+              )}
 
-              <FormField label={lang === "ar" ? "موقع الرف / المستودع" : "Shelf location"}>
-                {(p) => (
-                  <VortexTextInput
-                    id={p.id}
-                    aria-describedby={p["aria-describedby"]}
-                    clearable
-                    value={form.shelf_location}
-                    onChange={(e) => setForm({ ...form, shelf_location: e.target.value })}
-                    placeholder={lang === "ar" ? "رف A-12" : "Shelf A-12"}
-                  />
-                )}
-              </FormField>
+              {showForm("shelf") && (
+                <FormField label={lang === "ar" ? "موقع الرف / المستودع" : "Shelf location"}>
+                  {(p) => (
+                    <VortexTextInput
+                      id={p.id}
+                      aria-describedby={p["aria-describedby"]}
+                      clearable
+                      value={form.shelf_location}
+                      onChange={(e) => setForm({ ...form, shelf_location: e.target.value })}
+                      placeholder={lang === "ar" ? "رف A-12" : "Shelf A-12"}
+                    />
+                  )}
+                </FormField>
+              )}
             </div>
 
-            {isModuleEnabled("barcode") && (
-              <FormField label={t("products.barcode")} hint={lang === "ar" ? "رمز الباركود للمسح السريع" : "Fast scan barcode"}>
+            {isModuleEnabled("barcode") && showForm("barcode") && (
+              <FormField
+                label={t("products.barcode")}
+                hint={lang === "ar" ? "رمز الباركود للمسح السريع" : "Fast scan barcode"}
+              >
                 {(p) => (
                   <div className="flex items-center gap-2">
                     <VortexTextInput
@@ -2241,30 +2545,38 @@ function ProductDialog({
         {activeTab === "pricing" && (
           <div className="space-y-4 pt-1">
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <FormField label={t("common.price")} required hint={lang === "ar" ? "سعر البيع النهائي للعميل" : "Retail sale price"}>
+              <FormField
+                label={t("common.price")}
+                required
+                hint={lang === "ar" ? "سعر البيع النهائي للعميل" : "Retail sale price"}
+              >
                 {(p) => (
                   <VortexCurrencyInput
                     id={p.id}
                     aria-describedby={p["aria-describedby"]}
                     value={form.sale_price === "" ? null : Number(form.sale_price)}
-                    onValueChange={(num) => setForm({ ...form, sale_price: num == null ? "" : String(num) })}
+                    onValueChange={(num) =>
+                      setForm({ ...form, sale_price: num == null ? "" : String(num) })
+                    }
                     min={0}
-                    currencySymbol="﷼"
+                    currencySymbol={getCompanyCurrencySymbol()}
                     placeholder="0.00"
                   />
                 )}
               </FormField>
 
-              {canViewCost && (
+              {canViewCost && showForm("cost") && (
                 <FormField
                   label={t("common.cost")}
                   hint={lang === "ar" ? "تكلفة الشراء الأساسية" : "Unit cost price"}
                 >
                   <VortexCurrencyInput
                     value={form.cost_price === "" ? null : Number(form.cost_price)}
-                    onValueChange={(num) => setForm({ ...form, cost_price: num == null ? "" : String(num) })}
+                    onValueChange={(num) =>
+                      setForm({ ...form, cost_price: num == null ? "" : String(num) })
+                    }
                     min={0}
-                    currencySymbol="﷼"
+                    currencySymbol={getCompanyCurrencySymbol()}
                     placeholder="0.00"
                   />
                 </FormField>
@@ -2272,21 +2584,25 @@ function ProductDialog({
             </div>
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <FormField label={t("products.tax_rate")}>
-                {(p) => (
-                  <NumberInput
-                    {...p}
-                    value={form.tax_rate === "" ? null : Number(form.tax_rate)}
-                    onValueChange={(v) => setForm({ ...form, tax_rate: v == null ? "" : String(v) })}
-                    min={0}
-                    max={100}
-                    suffix="%"
-                    placeholder="0"
-                  />
-                )}
-              </FormField>
+              {showForm("tax") && (
+                <FormField label={t("products.tax_rate")}>
+                  {(p) => (
+                    <NumberInput
+                      {...p}
+                      value={form.tax_rate === "" ? null : Number(form.tax_rate)}
+                      onValueChange={(v) =>
+                        setForm({ ...form, tax_rate: v == null ? "" : String(v) })
+                      }
+                      min={0}
+                      max={100}
+                      suffix="%"
+                      placeholder="0"
+                    />
+                  )}
+                </FormField>
+              )}
 
-              {config.enableUnits && (
+              {config.enableUnits && showForm("unit") && (
                 <FormField label={t("products.unit")}>
                   {(p) => (
                     <select
@@ -2296,10 +2612,12 @@ function ProductDialog({
                       onChange={(e) => setForm({ ...form, unit_id: e.target.value })}
                       className={cn(fieldSurfaceClass, "text-sm font-medium")}
                     >
-                      <option value="">{lang === "ar" ? "اختر وحدة القياس..." : "Select unit..."}</option>
+                      <option value="">
+                        {lang === "ar" ? "اختر وحدة القياس..." : "Select unit..."}
+                      </option>
                       {meta.units.map((u) => (
                         <option key={u.id} value={u.id}>
-                          {labelOf(u.name, u.name_ar)} ({u.short_name})
+                          {labelOf(u.name, u.name_ar)}
                         </option>
                       ))}
                     </select>
@@ -2314,23 +2632,31 @@ function ProductDialog({
         {activeTab === "specs" && (
           <div className="space-y-4 pt-1">
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <FormField
-                label={t("products.min")}
-                hint={lang === "ar" ? "حد التنبيه عند وصول المخزون لهذه الكمية" : "Low-stock alert threshold"}
-              >
-                {(p) => (
-                  <NumberInput
-                    {...p}
-                    value={form.min_stock === "" ? null : Number(form.min_stock)}
-                    onValueChange={(v) => setForm({ ...form, min_stock: v == null ? "" : String(v) })}
-                    min={0}
-                    decimal={false}
-                    placeholder="1"
-                  />
-                )}
-              </FormField>
+              {showForm("minStock") && (
+                <FormField
+                  label={t("products.min")}
+                  hint={
+                    lang === "ar"
+                      ? "حد التنبيه عند وصول المخزون لهذه الكمية"
+                      : "Low-stock alert threshold"
+                  }
+                >
+                  {(p) => (
+                    <NumberInput
+                      {...p}
+                      value={form.min_stock === "" ? null : Number(form.min_stock)}
+                      onValueChange={(v) =>
+                        setForm({ ...form, min_stock: v == null ? "" : String(v) })
+                      }
+                      min={0}
+                      decimal={false}
+                      placeholder="1"
+                    />
+                  )}
+                </FormField>
+              )}
 
-              {config.enableBrands && (
+              {config.enableBrands && showForm("brand") && (
                 <FormField label={t("products.brand")}>
                   {(p) => (
                     <select
@@ -2340,7 +2666,9 @@ function ProductDialog({
                       onChange={(e) => setForm({ ...form, brand_id: e.target.value })}
                       className={cn(fieldSurfaceClass, "text-sm font-medium")}
                     >
-                      <option value="">{lang === "ar" ? "اختر العلامة التجارية..." : "Select brand..."}</option>
+                      <option value="">
+                        {lang === "ar" ? "اختر العلامة التجارية..." : "Select brand..."}
+                      </option>
                       {meta.brands.map((b) => (
                         <option key={b.id} value={b.id}>
                           {labelOf(b.name, b.name_ar)}
@@ -2363,10 +2691,12 @@ function ProductDialog({
                       onChange={(e) => setForm({ ...form, origin_id: e.target.value })}
                       className={cn(fieldSurfaceClass, "text-sm font-medium")}
                     >
-                      <option value="">{lang === "ar" ? "اختر بلد المنشأ..." : "Select origin..."}</option>
+                      <option value="">
+                        {lang === "ar" ? "اختر بلد المنشأ..." : "Select origin..."}
+                      </option>
                       {meta.origins.map((o) => (
                         <option key={o.id} value={o.id}>
-                          {lang === "ar" ? o.name_ar : o.name} ({o.code})
+                          {lang === "ar" ? o.name_ar : o.name}
                         </option>
                       ))}
                     </select>
@@ -2384,7 +2714,9 @@ function ProductDialog({
                       onChange={(e) => setForm({ ...form, quality_grade_id: e.target.value })}
                       className={cn(fieldSurfaceClass, "text-sm font-medium")}
                     >
-                      <option value="">{lang === "ar" ? "اختر درجة الجودة..." : "Select quality grade..."}</option>
+                      <option value="">
+                        {lang === "ar" ? "اختر درجة الجودة..." : "Select quality grade..."}
+                      </option>
                       {meta.qualities.map((q) => (
                         <option key={q.id} value={q.id}>
                           {lang === "ar" ? q.name_ar : q.name}
@@ -2407,7 +2739,10 @@ function ProductDialog({
                 value={policy.item_nature}
                 options={[
                   { value: "GOOD", label: ITEM_NATURE_LABELS.GOOD[lang === "ar" ? "ar" : "en"] },
-                  { value: "SERVICE", label: ITEM_NATURE_LABELS.SERVICE[lang === "ar" ? "ar" : "en"] },
+                  {
+                    value: "SERVICE",
+                    label: ITEM_NATURE_LABELS.SERVICE[lang === "ar" ? "ar" : "en"],
+                  },
                 ]}
                 onChange={(value) =>
                   setPolicy((current) => ({
@@ -2424,7 +2759,7 @@ function ProductDialog({
                 <SettingsChoice
                   label={lang === "ar" ? "سياسة المخزون" : "Inventory policy"}
                   value={policy.inventory_policy}
-                  options={( ["TRACKED", "UNTRACKED", "CUSTOMER_OWNED"] as InventoryPolicy[]).map(
+                  options={(["TRACKED", "UNTRACKED", "CUSTOMER_OWNED"] as InventoryPolicy[]).map(
                     (value) => ({
                       value,
                       label: INVENTORY_POLICY_LABELS[value][lang === "ar" ? "ar" : "en"],
@@ -2444,7 +2779,7 @@ function ProductDialog({
                 <SettingsChoice
                   label={lang === "ar" ? "طريقة التتبع" : "Tracking method"}
                   value={policy.tracking}
-                  options={( ["NONE", "BATCH", "SERIAL"] as ItemTracking[]).map((value) => ({
+                  options={(["NONE", "BATCH", "SERIAL"] as ItemTracking[]).map((value) => ({
                     value,
                     label: TRACKING_LABELS[value][lang === "ar" ? "ar" : "en"],
                   }))}
@@ -2460,13 +2795,21 @@ function ProductDialog({
               <div className="grid grid-cols-1 gap-2 pt-2 sm:grid-cols-2">
                 <SettingsToggle
                   label={lang === "ar" ? "متاح للبيع" : "Available for sales"}
-                  description={lang === "ar" ? "إظهار الصنف في نقطة البيع وفواتير المبيعات" : "Show in sales & POS"}
+                  description={
+                    lang === "ar"
+                      ? "إظهار الصنف في نقطة البيع وفواتير المبيعات"
+                      : "Show in sales & POS"
+                  }
                   checked={policy.is_sellable}
                   onChange={(checked) => setPolicy((c) => ({ ...c, is_sellable: checked }))}
                 />
                 <SettingsToggle
                   label={lang === "ar" ? "متاح للشراء" : "Available for purchase"}
-                  description={lang === "ar" ? "إظهار الصنف في فواتير المشتريات والتوريد" : "Show in purchases & supply"}
+                  description={
+                    lang === "ar"
+                      ? "إظهار الصنف في فواتير المشتريات والتوريد"
+                      : "Show in purchases & supply"
+                  }
                   checked={policy.is_purchasable}
                   onChange={(checked) => setPolicy((c) => ({ ...c, is_purchasable: checked }))}
                 />
@@ -2522,22 +2865,30 @@ function SettingsChoice({
 
 function SettingsToggle({
   label,
+  description,
   checked,
   onChange,
 }: {
   label: string;
+  /** نص توضيحي تحت العنوان. اختياري — يخفيه ركن التبديل إن لم يُمرَّر. */
+  description?: string;
   checked: boolean;
   onChange: (checked: boolean) => void;
 }) {
   return (
-    <label className="flex cursor-pointer items-center gap-3 rounded-xl border-border bg-surface p-3 text-sm">
+    <label className="flex cursor-pointer items-start gap-3 rounded-xl border-border bg-surface p-3 text-sm">
       <input
         type="checkbox"
         checked={checked}
         onChange={(event) => onChange(event.target.checked)}
-        className="size-4 accent-[var(--primary)]"
+        className="mt-0.5 size-4 accent-[var(--primary)]"
       />
-      <span>{label}</span>
+      <span>
+        <span>{label}</span>
+        {description && (
+          <span className="mt-0.5 block text-[11px] text-muted-foreground">{description}</span>
+        )}
+      </span>
     </label>
   );
 }

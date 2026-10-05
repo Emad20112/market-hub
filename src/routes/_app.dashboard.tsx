@@ -1,3 +1,5 @@
+import { lazy } from "react";
+import { Area, AreaChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { PageHeader } from "@/components/page-header";
@@ -36,20 +38,7 @@ import {
   Zap,
   CheckCircle2,
 } from "lucide-react";
-import {
-  AreaChart,
-  Area,
-  XAxis,
-  YAxis,
-  Tooltip,
-  ResponsiveContainer,
-  BarChart,
-  Bar,
-  CartesianGrid,
-  PieChart,
-  Pie,
-  Cell,
-} from "recharts";
+const DashboardCharts = lazy(() => import("@/components/dashboard/dashboard-charts"));
 
 export const Route = createFileRoute("/_app/dashboard")({
   head: () => ({ meta: [{ title: "Dashboard — Vortex ERP" }] }),
@@ -209,7 +198,7 @@ function DashboardPage() {
 
   const { data } = useQuery({
     queryKey: ["dashboard-v2"],
-    staleTime: 60_000,
+    staleTime: 180_000, // 3 minutes cache for dashboard metrics
     queryFn: async () => {
       const since = new Date(Date.now() - 30 * 86400_000).toISOString();
       const since14 = new Date(Date.now() - 14 * 86400_000).toISOString();
@@ -221,9 +210,10 @@ function DashboardPage() {
         supabase
           .from("customers")
           .select("id,name,balance", { count: "exact" })
-          .eq("is_active", true),
-        supabase.from("products").select("id,name,name_ar,min_stock,sale_price"),
-        supabase.from("inventory").select("product_id,quantity"),
+          .eq("is_active", true)
+          .limit(500),
+        supabase.from("products").select("id,name,name_ar,min_stock,sale_price").limit(1000),
+        supabase.from("inventory").select("product_id,quantity").limit(2000),
         supabase
           .from("sales_invoice_items")
           .select(
@@ -237,7 +227,11 @@ function DashboardPage() {
           .gte("created_at", since14)
           .order("created_at", { ascending: false })
           .limit(8),
-        supabase.from("expenses").select("amount,created_at").gte("created_at", since),
+        (supabase as any)
+          .from("expense_entries")
+          .select("total_amount,paid_amount,status,expense_date,created_at")
+          .in("status", ["POSTED", "PARTIALLY_PAID", "PAID", "CLOSED"])
+          .gte("expense_date", since.slice(0, 10)),
       ]);
 
       const salesRows = sales.data ?? [];
@@ -284,7 +278,9 @@ function DashboardPage() {
 
       const totalRev = salesRows.reduce((a, r: any) => a + Number(r.total), 0);
       const totalPaid = salesRows.reduce((a, r: any) => a + Number(r.paid), 0);
-      const totalExpenses = (expenses.data ?? []).reduce((a, r: any) => a + Number(r.amount), 0);
+      const expRows = (expenses.data ?? []) as any[];
+      const totalExpenses = expRows.reduce((a, r) => a + Number(r.total_amount || 0), 0);
+      const totalExpenseCashPaid = expRows.reduce((a, r) => a + Number(r.paid_amount || 0), 0);
       const receivables = (customers.data ?? []).reduce(
         (a, r: any) => a + Math.max(0, Number(r.balance ?? 0)),
         0,
@@ -302,7 +298,7 @@ function DashboardPage() {
         alerts: lowStock.length,
         expenses: totalExpenses,
         receivables,
-        netCash: totalPaid - totalExpenses,
+        netCash: totalPaid - totalExpenseCashPaid,
         daily,
         topProducts,
         paySplit,
@@ -343,7 +339,7 @@ function DashboardPage() {
         <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/30 to-transparent" />
 
         {/* ─── Layer 1: Identity Horizon & Chronos Capsule ─── */}
-        <div className="relative flex flex-col gap-5 p-5 sm:p-6 lg:flex-row lg:items-center lg:justify-between border-b border-border/50">
+        <div className="relative flex flex-col gap-4 p-3.5 sm:p-6 lg:flex-row lg:items-center lg:justify-between border-b border-border/50 overflow-hidden w-full">
           {/* Executive Identity & Status */}
           <div className="flex items-center gap-4">
             <div className="relative shrink-0">
@@ -400,7 +396,7 @@ function DashboardPage() {
             {(() => {
               const luxuryDate = formatLuxuryDate(now, { showDayName: true, showYear: true });
               return (
-                <div className="flex w-full sm:w-auto items-stretch rounded-2xl border border-border/80 bg-surface/70 shadow-xs backdrop-blur-md">
+                <div className="flex flex-wrap sm:flex-nowrap w-full sm:w-auto items-stretch rounded-2xl border border-border/80 bg-surface/70 shadow-xs backdrop-blur-md overflow-hidden">
                   {/* Date Pillar */}
                   <div className="flex items-center gap-3 px-3.5 py-2.5">
                     <div className="grid place-items-center min-w-[2.4rem] h-10 rounded-xl bg-primary/10 text-primary font-mono font-black text-xl leading-none">
@@ -587,6 +583,7 @@ function DashboardPage() {
 
             <Link
               to="/products"
+              search={{ barcode: undefined }}
               className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-border/80 bg-surface/70 px-3 text-xs font-semibold text-foreground hover:bg-surface-2 transition-all active:scale-95"
             >
               <Package className="size-3.5 text-muted-foreground" />

@@ -8,7 +8,7 @@
 
 import { type ReactNode } from "react";
 import { cn } from "@/lib/utils";
-import { Scale, AlertTriangle } from "lucide-react";
+import { Scale, AlertTriangle, TriangleAlert } from "lucide-react";
 import type { MillingStatus, MillingOutputType } from "@/lib/milling";
 import { STATUS_LABELS_AR } from "@/lib/milling";
 
@@ -191,6 +191,72 @@ export function StatTile({
 
 /* ------------------------------------------------------------ empty state */
 
+/**
+ * A failed query rendered as an empty list is not an empty screen - it is a
+ * false claim. "No production orders" and "the server did not answer" look
+ * identical to a user, and the natural next action is to conclude there is
+ * nothing to do. So a failed load must say it failed.
+ *
+ * `what` names the thing that would have loaded, so the message tells the user
+ * what is missing rather than merely that something is.
+ */
+export function QueryErrorState({
+  what,
+  error,
+  onRetry,
+}: {
+  what: string;
+  error: unknown;
+  onRetry?: () => void;
+}) {
+  const message = error instanceof Error ? error.message : "تعذّر الاتصال بالخادم أو رُفض الطلب.";
+  return (
+    <div
+      role="alert"
+      className="flex flex-col items-center gap-3 p-8 text-center"
+      data-testid="query-error"
+    >
+      <TriangleAlert className="h-6 w-6 text-rose-500" />
+      <div className="space-y-1">
+        <p className="text-sm font-bold text-foreground">تعذّر تحميل {what}</p>
+        <p className="max-w-md text-xs leading-relaxed text-muted-foreground">{message}</p>
+        <p className="text-[11px] text-muted-foreground">
+          هذه ليست قائمة فارغة — البيانات لم تصل. جرّب مرة أخرى.
+        </p>
+      </div>
+      {onRetry && (
+        <button
+          type="button"
+          onClick={onRetry}
+          className="inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-xl border border-border px-3 text-xs font-bold text-foreground transition hover:bg-muted"
+        >
+          إعادة المحاولة
+        </button>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Aggregate guard for a screen that fires several queries. Renders nothing
+ * when the data loaded, and the first failure when it did not.
+ *
+ * Usage:
+ *   const failed = queries.find((q) => q.isError);
+ *   {failed && <QueryErrorState what="…" error={failed.error} onRetry={failed.refetch} />}
+ */
+export function QueryErrorGuard({
+  what,
+  queries,
+}: {
+  what: string;
+  queries: { isError: boolean; error: unknown; refetch: () => unknown }[];
+}) {
+  const failed = queries.find((q) => q.isError);
+  if (!failed) return null;
+  return <QueryErrorState what={what} error={failed.error} onRetry={() => void failed.refetch()} />;
+}
+
 export function MillingEmpty({
   title,
   description,
@@ -303,9 +369,26 @@ export function MillingTable({
   );
 }
 
-export function MillingRow({ children }: { children: ReactNode }) {
+export function MillingRow({
+  children,
+  onClick,
+  className,
+}: {
+  children: ReactNode;
+  /* Optional: orders and other selectable lists need a clickable row, and
+   * making the caller wrap every cell in a button loses the row highlight. */
+  onClick?: () => void;
+  className?: string;
+}) {
   return (
-    <tr className="border-b border-border/50 transition-colors last:border-0 hover:bg-surface-2/40">
+    <tr
+      onClick={onClick}
+      className={
+        "border-b border-border/50 transition-colors last:border-0 hover:bg-surface-2/40" +
+        (onClick ? " cursor-pointer" : "") +
+        (className ? ` ${className}` : "")
+      }
+    >
       {children}
     </tr>
   );

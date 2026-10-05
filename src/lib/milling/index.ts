@@ -42,6 +42,8 @@ export interface MillingIntake {
   driver_name: string | null;
   grain_type: string;
   grain_product_id: string | null;
+  /** مرجع فحص الحبوب (المرحلة 0/4). grain_type مشتق منه. */
+  grain_grade_id: string | null;
   bag_size_kg: number;
   intake_bag_count: number;
   nominal_weight_kg: number;
@@ -68,6 +70,8 @@ export interface MillingJob {
   milling_fee_per_bag: number;
   milling_fee_per_ton: number;
   service_product_id: string | null;
+  /** العقد الذي ينفذه هذا الأمر. NULL = أمر قديم قبل نظام العقود. */
+  agreement_id: string | null;
   expected_extraction_rate: number;
   allowed_loss_percentage: number;
   actual_loss_kg: number;
@@ -211,6 +215,8 @@ export interface CreateIntakeInput {
   customerId: string;
   grainType: string;
   grainProductId?: string | null;
+  /** مرجع فحص الحبوب. يقود التسمية المشتقة لـ grainType (المرحلة 0). */
+  grainGradeId?: string | null;
   bagSizeKg: number;
   bagCount: number;
   grossWeightKg: number;
@@ -221,6 +227,16 @@ export interface CreateIntakeInput {
   driverName?: string;
   silo?: string;
   notes?: string;
+  /*
+   * Bag identification, captured at the gate.
+   *
+   * These live on the receipt because the moment of receipt is the only moment
+   * they can be observed. "Fifty sacks, five of them torn" is checkable when
+   * the truck is still at the gate and impossible to verify a week later.
+   */
+  bagType?: string | null;
+  bagSource?: string | null;
+  bagCondition?: string | null;
 }
 
 /**
@@ -252,6 +268,7 @@ export async function createIntake(input: CreateIntakeInput): Promise<OpResult> 
     _customer_id: input.customerId,
     _grain_type: input.grainType.trim(),
     _grain_product_id: input.grainProductId ?? null,
+    _grain_grade_id: input.grainGradeId ?? null,
     _bag_size_kg: input.bagSizeKg,
     _bag_count: input.bagCount,
     _gross_weight_kg: input.grossWeightKg,
@@ -262,10 +279,28 @@ export async function createIntake(input: CreateIntakeInput): Promise<OpResult> 
     _driver_name: input.driverName ?? null,
     _silo: input.silo ?? null,
     _notes: input.notes ?? null,
+    // Bag details travel with the receipt so the document records what was
+    // actually seen at the gate, not what is assumed about sacks in general.
+    _bag_type: input.bagType ?? null,
+    _bag_source: input.bagSource ?? null,
+    _bag_condition: input.bagCondition ?? null,
   });
 
-  if (error) return { ok: false, message: error.message };
+  if (error) return { ok: false, message: translateMillingError(error.message) };
   return { ok: true, id: data as string };
+}
+
+function translateMillingError(msg: string): string {
+  if (!msg) return "حدث خطأ غير متوقع في معالجة العملية.";
+  if (msg.includes("Grain grade is required") || msg.includes("grain_grade_id")) {
+    return "نوع ودرجة الحبوب مطلوبة — تحديد درجة الحبوب مطلوب لحساب سعر وتكلفة الطحن لاحقاً.";
+  }
+  if (msg.includes("Warehouse is required")) return "يرجى تحديد المستودع / الصومعة.";
+  if (msg.includes("Customer is required")) return "يرجى اختيار العميل صاحب الأمانات.";
+  if (msg.includes("Bag size must be greater than zero"))
+    return "سعة الكيس يجب أن تكون أكبر من صفر.";
+  if (msg.includes("Net weight must be positive")) return "الوزن الصافي يجب أن يكون أكبر من صفر.";
+  return msg;
 }
 
 /* --------------------------------------------------------------- 2. jobs */
@@ -466,7 +501,7 @@ export async function fetchIntakes(
   if (customerId) q = q.eq("customer_id", customerId);
 
   const { data, error } = await q;
-  if (error) return [];
+  if (error) throw error;
   return (data ?? []) as MillingIntake[];
 }
 
@@ -477,7 +512,7 @@ export async function fetchJobs(storeId?: string, status?: MillingStatus): Promi
   if (status) q = q.eq("status", status);
 
   const { data, error } = await q;
-  if (error) return [];
+  if (error) throw error;
   return (data ?? []) as MillingJob[];
 }
 
@@ -488,7 +523,7 @@ export async function fetchOutputs(jobId: string): Promise<MillingOutput[]> {
     .eq("job_id", jobId)
     .order("output_type");
 
-  if (error) return [];
+  if (error) throw error;
   return (data ?? []) as MillingOutput[];
 }
 
@@ -506,7 +541,7 @@ export async function fetchDeliveries(
   if (customerId) q = q.eq("customer_id", customerId);
 
   const { data, error } = await q;
-  if (error) return [];
+  if (error) throw error;
   return (data ?? []) as MillingDelivery[];
 }
 
@@ -521,7 +556,7 @@ export async function fetchPackagingItems(): Promise<
     .eq("is_active", true)
     .order("sku");
 
-  if (error) return [];
+  if (error) throw error;
   return (data ?? []) as any;
 }
 
@@ -546,7 +581,7 @@ export async function fetchOutputBalances(customerId: string): Promise<OutputBal
     .gt("remaining_bags", 0)
     .order("output_type");
 
-  if (error) return [];
+  if (error) throw error;
   return (data ?? []) as OutputBalanceRow[];
 }
 
@@ -558,7 +593,7 @@ export async function fetchServiceMoney(customerId: string): Promise<ServiceMone
     .eq("customer_id", customerId)
     .order("created_at", { ascending: false });
 
-  if (error) return [];
+  if (error) throw error;
   return (data ?? []) as ServiceMoneyRow[];
 }
 

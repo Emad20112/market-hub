@@ -1,36 +1,44 @@
 import { toSystemDigits } from "./format-preferences";
-const COMPANY_SETTINGS_CACHE_KEY = "company_settings_cache";
+import { getCurrencySymbol } from "./currencies";
+import {
+  getCachedCompanyProfile,
+  patchCompanyProfileCache,
+  clearCompanyProfileCache,
+  type CompanyProfile,
+} from "./printing/company-profile";
 
-type CompanySettingsCache = {
-  currency?: string;
-  currency_symbol?: string;
-};
+/**
+ * حقول العملة فقط — تُقرأ من Company Profile المركزي.
+ * لم يعد هذا الملف يقرأ `localStorage` بنفسه: القراءة المباشرة للكاش
+ * ممنوعة، والمصدر الوحيد هو `printing/company-profile.ts`.
+ */
+type CompanyCurrency = Pick<CompanyProfile, "currency">;
 
-function readCompanySettingsCache(): CompanySettingsCache {
-  if (typeof window === "undefined") return {};
-  try {
-    const raw = window.localStorage.getItem(COMPANY_SETTINGS_CACHE_KEY);
-    return raw ? JSON.parse(raw) : {};
-  } catch {
-    return {};
-  }
+function readCompanyCurrency(): CompanyCurrency {
+  return { currency: getCachedCompanyProfile().currency };
 }
 
-export function setCompanySettingsCache(settings: CompanySettingsCache | null | undefined) {
-  if (typeof window === "undefined") return;
+/** يُبقي الكاش متزامنًا مع Company Profile — من نفس الـ accessor المركزي. */
+export function setCompanySettingsCache(settings: CompanyCurrency | null | undefined) {
   if (!settings) {
-    window.localStorage.removeItem(COMPANY_SETTINGS_CACHE_KEY);
+    clearCompanyProfileCache();
     return;
   }
-  window.localStorage.setItem(COMPANY_SETTINGS_CACHE_KEY, JSON.stringify(settings));
+  patchCompanyProfileCache({ currency: settings.currency });
+}
+
+export function getCompanyCurrencySymbol(): string {
+  const settings = readCompanyCurrency();
+  const locale = typeof navigator !== "undefined" ? navigator.language : "ar-YE";
+  return getCurrencySymbol(settings.currency || "YER", locale);
 }
 
 export function money(n: number, currency?: string, locale?: string) {
-  const settings = readCompanySettingsCache();
+  const settings = readCompanyCurrency();
   const currencyCode = currency || settings.currency || "YER";
   const resolvedLocale =
     locale || (typeof navigator !== "undefined" ? navigator.language : "ar-YE");
-  const symbol = settings.currency_symbol?.trim() || "﷼";
+  const symbol = getCurrencySymbol(currencyCode, resolvedLocale);
 
   const base = new Intl.NumberFormat(resolvedLocale, {
     minimumFractionDigits: 0,
@@ -78,13 +86,13 @@ export function qtyCell(n: number | string | null | undefined, locale = "en-US")
 
 /**
  * Currency with grouping — the full-form alternative to `money()`.
- * Example: 12500 → "12,500.00 ﷼"
+ * Example: 12500 → "12,500.00 ر.ي"
  */
 export function moneyGrouped(n: number, locale?: string) {
-  const settings = readCompanySettingsCache();
+  const settings = readCompanyCurrency();
   const resolvedLocale =
     locale || (typeof navigator !== "undefined" ? navigator.language : "ar-YE");
-  const symbol = settings.currency_symbol?.trim() || "﷼";
+  const symbol = getCurrencySymbol(settings.currency || "YER", resolvedLocale);
   const base = new Intl.NumberFormat(resolvedLocale, {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,

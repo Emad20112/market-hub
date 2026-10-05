@@ -21,6 +21,7 @@ import { Route as AppSuppliersRouteImport } from './routes/_app.suppliers'
 import { Route as AppSettlementsRouteImport } from './routes/_app.settlements'
 import { Route as AppSettingsRouteImport } from './routes/_app.settings'
 import { Route as AppSalesReturnsRouteImport } from './routes/_app.sales-returns'
+import { Route as AppSalesInvoiceRouteImport } from './routes/_app.sales-invoice'
 import { Route as AppSalesRouteImport } from './routes/_app.sales'
 import { Route as AppReturnsRouteImport } from './routes/_app.returns'
 import { Route as AppReportsRouteImport } from './routes/_app.reports'
@@ -28,11 +29,14 @@ import { Route as AppPurchasesRouteImport } from './routes/_app.purchases'
 import { Route as AppPurchaseReturnsRouteImport } from './routes/_app.purchase-returns'
 import { Route as AppPurchasePosRouteImport } from './routes/_app.purchase-pos'
 import { Route as AppProductsRouteImport } from './routes/_app.products'
+import { Route as AppProductionRouteImport } from './routes/_app.production'
 import { Route as AppPosRouteImport } from './routes/_app.pos'
 import { Route as AppPlatformAdminRouteImport } from './routes/_app.platform-admin'
 import { Route as AppPlansRouteImport } from './routes/_app.plans'
 import { Route as AppPaymentsRouteImport } from './routes/_app.payments'
+import { Route as AppOpeningBalancesRouteImport } from './routes/_app.opening-balances'
 import { Route as AppNotificationsRouteImport } from './routes/_app.notifications'
+import { Route as AppMillingCounterRouteImport } from './routes/_app.milling-counter'
 import { Route as AppMillingRouteImport } from './routes/_app.milling'
 import { Route as AppLoyaltyRouteImport } from './routes/_app.loyalty'
 import { Route as AppInventoryRouteImport } from './routes/_app.inventory'
@@ -50,6 +54,8 @@ import { Route as AppBalanceSheetRouteImport } from './routes/_app.balance-sheet
 import { Route as AppAuditRouteImport } from './routes/_app.audit'
 import { Route as AppAnalyticsRouteImport } from './routes/_app.analytics'
 import { Route as AppAccountStatementRouteImport } from './routes/_app.account-statement'
+import { Route as AppMillingReportsRouteImport } from './routes/_app.milling.reports'
+import { Route as AppMillingOperationsGuideRouteImport } from './routes/_app.milling.operations-guide'
 import { Route as AppMillingJobsRouteImport } from './routes/_app.milling.jobs'
 import { Route as AppMillingIntakeRouteImport } from './routes/_app.milling.intake'
 import { Route as AppMillingDeliveryRouteImport } from './routes/_app.milling.delivery'
@@ -114,6 +120,11 @@ const AppSalesReturnsRoute = AppSalesReturnsRouteImport.update({
   path: '/sales-returns',
   getParentRoute: () => AppRoute,
 } as any)
+const AppSalesInvoiceRoute = AppSalesInvoiceRouteImport.update({
+  id: '/sales-invoice',
+  path: '/sales-invoice',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppSalesRoute = AppSalesRouteImport.update({
   id: '/sales',
   path: '/sales',
@@ -149,6 +160,11 @@ const AppProductsRoute = AppProductsRouteImport.update({
   path: '/products',
   getParentRoute: () => AppRoute,
 } as any)
+const AppProductionRoute = AppProductionRouteImport.update({
+  id: '/production',
+  path: '/production',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppPosRoute = AppPosRouteImport.update({
   id: '/pos',
   path: '/pos',
@@ -169,9 +185,19 @@ const AppPaymentsRoute = AppPaymentsRouteImport.update({
   path: '/payments',
   getParentRoute: () => AppRoute,
 } as any)
+const AppOpeningBalancesRoute = AppOpeningBalancesRouteImport.update({
+  id: '/opening-balances',
+  path: '/opening-balances',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppNotificationsRoute = AppNotificationsRouteImport.update({
   id: '/notifications',
   path: '/notifications',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppMillingCounterRoute = AppMillingCounterRouteImport.update({
+  id: '/milling-counter',
+  path: '/milling-counter',
   getParentRoute: () => AppRoute,
 } as any)
 const AppMillingRoute = AppMillingRouteImport.update({
@@ -259,6 +285,17 @@ const AppAccountStatementRoute = AppAccountStatementRouteImport.update({
   path: '/account-statement',
   getParentRoute: () => AppRoute,
 } as any)
+const AppMillingReportsRoute = AppMillingReportsRouteImport.update({
+  id: '/reports',
+  path: '/reports',
+  getParentRoute: () => AppMillingRoute,
+} as any)
+const AppMillingOperationsGuideRoute =
+  AppMillingOperationsGuideRouteImport.update({
+    id: '/operations-guide',
+    path: '/operations-guide',
+    getParentRoute: () => AppMillingRoute,
+  } as any)
 const AppMillingJobsRoute = AppMillingJobsRouteImport.update({
   id: '/jobs',
   path: '/jobs',
@@ -301,11 +338,14 @@ export interface FileRoutesByFullPath {
   '/inventory': typeof AppInventoryRoute
   '/loyalty': typeof AppLoyaltyRoute
   '/milling': typeof AppMillingRouteWithChildren
+  '/milling-counter': typeof AppMillingCounterRoute
   '/notifications': typeof AppNotificationsRoute
+  '/opening-balances': typeof AppOpeningBalancesRoute
   '/payments': typeof AppPaymentsRoute
   '/plans': typeof AppPlansRoute
   '/platform-admin': typeof AppPlatformAdminRoute
   '/pos': typeof AppPosRoute
+  '/production': typeof AppProductionRoute
   '/products': typeof AppProductsRoute
   '/purchase-pos': typeof AppPurchasePosRoute
   '/purchase-returns': typeof AppPurchaseReturnsRoute
@@ -313,6 +353,7 @@ export interface FileRoutesByFullPath {
   '/reports': typeof AppReportsRoute
   '/returns': typeof AppReturnsRoute
   '/sales': typeof AppSalesRoute
+  '/sales-invoice': typeof AppSalesInvoiceRoute
   '/sales-returns': typeof AppSalesReturnsRoute
   '/settings': typeof AppSettingsRoute
   '/settlements': typeof AppSettlementsRoute
@@ -326,6 +367,8 @@ export interface FileRoutesByFullPath {
   '/milling/delivery': typeof AppMillingDeliveryRoute
   '/milling/intake': typeof AppMillingIntakeRoute
   '/milling/jobs': typeof AppMillingJobsRoute
+  '/milling/operations-guide': typeof AppMillingOperationsGuideRoute
+  '/milling/reports': typeof AppMillingReportsRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -347,11 +390,14 @@ export interface FileRoutesByTo {
   '/inventory': typeof AppInventoryRoute
   '/loyalty': typeof AppLoyaltyRoute
   '/milling': typeof AppMillingRouteWithChildren
+  '/milling-counter': typeof AppMillingCounterRoute
   '/notifications': typeof AppNotificationsRoute
+  '/opening-balances': typeof AppOpeningBalancesRoute
   '/payments': typeof AppPaymentsRoute
   '/plans': typeof AppPlansRoute
   '/platform-admin': typeof AppPlatformAdminRoute
   '/pos': typeof AppPosRoute
+  '/production': typeof AppProductionRoute
   '/products': typeof AppProductsRoute
   '/purchase-pos': typeof AppPurchasePosRoute
   '/purchase-returns': typeof AppPurchaseReturnsRoute
@@ -359,6 +405,7 @@ export interface FileRoutesByTo {
   '/reports': typeof AppReportsRoute
   '/returns': typeof AppReturnsRoute
   '/sales': typeof AppSalesRoute
+  '/sales-invoice': typeof AppSalesInvoiceRoute
   '/sales-returns': typeof AppSalesReturnsRoute
   '/settings': typeof AppSettingsRoute
   '/settlements': typeof AppSettlementsRoute
@@ -372,6 +419,8 @@ export interface FileRoutesByTo {
   '/milling/delivery': typeof AppMillingDeliveryRoute
   '/milling/intake': typeof AppMillingIntakeRoute
   '/milling/jobs': typeof AppMillingJobsRoute
+  '/milling/operations-guide': typeof AppMillingOperationsGuideRoute
+  '/milling/reports': typeof AppMillingReportsRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -395,11 +444,14 @@ export interface FileRoutesById {
   '/_app/inventory': typeof AppInventoryRoute
   '/_app/loyalty': typeof AppLoyaltyRoute
   '/_app/milling': typeof AppMillingRouteWithChildren
+  '/_app/milling-counter': typeof AppMillingCounterRoute
   '/_app/notifications': typeof AppNotificationsRoute
+  '/_app/opening-balances': typeof AppOpeningBalancesRoute
   '/_app/payments': typeof AppPaymentsRoute
   '/_app/plans': typeof AppPlansRoute
   '/_app/platform-admin': typeof AppPlatformAdminRoute
   '/_app/pos': typeof AppPosRoute
+  '/_app/production': typeof AppProductionRoute
   '/_app/products': typeof AppProductsRoute
   '/_app/purchase-pos': typeof AppPurchasePosRoute
   '/_app/purchase-returns': typeof AppPurchaseReturnsRoute
@@ -407,6 +459,7 @@ export interface FileRoutesById {
   '/_app/reports': typeof AppReportsRoute
   '/_app/returns': typeof AppReturnsRoute
   '/_app/sales': typeof AppSalesRoute
+  '/_app/sales-invoice': typeof AppSalesInvoiceRoute
   '/_app/sales-returns': typeof AppSalesReturnsRoute
   '/_app/settings': typeof AppSettingsRoute
   '/_app/settlements': typeof AppSettlementsRoute
@@ -420,6 +473,8 @@ export interface FileRoutesById {
   '/_app/milling/delivery': typeof AppMillingDeliveryRoute
   '/_app/milling/intake': typeof AppMillingIntakeRoute
   '/_app/milling/jobs': typeof AppMillingJobsRoute
+  '/_app/milling/operations-guide': typeof AppMillingOperationsGuideRoute
+  '/_app/milling/reports': typeof AppMillingReportsRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -443,11 +498,14 @@ export interface FileRouteTypes {
     | '/inventory'
     | '/loyalty'
     | '/milling'
+    | '/milling-counter'
     | '/notifications'
+    | '/opening-balances'
     | '/payments'
     | '/plans'
     | '/platform-admin'
     | '/pos'
+    | '/production'
     | '/products'
     | '/purchase-pos'
     | '/purchase-returns'
@@ -455,6 +513,7 @@ export interface FileRouteTypes {
     | '/reports'
     | '/returns'
     | '/sales'
+    | '/sales-invoice'
     | '/sales-returns'
     | '/settings'
     | '/settlements'
@@ -468,6 +527,8 @@ export interface FileRouteTypes {
     | '/milling/delivery'
     | '/milling/intake'
     | '/milling/jobs'
+    | '/milling/operations-guide'
+    | '/milling/reports'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -489,11 +550,14 @@ export interface FileRouteTypes {
     | '/inventory'
     | '/loyalty'
     | '/milling'
+    | '/milling-counter'
     | '/notifications'
+    | '/opening-balances'
     | '/payments'
     | '/plans'
     | '/platform-admin'
     | '/pos'
+    | '/production'
     | '/products'
     | '/purchase-pos'
     | '/purchase-returns'
@@ -501,6 +565,7 @@ export interface FileRouteTypes {
     | '/reports'
     | '/returns'
     | '/sales'
+    | '/sales-invoice'
     | '/sales-returns'
     | '/settings'
     | '/settlements'
@@ -514,6 +579,8 @@ export interface FileRouteTypes {
     | '/milling/delivery'
     | '/milling/intake'
     | '/milling/jobs'
+    | '/milling/operations-guide'
+    | '/milling/reports'
   id:
     | '__root__'
     | '/'
@@ -536,11 +603,14 @@ export interface FileRouteTypes {
     | '/_app/inventory'
     | '/_app/loyalty'
     | '/_app/milling'
+    | '/_app/milling-counter'
     | '/_app/notifications'
+    | '/_app/opening-balances'
     | '/_app/payments'
     | '/_app/plans'
     | '/_app/platform-admin'
     | '/_app/pos'
+    | '/_app/production'
     | '/_app/products'
     | '/_app/purchase-pos'
     | '/_app/purchase-returns'
@@ -548,6 +618,7 @@ export interface FileRouteTypes {
     | '/_app/reports'
     | '/_app/returns'
     | '/_app/sales'
+    | '/_app/sales-invoice'
     | '/_app/sales-returns'
     | '/_app/settings'
     | '/_app/settlements'
@@ -561,6 +632,8 @@ export interface FileRouteTypes {
     | '/_app/milling/delivery'
     | '/_app/milling/intake'
     | '/_app/milling/jobs'
+    | '/_app/milling/operations-guide'
+    | '/_app/milling/reports'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -655,6 +728,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppSalesReturnsRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/sales-invoice': {
+      id: '/_app/sales-invoice'
+      path: '/sales-invoice'
+      fullPath: '/sales-invoice'
+      preLoaderRoute: typeof AppSalesInvoiceRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/sales': {
       id: '/_app/sales'
       path: '/sales'
@@ -704,6 +784,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppProductsRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/production': {
+      id: '/_app/production'
+      path: '/production'
+      fullPath: '/production'
+      preLoaderRoute: typeof AppProductionRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/pos': {
       id: '/_app/pos'
       path: '/pos'
@@ -732,11 +819,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppPaymentsRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/opening-balances': {
+      id: '/_app/opening-balances'
+      path: '/opening-balances'
+      fullPath: '/opening-balances'
+      preLoaderRoute: typeof AppOpeningBalancesRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/notifications': {
       id: '/_app/notifications'
       path: '/notifications'
       fullPath: '/notifications'
       preLoaderRoute: typeof AppNotificationsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/milling-counter': {
+      id: '/_app/milling-counter'
+      path: '/milling-counter'
+      fullPath: '/milling-counter'
+      preLoaderRoute: typeof AppMillingCounterRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/milling': {
@@ -858,6 +959,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAccountStatementRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/milling/reports': {
+      id: '/_app/milling/reports'
+      path: '/reports'
+      fullPath: '/milling/reports'
+      preLoaderRoute: typeof AppMillingReportsRouteImport
+      parentRoute: typeof AppMillingRoute
+    }
+    '/_app/milling/operations-guide': {
+      id: '/_app/milling/operations-guide'
+      path: '/operations-guide'
+      fullPath: '/milling/operations-guide'
+      preLoaderRoute: typeof AppMillingOperationsGuideRouteImport
+      parentRoute: typeof AppMillingRoute
+    }
     '/_app/milling/jobs': {
       id: '/_app/milling/jobs'
       path: '/jobs'
@@ -894,6 +1009,8 @@ interface AppMillingRouteChildren {
   AppMillingDeliveryRoute: typeof AppMillingDeliveryRoute
   AppMillingIntakeRoute: typeof AppMillingIntakeRoute
   AppMillingJobsRoute: typeof AppMillingJobsRoute
+  AppMillingOperationsGuideRoute: typeof AppMillingOperationsGuideRoute
+  AppMillingReportsRoute: typeof AppMillingReportsRoute
 }
 
 const AppMillingRouteChildren: AppMillingRouteChildren = {
@@ -901,6 +1018,8 @@ const AppMillingRouteChildren: AppMillingRouteChildren = {
   AppMillingDeliveryRoute: AppMillingDeliveryRoute,
   AppMillingIntakeRoute: AppMillingIntakeRoute,
   AppMillingJobsRoute: AppMillingJobsRoute,
+  AppMillingOperationsGuideRoute: AppMillingOperationsGuideRoute,
+  AppMillingReportsRoute: AppMillingReportsRoute,
 }
 
 const AppMillingRouteWithChildren = AppMillingRoute._addFileChildren(
@@ -925,11 +1044,14 @@ interface AppRouteChildren {
   AppInventoryRoute: typeof AppInventoryRoute
   AppLoyaltyRoute: typeof AppLoyaltyRoute
   AppMillingRoute: typeof AppMillingRouteWithChildren
+  AppMillingCounterRoute: typeof AppMillingCounterRoute
   AppNotificationsRoute: typeof AppNotificationsRoute
+  AppOpeningBalancesRoute: typeof AppOpeningBalancesRoute
   AppPaymentsRoute: typeof AppPaymentsRoute
   AppPlansRoute: typeof AppPlansRoute
   AppPlatformAdminRoute: typeof AppPlatformAdminRoute
   AppPosRoute: typeof AppPosRoute
+  AppProductionRoute: typeof AppProductionRoute
   AppProductsRoute: typeof AppProductsRoute
   AppPurchasePosRoute: typeof AppPurchasePosRoute
   AppPurchaseReturnsRoute: typeof AppPurchaseReturnsRoute
@@ -937,6 +1059,7 @@ interface AppRouteChildren {
   AppReportsRoute: typeof AppReportsRoute
   AppReturnsRoute: typeof AppReturnsRoute
   AppSalesRoute: typeof AppSalesRoute
+  AppSalesInvoiceRoute: typeof AppSalesInvoiceRoute
   AppSalesReturnsRoute: typeof AppSalesReturnsRoute
   AppSettingsRoute: typeof AppSettingsRoute
   AppSettlementsRoute: typeof AppSettlementsRoute
@@ -966,11 +1089,14 @@ const AppRouteChildren: AppRouteChildren = {
   AppInventoryRoute: AppInventoryRoute,
   AppLoyaltyRoute: AppLoyaltyRoute,
   AppMillingRoute: AppMillingRouteWithChildren,
+  AppMillingCounterRoute: AppMillingCounterRoute,
   AppNotificationsRoute: AppNotificationsRoute,
+  AppOpeningBalancesRoute: AppOpeningBalancesRoute,
   AppPaymentsRoute: AppPaymentsRoute,
   AppPlansRoute: AppPlansRoute,
   AppPlatformAdminRoute: AppPlatformAdminRoute,
   AppPosRoute: AppPosRoute,
+  AppProductionRoute: AppProductionRoute,
   AppProductsRoute: AppProductsRoute,
   AppPurchasePosRoute: AppPurchasePosRoute,
   AppPurchaseReturnsRoute: AppPurchaseReturnsRoute,
@@ -978,6 +1104,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppReportsRoute: AppReportsRoute,
   AppReturnsRoute: AppReturnsRoute,
   AppSalesRoute: AppSalesRoute,
+  AppSalesInvoiceRoute: AppSalesInvoiceRoute,
   AppSalesReturnsRoute: AppSalesReturnsRoute,
   AppSettingsRoute: AppSettingsRoute,
   AppSettlementsRoute: AppSettlementsRoute,

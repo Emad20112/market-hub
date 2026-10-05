@@ -1,8 +1,11 @@
 import { InvoiceTemplateId, PrintSettings } from "./types";
+import { supabase } from "@/integrations/supabase/client";
 
 export const DEFAULT_PRINT_SETTINGS: PrintSettings = {
   defaultCustomerTemplate: "thermal",
   defaultInventoryTemplate: "thermal",
+  defaultCustomerPaperProfile: "thermal-80",
+  defaultInventoryPaperProfile: "thermal-80",
   paperSize: "80mm",
   autoPrintCustomerInvoice: true,
   autoPrintInventoryDocument: false,
@@ -17,7 +20,6 @@ export const DEFAULT_PRINT_SETTINGS: PrintSettings = {
   showNotes: true,
   showSignatures: true,
   showFooter: true,
-  showBranding: true,
 };
 
 const STORAGE_KEY = "vortex_print_settings";
@@ -26,7 +28,13 @@ const STORAGE_KEY = "vortex_print_settings";
 const LEGACY_TEMPLATE_KEY = "pos_default_template";
 const LEGACY_MODE_KEY = "pos_print_mode";
 
-const VALID_TEMPLATES: InvoiceTemplateId[] = ["thermal", "standard", "elegant"];
+const VALID_TEMPLATES: InvoiceTemplateId[] = [
+  "thermal",
+  "standard",
+  "elegant",
+  "unified-modern",
+  "formal",
+];
 const VALID_MODES = ["auto", "ask", "off"] as const;
 
 function readLegacyTemplate(): InvoiceTemplateId | null {
@@ -70,6 +78,8 @@ export function getPrintSettings(): PrintSettings {
       const hydrated: PrintSettings = {
         ...DEFAULT_PRINT_SETTINGS,
         defaultCustomerTemplate: legacyTemplate ?? DEFAULT_PRINT_SETTINGS.defaultCustomerTemplate,
+        defaultCustomerPaperProfile: DEFAULT_PRINT_SETTINGS.defaultCustomerPaperProfile,
+        defaultInventoryPaperProfile: DEFAULT_PRINT_SETTINGS.defaultInventoryPaperProfile,
         printMode: legacyMode ?? DEFAULT_PRINT_SETTINGS.printMode,
       };
       return reconcileModeAndAutoPrint(hydrated);
@@ -118,8 +128,29 @@ export function savePrintSettings(settings: Partial<PrintSettings>): PrintSettin
       // Sync legacy keys so older screens (settings page, POS) stay consistent
       localStorage.setItem(LEGACY_TEMPLATE_KEY, updated.defaultCustomerTemplate);
       localStorage.setItem(LEGACY_MODE_KEY, updated.printMode);
+
+      // Sync to Supabase company_settings for server-wide persistence
+      (supabase as any)
+        .from("company_settings")
+        .select("catalog_modules")
+        .eq("id", 1)
+        .maybeSingle()
+        .then(({ data }: any) => {
+          if (data) {
+            const currentCatalog = (data.catalog_modules as Record<string, any>) || {};
+            const updatedCatalog = { ...currentCatalog, printSettings: updated };
+            return (supabase as any)
+              .from("company_settings")
+              .update({ catalog_modules: updatedCatalog })
+              .eq("id", 1);
+          }
+        })
+        .then(
+          () => {},
+          (err: any) => console.warn("[print-settings] Cloud sync warning:", err),
+        );
     } catch (err) {
-      console.error("Failed to save print settings to localStorage:", err);
+      console.error("Failed to save print settings:", err);
     }
   }
 

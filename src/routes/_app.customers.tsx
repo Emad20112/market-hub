@@ -25,7 +25,7 @@ import {
   CheckCircle2,
   Loader2,
   Sparkles,
-  MessageCircle,
+  MessageSquareText,
   LayoutGrid,
   List,
   ChevronLeft,
@@ -43,6 +43,8 @@ import { useDebtIndex } from "@/hooks/use-debts-overview";
 import { StatementIntegrityBadge } from "@/components/statements/statement-integrity-badge";
 import { VortexCollectionSheet, type PaymentMethod } from "@/components/vortex-ui";
 import { toast } from "sonner";
+import { WhatsAppIcon } from "@/components/whatsapp-icon";
+import { Ltr } from "@/components/ltr-value";
 
 export const Route = createFileRoute("/_app/customers")({
   head: () => ({ meta: [{ title: "العملاء — فورتيكس ERP" }] }),
@@ -65,20 +67,29 @@ interface Customer {
 type FilterType = "all" | "debt" | "credit" | "active";
 type ViewMode = "cards" | "table";
 
+function customerMessage(customer: Customer, lang: "ar" | "en") {
+  const bal = Number(customer.balance);
+  return bal > 0
+    ? debtReminderMessage({
+        name: customer.name,
+        balance: money(bal),
+        lang,
+      })
+    : lang === "ar"
+      ? `مرحباً ${customer.name}، نتواصل معك بخصوص حسابك في فورتكس ERP.`
+      : `Hello ${customer.name}, contacting you regarding your account.`;
+}
+
 function handleCustomerWhatsApp(customer: Customer, lang: "ar" | "en") {
   if (!customer.phone) return;
-  const bal = Number(customer.balance);
-  const msg =
-    bal > 0
-      ? debtReminderMessage({
-          name: customer.name,
-          balance: money(bal),
-          lang,
-        })
-      : lang === "ar"
-        ? `مرحباً ${customer.name}، نتواصل معك بخصوص حسابك في فورتكس ERP.`
-        : `Hello ${customer.name}, contacting you regarding your account.`;
-  openWhatsApp(customer.phone, msg);
+  openWhatsApp(customer.phone, customerMessage(customer, lang));
+}
+
+function handleCustomerSMS(customer: Customer, lang: "ar" | "en") {
+  if (!customer.phone) return;
+  const phone = customer.phone.replace(/[^\d+]/g, "");
+  const message = encodeURIComponent(customerMessage(customer, lang));
+  window.open(`sms:${phone}?body=${message}`, "_blank");
 }
 
 function CustomersPage() {
@@ -108,7 +119,7 @@ function CustomersPage() {
 
   async function load() {
     setLoading(true);
-    const { data } = await supabase.from("customers").select("*").order("name");
+    const { data } = await supabase.from("customers").select("*").order("name").limit(1000);
     setRows((data ?? []) as Customer[]);
     setLoading(false);
   }
@@ -253,11 +264,9 @@ function CustomersPage() {
     method: PaymentMethod;
     notes?: string;
   }) => {
-    const dbMethodMap: Record<PaymentMethod, "cash" | "card" | "bank_transfer"> = {
+    const dbMethodMap: Record<PaymentMethod, "cash" | "bank_transfer"> = {
       cash: "cash",
-      card: "card",
       transfer: "bank_transfer",
-      cheque: "bank_transfer",
     };
     const dbMethod = dbMethodMap[data.method] || "cash";
     const receiptNumber = String(Date.now()).slice(-6);
@@ -490,7 +499,7 @@ function CustomersPage() {
               {lang === "ar" ? "المبالغ عليهم (ديون)" : "Receivables (Owed)"}
             </p>
             <h3 className="mt-1 font-mono text-xl sm:text-2xl font-bold tracking-tight text-amber-400">
-              {money(totalOwed)}
+              <Ltr>{money(totalOwed)}</Ltr>
             </h3>
             <span className="mt-1 inline-flex items-center gap-1 text-[10px] text-amber-500/80">
               <AlertTriangle className="size-3" />
@@ -510,7 +519,7 @@ function CustomersPage() {
               {lang === "ar" ? "المبالغ لهم (رصيد دائن)" : "Credits (Advance)"}
             </p>
             <h3 className="mt-1 font-mono text-xl sm:text-2xl font-bold tracking-tight text-emerald-400">
-              {money(totalCredit)}
+              <Ltr>{money(totalCredit)}</Ltr>
             </h3>
             <span className="mt-1 inline-flex items-center gap-1 text-[10px] text-emerald-500/80">
               <CheckCircle2 className="size-3" />
@@ -532,7 +541,7 @@ function CustomersPage() {
             <h3
               className={`mt-1 font-mono text-xl sm:text-2xl font-bold tracking-tight ${totalOwed - totalCredit >= 0 ? "text-amber-400" : "text-emerald-400"}`}
             >
-              {money(totalOwed - totalCredit)}
+              <Ltr>{money(totalOwed - totalCredit)}</Ltr>
             </h3>
             <span className="mt-1 inline-flex items-center gap-1 text-[10px] text-muted-foreground">
               <TrendingUp className="size-3" />
@@ -631,17 +640,6 @@ function CustomersPage() {
               >
                 <List className="size-4" />
               </button>
-            </div>
-
-            {/* Subtle Keyboard Shortcuts badge */}
-            <div className="hidden xl:flex items-center gap-1.5 text-[10px] text-muted-foreground/80 bg-surface-2/60 px-2.5 py-2 rounded-xl border border-border/60">
-              <span className="font-mono font-bold text-foreground">F1</span> جديد
-              <span>·</span>
-              <span className="font-mono font-bold text-foreground">F2</span> تعديل
-              <span>·</span>
-              <span className="font-mono font-bold text-foreground">F3</span> تحصيل
-              <span>·</span>
-              <span className="font-mono font-bold text-foreground">F5</span> كشف
             </div>
 
             {/* New Customer Button */}
@@ -754,13 +752,13 @@ function CustomersPage() {
                       {limit > 0 && (
                         <span className="rounded-lg bg-rose-500/10 border border-rose-500/20 px-2 py-0.5 text-[9px] font-mono font-medium text-rose-400 flex items-center gap-1">
                           <ShieldCheck className="size-2.5" />
-                          {lang === "ar" ? "حد الائتمان:" : "Limit:"} {money(limit)}
+                          {lang === "ar" ? "حد الائتمان:" : "Limit:"} <Ltr>{money(limit)}</Ltr>
                         </span>
                       )}
                       {Number(r.loyalty_points) > 0 && (
                         <span className="rounded-lg bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 text-[9px] font-mono font-medium text-amber-400 flex items-center gap-1">
                           <Star className="size-2.5 fill-amber-400 text-amber-400" />
-                          {r.loyalty_points} {lang === "ar" ? "نقطة" : "pts"}
+                          <Ltr>{r.loyalty_points}</Ltr> {lang === "ar" ? "نقطة" : "pts"}
                         </span>
                       )}
                     </div>
@@ -793,7 +791,7 @@ function CustomersPage() {
                             : "text-muted-foreground"
                       }`}
                     >
-                      {money(bal)}
+                      <Ltr>{money(bal)}</Ltr>
                     </span>
                   </div>
 
@@ -801,13 +799,24 @@ function CustomersPage() {
                   <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
                     {/* Direct WhatsApp Button */}
                     {r.phone && (
-                      <button
-                        onClick={() => handleCustomerWhatsApp(r, lang)}
-                        title={lang === "ar" ? "مراسلة عبر واتساب" : "Message on WhatsApp"}
-                        className="grid size-8 place-items-center rounded-full bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 border border-emerald-500/20 transition active:scale-95"
-                      >
-                        <MessageCircle className="size-3.5" />
-                      </button>
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => handleCustomerWhatsApp(r, lang)}
+                          title={lang === "ar" ? "مراسلة عبر واتساب" : "Message on WhatsApp"}
+                          className="grid size-8 place-items-center rounded-full bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 border border-emerald-500/20 transition active:scale-95"
+                        >
+                          <WhatsAppIcon className="size-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleCustomerSMS(r, lang)}
+                          title={lang === "ar" ? "إرسال رسالة نصية" : "Send text message"}
+                          className="grid size-8 place-items-center rounded-full bg-sky-500/10 text-sky-400 hover:bg-sky-500/20 border border-sky-500/20 transition active:scale-95"
+                        >
+                          <MessageSquareText className="size-3.5" />
+                        </button>
+                      </>
                     )}
 
                     {/* Quick Payment Button (F3) */}
@@ -894,7 +903,8 @@ function CustomersPage() {
                             </span>
                             {limit > 0 && (
                               <span className="text-[10px] text-rose-400 font-mono block">
-                                {lang === "ar" ? "حد الائتمان:" : "Credit:"} {money(limit)}
+                                {lang === "ar" ? "حد الائتمان:" : "Credit:"}{" "}
+                                <Ltr>{money(limit)}</Ltr>
                               </span>
                             )}
                           </div>
@@ -914,7 +924,7 @@ function CustomersPage() {
                               className="text-emerald-400 hover:text-emerald-300"
                               title="واتساب"
                             >
-                              <MessageCircle className="size-3.5" />
+                              <WhatsAppIcon className="size-3.5" />
                             </button>
                           </div>
                         ) : (
@@ -923,7 +933,9 @@ function CustomersPage() {
                       </td>
 
                       {/* Email */}
-                      <td className="px-4 py-3 text-muted-foreground text-xs">{r.email ?? "—"}</td>
+                      <td className="px-4 py-3 text-muted-foreground text-xs">
+                        <Ltr className="block truncate">{r.email ?? "—"}</Ltr>
+                      </td>
 
                       {/* Balance */}
                       <td className="px-4 py-3 text-end">
@@ -936,7 +948,7 @@ function CustomersPage() {
                                 : "text-muted-foreground"
                           }`}
                         >
-                          {money(bal)}
+                          <Ltr>{money(bal)}</Ltr>
                         </span>
                       </td>
 
@@ -959,6 +971,7 @@ function CustomersPage() {
                               title={`${lang === "ar" ? "تحصيل" : "Payment"} (F3)`}
                               className="h-7 px-2.5 rounded-lg bg-primary/10 hover:bg-primary hover:text-primary-foreground border border-primary/20 text-xs font-semibold text-primary transition active:scale-95"
                             >
+                              <Wallet className="size-3" />
                               {lang === "ar" ? "تحصيل" : "Pay"}
                             </button>
                           )}
@@ -1073,13 +1086,24 @@ function CustomersPage() {
             {/* Quick Actions Strip */}
             <div className="mt-5 flex items-center gap-2 flex-wrap">
               {selected.phone && (
-                <button
-                  onClick={() => handleCustomerWhatsApp(selected, lang)}
-                  className="flex items-center gap-1.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 px-3.5 py-1.5 text-xs font-bold text-emerald-400 hover:bg-emerald-500/25 transition active:scale-95"
-                >
-                  <MessageCircle className="size-3.5" />
-                  <span>واتساب</span>
-                </button>
+                <>
+                  <button
+                    type="button"
+                    onClick={() => handleCustomerWhatsApp(selected, lang)}
+                    className="flex items-center gap-1.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 px-3.5 py-1.5 text-xs font-bold text-emerald-400 hover:bg-emerald-500/25 transition active:scale-95"
+                  >
+                    <WhatsAppIcon className="size-3.5" />
+                    <span>{lang === "ar" ? "واتساب" : "WhatsApp"}</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleCustomerSMS(selected, lang)}
+                    className="flex items-center gap-1.5 rounded-full bg-sky-500/15 border border-sky-500/30 px-3.5 py-1.5 text-xs font-bold text-sky-400 hover:bg-sky-500/25 transition active:scale-95"
+                  >
+                    <MessageSquareText className="size-3.5" />
+                    <span>{lang === "ar" ? "رسالة نصية" : "Text message"}</span>
+                  </button>
+                </>
               )}
               {isModuleEnabled("payments") && (
                 <DetailActionBtn
@@ -1156,7 +1180,7 @@ function CustomersPage() {
                         <div>
                           <p className="font-bold text-foreground">{item.label}</p>
                           <p className="text-[10px] text-muted-foreground">
-                            {new Date(item.date).toLocaleDateString()}
+                            <Ltr>{new Date(item.date).toLocaleDateString()}</Ltr>
                           </p>
                         </div>
                       </div>
@@ -1165,8 +1189,9 @@ function CustomersPage() {
                           item.kind === "sale" ? "text-rose-400" : "text-emerald-400"
                         }`}
                       >
-                        {item.kind === "sale" ? "+" : "−"}
-                        {money(item.amount)}
+                        <Ltr>
+                          {item.kind === "sale" ? "+" : "−"} {money(item.amount)}
+                        </Ltr>
                       </span>
                     </div>
                   ))
@@ -1396,6 +1421,14 @@ function CustomersPage() {
           </div>
         </div>
       )}
+
+      <VortexCollectionSheet
+        open={collectionOpen}
+        onOpenChange={setCollectionOpen}
+        customer={collectionCustomer}
+        onSavePayment={handleSaveCollection}
+        onSuccess={() => void load()}
+      />
     </div>
   );
 }
@@ -1407,7 +1440,7 @@ function MiniStat({ label, value, color }: { label: string; value: string; color
     <div className="rounded-2xl border border-border/60 bg-surface/60 p-3 text-center">
       <div className="text-[10px] font-medium text-muted-foreground">{label}</div>
       <div className={`font-mono text-sm font-bold mt-1 ${color ?? "text-foreground"}`}>
-        {value}
+        <Ltr>{value}</Ltr>
       </div>
     </div>
   );

@@ -1,15 +1,14 @@
-﻿import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { useQueryClient } from "@tanstack/react-query";
+import { AlertCircle, Check, LoaderCircle } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { useI18n } from "@/lib/i18n";
 import { useAuth } from "@/lib/auth";
 import { SettingsLayout } from "@/components/settings/settings-layout";
 import { supabase } from "@/integrations/supabase/client";
-import { Button } from "@/components/ui/button";
-import { toast } from "sonner";
-import { Save } from "lucide-react";
 import { setCompanySettingsCache } from "@/lib/format";
+import { cacheCompanyProfile } from "@/lib/printing";
+import { getPrintSettings, savePrintSettings } from "@/lib/templates";
 
 export const Route = createFileRoute("/_app/settings")({
   head: () => ({ meta: [{ title: "الإعدادات — فورتيكس ERP" }] }),
@@ -17,7 +16,6 @@ export const Route = createFileRoute("/_app/settings")({
 });
 
 function SettingsPage() {
-  const queryClient = useQueryClient();
   const { t, lang } = useI18n();
   const { hasRole } = useAuth();
   const canEdit = hasRole("owner") || hasRole("manager");
@@ -31,11 +29,15 @@ function SettingsPage() {
     address: "",
     phone: "",
     email: "",
-    invoice_prefix: "INV",
+    invoice_prefix: "INV-",
+    purchase_invoice_prefix: "PO-",
+    invoice_number_period: "year_month",
+    invoice_number_digits: 4,
+    logo_url: null,
     barcode_enabled: true,
   });
-  const [exists, setExists] = useState(false);
-  const [saving, setSaving] = useState(false);
+  const [hasLoadedSettings, setHasLoadedSettings] = useState(false);
+  const [saveState, setSaveState] = useState<"saved" | "saving" | "error">("saved");
 
   const [enablePosServiceFee, setEnablePosServiceFee] = useState<boolean>(() => {
     if (typeof window !== "undefined") {
@@ -55,39 +57,67 @@ function SettingsPage() {
       .then(({ data }) => {
         if (data) {
           setForm(data);
-          setExists(true);
-          if ((data as any).enable_pos_service_fee !== undefined) {
+          const catalog = ((data as any).catalog_modules as any) || {};
+          if (catalog.enablePosServiceFee !== undefined) {
+            setEnablePosServiceFee(Boolean(catalog.enablePosServiceFee));
+          } else if ((data as any).enable_pos_service_fee !== undefined) {
             setEnablePosServiceFee(Boolean((data as any).enable_pos_service_fee));
+          }
+          if (catalog.printSettings) {
+            savePrintSettings(catalog.printSettings);
           }
           setCompanySettingsCache({
             currency: data.currency,
-            currency_symbol: data.currency_symbol,
           });
         }
+        setHasLoadedSettings(true);
       });
   }, []);
 
-  async function save() {
-    setSaving(true);
-    if (typeof window !== "undefined") {
-      localStorage.setItem("pos_enable_service_fee", String(enablePosServiceFee));
-    }
-    const payload = { ...form, id: form.id ?? 1, tax_rate: Number(form.tax_rate) };
-    const res = exists
-      ? await supabase.from("company_settings").update(payload).eq("id", payload.id)
-      : await supabase.from("company_settings").insert(payload);
-    setSaving(false);
-    if (res.error) return toast.error(res.error.message);
-    setCompanySettingsCache({
-      currency: payload.currency,
-      currency_symbol: payload.currency_symbol,
-    });
-    await queryClient.invalidateQueries({ queryKey: ["company-settings", "currency"] });
-    toast.success(
-      lang === "ar" ? "تم حفظ الإعدادات بنجاح" : t("common.saved") || t("common.success"),
-    );
-    setExists(true);
-  }
+  useEffect(() => {
+    if (!hasLoadedSettings || !canEdit) return;
+
+    const timer = window.setTimeout(async () => {
+      setSaveState("saving");
+      const currentCatalog = (form.catalog_modules as Record<string, any>) || {};
+      const updatedCatalog = {
+        ...currentCatalog,
+        enablePosServiceFee,
+        printSettings: getPrintSettings(),
+      };
+      const payload = {
+        ...form,
+        id: form.id ?? 1,
+        tax_rate: Number(form.tax_rate),
+        footer_contact: form.footer_contact ?? "784795104 · 772217218",
+        catalog_modules: updatedCatalog,
+      };
+      try {
+        if (typeof window !== "undefined") {
+          localStorage.setItem("pos_enable_service_fee", String(enablePosServiceFee));
+        }
+        const res = form.id
+          ? await supabase.from("company_settings").update(payload).eq("id", payload.id)
+          : await supabase.from("company_settings").insert(payload);
+        if (res.error) {
+          setSaveState("error");
+          return;
+        }
+        // Company Profile cache is updated through the central accessor only,
+        // so every document (invoices, statements, reports, milling, thermal)
+        // sees the new identity immediately.
+        cacheCompanyProfile(payload as Record<string, unknown>);
+        setCompanySettingsCache({
+          currency: payload.currency,
+        });
+        setSaveState("saved");
+      } catch {
+        setSaveState("error");
+      }
+    }, 650);
+
+    return () => window.clearTimeout(timer);
+  }, [canEdit, enablePosServiceFee, form, hasLoadedSettings]);
 
   return (
     <div className="space-y-6 pb-10">
@@ -95,18 +125,37 @@ function SettingsPage() {
         title={t("settings.title")}
         subtitle={
           lang === "ar"
-            ? "إدارة إعدادات النظام الموجودة: المنشأة، الفواتير، الطباعة، النشاط، الباقة، النسخ الاحتياطي، الأرقام، والمظهر"
-            : "Manage existing system settings: company, invoicing, printing, catalog, plan, backup, numbers, and appearance"
-        }
-        actions={
-          canEdit && (
-            <Button onClick={save} disabled={saving} className="rounded-full gap-1.5 px-5">
-              <Save className={`h-4 w-4 me-1 ${saving ? "animate-pulse" : ""}`} />
-              {saving ? (lang === "ar" ? "جارٍ الحفظ..." : "Saving...") : t("common.save")}
-            </Button>
-          )
+            ? "إدارة إعدادات النظام الموجودة: المنشأة، المبيعات، الطباعة، النشاط، الباقة، النسخ الاحتياطي، الأرقام، والمظهر"
+            : "Manage company, sales, printing, catalog, plan, backup, numbers, and appearance settings"
         }
       />
+
+      {canEdit && hasLoadedSettings && (
+        <div
+          className="fixed bottom-4 right-4 z-40 flex items-center gap-2 rounded-full border border-border/70 bg-card/95 px-3 py-2 text-[11px] font-medium text-muted-foreground shadow-lg backdrop-blur-md"
+          role="status"
+          aria-live="polite"
+        >
+          {saveState === "saving" ? (
+            <LoaderCircle className="size-3.5 animate-spin text-amber-500" />
+          ) : saveState === "error" ? (
+            <AlertCircle className="size-3.5 text-destructive" />
+          ) : (
+            <Check className="size-3.5 text-emerald-500" />
+          )}
+          {saveState !== "saved" && (
+            <span>
+              {saveState === "saving"
+                ? lang === "ar"
+                  ? "جارٍ الحفظ"
+                  : "Saving"
+                : lang === "ar"
+                  ? "تعذّر الحفظ"
+                  : "Save failed"}
+            </span>
+          )}
+        </div>
+      )}
 
       <SettingsLayout
         form={form}
