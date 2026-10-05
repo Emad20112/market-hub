@@ -553,6 +553,20 @@ function InventoryPage() {
         ),
       },
       {
+        key: "role",
+        header: lang === "ar" ? "الدور" : "Role",
+        width: "w-[120px]",
+        cell: (r) => (
+          <ItemRoleBadge
+            itemClass={r.item_class}
+            itemNature={r.item_nature}
+            inventoryPolicy={r.inventory_policy}
+            isRtl={lang === "ar"}
+            compact
+          />
+        ),
+      },
+      {
         key: "min_stock",
         header: t("products.min"),
         align: "end",
@@ -907,13 +921,22 @@ function InventoryPage() {
                       }`}
                     >
                       <div className="mb-2.5 flex items-center justify-between gap-2">
-                        <span className="inline-flex max-w-[150px] items-center gap-1 truncate rounded-full border border-primary/20 bg-primary/10 px-2.5 py-0.5 text-[11px] font-semibold text-primary">
-                          <Tag className="size-3 shrink-0" />
-                          <span className="truncate">
-                            {label(r.category?.name, r.category?.name_ar) ||
-                              (lang === "ar" ? "عام" : "General")}
+                        <div className="flex items-center gap-1 min-w-0">
+                          <span className="inline-flex max-w-[110px] items-center gap-1 truncate rounded-full border border-primary/20 bg-primary/10 px-2.5 py-0.5 text-[11px] font-semibold text-primary">
+                            <Tag className="size-3 shrink-0" />
+                            <span className="truncate">
+                              {label(r.category?.name, r.category?.name_ar) ||
+                                (lang === "ar" ? "عام" : "General")}
+                            </span>
                           </span>
-                        </span>
+                          <ItemRoleBadge
+                            itemClass={r.item_class}
+                            itemNature={r.item_nature}
+                            inventoryPolicy={r.inventory_policy}
+                            isRtl={lang === "ar"}
+                            compact
+                          />
+                        </div>
                         <span
                           className={`size-2 shrink-0 rounded-full ${
                             s === "out"
