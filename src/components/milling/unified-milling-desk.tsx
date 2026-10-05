@@ -1,6 +1,13 @@
 import React, { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
+  MillingTermsFields,
+  MillingBagSizeSelect,
+  EMPTY_MILLING_TERMS,
+  computeMillingFee,
+  type MillingTermsValue,
+} from "@/components/milling/milling-terms-fields";
+import {
   Scale,
   Zap,
   PackagePlus,
@@ -74,7 +81,8 @@ export function UnifiedMillingDesk() {
       return (data || []) as { id: string; name_ar: string; is_default: boolean }[];
     },
   });
-  const defaultStoreId = warehouses.data?.find((w) => w.is_default)?.id || warehouses.data?.[0]?.id || "";
+  const defaultStoreId =
+    warehouses.data?.find((w) => w.is_default)?.id || warehouses.data?.[0]?.id || "";
 
   const customers = useQuery({
     queryKey: ["milling", "customers"],
@@ -130,16 +138,26 @@ export function UnifiedMillingDesk() {
   const [directCustomerName, setDirectCustomerName] = useState("عميل نقدي صالة");
   const [directCustomerPhone, setDirectCustomerPhone] = useState("");
   const [selectedGrainGradeId, setSelectedGrainGradeId] = useState<string>("");
-  const [millingType, setMillingType] = useState<"FLOUR_GRADE_1" | "FLOUR_GRADE_2" | "SEMOLINA" | "BRAN">("FLOUR_GRADE_1");
   const [bagCount, setBagCount] = useState(1);
   const [bagSizeKg, setBagSizeKg] = useState(50);
-  const [bagsSource, setBagsSource] = useState<"CUSTOMER" | "MILL">("CUSTOMER");
   const [selectedMillBagId, setSelectedMillBagId] = useState<string>("");
   const [millBagPrice, setMillBagPrice] = useState(500);
-  const [millingFeeRate, setMillingFeeRate] = useState(1000);
   const [discount, setDiscount] = useState(0);
   const [paymentMethod, setPaymentMethod] = useState<"cash" | "card" | "transfer" | "debt">("cash");
   const [directNotes, setDirectNotes] = useState("");
+
+  /*
+   * The direct counter's terms. Held in the shared shape so this form and the
+   * custody form cannot drift apart again; the derived values below are what
+   * the printing and posting code reads.
+   */
+  const [directTerms, setDirectTerms] = useState<MillingTermsValue>({
+    ...EMPTY_MILLING_TERMS,
+    feePerBag: 1000,
+  });
+
+  const millingType = directTerms.millingType;
+  const bagsSource = directTerms.bagsSource;
 
   // Auto-select first grain grade when loaded
   React.useEffect(() => {
@@ -163,7 +181,13 @@ export function UnifiedMillingDesk() {
   // Update default fee from product when loaded
   React.useEffect(() => {
     if (serviceFeeProduct.data?.sale_price && Number(serviceFeeProduct.data.sale_price) > 0) {
-      setMillingFeeRate(Number(serviceFeeProduct.data.sale_price));
+      setDirectTerms((current) =>
+        // Only seed a fee the operator has not already agreed to; otherwise
+        // loading the catalogue price would overwrite a negotiated rate.
+        current.feePerBag === EMPTY_MILLING_TERMS.feePerBag
+          ? { ...current, feePerBag: Number(serviceFeeProduct.data!.sale_price) }
+          : current,
+      );
     }
   }, [serviceFeeProduct.data]);
 
@@ -176,11 +200,22 @@ export function UnifiedMillingDesk() {
     }
   };
 
-  // Direct calculation totals
+  // Direct calculation totals. The fee comes from the shared terms, so a
+  // per-ton or lump-sum agreement is honoured here exactly as it reads on the
+  // custody receipt — the two counters can no longer price differently.
   const totalWeightKg = useMemo(() => bagCount * bagSizeKg, [bagCount, bagSizeKg]);
-  const millingFeeTotal = useMemo(() => bagCount * millingFeeRate, [bagCount, millingFeeRate]);
-  const packagingTotal = useMemo(() => (bagsSource === "MILL" ? bagCount * millBagPrice : 0), [bagsSource, bagCount, millBagPrice]);
-  const grandTotal = useMemo(() => Math.max(0, millingFeeTotal + packagingTotal - discount), [millingFeeTotal, packagingTotal, discount]);
+  const millingFeeTotal = useMemo(
+    () => computeMillingFee(directTerms, bagCount, bagSizeKg),
+    [directTerms, bagCount, bagSizeKg],
+  );
+  const packagingTotal = useMemo(
+    () => (bagsSource === "MILL" ? bagCount * millBagPrice : 0),
+    [bagsSource, bagCount, millBagPrice],
+  );
+  const grandTotal = useMemo(
+    () => Math.max(0, millingFeeTotal + packagingTotal - discount),
+    [millingFeeTotal, packagingTotal, discount],
+  );
 
   // ── Bulk Custody Form State ──
   const [bulkCustomerId, setBulkCustomerId] = useState("");
@@ -193,7 +228,36 @@ export function UnifiedMillingDesk() {
   const [bulkDriverName, setBulkDriverName] = useState("");
   const [bulkNotes, setBulkNotes] = useState("");
 
-  // Auto-select first grain grade for bulk too
+  /*
+   * The milling terms, agreed on the SAME document as the deposit.
+   *
+   * A merchant who deposits grain usually wants it ground, and wants the
+   * price per bag settled at the moment of deposit - not at a later counter
+   * visit. Two documents means the fee is agreed in one place and charged
+   * from another, which is how a customer ends up disputing a price nobody
+   * remembers agreeing.
+   *
+   * The toggle defaults OFF, so a pure storage deposit stays exactly what it
+   * was: deposit the grain, agree nothing, owe nothing. Both modes are
+   * supported and neither is forced.
+   *
+   * The fields themselves come from MillingTermsFields, which the direct cash
+   * counter also mounts. One field set, one place for it to be wrong.
+   */
+  const [bulkWithMilling, setBulkWithMilling] = useState(false);
+  const [bulkTerms, setBulkTerms] = useState<MillingTermsValue>({
+    ...EMPTY_MILLING_TERMS,
+    feePerBag: 300,
+    bagType: "شوال خيش طبيعي 50 كجم",
+    bagCondition: "سليم ومحكم",
+    extractionRate: "78",
+    allowedLoss: "2",
+  });
+
+  // The mill-supplied sack is a priced line, so the custody counter carries
+  // the same picker the direct counter uses.
+  const [bulkMillBagId, setBulkMillBagId] = useState("");
+  const [bulkMillBagPrice, setBulkMillBagPrice] = useState(500);
   React.useEffect(() => {
     if (grainGrades.data && grainGrades.data.length > 0 && !bulkGrainGradeId) {
       setBulkGrainGradeId(grainGrades.data[0].id);
@@ -208,6 +272,13 @@ export function UnifiedMillingDesk() {
   React.useEffect(() => {
     setBulkGrossWeight(bulkBagCount * bulkBagSizeKg);
   }, [bulkBagCount, bulkBagSizeKg]);
+
+  // The agreed milling fee, shown live so the operator reads the number back
+  // to the customer before the truck leaves the gate.
+  const bulkMillingFeeTotal = useMemo(
+    () => computeMillingFee(bulkTerms, bulkBagCount, bulkBagSizeKg),
+    [bulkTerms, bulkBagCount, bulkBagSizeKg],
+  );
 
   // ── Mutations ──
   const directMillingMutation = useMutation({
@@ -226,10 +297,14 @@ export function UnifiedMillingDesk() {
         bagSizeKg,
         totalWeightKg,
         bagsSource,
-        millBagProductId: bagsSource === "MILL" ? selectedMillBagId || packagingProducts.data?.[0]?.id : null,
+        millBagProductId:
+          bagsSource === "MILL" ? selectedMillBagId || packagingProducts.data?.[0]?.id : null,
         millBagsCount: bagCount,
         millBagPrice,
-        millingFeeRate,
+        // The engine stores a rate in one unit, so a lump sum or per-ton
+        // agreement is expressed as the per-sack equivalent here. The customer
+        // still pays exactly what the terms block showed.
+        millingFeeRate: millingFeeTotal / Math.max(1, bagCount),
         discount,
         paymentMethod,
         paidAmount: grandTotal,
@@ -263,7 +338,14 @@ export function UnifiedMillingDesk() {
           grandTotal: res.details.grandTotal,
           paidAmount: res.paidAmount || res.details.grandTotal,
           remainingAmount: res.remainingAmount || 0,
-          paymentMethodLabel: paymentMethod === "cash" ? "نقداً" : paymentMethod === "card" ? "شبكة" : paymentMethod === "transfer" ? "تحويل" : "آجل",
+          paymentMethodLabel:
+            paymentMethod === "cash"
+              ? "نقداً"
+              : paymentMethod === "card"
+                ? "شبكة"
+                : paymentMethod === "transfer"
+                  ? "تحويل"
+                  : "آجل",
           createdAt: res.details.createdAt,
           notes: directNotes,
           companyName: "مطحنة الحبوب الحديثة",
@@ -298,6 +380,33 @@ export function UnifiedMillingDesk() {
         truckPlate: bulkTruckPlate || undefined,
         driverName: bulkDriverName || undefined,
         notes: bulkNotes || undefined,
+        // Bag identification, observed at the gate. "Fifty sacks, five torn"
+        // is checkable while the truck is still here and impossible to
+        // verify a week later, so it is captured on the receipt itself.
+        bagType: bulkTerms.bagType || undefined,
+        bagCondition: bulkTerms.bagCondition || undefined,
+        // The milling terms, only when the depositor asked for grinding.
+        withMilling: bulkWithMilling,
+        bagsSource: bulkWithMilling ? bulkTerms.bagsSource : undefined,
+        // The engine accepts one basis; a lump sum is expressed as its
+        // per-sack equivalent so the agreed total is unchanged while the
+        // stored rate stays in the unit the engine understands.
+        millingBasis: bulkWithMilling
+          ? bulkTerms.feeBasis === "LUMP_SUM"
+            ? "BAG"
+            : bulkTerms.feeBasis
+          : undefined,
+        millingFeeRate: bulkWithMilling
+          ? bulkMillingFeeTotal / Math.max(1, bulkBagCount)
+          : undefined,
+        millingType: bulkWithMilling ? bulkTerms.millingType : undefined,
+        expectedExtractionRate: bulkWithMilling
+          ? Number(bulkTerms.extractionRate) || undefined
+          : undefined,
+        allowedLossPercentage: bulkWithMilling
+          ? Number(bulkTerms.allowedLoss) || undefined
+          : undefined,
+        serviceProductId: serviceFeeProduct.data?.id ?? null,
       });
     },
     onSuccess: (res) => {
@@ -319,9 +428,15 @@ export function UnifiedMillingDesk() {
 
   // Today feed stats
   const feedItems = feedQuery.data || [];
-  const todayMilledKg = feedItems.filter((i) => i.type === "DIRECT_MILL").reduce((s, i) => s + i.weightKg, 0);
-  const todayTotalRevenue = feedItems.filter((i) => i.type === "DIRECT_MILL").reduce((s, i) => s + i.amount, 0);
-  const todayCustodyKg = feedItems.filter((i) => i.type === "CUSTODY_INTAKE").reduce((s, i) => s + i.weightKg, 0);
+  const todayMilledKg = feedItems
+    .filter((i) => i.type === "DIRECT_MILL")
+    .reduce((s, i) => s + i.weightKg, 0);
+  const todayTotalRevenue = feedItems
+    .filter((i) => i.type === "DIRECT_MILL")
+    .reduce((s, i) => s + i.amount, 0);
+  const todayCustodyKg = feedItems
+    .filter((i) => i.type === "CUSTODY_INTAKE")
+    .reduce((s, i) => s + i.weightKg, 0);
 
   // Filtered feed
   const filteredFeed = useMemo(() => {
@@ -331,7 +446,7 @@ export function UnifiedMillingDesk() {
       (item) =>
         item.customerName.toLowerCase().includes(q) ||
         item.docNumber.toLowerCase().includes(q) ||
-        item.grainType.toLowerCase().includes(q)
+        item.grainType.toLowerCase().includes(q),
     );
   }, [feedItems, feedSearch]);
 
@@ -381,7 +496,8 @@ export function UnifiedMillingDesk() {
               </h2>
             </div>
             <p className="text-xs text-muted-foreground leading-relaxed">
-              الخطة المبسطة للمطحنة: معالجة فورية لزبائن الصالة بدون دورة تصنيع معقدة، أو استلام وتخزين تجاري بالأمانات.
+              الخطة المبسطة للمطحنة: معالجة فورية لزبائن الصالة بدون دورة تصنيع معقدة، أو استلام
+              وتخزين تجاري بالأمانات.
             </p>
           </div>
 
@@ -487,34 +603,25 @@ export function UnifiedMillingDesk() {
                   onChange={(e) => setSelectedGrainGradeId(e.target.value)}
                   className="w-full rounded-xl border border-border bg-background px-3 py-2 text-xs font-bold text-foreground"
                 >
-                  {grainGradeItems.length === 0 && (
-                    <option value="">جارٍ التحميل...</option>
-                  )}
+                  {grainGradeItems.length === 0 && <option value="">جارٍ التحميل...</option>}
                   {grainGradeItems.map((g) => (
                     <option key={g.id} value={g.id}>
-                      {g.grade_name_ar} {g.origin === "IMPORTED" ? "(مستورد)" : "(محلي)"} — سعة {g.default_bag_size_kg || 50} كجم
+                      {g.grade_name_ar} {g.origin === "IMPORTED" ? "(مستورد)" : "(محلي)"} — سعة{" "}
+                      {g.default_bag_size_kg || 50} كجم
                     </option>
                   ))}
                 </select>
               </div>
             </div>
 
-            {/* Row 2: Milling & Bags Specifications */}
-            <div className="grid gap-4 sm:grid-cols-4 bg-muted/20 p-4 rounded-2xl border border-border/80">
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold text-foreground">درجة ونوع الطحن</label>
-                <select
-                  value={millingType}
-                  onChange={(e) => setMillingType(e.target.value as any)}
-                  className="w-full rounded-xl border border-border bg-background px-3 py-2 text-xs font-bold text-amber-600 dark:text-amber-400"
-                >
-                  <option value="FLOUR_GRADE_1">طحن ناعم (دقيق زيرو / نمرة 1)</option>
-                  <option value="FLOUR_GRADE_2">طحن بر (دقيق بلدي كامل الحبة)</option>
-                  <option value="SEMOLINA">طحن سميد فاخر</option>
-                  <option value="BRAN">جرش خشن / ردة نخالة</option>
-                </select>
-              </div>
-
+            {/* Row 2: Milling & Bags Specifications
+             *
+             * The direct counter and the custody counter now mount the SAME
+             * terms component. They used to declare these fields separately and
+             * drift apart — the custody form gained a fee basis and extraction
+             * rate while this one kept a bare per-bag rate. One definition now.
+             */}
+            <div className="grid gap-4 sm:grid-cols-3 bg-muted/20 p-4 rounded-2xl border border-border/80">
               <div className="space-y-1.5">
                 <label className="text-xs font-bold text-foreground">عدد الأكياس</label>
                 <input
@@ -528,16 +635,7 @@ export function UnifiedMillingDesk() {
 
               <div className="space-y-1.5">
                 <label className="text-xs font-bold text-foreground">سعة الكيس (كجم)</label>
-                <select
-                  value={bagSizeKg}
-                  onChange={(e) => setBagSizeKg(parseInt(e.target.value) || 50)}
-                  className="w-full rounded-xl border border-border bg-background px-3 py-2 text-xs font-bold font-mono"
-                >
-                  <option value={50}>شوال 50 كجم</option>
-                  <option value={25}>كيس 25 كجم</option>
-                  <option value={40}>كيس 40 كجم</option>
-                  <option value={10}>كيس 10 كجم</option>
-                </select>
+                <MillingBagSizeSelect value={bagSizeKg} onChange={setBagSizeKg} />
               </div>
 
               <div className="space-y-1.5">
@@ -548,85 +646,34 @@ export function UnifiedMillingDesk() {
               </div>
             </div>
 
-            {/* Row 3: Packaging & Materials */}
-            <div className="grid gap-4 sm:grid-cols-3 bg-muted/20 p-4 rounded-2xl border border-border/80">
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold text-foreground flex items-center gap-1.5">
-                  <ShoppingBag className="h-3.5 w-3.5 text-muted-foreground" />
-                  مصدر أكياس التعبئة
-                </label>
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setBagsSource("CUSTOMER")}
-                    className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold transition-all border ${
-                      bagsSource === "CUSTOMER"
-                        ? "bg-background border-primary text-primary shadow-xs"
-                        : "bg-muted border-border text-muted-foreground"
-                    }`}
-                  >
-                    أكياس العميل (مجاناً)
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setBagsSource("MILL")}
-                    className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold transition-all border ${
-                      bagsSource === "MILL"
-                        ? "bg-background border-primary text-primary shadow-xs"
-                        : "bg-muted border-border text-muted-foreground"
-                    }`}
-                  >
-                    أكياس المطحنة (بيع)
-                  </button>
-                </div>
-              </div>
-
-              {bagsSource === "MILL" && (
-                <>
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-foreground">نوع كيس المطحنة</label>
-                    <select
-                      value={selectedMillBagId}
-                      onChange={(e) => handleSelectPackaging(e.target.value)}
-                      className="w-full rounded-xl border border-border bg-background px-3 py-2 text-xs font-medium"
-                    >
-                      <option value="">— اختر صنف الكيس —</option>
-                      {(packagingProducts.data || []).map((p) => (
-                        <option key={p.id} value={p.id}>
-                          {p.name_ar} ({p.sale_price} ر.ي)
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-foreground">سعر الكيس الواحد</label>
-                    <input
-                      type="number"
-                      value={millBagPrice}
-                      onChange={(e) => setMillBagPrice(Math.max(0, parseFloat(e.target.value) || 0))}
-                      className="w-full rounded-xl border border-border bg-background px-3 py-2 text-xs font-mono"
-                    />
-                  </div>
-                </>
-              )}
+            {/* The same terms block the custody counter shows. */}
+            <div className="rounded-2xl border border-border p-3">
+              <MillingTermsFields
+                value={directTerms}
+                onChange={setDirectTerms}
+                bagCount={bagCount}
+                bagSizeKg={bagSizeKg}
+                packagingProducts={(packagingProducts.data || []).map((p: any) => ({
+                  id: p.id,
+                  name: p.name_ar || p.name,
+                  sale_price: Number(p.sale_price || 0),
+                }))}
+                millBagId={selectedMillBagId}
+                millBagPrice={millBagPrice}
+                onMillBagChange={(id, price) => {
+                  if (id !== selectedMillBagId) handleSelectPackaging(id);
+                  else setMillBagPrice(price);
+                }}
+                compact
+              />
             </div>
 
-            {/* Row 4: Pricing, Totals, and Checkout */}
-            <div className="grid gap-4 sm:grid-cols-4 items-end bg-card p-4 rounded-2xl border-2 border-primary/20 shadow-xs">
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold text-foreground">أجرة الطحن للكيس الواحد</label>
-                <div className="relative">
-                  <input
-                    type="number"
-                    value={millingFeeRate}
-                    onChange={(e) => setMillingFeeRate(Math.max(0, parseFloat(e.target.value) || 0))}
-                    className="w-full rounded-xl border border-border bg-background px-3 py-2 text-xs font-bold font-mono pe-10"
-                  />
-                  <span className="absolute end-3 top-2.5 text-[10px] text-muted-foreground font-mono">ر.ي</span>
-                </div>
-              </div>
-
+            {/* Row 4: Discount, Payment, and Checkout
+             *
+             * The fee itself lives in the terms block above, where the basis is
+             * chosen. This row is only what wraps up a priced ticket.
+             */}
+            <div className="grid gap-4 sm:grid-cols-3 items-end bg-card p-4 rounded-2xl border-2 border-primary/20 shadow-xs">
               <div className="space-y-1.5">
                 <label className="text-xs font-bold text-foreground">الخصم (إن وجد)</label>
                 <div className="relative">
@@ -636,7 +683,9 @@ export function UnifiedMillingDesk() {
                     onChange={(e) => setDiscount(Math.max(0, parseFloat(e.target.value) || 0))}
                     className="w-full rounded-xl border border-border bg-background px-3 py-2 text-xs font-mono pe-10"
                   />
-                  <span className="absolute end-3 top-2.5 text-[10px] text-muted-foreground font-mono">ر.ي</span>
+                  <span className="absolute end-3 top-2.5 text-[10px] text-muted-foreground font-mono">
+                    ر.ي
+                  </span>
                 </div>
               </div>
 
@@ -656,7 +705,9 @@ export function UnifiedMillingDesk() {
 
               {/* Grand Total Display */}
               <div className="space-y-1 p-3 rounded-xl bg-primary/10 border border-primary/30 text-center">
-                <span className="text-[11px] font-bold text-primary block">الإجمالي الصافي المطلوب</span>
+                <span className="text-[11px] font-bold text-primary block">
+                  الإجمالي الصافي المطلوب
+                </span>
                 <span className="text-xl font-black text-primary font-mono block">
                   {grandTotal.toLocaleString()} <span className="text-xs font-normal">ر.ي</span>
                 </span>
@@ -680,7 +731,8 @@ export function UnifiedMillingDesk() {
               <div className="flex items-center gap-2 text-xs text-muted-foreground">
                 <CheckCircle2 className="h-4 w-4 text-emerald-500" />
                 <span>
-                  العملية فورية: لا تؤثر على مخزون الحبوب وتصدر فاتورة المبيعات وسند الاستلام والطباعة فوراً.
+                  العملية فورية: لا تؤثر على مخزون الحبوب وتصدر فاتورة المبيعات وسند الاستلام
+                  والطباعة فوراً.
                 </span>
               </div>
 
@@ -691,7 +743,9 @@ export function UnifiedMillingDesk() {
                 className="rounded-full px-8 py-6 text-sm font-extrabold gap-2.5 bg-amber-500 hover:bg-amber-600 text-white shadow-lg shadow-amber-500/25 transition-transform active:scale-95"
               >
                 <Printer className="h-5 w-5" />
-                {directMillingMutation.isPending ? "جارٍ تسجيل وطحن الحبوب..." : "تنفيذ الطحن الفوري وإصدار الفاتورة والسند"}
+                {directMillingMutation.isPending
+                  ? "جارٍ تسجيل وطحن الحبوب..."
+                  : "تنفيذ الطحن الفوري وإصدار الفاتورة والسند"}
               </Button>
             </div>
           </div>
@@ -733,19 +787,20 @@ export function UnifiedMillingDesk() {
                   onChange={(e) => setBulkGrainGradeId(e.target.value)}
                   className="w-full rounded-xl border border-border bg-background px-3 py-2 text-xs font-bold"
                 >
-                  {grainGradeItems.length === 0 && (
-                    <option value="">جارٍ التحميل...</option>
-                  )}
+                  {grainGradeItems.length === 0 && <option value="">جارٍ التحميل...</option>}
                   {grainGradeItems.map((g) => (
                     <option key={g.id} value={g.id}>
-                      {g.grade_name_ar} {g.origin === "IMPORTED" ? "(مستورد)" : g.origin === "LOCAL" ? "(محلي)" : ""}
+                      {g.grade_name_ar}{" "}
+                      {g.origin === "IMPORTED" ? "(مستورد)" : g.origin === "LOCAL" ? "(محلي)" : ""}
                     </option>
                   ))}
                 </select>
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-foreground">رقم شاحنة التوريد (اختياري)</label>
+                <label className="text-xs font-bold text-foreground">
+                  رقم شاحنة التوريد (اختياري)
+                </label>
                 <input
                   type="text"
                   value={bulkTruckPlate}
@@ -793,19 +848,13 @@ export function UnifiedMillingDesk() {
 
               <div className="space-y-1.5">
                 <label className="text-xs font-bold text-foreground">سعة الكيس</label>
-                <select
-                  value={bulkBagSizeKg}
-                  onChange={(e) => setBulkBagSizeKg(parseInt(e.target.value) || 50)}
-                  className="w-full rounded-xl border border-border bg-background px-3 py-2 text-xs font-mono font-bold"
-                >
-                  <option value={50}>شوال 50 كجم</option>
-                  <option value={25}>كيس 25 كجم</option>
-                  <option value={40}>كيس 40 كجم</option>
-                </select>
+                <MillingBagSizeSelect value={bulkBagSizeKg} onChange={setBulkBagSizeKg} />
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-foreground">الوزن القائم ميزان (كجم)</label>
+                <label className="text-xs font-bold text-foreground">
+                  الوزن القائم ميزان (كجم)
+                </label>
                 <input
                   type="number"
                   value={bulkGrossWeight}
@@ -815,7 +864,9 @@ export function UnifiedMillingDesk() {
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-foreground">وزن السيارة الفارغة (كجم)</label>
+                <label className="text-xs font-bold text-foreground">
+                  وزن السيارة الفارغة (كجم)
+                </label>
                 <input
                   type="number"
                   value={bulkTareWeight}
@@ -825,6 +876,52 @@ export function UnifiedMillingDesk() {
               </div>
             </div>
 
+            {/*
+             * Milling terms, agreed on the deposit document.
+             *
+             * Off by default. A merchant who only wants grain stored keeps
+             * exactly the document he had before: no contract, no fee, nothing
+             * owed. Turning it on is what a merchant who wants his grain
+             * ground does, and it settles the price per bag while he is still
+             * standing at the gate.
+             */}
+            <div className="rounded-2xl border border-border p-3 space-y-3">
+              <label className="flex cursor-pointer items-center gap-3">
+                <input
+                  type="checkbox"
+                  checked={bulkWithMilling}
+                  onChange={(e) => setBulkWithMilling(e.target.checked)}
+                  className="h-4 w-4 cursor-pointer"
+                />
+                <span className="text-xs font-bold text-foreground">
+                  طحن هذه الكمية — تسجيل شروط الطحن على نفس السند
+                </span>
+                <span className="text-[11px] text-muted-foreground">
+                  (اتركه فارغاً للتخزين فقط)
+                </span>
+              </label>
+
+              {bulkWithMilling && (
+                <MillingTermsFields
+                  value={bulkTerms}
+                  onChange={setBulkTerms}
+                  bagCount={bulkBagCount}
+                  bagSizeKg={bulkBagSizeKg}
+                  packagingProducts={(packagingProducts.data || []).map((p: any) => ({
+                    id: p.id,
+                    name: p.name_ar || p.name,
+                    sale_price: Number(p.sale_price || 0),
+                  }))}
+                  millBagId={bulkMillBagId}
+                  millBagPrice={bulkMillBagPrice}
+                  onMillBagChange={(id, price) => {
+                    setBulkMillBagId(id);
+                    setBulkMillBagPrice(price);
+                  }}
+                />
+              )}
+            </div>
+
             <div className="flex flex-wrap items-center justify-between gap-4 pt-2 border-t border-border">
               <div className="text-xs text-muted-foreground">
                 الوزن الصافي المعتمد للأمانات:{" "}
@@ -832,7 +929,6 @@ export function UnifiedMillingDesk() {
                   {(bulkGrossWeight - bulkTareWeight).toLocaleString()} كجم
                 </span>
               </div>
-
               <Button
                 type="button"
                 onClick={() => bulkIntakeMutation.mutate()}
@@ -841,7 +937,7 @@ export function UnifiedMillingDesk() {
               >
                 <PackagePlus className="h-4 w-4" />
                 {bulkIntakeMutation.isPending ? "جارٍ حفظ السند..." : "إصدار سند استلام الأمانات"}
-              </Button>
+              </Button>{" "}
             </div>
           </div>
         </MillingPanel>
@@ -884,7 +980,9 @@ export function UnifiedMillingDesk() {
         </div>
 
         {feedQuery.isLoading ? (
-          <p className="p-8 text-center text-xs text-muted-foreground">جارٍ تحميل سجل العمليات...</p>
+          <p className="p-8 text-center text-xs text-muted-foreground">
+            جارٍ تحميل سجل العمليات...
+          </p>
         ) : !filteredFeed.length ? (
           <MillingEmpty
             title="لا توجد عمليات مسجلة اليوم بعد"

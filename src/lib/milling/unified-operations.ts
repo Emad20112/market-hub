@@ -28,6 +28,10 @@ import {
   type MillingOutputType,
   type MillingStatus,
 } from "@/lib/milling";
+// createAgreement lives in agreements.ts, not the base milling barrel. The
+// custody deposit and the milling contract are the same commercial act, so
+// this is the one place the two modules meet.
+import { createAgreement } from "@/lib/milling/agreements";
 
 const db = supabase as any;
 
@@ -112,6 +116,37 @@ export interface BulkCustodyIntakeInput {
   driverName?: string;
   siloOrLocation?: string;
   notes?: string;
+
+  /* ---------------------------------------------------------------------
+   * Milling terms captured on the SAME document.
+   *
+   * A merchant depositing grain normally wants it ground, and wants to know
+   * the price per bag at the moment of deposit - not at some later counter
+   * visit. Keeping the receipt and the milling request as two documents means
+   * the fee is agreed in one place and charged from another, which is how a
+   * customer ends up disputing a price nobody remembers agreeing.
+   *
+   * These are OPTIONAL. A pure storage deposit - grain held, no grinding -
+   * is still a valid document, and leaving every field here empty produces
+   * exactly that. The two modes are supported without either being forced.
+   * ------------------------------------------------------------------- */
+  /** When true, an agreed milling contract is created alongside the receipt. */
+  withMilling?: boolean;
+  /** Fee basis. BAG is per bag, TON is per tonne - exactly one, mirroring the engine. */
+  millingBasis?: "BAG" | "TON";
+  millingFeeRate?: number;
+  /** What the customer wants produced. */
+  millingType?: "FLOUR_GRADE_1" | "FLOUR_GRADE_2" | "SEMOLINA" | "BRAN";
+  /** Who supplies the bags - the customer's own, or the mill's against a charge. */
+  bagsSource?: "CUSTOMER" | "MILL";
+  bagType?: string;
+  bagCondition?: string;
+  millBagProductId?: string | null;
+  millBagPrice?: number;
+  expectedExtractionRate?: number;
+  allowedLossPercentage?: number;
+  /** The service product the agreed fee attaches to. */
+  serviceProductId?: string | null;
 }
 
 export interface QuickMillingFeedItem {
@@ -447,7 +482,7 @@ export async function executeDirectMillingTicket(
 
 export async function executeBulkCustodyIntake(
   input: BulkCustodyIntakeInput,
-): Promise<{ ok: boolean; id?: string; number?: string; message?: string }> {
+): Promise<{ ok: boolean; id?: string; number?: string; agreementId?: string; message?: string }> {
   try {
     const bagCount = Math.max(1, Number(input.bagCount) || 1);
     const bagSizeKg = Number(input.bagSizeKg) || 50;
@@ -477,6 +512,12 @@ export async function executeBulkCustodyIntake(
       driverName: input.driverName,
       silo: input.siloOrLocation,
       notes: input.notes,
+      // Bag identification, recorded on the receipt itself. Who supplied the
+      // sack and what condition it arrived in is exactly what a dispute three
+      // weeks later is about, and it cannot be reconstructed afterwards.
+      bagType: input.bagType,
+      bagSource: input.bagsSource ?? "CUSTOMER",
+      bagCondition: input.bagCondition,
     });
 
     if (!res.ok || !res.id) {
@@ -489,10 +530,51 @@ export async function executeBulkCustodyIntake(
       .eq("id", res.id)
       .maybeSingle();
 
+    // ── the agreed milling terms, on the same document ──
+    // Only created when the operator asked for grinding. A pure storage
+    // deposit returns here with no contract at all, which is the correct
+    // outcome: there is nothing to agree and nothing to fulfil.
+    let agreementId: string | undefined;
+    if (input.withMilling) {
+      if (!input.millingFeeRate || input.millingFeeRate <= 0) {
+        throw new Error(
+          "لا يمكن تسجيل الطحن بدون أجر متفق عليه. أدخل سعر الطحن أو ألغِ خيار الطحن.",
+        );
+      }
+      // The engine permits exactly one basis. Passing both would be rejected
+      // by the database, so it is caught here with a message about the form
+      // rather than about a constraint.
+      const basis = input.millingBasis ?? "BAG";
+      const agreeRes = await createAgreement({
+        intakeReceiptId: res.id,
+        // Both are nullable in the caller's input but required (or
+        // string-or-undefined) by createAgreement. The grade is non-null by
+        // this point: createIntake already refused the receipt without one.
+        grainGradeId: grainResolved.gradeId as string,
+        requestedOutputType: input.millingType ?? "FLOUR_GRADE_1",
+        requestedOutputNote: "شروط الطحن المحفوظة مع سند الأمانات",
+        outputBagSizeKg: bagSizeKg,
+        bagsSource: input.bagsSource ?? "CUSTOMER",
+        deliveryMode: "PARTIAL",
+        serviceProductId: input.serviceProductId ?? null,
+        priceBasis: basis,
+        agreedPrice: Number(input.millingFeeRate),
+        expectedExtractionRate: input.expectedExtractionRate ?? 78,
+        allowedLossPercentage: input.allowedLossPercentage ?? 2,
+        notes: input.notes ?? undefined,
+      });
+
+      if (!agreeRes.ok || !agreeRes.id) {
+        throw new Error(agreeRes.message || "تم تسجيل سند الأمانات لكن تعذر حفظ شروط الطحن عليه.");
+      }
+      agreementId = agreeRes.id;
+    }
+
     return {
       ok: true,
       id: res.id,
       number: row?.receipt_number,
+      agreementId,
     };
   } catch (err: any) {
     return {

@@ -227,6 +227,16 @@ export interface CreateIntakeInput {
   driverName?: string;
   silo?: string;
   notes?: string;
+  /*
+   * Bag identification, captured at the gate.
+   *
+   * These live on the receipt because the moment of receipt is the only moment
+   * they can be observed. "Fifty sacks, five of them torn" is checkable when
+   * the truck is still at the gate and impossible to verify a week later.
+   */
+  bagType?: string | null;
+  bagSource?: string | null;
+  bagCondition?: string | null;
 }
 
 /**
@@ -269,6 +279,11 @@ export async function createIntake(input: CreateIntakeInput): Promise<OpResult> 
     _driver_name: input.driverName ?? null,
     _silo: input.silo ?? null,
     _notes: input.notes ?? null,
+    // Bag details travel with the receipt so the document records what was
+    // actually seen at the gate, not what is assumed about sacks in general.
+    _bag_type: input.bagType ?? null,
+    _bag_source: input.bagSource ?? null,
+    _bag_condition: input.bagCondition ?? null,
   });
 
   if (error) return { ok: false, message: translateMillingError(error.message) };

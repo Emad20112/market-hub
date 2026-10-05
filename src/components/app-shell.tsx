@@ -1,4 +1,4 @@
-﻿import { useCompanyCurrency } from "@/hooks/use-company-currency";
+import { useCompanyCurrency } from "@/hooks/use-company-currency";
 import { Link, useRouterState, useNavigate } from "@tanstack/react-router";
 import { memo, useEffect, useMemo, useState } from "react";
 import {
@@ -45,7 +45,9 @@ import {
   ClipboardList,
   Cog,
   PackagePlus,
+  Zap,
   ChartColumn,
+  ReceiptText,
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { canAccessRoute, getRouteRule } from "@/lib/route-access";
@@ -127,7 +129,7 @@ const SidebarContents = memo(function SidebarContents({
           />
         ) : (
           <>
-            {/* Ø´Ø¹Ø§Ø± Ù…Ø±ÙƒÙ‘Ø¨ (Ø±Ù…Ø² + ÙƒÙ„Ù…Ø©) Ø¨Ø¬Ø§Ù†Ø¨ Ø§Ù„Ù†Øµ */}
+            {/* شعار مركّب (رمز + كلمة) بجانب النص */}
             <img
               src="/vortex-erp-wordmark.png"
               alt={t("app.name")}
@@ -136,9 +138,7 @@ const SidebarContents = memo(function SidebarContents({
                 event.currentTarget.style.visibility = "hidden";
               }}
             />
-            <span className="text-base font-extrabold tracking-tight text-foreground">
-              ÙÙˆØ±ØªÙƒØ³
-            </span>
+            <span className="text-base font-extrabold tracking-tight text-foreground">فورتكس</span>
           </>
         )}
       </div>
@@ -166,6 +166,7 @@ const SidebarContents = memo(function SidebarContents({
                   pathname === it.path ||
                   (it.path !== "/dashboard" && pathname.startsWith(`${it.path}/`));
                 const Icon = routeIcon(it.id);
+                const title = it.i18nKey ? t(it.i18nKey) : isAr ? it.titleAr : it.titleEn;
 
                 return (
                   <li key={it.id} className="relative">
@@ -225,11 +226,7 @@ const SidebarContents = memo(function SidebarContents({
                         />
                       </div>
 
-                      {!collapsed && (
-                        <span className="truncate leading-normal">
-                          {it.i18nKey ? t(it.i18nKey) : isAr ? it.titleAr : it.titleEn}
-                        </span>
-                      )}
+                      {!collapsed && <span className="truncate leading-normal">{title}</span>}
 
                       {/* Tooltip in Icon-only mode */}
                       {collapsed && (
@@ -240,9 +237,7 @@ const SidebarContents = memo(function SidebarContents({
                           )}
                         >
                           <div className="flex items-center gap-1.5">
-                            <span>
-                              {it.i18nKey ? t(it.i18nKey) : isAr ? it.titleAr : it.titleEn}
-                            </span>
+                            <span>{title}</span>
 
                             {(it.superadminOnly || getRouteRule(it.path)?.superadminOnly) && (
                               <Crown className="h-3 w-3 text-amber-500 shrink-0" />
@@ -287,7 +282,7 @@ const SidebarContents = memo(function SidebarContents({
             "group relative flex items-center rounded-xl text-[13.5px] font-medium text-muted-foreground hover:bg-sidebar-accent hover:text-foreground transition-colors",
             collapsed ? "h-10 w-10 justify-center p-0" : "w-full gap-2.5 px-3 p-2",
           )}
-          title={lang === "ar" ? "ØªØ³Ø¬ÙŠÙ„ Ø§Ù„Ø®Ø±ÙˆØ¬" : "Sign out"}
+          title={lang === "ar" ? "تسجيل الخروج" : "Sign out"}
         >
           <div className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-gradient-to-br from-primary/20 to-chart-4/20 text-[11px] font-bold text-foreground border border-primary/20">
             {(user?.email ?? "?").charAt(0).toUpperCase()}
@@ -311,7 +306,7 @@ const SidebarContents = memo(function SidebarContents({
               )}
             >
               <span>
-                {lang === "ar" ? "ØªØ³Ø¬ÙŠÙ„ Ø§Ù„Ø®Ø±ÙˆØ¬" : "Sign out"} ({user?.email})
+                {lang === "ar" ? "تسجيل الخروج" : "Sign out"} ({user?.email})
               </span>
 
               <div
@@ -353,9 +348,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [settingsSidebarOpen, setSettingsSidebarOpen] = useState(false);
   const [searchFocused, setSearchFocused] = useState(false);
 
-  // Ù„Ø§ ÙŠØªÙ… ØªØ­Ù…ÙŠÙ„ Ù‚Ø§Ø¦Ù…Ø© Ø§Ù„ØªÙ†Ø¨ÙŠÙ‡Ø§Øª ÙƒØ§Ù…Ù„Ø© Ø¯Ø§Ø®Ù„ Ø§Ù„ØºÙ„Ø§ÙØ› ØµÙØ­Ø© Ø§Ù„ØªÙ†Ø¨ÙŠÙ‡Ø§Øª Ù‡ÙŠ Ø§Ù„Ù…Ø³Ø¤ÙˆÙ„Ø© Ø¹Ù† Ø°Ù„Ùƒ.
-  // Ø¥Ø¨Ù‚Ø§Ø¡ Ø§Ù„Ù…Ù„Ø®Øµ Ø¨Ù‚ÙŠÙ…Ø© Ø¢Ù…Ù†Ø© ÙŠÙ…Ù†Ø¹ ØªØ¹Ø·Ù„ Ø§Ù„ØºÙ„Ø§Ù Ù‚Ø¨Ù„ ÙØªØ­ ØµÙØ­Ø© Ø§Ù„ØªÙ†Ø¨ÙŠÙ‡Ø§ØªØŒ Ø¨ÙŠÙ†Ù…Ø§ ÙŠØ¸Ù„
-  // ØªÙ†Ø¨ÙŠÙ‡ Ø§Ù„Ù†Ø³Ø®Ø© Ø§Ù„Ø§Ø­ØªÙŠØ§Ø·ÙŠØ© Ø§Ù„ÙÙˆØ±ÙŠ ÙŠØ¹Ù…Ù„ Ø¨Ø´ÙƒÙ„ Ù…Ø³ØªÙ‚Ù„.
+  // لا يتم تحميل قائمة التنبيهات كاملة داخل الغلاف؛ صفحة التنبيهات هي المسؤولة عن ذلك.
+  // إبقاء الملخص بقيمة آمنة يمنع تعطل الغلاف قبل فتح صفحة التنبيهات، بينما يظل
+  // تنبيه النسخة الاحتياطية الفوري يعمل بشكل مستقل.
   const alertsSummary = { total: 0, hasDanger: false };
 
   const [collapsed, setCollapsed] = useState<boolean>(() => {
@@ -456,7 +451,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
       {/* Main column */}
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
-        {/* Offline notice â€” sits above everything in the content column */}
+        {/* Offline notice — sits above everything in the content column */}
         <ConnectionBanner />
 
         {/* Top bar */}
@@ -471,7 +466,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 ? "w-0 max-w-0 opacity-0 pointer-events-none scale-0 -ms-2"
                 : "w-10 opacity-100 scale-100",
             )}
-            aria-label={dir === "rtl" ? "ÙØªØ­ Ø§Ù„Ù‚Ø§Ø¦Ù…Ø© Ø§Ù„Ø¬Ø§Ù†Ø¨ÙŠØ©" : "Open sidebar"}
+            aria-label={dir === "rtl" ? "فتح القائمة الجانبية" : "Open sidebar"}
           >
             <Menu className="h-4.5 w-4.5" />
           </button>
@@ -490,26 +485,26 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               isSettingsRoute
                 ? settingsSidebarOpen
                   ? dir === "rtl"
-                    ? "Ø¥ØºÙ„Ø§Ù‚ Ø§Ù„Ù‚Ø§Ø¦Ù…Ø© Ø§Ù„Ø¬Ø§Ù†Ø¨ÙŠØ©"
+                    ? "إغلاق القائمة الجانبية"
                     : "Close sidebar"
                   : dir === "rtl"
-                    ? "ÙØªØ­ Ø§Ù„Ù‚Ø§Ø¦Ù…Ø© Ø§Ù„Ø¬Ø§Ù†Ø¨ÙŠØ©"
+                    ? "فتح القائمة الجانبية"
                     : "Open sidebar"
                 : collapsed
                   ? dir === "rtl"
-                    ? "ØªÙˆØ³ÙŠØ¹ Ø§Ù„Ù‚Ø§Ø¦Ù…Ø© Ø§Ù„Ø¬Ø§Ù†Ø¨ÙŠØ©"
+                    ? "توسيع القائمة الجانبية"
                     : "Expand sidebar"
                   : dir === "rtl"
-                    ? "Ø·ÙŠ Ø§Ù„Ù‚Ø§Ø¦Ù…Ø© (Ø£ÙŠÙ‚ÙˆÙ†Ø§Øª ÙÙ‚Ø·)"
+                    ? "طي القائمة (أيقونات فقط)"
                     : "Collapse sidebar"
             }
             aria-label={
               isSettingsRoute && settingsSidebarOpen
                 ? dir === "rtl"
-                  ? "Ø¥ØºÙ„Ø§Ù‚ Ø§Ù„Ù‚Ø§Ø¦Ù…Ø© Ø§Ù„Ø¬Ø§Ù†Ø¨ÙŠØ©"
+                  ? "إغلاق القائمة الجانبية"
                   : "Close sidebar"
                 : dir === "rtl"
-                  ? "Ø§Ù„Ù‚Ø§Ø¦Ù…Ø© Ø§Ù„Ø¬Ø§Ù†Ø¨ÙŠØ©"
+                  ? "القائمة الجانبية"
                   : "Sidebar menu"
             }
           >
@@ -532,7 +527,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 : "max-w-[300px] opacity-100 scale-100",
             )}
           >
-            {/* Ø²Ø± ØªØ­Ø¯ÙŠØ« Ø§Ù„ØµÙØ­Ø© Ø§Ù„Ø­Ø§Ù„ÙŠØ© ÙÙŠ Ù†ÙØ³ Ø§Ù„Ù…ÙƒØ§Ù† Ø¨Ø¯ÙˆÙ† Ø§Ù†ØªÙ‚Ø§Ù„ */}
+            {/* زر تحديث الصفحة الحالية في نفس المكان بدون انتقال */}
             <button
               type="button"
               onClick={() => {
@@ -540,8 +535,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 window.location.reload();
               }}
               className="grid h-10 w-10 place-items-center rounded-full border border-border/60 bg-surface text-muted-foreground hover:text-foreground hover:border-ring/40 hover:bg-surface-2 transition-all active:scale-95"
-              title={dir === "rtl" ? "ØªØ­Ø¯ÙŠØ« Ø§Ù„ØµÙØ­Ø© Ø§Ù„Ø­Ø§Ù„ÙŠØ©" : "Refresh page"}
-              aria-label={dir === "rtl" ? "ØªØ­Ø¯ÙŠØ« Ø§Ù„ØµÙØ­Ø©" : "Refresh"}
+              title={dir === "rtl" ? "تحديث الصفحة الحالية" : "Refresh page"}
+              aria-label={dir === "rtl" ? "تحديث الصفحة" : "Refresh"}
             >
               <RotateCw
                 className={cn(
@@ -551,7 +546,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               />
             </button>
 
-            {/* Ø²Ø± ØªØ¨Ø¯ÙŠÙ„ Ø§Ù„ÙˆØ¶Ø¹ (ÙØ§ØªØ­ / Ù…Ø¸Ù„Ù…) */}
+            {/* زر تبديل الوضع (فاتح / مظلم) */}
             <button
               onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
               className="grid h-10 w-10 place-items-center rounded-full border border-border/60 bg-surface text-muted-foreground hover:text-foreground hover:border-ring/40 hover:bg-surface-2 transition-all active:scale-95"
@@ -565,14 +560,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               )}
             </button>
 
-            {/* Ø²Ø± Ø§Ù„Ø¥Ø´Ø¹Ø§Ø±Ø§Øª Ù…Ø¹ Ø§Ù„Ø´Ø§Ø±Ø© Ø§Ù„Ø°ÙƒÙŠØ© ÙˆØ§Ù„Ø±Ù‚Ù… Ø§Ù„ØµØºÙŠØ± */}
+            {/* زر الإشعارات مع الشارة الذكية والرقم الصغير */}
             <button
               className="relative grid h-10 w-10 place-items-center rounded-full border border-border/60 bg-surface text-muted-foreground hover:text-foreground hover:border-ring/40 hover:bg-surface-2 transition-all active:scale-95"
               title={
                 checkBackupReminderStatus().isDue
-                  ? "ØªÙ†Ø¨ÙŠÙ‡: Ø­Ø§Ù† Ù…ÙˆØ¹Ø¯ ØªÙ†Ø²ÙŠÙ„ Ù†Ø³Ø®Ø© Ø§Ø­ØªÙŠØ§Ø·ÙŠØ© Ù…Ø­Ù„ÙŠØ© Ù„Ù„Ø¬Ù‡Ø§Ø²!"
+                  ? "تنبيه: حان موعد تنزيل نسخة احتياطية محلية للجهاز!"
                   : alertsSummary?.total
-                    ? `Ù„Ø¯ÙŠÙƒ ${alertsSummary.total} ØªÙ†Ø¨ÙŠÙ‡Ø§Øª Ù†Ø´Ø·Ø©`
+                    ? `لديك ${alertsSummary.total} تنبيهات نشطة`
                     : t("nav.notifications")
               }
               aria-label={t("nav.notifications")}
@@ -584,7 +579,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             >
               <Bell className="h-4 w-4" />
 
-              {/* Ø§Ù„Ø´Ø§Ø±Ø© Ø§Ù„Ø°ÙƒÙŠØ©: Ø¯Ø§Ø¦Ø±Ø© Ù†Ø§Ø¨Ø¶Ø© Ù„Ù„ØªÙ†Ø¨ÙŠÙ‡Ø§Øª Ø§Ù„Ø¹Ø§Ø¬Ù„Ø© ÙˆØ±Ù‚Ù… Ø£Ù†ÙŠÙ‚ Ù…ØµØºØ± */}
+              {/* الشارة الذكية: دائرة نابضة للتنبيهات العاجلة ورقم أنيق مصغر */}
               {checkBackupReminderStatus().isDue || alertsSummary?.hasDanger ? (
                 <span className="absolute -top-1 -end-1 flex items-center justify-center">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-500 opacity-75" />
@@ -605,19 +600,21 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
         <main
           className={cn(
-            "flex-1 min-h-0 overflow-y-auto overflow-x-hidden custom-scrollbar pb-16",
+            "flex-1 min-h-0 overflow-y-auto overflow-x-hidden custom-scrollbar",
             isPosRoute ? "flex flex-col" : "",
           )}
         >
           {isPosRoute ? (
-            <div className="flex-1 min-h-0 flex flex-col p-3 sm:p-5">{children}</div>
+            <div className="flex-1 min-h-0 flex flex-col p-3 sm:p-5 pb-16">{children}</div>
           ) : (
-            <div className="mx-auto w-full max-w-[1400px] px-2 py-3 sm:px-1 sm:py-4 lg:px-1 lg:py-6">
-              {children}
-            </div>
+            <>
+              <div className="mx-auto w-full max-w-[1400px] px-2 py-3 sm:px-1 sm:py-4 lg:px-1 lg:py-6">
+                {children}
+              </div>
+              <InamaSoftFooter />
+            </>
           )}
         </main>
-        <InamaSoftFooter />
       </div>
 
       <CommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} />

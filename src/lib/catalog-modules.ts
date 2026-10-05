@@ -71,17 +71,23 @@ export const DEFAULT_PROFILES: Record<BusinessProfile, CatalogModulesConfig> = {
 };
 
 export function getCatalogModulesConfig(): CatalogModulesConfig {
-  if (typeof window === "undefined") return DEFAULT_PROFILES.spare_parts;
+  // The default is the MILL profile, not spare parts. A tenant handed this
+  // system should open on the dimensions its catalogue actually uses; opening
+  // on vehicle makes and spare-part grades put irrelevant fields in front of
+  // an operator who has never configured anything. Anyone who really sells
+  // spare parts picks that profile in the dialog.
+  const fallback = DEFAULT_PROFILES.mill;
+  if (typeof window === "undefined") return fallback;
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return DEFAULT_PROFILES.spare_parts;
+    if (!raw) return fallback;
     const parsed = JSON.parse(raw);
     return {
-      ...DEFAULT_PROFILES.spare_parts,
+      ...fallback,
       ...parsed,
     };
   } catch {
-    return DEFAULT_PROFILES.spare_parts;
+    return fallback;
   }
 }
 
@@ -166,7 +172,16 @@ export function useCatalogModules() {
   };
 
   const isTabEnabled = (
-    tab: "categories" | "brands" | "units" | "origins" | "qualities" | "makes" | "models" | "grain_grades" | "packaging_bags",
+    tab:
+      | "categories"
+      | "brands"
+      | "units"
+      | "origins"
+      | "qualities"
+      | "makes"
+      | "models"
+      | "grain_grades"
+      | "packaging_bags",
   ): boolean => {
     switch (tab) {
       case "categories":

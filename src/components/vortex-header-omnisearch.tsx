@@ -186,9 +186,6 @@ export const VortexHeaderOmnisearch = memo(function VortexHeaderOmnisearch({
 
       try {
         const term = sanitizeSearchTerm(cleanQuery);
-        const normQ = cleanQuery.replace(/[#]/g, "").trim();
-        const digitsOnly = cleanQuery.replace(/\D/g, "");
-        const invoiceSearchTerm = normQ.replace(/^(inv-|فاتورة\s*|فاتوره\s*)/i, "").trim() || normQ;
         if (!term) {
           if (isLatest()) {
             setDataResults([]);
@@ -197,8 +194,20 @@ export const VortexHeaderOmnisearch = memo(function VortexHeaderOmnisearch({
           return;
         }
 
-        // يجمع نتائج main الجديدة مع حماية من فشل أحد الجداول.
-        const [productsSettled, invoicesSettled, customersSettled, suppliersSettled] = await Promise.allSettled([
+        // Taken from the other branch, and kept because it is a real
+        // improvement: an operator typing a phone number should match on the
+        // digits alone, so "0771234567" finds "+967 771 234 567". A term that
+        // is entirely digits searches the phone column; otherwise it searches
+        // the name. Note the queries below select `customers(name, phone)` and
+        // read `total` — the columns this schema actually has. The other
+        // branch's `customer_name` / `total_amount` do not exist here, so its
+        // version of this query fails at runtime rather than merely reading
+        // old data.
+        const digitsOnly = cleanQuery.replace(/\D/g, "");
+        const phoneMatchable = digitsOnly.length >= 3;
+
+        // جلب متزامن فائق السرعة من المنتجات، الفواتير، العملاء، والموردين
+        const [productsRes, invoicesRes, customersRes, suppliersRes] = await Promise.all([
           supabase
             .from("products")
             .select("id, name, name_ar, barcode, sku, sale_price")
@@ -207,30 +216,35 @@ export const VortexHeaderOmnisearch = memo(function VortexHeaderOmnisearch({
             .abortSignal(controller.signal),
           supabase
             .from("sales_invoices")
-            .select("id, invoice_number, total, total_amount, customer_name, created_at, customers(name, phone)")
-            .or(`invoice_number.ilike.%${invoiceSearchTerm}%,customer_name.ilike.%${normQ}%${digitsOnly ? `,invoice_number.ilike.%${digitsOnly}%` : ""}`)
+            .select("id, invoice_number, total, created_at, customers(name, phone)")
+            .or(`invoice_number.ilike.%${term}%`)
             .order("created_at", { ascending: false })
             .limit(6)
             .abortSignal(controller.signal),
           supabase
             .from("customers")
             .select("id, name, phone, balance")
-            .or(`name.ilike.%${normQ}%${digitsOnly.length >= 3 ? `,phone.ilike.%${digitsOnly}%` : `,phone.ilike.%${normQ}%`}`)
+            .or(
+              phoneMatchable
+                ? `phone.ilike.%${digitsOnly}%,name.ilike.%${term}%`
+                : `name.ilike.%${term}%`,
+            )
             .limit(6)
             .abortSignal(controller.signal),
           supabase
             .from("suppliers")
             .select("id, name, phone, balance")
-            .or(`name.ilike.%${normQ}%${digitsOnly.length >= 3 ? `,phone.ilike.%${digitsOnly}%` : `,phone.ilike.%${normQ}%`}`)
+            .or(
+              phoneMatchable
+                ? `phone.ilike.%${digitsOnly}%,name.ilike.%${term}%`
+                : `name.ilike.%${term}%`,
+            )
             .limit(6)
             .abortSignal(controller.signal),
         ]);
 
+        // طلب قديم: لا يلمس أي state
         if (!isLatest()) return;
-        const productsRes = productsSettled.status === "fulfilled" ? productsSettled.value : { data: [] };
-        const invoicesRes = invoicesSettled.status === "fulfilled" ? invoicesSettled.value : { data: [] };
-        const customersRes = customersSettled.status === "fulfilled" ? customersSettled.value : { data: [] };
-        const suppliersRes = suppliersSettled.status === "fulfilled" ? suppliersSettled.value : { data: [] };
 
         const results: SearchResultItem[] = [];
 
