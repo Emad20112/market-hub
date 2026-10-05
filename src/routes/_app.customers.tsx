@@ -37,14 +37,14 @@ import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/page-header";
 import { useI18n } from "@/lib/i18n";
 import { money } from "@/lib/format";
-import { openWhatsApp } from "@/lib/whatsapp";
-import { debtReminderMessage } from "@/lib/whatsapp-templates";
 import { useDebtIndex } from "@/hooks/use-debts-overview";
 import { StatementIntegrityBadge } from "@/components/statements/statement-integrity-badge";
 import { VortexCollectionSheet, type PaymentMethod } from "@/components/vortex-ui";
 import { toast } from "sonner";
 import { WhatsAppIcon } from "@/components/whatsapp-icon";
 import { Ltr } from "@/components/ltr-value";
+import { CustomerCommunicationMenu } from "@/components/communication/customer-communication-menu";
+import { buildUnifiedContext, renderMessage } from "@/lib/communication";
 
 export const Route = createFileRoute("/_app/customers")({
   head: () => ({ meta: [{ title: "العملاء — فورتيكس ERP" }] }),
@@ -67,29 +67,21 @@ interface Customer {
 type FilterType = "all" | "debt" | "credit" | "active";
 type ViewMode = "cards" | "table";
 
-function customerMessage(customer: Customer, lang: "ar" | "en") {
-  const bal = Number(customer.balance);
-  return bal > 0
-    ? debtReminderMessage({
-        name: customer.name,
-        balance: money(bal),
-        lang,
-      })
-    : lang === "ar"
-      ? `مرحباً ${customer.name}، نتواصل معك بخصوص حسابك في فورتكس ERP.`
-      : `Hello ${customer.name}, contacting you regarding your account.`;
-}
-
-function handleCustomerWhatsApp(customer: Customer, lang: "ar" | "en") {
-  if (!customer.phone) return;
-  openWhatsApp(customer.phone, customerMessage(customer, lang));
-}
-
 function handleCustomerSMS(customer: Customer, lang: "ar" | "en") {
   if (!customer.phone) return;
   const phone = customer.phone.replace(/[^\d+]/g, "");
-  const message = encodeURIComponent(customerMessage(customer, lang));
-  window.open(`sms:${phone}?body=${message}`, "_blank");
+  const ctx = buildUnifiedContext({
+    event: Number(customer.balance) > 0 ? "debt_reminder" : "general_customer_notice",
+    customer: {
+      id: customer.id,
+      name: customer.name,
+      phone: customer.phone,
+      balance: Number(customer.balance),
+    },
+    language: lang,
+  });
+  const text = renderMessage(ctx).text;
+  window.open(`sms:${phone}?body=${encodeURIComponent(text)}`, "_blank");
 }
 
 function CustomersPage() {
@@ -314,9 +306,18 @@ function CustomersPage() {
   );
   const goStatement = useCallback(
     (c: Customer) => {
+      const hasMovement = Boolean(ledgerIndex.get(c.id)?.lastMovementAt || Number(c.balance) !== 0);
+      if (!hasMovement) {
+        toast.warning(
+          lang === "ar"
+            ? "لا توجد أي حركات مالية أو فواتير مسجلة لهذا العميل حتى الآن"
+            : "No financial transactions recorded for this customer yet",
+        );
+        return;
+      }
       void navigate({ to: "/account-statement", search: { customerId: c.id } as never });
     },
-    [navigate],
+    [navigate, ledgerIndex, lang],
   );
 
   // ─── Keyboard shortcuts ───
@@ -797,27 +798,31 @@ function CustomersPage() {
 
                   {/* Action Buttons */}
                   <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
-                    {/* Direct WhatsApp Button */}
-                    {r.phone && (
-                      <>
+                    {/* Communication Actions Menu */}
+                    <CustomerCommunicationMenu
+                      customer={{
+                        id: r.id,
+                        name: r.name,
+                        phone: r.phone,
+                        balance: bal,
+                        hasLedgerActivity: Boolean(ledgerIndex.get(r.id)?.lastMovementAt || bal !== 0),
+                      }}
+                      onSelectStatementPdf={() => goStatement(r)}
+                      onSelectStatementExcel={() => goStatement(r)}
+                      trigger={
                         <button
                           type="button"
-                          onClick={() => handleCustomerWhatsApp(r, lang)}
-                          title={lang === "ar" ? "مراسلة عبر واتساب" : "Message on WhatsApp"}
-                          className="grid size-8 place-items-center rounded-full bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 border border-emerald-500/20 transition active:scale-95"
+                          title={lang === "ar" ? "إجراءات المراسلة والتواصل" : "Communication options"}
+                          className={`grid size-8 place-items-center rounded-full border transition active:scale-95 ${
+                            r.phone
+                              ? "bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 border-emerald-500/20"
+                              : "bg-muted/40 text-muted-foreground/50 border-border/60"
+                          }`}
                         >
                           <WhatsAppIcon className="size-3.5" />
                         </button>
-                        <button
-                          type="button"
-                          onClick={() => handleCustomerSMS(r, lang)}
-                          title={lang === "ar" ? "إرسال رسالة نصية" : "Send text message"}
-                          className="grid size-8 place-items-center rounded-full bg-sky-500/10 text-sky-400 hover:bg-sky-500/20 border border-sky-500/20 transition active:scale-95"
-                        >
-                          <MessageSquareText className="size-3.5" />
-                        </button>
-                      </>
-                    )}
+                      }
+                    />
 
                     {/* Quick Payment Button (F3) */}
                     {isModuleEnabled("payments") && (
@@ -914,18 +919,28 @@ function CustomersPage() {
                       {/* Phone */}
                       <td className="px-4 py-3 text-muted-foreground font-mono text-xs" dir="ltr">
                         {r.phone ? (
-                          <div className="flex items-center justify-end gap-1.5">
+                          <div className="flex items-center justify-end gap-1.5" onClick={(e) => e.stopPropagation()}>
                             <span>{r.phone}</span>
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleCustomerWhatsApp(r, lang);
+                            <CustomerCommunicationMenu
+                              customer={{
+                                id: r.id,
+                                name: r.name,
+                                phone: r.phone,
+                                balance: bal,
+                                hasLedgerActivity: Boolean(ledgerIndex.get(r.id)?.lastMovementAt || bal !== 0),
                               }}
-                              className="text-emerald-400 hover:text-emerald-300"
-                              title="واتساب"
-                            >
-                              <WhatsAppIcon className="size-3.5" />
-                            </button>
+                              onSelectStatementPdf={() => goStatement(r)}
+                              onSelectStatementExcel={() => goStatement(r)}
+                              trigger={
+                                <button
+                                  type="button"
+                                  className="text-emerald-400 hover:text-emerald-300 p-1 rounded-full hover:bg-emerald-500/10 transition"
+                                  title={lang === "ar" ? "إجراءات المراسلة والتواصل" : "Communication actions"}
+                                >
+                                  <WhatsAppIcon className="size-3.5" />
+                                </button>
+                              }
+                            />
                           </div>
                         ) : (
                           "—"
@@ -1085,25 +1100,39 @@ function CustomersPage() {
 
             {/* Quick Actions Strip */}
             <div className="mt-5 flex items-center gap-2 flex-wrap">
-              {selected.phone && (
-                <>
+              <CustomerCommunicationMenu
+                customer={{
+                  id: selected.id,
+                  name: selected.name,
+                  phone: selected.phone,
+                  balance: selectedBalance,
+                  hasLedgerActivity: Boolean(
+                    ledgerIndex.get(selected.id)?.lastMovementAt ||
+                    selectedBalance !== 0 ||
+                    activity.length > 0,
+                  ),
+                }}
+                onSelectStatementPdf={() => goStatement(selected)}
+                onSelectStatementExcel={() => goStatement(selected)}
+                trigger={
                   <button
                     type="button"
-                    onClick={() => handleCustomerWhatsApp(selected, lang)}
-                    className="flex items-center gap-1.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 px-3.5 py-1.5 text-xs font-bold text-emerald-400 hover:bg-emerald-500/25 transition active:scale-95"
+                    className="flex items-center gap-1.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 px-3.5 py-1.5 text-xs font-bold text-emerald-400 hover:bg-emerald-500/25 transition active:scale-95 cursor-pointer"
                   >
                     <WhatsAppIcon className="size-3.5" />
-                    <span>{lang === "ar" ? "واتساب" : "WhatsApp"}</span>
+                    <span>{lang === "ar" ? "إجراءات المراسلة" : "Messaging"}</span>
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => handleCustomerSMS(selected, lang)}
-                    className="flex items-center gap-1.5 rounded-full bg-sky-500/15 border border-sky-500/30 px-3.5 py-1.5 text-xs font-bold text-sky-400 hover:bg-sky-500/25 transition active:scale-95"
-                  >
-                    <MessageSquareText className="size-3.5" />
-                    <span>{lang === "ar" ? "رسالة نصية" : "Text message"}</span>
-                  </button>
-                </>
+                }
+              />
+              {selected.phone && (
+                <button
+                  type="button"
+                  onClick={() => handleCustomerSMS(selected, lang)}
+                  className="flex items-center gap-1.5 rounded-full bg-sky-500/15 border border-sky-500/30 px-3.5 py-1.5 text-xs font-bold text-sky-400 hover:bg-sky-500/25 transition active:scale-95"
+                >
+                  <MessageSquareText className="size-3.5" />
+                  <span>{lang === "ar" ? "رسالة نصية" : "Text message"}</span>
+                </button>
               )}
               {isModuleEnabled("payments") && (
                 <DetailActionBtn

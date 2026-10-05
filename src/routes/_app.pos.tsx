@@ -56,6 +56,11 @@ import { useKeyboardWedge } from "@/hooks/use-keyboard-wedge";
 import { useCatalogModules } from "@/lib/catalog-modules";
 import { printInvoice, type InvoiceTemplate } from "@/lib/invoice-print";
 import type { InvoiceDoc } from "@/lib/pdf";
+import { OperationSuccessModal } from "@/components/communication";
+import type {
+  CustomerContext,
+  InvoiceContext,
+} from "@/lib/communication";
 
 export const Route = createFileRoute("/_app/pos")({
   head: () => ({ meta: [{ title: "نقطة البيع — فورتيكس ERP" }] }),
@@ -351,6 +356,16 @@ function POSPage() {
 
   const [loading, setLoading] = useState(false);
   const [lastInvoice, setLastInvoice] = useState<{ id: string; number: string } | null>(null);
+  const [saleSuccess, setSaleSuccess] = useState<{
+    id: string;
+    number: string;
+    total: number;
+    paid: number;
+    remaining: number;
+    currency: string;
+    customer: CustomerContext | null;
+    invoice: InvoiceContext;
+  } | null>(null);
   const [scannerOpen, setScannerOpen] = useState(false);
 
   // Company settings for invoice generation
@@ -1258,6 +1273,53 @@ function POSPage() {
             }
           : undefined,
       };
+
+      // Unified Success Experience (only when a customer is attached)
+      if (customerId) {
+        const saleCustomer = customers.find((c) => c.id === customerId);
+        setSaleSuccess({
+          id: invoiceId,
+          number: invoiceNumber,
+          total,
+          paid: Math.min(Math.max(effectivePaid, 0), total),
+          remaining: remainingDebt,
+          currency: cur,
+          customer: saleCustomer
+            ? {
+                id: saleCustomer.id,
+                name: saleCustomer.name,
+                phone: saleCustomer.phone ?? null,
+                balance: remainingDebt,
+                creditLimit: saleCustomer.credit_limit ?? undefined,
+                hasLedgerActivity: true,
+              }
+            : { id: customerId, name: lang === "ar" ? "عميل" : "Customer", phone: null, balance: remainingDebt },
+          invoice: {
+            id: invoiceId,
+            invoiceNumber,
+            date: saleDate,
+            subtotal,
+            tax: taxTotal,
+            discount: discountN,
+            total,
+            paid: Math.min(Math.max(effectivePaid, 0), total),
+            remaining: remainingDebt,
+            status:
+              remainingDebt > 0
+                ? effectivePaid > 0
+                  ? lang === "ar"
+                    ? "جزئي"
+                    : "Partial"
+                  : lang === "ar"
+                    ? "آجل / غير مدفوع"
+                    : "Unpaid"
+                : lang === "ar"
+                  ? "مكتمل"
+                  : "Paid",
+            linesCount: cart.length,
+          },
+        });
+      }
 
       // Handle print mode
       const labels = {
@@ -2348,6 +2410,27 @@ function POSPage() {
         onClose={() => setScannerOpen(false)}
         continuous
         onDetected={handleCode}
+      />
+
+      {/* Unified Operation Success Experience (after a confirmed sale) */}
+      <OperationSuccessModal
+        open={Boolean(saleSuccess)}
+        onClose={() => setSaleSuccess(null)}
+        operationId={saleSuccess?.id}
+        title={lang === "ar" ? "تمت عملية البيع بنجاح" : "Sale Completed Successfully"}
+        subtitle={
+          saleSuccess
+            ? lang === "ar"
+              ? `تم إصدار الفاتورة رقم #${saleSuccess.number} بنجاح`
+              : `Invoice #${saleSuccess.number} issued successfully`
+            : undefined
+        }
+        amount={saleSuccess?.total}
+        currency={saleSuccess?.currency}
+        referenceNumber={saleSuccess?.number}
+        customer={saleSuccess?.customer}
+        invoice={saleSuccess?.invoice}
+        eventType="invoice_created"
       />
 
       {/* Post-Sale Print Dialog */}

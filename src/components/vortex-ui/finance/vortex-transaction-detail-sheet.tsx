@@ -1,6 +1,3 @@
-import { useCompanyCurrency } from "@/hooks/use-company-currency";
-"use client";
-
 import * as React from "react";
 import {
   Receipt,
@@ -14,8 +11,15 @@ import {
 } from "lucide-react";
 import { VortexDrawerDialog } from "../form/vortex-drawer-dialog";
 import { VortexDateBadge } from "../display/vortex-date-badge";
-import { formatSystemNumber, toSystemDigits } from "@/lib/format-preferences";
 import { WhatsAppIcon } from "@/components/whatsapp-icon";
+import { useCompanyCurrency } from "@/hooks/use-company-currency";
+import { toSystemDigits, formatSystemNumber } from "@/lib/format-preferences";
+import {
+  buildUnifiedContext,
+  renderMessage,
+  buildWhatsAppLink,
+  isValidWhatsAppPhone,
+} from "@/lib/communication";
 
 export interface VortexTransactionDetailSheetProps {
   open: boolean;
@@ -47,27 +51,46 @@ export function VortexTransactionDetailSheet({
 
   const isPayment = transaction.type === "payment";
 
+  const hasPhone = Boolean(transaction.customerPhone && transaction.customerPhone.trim().length > 0);
+  const canSendWhatsApp = hasPhone && isValidWhatsAppPhone(transaction.customerPhone);
+
   const generateMessage = () => {
-    return `مرحباً أستاذ/ة ${transaction.customerName}،
-إشعار بعملية: ${transaction.title}
-المبلغ: ${formatSystemNumber(transaction.amount, { currency: currencySymbol })}
-رقم المرجع: #${transaction.referenceNumber || transaction.id.slice(-6)}
-التاريخ: ${transaction.date}
-${transaction.remainingBalance !== undefined ? `المتبقي في الحساب: ${formatSystemNumber(transaction.remainingBalance, { currency: currencySymbol })}` : ""}
-شاكرين لكم ومقدرين حسن تعاونكم.`;
+    const ctx = buildUnifiedContext({
+      event: isPayment ? "payment_received" : "general_customer_notice",
+      customer: {
+        id: "",
+        name: transaction.customerName,
+        phone: transaction.customerPhone,
+        balance: transaction.remainingBalance ?? 0,
+      },
+      payment: isPayment
+        ? {
+            receiptNumber: transaction.referenceNumber || transaction.id.slice(-6),
+            date: transaction.date,
+            amount: transaction.amount,
+            method: transaction.method || "نقداً",
+            remainingBalance: transaction.remainingBalance,
+            notes: transaction.notes,
+          }
+        : undefined,
+      language: "ar",
+    });
+
+    return renderMessage(ctx).text;
   };
 
   const shareWhatsApp = () => {
-    const text = encodeURIComponent(generateMessage());
-    const phone = (transaction.customerPhone || "").replace(/\D/g, "");
-    const url = phone ? `https://wa.me/${phone}?text=${text}` : `https://wa.me/?text=${text}`;
-    window.open(url, "_blank");
+    if (!canSendWhatsApp) return;
+    const link = buildWhatsAppLink(transaction.customerPhone, generateMessage());
+    if (link) {
+      window.open(link, "_blank", "noopener,noreferrer");
+    }
   };
 
   const shareSMS = () => {
-    const text = encodeURIComponent(generateMessage());
-    const phone = (transaction.customerPhone || "").replace(/\D/g, "");
-    window.open(`sms:${phone}?body=${text}`, "_blank");
+    if (!hasPhone) return;
+    const phone = (transaction.customerPhone || "").replace(/[^\d+]/g, "");
+    window.open(`sms:${phone}?body=${encodeURIComponent(generateMessage())}`, "_blank");
   };
 
   const copyText = () => {
@@ -151,8 +174,14 @@ ${transaction.remainingBalance !== undefined ? `المتبقي في الحساب
           <div className="grid grid-cols-2 gap-2">
             <button
               type="button"
+              disabled={!canSendWhatsApp}
               onClick={shareWhatsApp}
-              className="h-12 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-md shadow-emerald-600/20 active:scale-98 transition cursor-pointer"
+              title={!canSendWhatsApp ? "لا يوجد رقم هاتف مسجل للعميل" : "واتساب للعميل"}
+              className={`h-12 rounded-2xl font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-md transition ${
+                canSendWhatsApp
+                  ? "bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-600/20 active:scale-98 cursor-pointer"
+                  : "bg-muted text-muted-foreground border border-border cursor-not-allowed opacity-60"
+              }`}
             >
               <WhatsAppIcon className="size-4" />
               <span>واتساب للعميل</span>

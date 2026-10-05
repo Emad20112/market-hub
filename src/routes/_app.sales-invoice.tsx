@@ -57,6 +57,7 @@ import { toSystemDigits } from "@/lib/format-preferences";
 import { toast } from "sonner";
 import { printInvoice, type InvoiceTemplate } from "@/lib/invoice-print";
 import type { InvoiceDoc } from "@/lib/pdf";
+import { OperationSuccessModal } from "@/components/communication";
 import {
   createSalesInvoice,
   fetchSellableProducts,
@@ -235,6 +236,7 @@ function SalesInvoicePage() {
     total: number;
     doc: InvoiceDoc;
   } | null>(null);
+  const [successModalOpen, setSuccessModalOpen] = useState(false);
 
   const setT = <K extends keyof TicketForm>(key: K, value: TicketForm[K]) =>
     setTicket((current) => ({ ...current, [key]: value }));
@@ -548,12 +550,7 @@ function SalesInvoicePage() {
         total: result.total ?? total,
         doc,
       });
-
-      toast.success(
-        isRtl
-          ? `تم إصدار الفاتورة #${result.invoiceNumber}`
-          : `Invoice #${result.invoiceNumber} posted`,
-      );
+      setSuccessModalOpen(true);
 
       // Reset the form but keep the warehouse and the mode, so a counter that
       // serves several customers in a row does not re-select them each time.
@@ -1354,6 +1351,40 @@ function SalesInvoicePage() {
           )}
         </div>
       </div>
+
+      <OperationSuccessModal
+        open={successModalOpen}
+        onClose={() => setSuccessModalOpen(false)}
+        title={isRtl ? "تم إصدار الفاتورة بنجاح" : "Invoice Issued Successfully"}
+        subtitle={lastInvoice ? (isRtl ? `فاتورة مبيعات #${lastInvoice.number}` : `Sales Invoice #${lastInvoice.number}`) : undefined}
+        amount={lastInvoice?.total}
+        referenceNumber={lastInvoice?.number}
+        customer={
+          selectedCustomer
+            ? {
+                id: selectedCustomer.id,
+                name: selectedCustomer.name,
+                phone: selectedCustomer.phone,
+                balance: Number(selectedCustomer.balance ?? 0),
+              }
+            : null
+        }
+        invoice={
+          lastInvoice
+            ? {
+                id: lastInvoice.id,
+                invoiceNumber: lastInvoice.number,
+                date: new Date().toISOString().split("T")[0],
+                subtotal: lastInvoice.total,
+                total: lastInvoice.total,
+                paid: Number(paid || 0),
+                remaining: Math.max(0, lastInvoice.total - Number(paid || 0)),
+              }
+            : null
+        }
+        eventType="invoice_created"
+        onPrint={() => printLast("standard")}
+      />
     </div>
   );
 }

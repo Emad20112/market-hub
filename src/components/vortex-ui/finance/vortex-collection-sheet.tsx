@@ -21,6 +21,13 @@ import { money } from "@/lib/format";
 import { toSystemDigits } from "@/lib/format-preferences";
 import { cn } from "@/lib/utils";
 import { WhatsAppIcon } from "@/components/whatsapp-icon";
+import {
+  buildUnifiedContext,
+  renderMessage,
+  playSuccessChime,
+  buildWhatsAppLink,
+  isValidWhatsAppPhone,
+} from "@/lib/communication";
 
 export type PaymentMethod = "cash" | "transfer";
 
@@ -105,30 +112,35 @@ export function VortexCollectionSheet({
     const formattedRemaining = money(r.remainingBalance);
     const mLabel = paymentMethods.find((m) => m.id === r.method)?.label || "نقداً";
 
+    const ctx = buildUnifiedContext({
+      event: "payment_received",
+      customer: {
+        id: customer?.id || "",
+        name: r.customerName,
+        phone: r.customerPhone,
+        balance: r.remainingBalance,
+      },
+      payment: {
+        receiptNumber: r.receiptNumber,
+        date: r.date,
+        amount: r.amount,
+        method: mLabel,
+        remainingBalance: r.remainingBalance,
+        notes: r.notes,
+      },
+      language: "ar",
+    });
+
     if (tpl === "official") {
-      const parts = [
-        "*سند قبض إلكتروني - فورتيكس ERP*",
-        "--------------------------------",
-        "👤 العميل: " + r.customerName,
-        "💵 المبلغ المستلم: " + formattedAmount,
-        "💳 طريقة الدفع: " + mLabel,
-        "🔖 رقم السند: #" + r.receiptNumber,
-        "📅 التاريخ: " + r.date,
-        r.remainingBalance > 0
-          ? "📊 الرصيد المتبقي: " + formattedRemaining
-          : "✅ تم سداد كامل الرصيد المستحق.",
-        "--------------------------------",
-        "شكراً لتعاملكم معنا ونسعد بخدمتكم دائماً.",
-      ];
-      return parts.join("\n");
+      return renderMessage(ctx).text;
     }
 
     if (tpl === "reminder") {
       const parts = [
-        "مرحباً " + r.customerName + "،",
-        "تم بنجاح تسجيل دفعة بقيمة " + formattedAmount + " برقم سند #" + r.receiptNumber + ".",
+        `مرحباً ${r.customerName}،`,
+        `تم بنجاح تسجيل دفعة بقيمة ${formattedAmount} برقم سند #${r.receiptNumber}.`,
         r.remainingBalance > 0
-          ? "نود تذكيركم بأن الرصيد المتبقي على حسابكم هو: " + formattedRemaining + "."
+          ? `نود تذكيركم بأن الرصيد المتبقي على حسابكم هو: ${formattedRemaining}.`
           : "حسابكم الآن مسدد بالكامل.",
         "شاكرين لكم حسن تعاونكم.",
       ];
@@ -136,17 +148,7 @@ export function VortexCollectionSheet({
     }
 
     return (
-      "تم استلام " +
-      formattedAmount +
-      " من " +
-      r.customerName +
-      " بموجب سند #" +
-      r.receiptNumber +
-      " بتاريخ " +
-      r.date +
-      ". المتبقي: " +
-      formattedRemaining +
-      ". شكراً لكم."
+      `تم استلام ${formattedAmount} من ${r.customerName} بموجب سند #${r.receiptNumber} بتاريخ ${r.date}. المتبقي: ${formattedRemaining}. شكراً لكم.`
     );
   };
 
@@ -189,6 +191,7 @@ export function VortexCollectionSheet({
 
       setReceipt(newReceipt);
       setCustomMessage(buildTemplateMessage(newReceipt, "official"));
+      playSuccessChime({ volume: 0.25 });
       onSuccess?.(newReceipt);
     } finally {
       setIsSubmitting(false);
@@ -198,19 +201,21 @@ export function VortexCollectionSheet({
   const activeMessageText =
     customMessage || (receipt ? buildTemplateMessage(receipt, selectedTemplate) : "");
 
+  const hasCustomerPhone = Boolean(receipt?.customerPhone && receipt.customerPhone.trim().length > 0);
+  const canSendWhatsApp = hasCustomerPhone && isValidWhatsAppPhone(receipt?.customerPhone);
+
   const shareWhatsApp = () => {
-    if (!receipt) return;
-    const text = encodeURIComponent(activeMessageText);
-    const phone = (receipt.customerPhone || "").replace(/\D/g, "");
-    const url = phone ? `https://wa.me/${phone}?text=${text}` : `https://wa.me/?text=${text}`;
-    window.open(url, "_blank");
+    if (!receipt || !canSendWhatsApp) return;
+    const link = buildWhatsAppLink(receipt.customerPhone, activeMessageText);
+    if (link) {
+      window.open(link, "_blank", "noopener,noreferrer");
+    }
   };
 
   const shareSMS = () => {
-    if (!receipt) return;
-    const text = encodeURIComponent(activeMessageText);
-    const phone = (receipt.customerPhone || "").replace(/\D/g, "");
-    window.open(`sms:${phone}?body=${text}`, "_blank");
+    if (!receipt || !hasCustomerPhone) return;
+    const phone = (receipt.customerPhone || "").replace(/[^\d+]/g, "");
+    window.open(`sms:${phone}?body=${encodeURIComponent(activeMessageText)}`, "_blank");
   };
 
   const copyReceiptText = () => {
@@ -330,8 +335,8 @@ export function VortexCollectionSheet({
                 </span>
               </div>
             ) : (
-              <div className="text-[11px] text-amber-500 font-semibold">
-                ⚠️ العميل ليس لديه رقم هاتف مسجل، سيتم فتح نافذة الإرسال لاختيار جهة الاتصال يدوياً.
+              <div className="text-[11px] text-amber-500 font-semibold flex items-center gap-1.5">
+                <span>⚠️ هذا العميل لا يوجد لديه رقم هاتف مسجل في النظام.</span>
               </div>
             )}
           </div>
@@ -341,8 +346,14 @@ export function VortexCollectionSheet({
             <div className="grid grid-cols-2 gap-2">
               <button
                 type="button"
+                disabled={!canSendWhatsApp}
                 onClick={shareWhatsApp}
-                className="h-12 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-md shadow-emerald-600/20 active:scale-98 transition cursor-pointer"
+                title={!canSendWhatsApp ? "لا يوجد رقم هاتف مسجل للعميل" : "إرسال عبر واتساب"}
+                className={`h-12 rounded-2xl font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-md transition ${
+                  canSendWhatsApp
+                    ? "bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-600/20 active:scale-98 cursor-pointer"
+                    : "bg-muted text-muted-foreground border border-border cursor-not-allowed opacity-60"
+                }`}
               >
                 <WhatsAppIcon className="size-4" />
                 <span>إرسال عبر واتساب</span>
