@@ -20,8 +20,8 @@ export function CatalogSection({ canEdit, lang }: CatalogSectionProps) {
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-xs text-muted-foreground">
               {lang === "ar"
-                ? "اختر النشاط وخصائص الفهرس والموديلات المناسبة لمنشأتك."
-                : "Choose the industry and catalog/model features for your business."}
+                ? "فعّل أو أوقف أبعاد الفهرس التي تملكها منشأتك: وحدات القياس، ودرجات الحبوب، ومستلزمات التعبئة."
+                : "Enable or disable the catalogue dimensions your business actually has: units, grain grades, and packaging supplies."}
             </p>
             <Button
               type="button"
@@ -29,7 +29,7 @@ export function CatalogSection({ canEdit, lang }: CatalogSectionProps) {
               className="w-full rounded-xl sm:w-auto"
             >
               <SlidersHorizontal className="me-1.5 size-4" />
-              {lang === "ar" ? "تخصيص النشاط والموديلات" : "Customize industry & modules"}
+              {lang === "ar" ? "تخصيص الفهرس" : "Customize catalogue"}
             </Button>
           </div>
         </CardContent>

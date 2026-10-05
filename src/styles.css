@@ -239,14 +239,27 @@
   --success-foreground: oklch(1 0 0);
   --warning: oklch(0.72 0.16 78);
   --warning-foreground: oklch(0.15 0 0);
+
+  /* ألوان الرسوم البيانية: الـ fallback في tokens.ts يشير إلى هذه المتغيّرات،
+     فبدونها تفقد المخططات ألوانها في الوضع الفاتح. */
+  --chart-1: oklch(0.55 0.20 255);
+  --chart-2: oklch(0.60 0.16 175);
+  --chart-3: oklch(0.66 0.14 80);
+  --chart-4: oklch(0.58 0.20 325);
+  --chart-5: oklch(0.56 0.16 152);
   --border: oklch(0.20 0.03 258 / 0.09);
   --input: oklch(0.20 0.03 258 / 0.09);
   --ring: oklch(0.55 0.22 258 / 0.5);
   --sidebar: oklch(0.99 0.004 60);
   --sidebar-foreground: oklch(0.22 0.035 258);
+  /* لازم معرّفة هنا أيضاً: هي ما يلوّن عنصر القائمة النشط، وغيابها في الوضع
+     الفاتح كان يجعل القائمة بلا لون إطلاقاً. */
+  --sidebar-primary: oklch(0.52 0.20 258);
+  --sidebar-primary-foreground: oklch(1 0 0);
   --sidebar-accent: oklch(0.94 0.010 60);
   --sidebar-accent-foreground: oklch(0.16 0.040 258);
   --sidebar-border: oklch(0.20 0.03 258 / 0.08);
+  --sidebar-ring: oklch(0.52 0.20 258 / 0.5);
 
   --surface-2: oklch(0.945 0.010 60);
   --surface-3: oklch(0.915 0.012 60);
