@@ -227,7 +227,11 @@ function DashboardPage() {
           .gte("created_at", since14)
           .order("created_at", { ascending: false })
           .limit(8),
-        supabase.from("expenses").select("amount,created_at").gte("created_at", since),
+        (supabase as any)
+          .from("expense_entries")
+          .select("total_amount,paid_amount,status,expense_date,created_at")
+          .in("status", ["POSTED", "PARTIALLY_PAID", "PAID", "CLOSED"])
+          .gte("expense_date", since.slice(0, 10)),
       ]);
 
       const salesRows = sales.data ?? [];
@@ -274,7 +278,9 @@ function DashboardPage() {
 
       const totalRev = salesRows.reduce((a, r: any) => a + Number(r.total), 0);
       const totalPaid = salesRows.reduce((a, r: any) => a + Number(r.paid), 0);
-      const totalExpenses = (expenses.data ?? []).reduce((a, r: any) => a + Number(r.amount), 0);
+      const expRows = (expenses.data ?? []) as any[];
+      const totalExpenses = expRows.reduce((a, r) => a + Number(r.total_amount || 0), 0);
+      const totalExpenseCashPaid = expRows.reduce((a, r) => a + Number(r.paid_amount || 0), 0);
       const receivables = (customers.data ?? []).reduce(
         (a, r: any) => a + Math.max(0, Number(r.balance ?? 0)),
         0,
@@ -292,7 +298,7 @@ function DashboardPage() {
         alerts: lowStock.length,
         expenses: totalExpenses,
         receivables,
-        netCash: totalPaid - totalExpenses,
+        netCash: totalPaid - totalExpenseCashPaid,
         daily,
         topProducts,
         paySplit,

@@ -141,11 +141,14 @@ function AnalyticsPage() {
           .from("inventory")
           .select("product_id,quantity,warehouse_id,warehouses(name,name_ar)")
           .limit(2000),
-        supabase
-          .from("expenses")
-          .select("amount,created_at,category:expense_categories(name,name_ar)")
-          .gte("created_at", since)
-          .limit(1000),
+        (supabase as any)
+          .from("expense_entries")
+          .select(
+            "id,total_amount,expense_date,created_at,expense_lines(gross_amount,category_id,expense_categories(name,name_ar))",
+          )
+          .in("status", ["POSTED", "PARTIALLY_PAID", "PAID", "CLOSED"])
+          .gte("expense_date", since.slice(0, 10))
+          .limit(2000),
         supabase
           .from("purchase_invoices")
           .select("total,created_at")
@@ -157,7 +160,7 @@ function AnalyticsPage() {
         items: items.data ?? [],
         products: products.data ?? [],
         inv: inv.data ?? [],
-        expenses: expenses.data ?? [],
+        expenses: (expenses.data ?? []) as any[],
         purchases: purchases.data ?? [],
       };
     },
@@ -192,9 +195,9 @@ function AnalyticsPage() {
       daily[key].profit += Number(it.total) - cost * Number(it.quantity);
     });
     data.expenses.forEach((e: any) => {
-      const key = localDayKey(e.created_at);
+      const key = localDayKey(e.expense_date || e.created_at);
       if (!daily[key]) return;
-      daily[key].expenses += Number(e.amount);
+      daily[key].expenses += Number(e.total_amount || 0);
     });
     data.purchases.forEach((p: any) => {
       const key = localDayKey(p.created_at);
@@ -335,15 +338,27 @@ function AnalyticsPage() {
     // Totals
     const totalRev = sales.reduce((a, s) => a + Number(s.total), 0);
     const totalProfit = dailyArr.reduce((a, d) => a + d.profit, 0);
-    const totalExp = data.expenses.reduce((a: number, e: any) => a + Number(e.amount), 0);
+    const totalExp = data.expenses.reduce(
+      (a: number, e: any) => a + Number(e.total_amount || 0),
+      0,
+    );
     const avgOrder = sales.length ? totalRev / sales.length : 0;
     const uniqueCustomers = new Set(sales.map((s) => s.customer_id).filter(Boolean)).size;
 
     // Expense categories
     const expAgg = new Map<string, number>();
     data.expenses.forEach((e: any) => {
-      const label = isAr ? e.category?.name_ar || e.category?.name || "—" : e.category?.name || "—";
-      expAgg.set(label, (expAgg.get(label) ?? 0) + Number(e.amount));
+      const lines = e.expense_lines ?? [];
+      if (lines.length > 0) {
+        lines.forEach((l: any) => {
+          const cat = l.expense_categories;
+          const label = isAr ? cat?.name_ar || cat?.name || "—" : cat?.name || "—";
+          expAgg.set(label, (expAgg.get(label) ?? 0) + Number(l.gross_amount || 0));
+        });
+      } else {
+        const label = isAr ? "مصروفات عامة" : "General";
+        expAgg.set(label, (expAgg.get(label) ?? 0) + Number(e.total_amount || 0));
+      }
     });
     const expByCat = Array.from(expAgg.entries())
       .map(([name, value]) => ({ name, value }))

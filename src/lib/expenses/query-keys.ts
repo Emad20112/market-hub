@@ -144,6 +144,13 @@ export const EXPENSE_ENTRY_TYPES: ExpenseEntryType[] = [
   "ADVANCE",
 ];
 
+/** Active entry types with verified complete workflows in UI */
+export const ACTIVE_EXPENSE_ENTRY_TYPES: ExpenseEntryType[] = [
+  "DIRECT",
+  "SUPPLIER",
+  "EMPLOYEE",
+];
+
 export const EXPENSE_TAX_MODES: ExpenseTaxMode[] = ["NONE", "INCLUSIVE", "EXCLUSIVE"];
 
 /* ------------------------------------------------------------------ */
