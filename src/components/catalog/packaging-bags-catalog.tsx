@@ -22,11 +22,20 @@ const db = supabase as any;
 export interface PackagingBagItem {
   id: string;
   sku: string;
-  name: string;
+  name: string | null;
   name_ar: string;
   sale_price: number;
   cost_price: number;
   is_active: boolean;
+  unit_id: string | null;
+  unit?: { id: string; name: string; name_ar: string | null; short_name: string } | null;
+}
+
+interface UnitOption {
+  id: string;
+  name: string;
+  name_ar: string | null;
+  short_name: string;
 }
 
 export function PackagingBagsCatalogView() {
@@ -43,6 +52,21 @@ export function PackagingBagsCatalogView() {
   const [formSalePrice, setFormSalePrice] = useState(500);
   const [formCostPrice, setFormCostPrice] = useState(350);
   const [formIsActive, setFormIsActive] = useState(true);
+  const [formUnitId, setFormUnitId] = useState("");
+
+  // A packaging item is a real stock item: without a unit its balance has no
+  // meaning, and the form used to allow saving one anyway.
+  const { data: units = [] } = useQuery({
+    queryKey: ["catalog", "units"],
+    queryFn: async () => {
+      const { data, error } = await db
+        .from("units")
+        .select("id, name, name_ar, short_name")
+        .order("name_ar");
+      if (error) throw error;
+      return (data || []) as UnitOption[];
+    },
+  });
 
   // Fetch packaging items from products table
   const { data: bags = [], isLoading } = useQuery({
@@ -50,7 +74,9 @@ export function PackagingBagsCatalogView() {
     queryFn: async () => {
       const { data, error } = await db
         .from("products")
-        .select("id, sku, name, name_ar, sale_price, cost_price, is_active")
+        .select(
+          "id, sku, name, name_ar, sale_price, cost_price, is_active, unit_id, unit:units(id, name, name_ar, short_name)",
+        )
         .ilike("sku", "PKG-%")
         .order("sku");
       if (error) throw error;
@@ -62,34 +88,60 @@ export function PackagingBagsCatalogView() {
     const s = q.trim().toLowerCase();
     if (!s) return bags;
     return bags.filter((b) =>
-      [b.name_ar, b.sku, b.name].some((v) => (v ?? "").toLowerCase().includes(s))
+      [b.name_ar, b.sku, b.name].some((v) => (v ?? "").toLowerCase().includes(s)),
     );
   }, [bags, q]);
 
+  // The metrics below used to be hard-coded numbers ("+150 ر.ي (30%)") that had
+  // nothing to do with the items on screen. They are computed now, so the card
+  // answers what the packaging actually costs instead of asserting a figure the
+  // user never entered.
+  const metrics = useMemo(() => {
+    const priced = bags.filter((b) => Number(b.sale_price) > 0);
+    const sack = bags.find((b) => b.sku === "PKG-BAG-50");
+    const avgMargin = priced.length
+      ? priced.reduce((sum, b) => sum + (Number(b.sale_price) - Number(b.cost_price)), 0) /
+        priced.length
+      : 0;
+    const avgPct = priced.length
+      ? priced.reduce(
+          (sum, b) =>
+            sum +
+            (Number(b.sale_price) ? (1 - Number(b.cost_price) / Number(b.sale_price)) * 100 : 0),
+          0,
+        ) / priced.length
+      : 0;
+    return { sackPrice: sack ? Number(sack.sale_price) : null, avgMargin, avgPct };
+  }, [bags]);
+
   const handleEdit = (b: PackagingBagItem) => {
     setEditing(b);
-    setFormNameAr(b.name_ar || b.name);
+    setFormNameAr(b.name_ar || b.name || "");
     setFormSku(b.sku);
     setFormSalePrice(Number(b.sale_price) || 0);
     setFormCostPrice(Number(b.cost_price) || 0);
     setFormIsActive(b.is_active);
+    setFormUnitId(b.unit_id ?? "");
     setDialogOpen(true);
   };
 
   const handleCreate = () => {
     setEditing(null);
     setFormNameAr("");
-    setFormSku("PKG-BAG-");
+    setFormSku("PKG-");
     setFormSalePrice(500);
     setFormCostPrice(350);
     setFormIsActive(true);
+    // كيس جديد؛ وحدة القياس مطلوبة، لذا نُعِدّ أول وحدة.
+    setFormUnitId(units[0]?.id ?? "");
     setDialogOpen(true);
   };
 
   const saveMutation = useMutation({
     mutationFn: async () => {
-      if (!formNameAr.trim()) throw new Error("اسم الكيس أو المستلزم مطلوب");
+      if (!formNameAr.trim()) throw new Error("اسم المستلزم مطلوب");
       if (!formSku.trim()) throw new Error("كود الصنف (SKU) مطلوب");
+      if (!formUnitId) throw new Error("وحدة القياس مطلوبة — بدونها لا معنى لرصيد المخزون");
 
       // Find category for packaging
       const { data: cat } = await db
@@ -100,20 +152,26 @@ export function PackagingBagsCatalogView() {
 
       const payload = {
         name_ar: formNameAr.trim(),
-        name: formNameAr.trim(),
+        // The English name is left empty on purpose: writing the Arabic into
+        // it is what made every item list its name twice.
+        name: null,
         sku: formSku.trim().toUpperCase(),
         sale_price: formSalePrice,
         cost_price: formCostPrice,
         is_active: formIsActive,
         category_id: cat?.id || null,
-        type: "product",
+        unit_id: formUnitId,
+        // A packaging consumable: bought, stocked, sold, never milled.
+        item_class: "NON_STOCK_ITEM",
+        inventory_policy: "TRACKED",
+        tracking: "NONE",
+        costing_method: "MOVING_AVERAGE",
+        is_sellable: true,
+        is_purchasable: true,
       };
 
       if (editing) {
-        const { error } = await db
-          .from("products")
-          .update(payload)
-          .eq("id", editing.id);
+        const { error } = await db.from("products").update(payload).eq("id", editing.id);
         if (error) throw error;
       } else {
         const { error } = await db.from("products").insert(payload);
@@ -121,7 +179,7 @@ export function PackagingBagsCatalogView() {
       }
     },
     onSuccess: () => {
-      toast.success(editing ? "تم تعديل كيس التعبئة بنجاح" : "تمت إضافة الكيس بنجاح");
+      toast.success(editing ? "تم تعديل المستلزم بنجاح" : "تمت إضافة المستلزم بنجاح");
       setDialogOpen(false);
       qc.invalidateQueries({ queryKey: ["catalog", "packaging-bags"] });
       qc.invalidateQueries({ queryKey: ["milling"] });
@@ -148,7 +206,7 @@ export function PackagingBagsCatalogView() {
             type="text"
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            placeholder="بحث في الأكياس، كود الصنف، السعر..."
+            placeholder="بحث في المستلزمات، كود الصنف، السعر..."
             className="w-full rounded-2xl border border-border bg-card pr-9 pl-4 py-2.5 text-xs focus:ring-2 focus:ring-primary/20"
           />
         </div>
@@ -159,7 +217,7 @@ export function PackagingBagsCatalogView() {
           className="inline-flex items-center gap-2 rounded-2xl bg-primary hover:bg-primary/90 px-4 py-2.5 text-xs font-bold text-primary-foreground shadow-md transition active:scale-95"
         >
           <Plus className="h-4 w-4" />
-          <span>إضافة كيس تعبئة أو مستلزم جديد</span>
+          <span>إضافة مستلزم تعبئة جديد</span>
         </button>
       </div>
 
@@ -171,7 +229,9 @@ export function PackagingBagsCatalogView() {
               <PackagePlus className="h-5 w-5" />
             </span>
             <div>
-              <p className="text-[11px] font-medium text-muted-foreground">أصناف الأكياس المسجلة</p>
+              <p className="text-[11px] font-medium text-muted-foreground">
+                عدد المستلزمات المسجلة
+              </p>
               <p className="text-xl font-black text-foreground">{bags.length}</p>
             </div>
           </div>
@@ -183,9 +243,13 @@ export function PackagingBagsCatalogView() {
               <DollarSign className="h-5 w-5" />
             </span>
             <div>
-              <p className="text-[11px] font-medium text-muted-foreground">سعر شوال 50 كجم للمطحنة</p>
+              <p className="text-[11px] font-medium text-muted-foreground">سعر الشوال (50 كجم)</p>
               <p className="text-xl font-black font-mono text-foreground">
-                {bags.find((b) => b.sku === "PKG-BAG-50")?.sale_price || 500} ر.ي
+                {metrics.sackPrice != null
+                  ? `${metrics.sackPrice.toLocaleString()} ر.ي`
+                  : lang === "ar"
+                    ? "غير مسجّل"
+                    : "not set"}
               </p>
             </div>
           </div>
@@ -197,9 +261,9 @@ export function PackagingBagsCatalogView() {
               <TrendingUp className="h-5 w-5" />
             </span>
             <div>
-              <p className="text-[11px] font-medium text-muted-foreground">متوسط هامش الربح للكيس</p>
+              <p className="text-[11px] font-medium text-muted-foreground">متوسط هامش الربح</p>
               <p className="text-xl font-black font-mono text-emerald-600">
-                +150 ر.ي (30%)
+                {`+${Math.round(metrics.avgMargin).toLocaleString()} ر.ي (${Math.round(metrics.avgPct)}%)`}
               </p>
             </div>
           </div>
@@ -212,8 +276,9 @@ export function PackagingBagsCatalogView() {
           <table className="w-full text-right text-xs">
             <thead>
               <tr className="border-b border-border bg-muted/40 font-bold text-muted-foreground">
-                <th className="px-4 py-3.5">اسم الكيس / المستلزم</th>
+                <th className="px-4 py-3.5">المستلزم</th>
                 <th className="px-4 py-3.5">كود الصنف (SKU)</th>
+                <th className="px-4 py-3.5">الوحدة</th>
                 <th className="px-4 py-3.5">سعر البيع للزبون</th>
                 <th className="px-4 py-3.5">سعر التكلفة</th>
                 <th className="px-4 py-3.5">هامش الربح</th>
@@ -224,7 +289,7 @@ export function PackagingBagsCatalogView() {
             <tbody className="divide-y divide-border/60">
               {isLoading && (
                 <tr>
-                  <td colSpan={7} className="px-4 py-12 text-center text-muted-foreground">
+                  <td colSpan={8} className="px-4 py-12 text-center text-muted-foreground">
                     جارٍ التحميل...
                   </td>
                 </tr>
@@ -232,8 +297,8 @@ export function PackagingBagsCatalogView() {
 
               {!isLoading && filtered.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="px-4 py-12 text-center text-muted-foreground">
-                    لا توجد أكياس مسجلة.
+                  <td colSpan={8} className="px-4 py-12 text-center text-muted-foreground">
+                    لا توجد مستلزمات مسجلة.
                   </td>
                 </tr>
               )}
@@ -254,6 +319,12 @@ export function PackagingBagsCatalogView() {
                     <td className="px-4 py-3.5">
                       <span className="inline-flex rounded-lg border border-border/80 bg-muted/50 px-2 py-0.5 font-mono text-[11px] font-bold text-foreground">
                         {b.sku}
+                      </span>
+                    </td>
+
+                    <td className="px-4 py-3.5">
+                      <span className="inline-flex items-center gap-1 rounded-lg border border-border/80 bg-muted/50 px-2 py-0.5 text-[11px] font-bold text-foreground">
+                        {b.unit?.short_name || <span className="text-amber-600">غير محدّدة</span>}
                       </span>
                     </td>
 
@@ -283,7 +354,7 @@ export function PackagingBagsCatalogView() {
                       <div className="inline-flex items-center gap-1">
                         <button
                           type="button"
-                          onClick={() => copyText(b.name_ar || b.name, b.id)}
+                          onClick={() => copyText(b.name_ar || b.name || "", b.id)}
                           className="grid h-8 w-8 place-items-center rounded-xl border border-border bg-card text-muted-foreground hover:bg-muted"
                           title="نسخ الاسم"
                         >
@@ -315,16 +386,16 @@ export function PackagingBagsCatalogView() {
       <VortexDrawerDialog
         open={dialogOpen}
         onOpenChange={setDialogOpen}
-        title={editing ? "تعديل كيس تعبئة / مستلزم" : "إضافة كيس تعبئة جديد"}
+        title={editing ? "تعديل مستلزم تعبئة" : "إضافة مستلزم تعبئة"}
       >
         <div className="space-y-4 p-4 text-xs">
           <div className="space-y-1.5">
-            <label className="font-bold text-foreground">اسم الكيس أو المستلزم بالعربي *</label>
+            <label className="font-bold text-foreground">اسم المستلزم بالعربية *</label>
             <input
               type="text"
               value={formNameAr}
               onChange={(e) => setFormNameAr(e.target.value)}
-              placeholder="مثال: كيس تعبئة دقيق 50 كجم"
+              placeholder="مثال: كيس تعبئة 50 كجم"
               className="w-full rounded-xl border border-border bg-background px-3 py-2"
             />
           </div>
@@ -338,6 +409,25 @@ export function PackagingBagsCatalogView() {
               placeholder="مثال: PKG-BAG-50"
               className="w-full rounded-xl border border-border bg-background px-3 py-2 font-mono uppercase"
             />
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="font-bold text-foreground">وحدة القياس *</label>
+            <select
+              value={formUnitId}
+              onChange={(e) => setFormUnitId(e.target.value)}
+              className="w-full rounded-xl border border-border bg-background px-3 py-2"
+            >
+              <option value="">— اختر الوحدة —</option>
+              {units.map((u) => (
+                <option key={u.id} value={u.id}>
+                  {lang === "ar" ? u.name_ar || u.name : u.name} ({u.short_name})
+                </option>
+              ))}
+            </select>
+            <p className="text-[10px] text-muted-foreground">
+              بدون وحدة لا معنى لرصيد المخزون، ولا يمكن تسجيل حركة على هذا الصنف.
+            </p>
           </div>
 
           <div className="grid gap-3 sm:grid-cols-2">

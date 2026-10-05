@@ -1,93 +1,93 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
-export type BusinessProfile = "spare_parts" | "grocery" | "retail" | "mill" | "custom";
-
+/**
+ * تخصيص الفهرس.
+ *
+ * ما كان هنا قبل: خمسة قوالب جاهزة (قطع غيار، بقالة، تجزئة، مطحنة، مخصص)
+ * مع مفاتيح توافق مركبات ودرجات جودة وبلدان منشأ وماركات. لا شيء منها مُهيّأ
+ * في هذا النظام، فوجوده في الإعدادات وعدٌ لا يُوفى: زر يُظهر تبويباً لا
+ * محتوى له. أُبقي الأبعاد الثلاثة التي يملكها الفهرس فعلاً، ولا شيء غيرها.
+ */
 export interface CatalogModulesConfig {
-  profile: BusinessProfile;
-  enableMakesAndModels: boolean; // ماركات وموديلات المركبات وتوافق القطع
-  enableOrigins: boolean; // بلدان المنشأ
-  enableQualityGrades: boolean; // درجات الجودة (أصلي / تجاري / وكالة)
-  enableBrands: boolean; // العلامات التجارية
-  enableUnits: boolean; // الوحدات
-  enableGrainGrades?: boolean; // درجات وأنواع الحبوب للمطحنة
-  enablePackagingBags?: boolean; // أكياس ومستلزمات التعبئة والتغليف
+  enableUnits: boolean; // الوحدات والعبوات
+  enableGrainGrades: boolean; // درجات وأصناف الحبوب
+  enablePackagingBags: boolean; // مستلزمات التعبئة والتغليف
+
+  /**
+   * أبعاد不属于 مطحنة: ماركات وموديلات المركبات وتوافق القطع (قطع غيار)،
+   * وبلدان المنشأ ودرجات الجودة والعلامات التجارية (بقالة).
+   *
+   * ما زالت موجودة في النوع لأن شاشات الكاشير ونقاط البيع تشترطها في كودها،
+   * لكنها مُقفلة دائماً ولا تُعرض في الإعدادات ولا في الفهرس: بيانات هذه
+   * المنشأة لا تحتويها أصلاً. من أراد البحث بها فعلياً يُشغّلها هنا، وإلا
+   * بقيت حقولاً فارغة أمام العامل.
+   */
+  enableMakesAndModels?: boolean;
+  enableOrigins?: boolean;
+  enableQualityGrades?: boolean;
+  enableBrands?: boolean;
 }
 
 const STORAGE_KEY = "vortex_catalog_modules_v1";
 const EVENT_NAME = "vortex_catalog_modules_changed";
 
-export const DEFAULT_PROFILES: Record<BusinessProfile, CatalogModulesConfig> = {
-  mill: {
-    profile: "mill",
-    enableMakesAndModels: false,
-    enableOrigins: true,
-    enableQualityGrades: false,
-    enableBrands: false,
-    enableUnits: true,
-    enableGrainGrades: true,
-    enablePackagingBags: true,
-  },
-  spare_parts: {
-    profile: "spare_parts",
-    enableMakesAndModels: true,
-    enableOrigins: true,
-    enableQualityGrades: true,
-    enableBrands: true,
-    enableUnits: true,
-    enableGrainGrades: false,
-    enablePackagingBags: false,
-  },
-  grocery: {
-    profile: "grocery",
-    enableMakesAndModels: false,
-    enableOrigins: false,
-    enableQualityGrades: false,
-    enableBrands: true,
-    enableUnits: true,
-    enableGrainGrades: false,
-    enablePackagingBags: true,
-  },
-  retail: {
-    profile: "retail",
-    enableMakesAndModels: false,
-    enableOrigins: true,
-    enableQualityGrades: false,
-    enableBrands: true,
-    enableUnits: true,
-    enableGrainGrades: false,
-    enablePackagingBags: false,
-  },
-  custom: {
-    profile: "custom",
-    enableMakesAndModels: true,
-    enableOrigins: true,
-    enableQualityGrades: true,
-    enableBrands: true,
-    enableUnits: true,
-    enableGrainGrades: true,
-    enablePackagingBags: true,
-  },
+export const DEFAULT_CATALOG_CONFIG: CatalogModulesConfig = {
+  enableUnits: true,
+  enableGrainGrades: true,
+  enablePackagingBags: true,
+  enableMakesAndModels: false,
+  enableOrigins: false,
+  enableQualityGrades: false,
+  enableBrands: false,
 };
 
+const LEGACY_FLAGS = [
+  "enableMakesAndModels",
+  "enableOrigins",
+  "enableQualityGrades",
+  "enableBrands",
+] as const;
+
+/**
+ * يقرأ إعداداً قديماً احتوى مفاتيح القوالب ويتجاهلها. الإعداد القديم يجب أن
+ * يُترجم لا أن يُقرأ حرفياً، وإلا بقي مفتاح لا وجود له في الواجهة.
+ */
+function coerceConfig(raw: unknown): CatalogModulesConfig | null {
+  if (typeof raw !== "object" || raw === null) return null;
+  const source = raw as Record<string, unknown>;
+  const pick = (key: keyof CatalogModulesConfig): boolean | undefined =>
+    typeof source[key] === "boolean" ? (source[key] as boolean) : undefined;
+
+  const units = pick("enableUnits");
+  const grades = pick("enableGrainGrades");
+  const bags = pick("enablePackagingBags");
+  if (units === undefined && grades === undefined && bags === undefined) return null;
+
+  const config: CatalogModulesConfig = {
+    enableUnits: units ?? DEFAULT_CATALOG_CONFIG.enableUnits,
+    enableGrainGrades: grades ?? DEFAULT_CATALOG_CONFIG.enableGrainGrades,
+    enablePackagingBags: bags ?? DEFAULT_CATALOG_CONFIG.enablePackagingBags,
+  };
+  // القوالب القديمة (قطع غيار / بقالة) لم تعد موجودة، فلا يجوز أن يعيد
+  // إحياء أبعادها عبر قيمة مخزّنة من زمن القوالب.
+  for (const flag of LEGACY_FLAGS) config[flag] = false;
+  return config;
+}
+
 export function getCatalogModulesConfig(): CatalogModulesConfig {
-  // The default is the MILL profile, not spare parts. A tenant handed this
-  // system should open on the dimensions its catalogue actually uses; opening
-  // on vehicle makes and spare-part grades put irrelevant fields in front of
-  // an operator who has never configured anything. Anyone who really sells
-  // spare parts picks that profile in the dialog.
-  const fallback = DEFAULT_PROFILES.mill;
-  if (typeof window === "undefined") return fallback;
+  if (typeof window === "undefined") return { ...DEFAULT_CATALOG_CONFIG };
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return fallback;
-    const parsed = JSON.parse(raw);
-    return {
-      ...fallback,
-      ...parsed,
-    };
+    if (!raw) return { ...DEFAULT_CATALOG_CONFIG };
+    const coerced = coerceConfig(JSON.parse(raw));
+    if (coerced) return coerced;
+
+    // إن بقي الإعداد القديم على القرص، امسحه: لم يبق له معنى.
+    localStorage.removeItem(STORAGE_KEY);
+    return { ...DEFAULT_CATALOG_CONFIG };
   } catch {
-    return fallback;
+    return { ...DEFAULT_CATALOG_CONFIG };
   }
 }
 
@@ -97,7 +97,6 @@ export function saveCatalogModulesConfig(config: CatalogModulesConfig): void {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(config));
     window.dispatchEvent(new CustomEvent(EVENT_NAME, { detail: config }));
 
-    // Cloud sync to company_settings
     void supabase
       .from("company_settings")
       .update({ catalog_modules: config } as any)
@@ -114,7 +113,6 @@ export function saveCatalogModulesConfig(config: CatalogModulesConfig): void {
 export function useCatalogModules() {
   const [config, setConfigState] = useState<CatalogModulesConfig>(() => getCatalogModulesConfig());
 
-  // Listen to local changes
   useEffect(() => {
     const handler = (e: Event) => {
       const customEvent = e as CustomEvent<CatalogModulesConfig>;
@@ -132,84 +130,58 @@ export function useCatalogModules() {
     };
   }, []);
 
-  // Fetch initial config from database to ensure multi-device sync
+  // الإعداد يُخزَّن في القاعدة أيضاً ليصل إلى الأجهزة الأخرى.
   useEffect(() => {
     supabase
       .from("company_settings")
       .select("catalog_modules" as any)
       .eq("id", 1)
       .maybeSingle()
-      .then(
-        ({ data, error }) => {
-          if (!error && data && (data as any).catalog_modules) {
-            const remote = (data as any).catalog_modules as CatalogModulesConfig;
-            if (remote && remote.profile) {
-              setConfigState(remote);
-              if (typeof window !== "undefined") {
-                localStorage.setItem(STORAGE_KEY, JSON.stringify(remote));
-              }
-            }
-          }
-        },
-        () => {},
-      );
+      .then(({ data, error }) => {
+        if (error || !data) return;
+        const remote = coerceConfig((data as any).catalog_modules);
+        if (!remote) return;
+        setConfigState(remote);
+        if (typeof window !== "undefined") {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(remote));
+        }
+      });
   }, []);
 
   const updateConfig = (updates: Partial<CatalogModulesConfig>) => {
-    const next: CatalogModulesConfig = {
-      ...config,
-      ...updates,
-      profile: updates.profile ?? "custom",
-    };
+    const next: CatalogModulesConfig = { ...config, ...updates };
+    for (const flag of LEGACY_FLAGS) next[flag] = false;
     setConfigState(next);
     saveCatalogModulesConfig(next);
-  };
-
-  const setProfile = (profile: BusinessProfile) => {
-    const preset = DEFAULT_PROFILES[profile];
-    setConfigState(preset);
-    saveCatalogModulesConfig(preset);
   };
 
   const isTabEnabled = (
     tab:
       | "categories"
-      | "brands"
       | "units"
+      | "grain_grades"
+      | "packaging_bags"
+      // أبعاد مغلقة: تقبلها الدالة لتبقى الشاشات الأخرى متوافقة، لكنها لا
+      // تُدرج في شريط التبويبات أبداً.
+      | "brands"
       | "origins"
       | "qualities"
       | "makes"
-      | "models"
-      | "grain_grades"
-      | "packaging_bags",
+      | "models",
   ): boolean => {
     switch (tab) {
       case "categories":
-        return true; // Always enabled
-      case "brands":
-        return config.enableBrands;
+        return true; // التصنيف بنية أساسية، لا يُخفى
       case "units":
         return config.enableUnits;
-      case "origins":
-        return config.enableOrigins;
-      case "qualities":
-        return config.enableQualityGrades;
-      case "makes":
-      case "models":
-        return config.enableMakesAndModels;
       case "grain_grades":
-        return config.enableGrainGrades ?? true;
+        return config.enableGrainGrades;
       case "packaging_bags":
-        return config.enablePackagingBags ?? true;
+        return config.enablePackagingBags;
       default:
-        return true;
+        return false; // بُعد مغلق: لا بيانات له في هذه المنشأة
     }
   };
 
-  return {
-    config,
-    updateConfig,
-    setProfile,
-    isTabEnabled,
-  };
+  return { config, updateConfig, isTabEnabled };
 }

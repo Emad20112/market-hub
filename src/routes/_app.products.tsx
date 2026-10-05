@@ -300,27 +300,61 @@ function ProductsPage() {
       const productIds = baseRows.map((product) => product.id);
 
       // These fields enrich cards and forms, but are not allowed to block the
-      // base catalogue. If an optional relation is unavailable, the defaults
-      // above keep the product safe to render.
-      const { data: enrichmentRows, error: enrichmentError } = productIds.length
-        ? await (supabase.from("products") as any)
-            .select(
-              "id, shelf_location, origin_id, quality_grade_id, category:categories(name, name_ar), brand:brands(name, name_ar), unit:units(name, short_name, name_ar), origin:countries_of_origin(id, name, name_ar, code), quality:quality_grades(id, name, name_ar, code, sort_order)",
-            )
-            .in("id", productIds)
-        : { data: [], error: null };
+      // base catalogue. They are fetched as SEPARATE reads on purpose: one
+      // unreadable relation used to fail the whole embed, which silently blanked
+      // the category, the unit and the shelf together — a product then looked
+      // uncategorised and unit-less even though both were perfectly valid.
+      //
+      // Category and unit share a read because a card cannot be read without
+      // them. Brand is isolated: it is optional in this catalogue, and it must
+      // never be able to cost the category.
+      const [enrichmentResult, brandResult, compatibilityResult] = await Promise.all([
+        productIds.length
+          ? (supabase.from("products") as any)
+              .select(
+                "id, shelf_location, category:categories(name, name_ar), unit:units(name, short_name, name_ar)",
+              )
+              .in("id", productIds)
+          : Promise.resolve({ data: [], error: null } as any),
 
-      const { data: compatibilityRows, error: compatibilityError } = productIds.length
-        ? await (supabase as any)
-            .from("product_compatibilities")
-            .select("product_id, vehicle_model_id")
-            .in("product_id", productIds)
-        : { data: [], error: null };
+        productIds.length
+          ? (supabase.from("products") as any)
+              .select("id, brand:brands(name, name_ar)")
+              .in("id", productIds)
+          : Promise.resolve({ data: [], error: null } as any),
+
+        productIds.length
+          ? (supabase as any)
+              .from("product_compatibilities")
+              .select("product_id, vehicle_model_id")
+              .in("product_id", productIds)
+          : Promise.resolve({ data: [], error: null } as any),
+      ]);
+
+      const enrichmentRows = enrichmentResult.data;
+      const enrichmentError = enrichmentResult.error;
+      const brandRows = brandResult.data;
+      const brandError = brandResult.error;
+      const compatibilityRows = compatibilityResult.data;
+      const compatibilityError = compatibilityResult.error;
+
+      if (enrichmentError) {
+        console.warn("[products] تعذّر جلب التصنيف/الوحدة:", enrichmentError.message);
+      }
+      if (brandError) {
+        console.warn("[products] تعذّر جلب العلامة التجارية:", brandError.message);
+      }
+      if (compatibilityError) {
+        console.warn("[products] تعذّر جلب التوافقات:", compatibilityError.message);
+      }
 
       const enrichmentByProduct = new Map<string, Partial<ProductRow>>(
         enrichmentError
           ? []
           : (enrichmentRows ?? []).map((product: ProductRow) => [product.id, product]),
+      );
+      const brandByProduct = new Map<string, ProductRow["brand"]>(
+        brandError ? [] : (brandRows ?? []).map((row: ProductRow) => [row.id, row.brand ?? null]),
       );
 
       const compatibilityByProduct: Record<string, { vehicle_model_id: string }[]> = {};
@@ -335,6 +369,7 @@ function ProductsPage() {
       const rows = baseRows.map((product) => ({
         ...product,
         ...enrichmentByProduct.get(product.id),
+        brand: brandByProduct.get(product.id) ?? null,
         compatibilities: compatibilityByProduct[product.id] ?? [],
       }));
       return { rows, hasMore: rows.length === PRODUCTS_PAGE_SIZE };
