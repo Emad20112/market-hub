@@ -772,6 +772,7 @@ export const SIDEBAR_SECTION_ORDER: { category: RouteCategory; titleKey: string 
   { category: "finance", titleKey: "nav.section.finance" },
   { category: "milling", titleKey: "nav.section.milling" },
   { category: "admin", titleKey: "nav.section.admin" },
+  { category: "settings", titleKey: "nav.section.settings" },
 ];
 
 /**
@@ -780,10 +781,6 @@ export const SIDEBAR_SECTION_ORDER: { category: RouteCategory; titleKey: string 
  */
 export const SIDEBAR_HIDDEN_IDS = new Set<string>([
   "returns",
-  "sales-returns",
-  "purchase-returns",
-  "settlements",
-  "loyalty",
   "printing-settings",
   "company-settings",
   "backup-settings",
@@ -791,6 +788,7 @@ export const SIDEBAR_HIDDEN_IDS = new Set<string>([
 
 /** قسم في القائمة الجانبية مُشتق من السجل المركزي. */
 export interface SidebarSection {
+  category: RouteCategory;
   titleKey: string;
   entries: RouteSearchEntry[];
 }
@@ -802,6 +800,7 @@ export interface SidebarSection {
 export function getSidebarSections(filters: RouteRegistryFilters = {}): SidebarSection[] {
   const visible = getVisibleRoutes(filters).filter((entry) => !SIDEBAR_HIDDEN_IDS.has(entry.id));
   return SIDEBAR_SECTION_ORDER.map(({ category, titleKey }) => ({
+    category,
     titleKey,
     entries: visible.filter((entry) => entry.category === category),
   })).filter((section) => section.entries.length > 0);
