@@ -36,10 +36,12 @@ ok(
   "SERVICE",
 );
 ok(
-  "packaging is RAW_MATERIAL",
+  // التعبئة نوعها PACKAGING: صنف مخزني يُشترى ويُستهلك، لا خام ولا منتج نهائي
+  // (المواصفة §8). التوقع القديم RAW_MATERIAL كان حالة مرحلية خاطئة.
+  "packaging is PACKAGING",
   (await c.query(`select item_class from products where sku='PKG-BAG-PP-50'`)).rows[0]
     .item_class,
-  "RAW_MATERIAL",
+  "PACKAGING",
 );
 // No SKU-identified item may be misclassified. The gaps view also reports
 // legacy items that have no SKU at all, whose classification cannot be

@@ -108,6 +108,16 @@ const SidebarContents = memo(function SidebarContents({
     });
   }, [isModuleEnabled, isPlatformAdmin, isPlatformSuperadmin, roles, millingMode]);
 
+  const isSettingsRoute = pathname === "/settings" || pathname.startsWith("/settings/");
+
+  // نفس شرط المدخل في السجل المركزي (requiredRoles: owner · manager) حتى لا
+  // يظهر الزر لمن لا تسمح له القاعدة بفتح الصفحة، ولا يختفي عمّن يُسمح له.
+  const canOpenSettings = canAccessRoute("/settings", {
+    roles,
+    isPlatformAdmin,
+    isPlatformSuperadmin,
+  });
+
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden bg-sidebar text-sidebar-foreground">
       {/* Sidebar Header with Brand Logo */}
@@ -154,7 +164,7 @@ const SidebarContents = memo(function SidebarContents({
         {filteredSections.map((sec, secIdx) => (
           <div key={sec.titleKey}>
             {!collapsed ? (
-              <div className="px-3 pb-1.5 text-[11px] font-bold uppercase tracking-[0.14em] text-muted-foreground/80 truncate">
+              <div className="px-3 pb-1.5 text-[11px] font-bold uppercase tracking-[0.14em] text-sidebar-foreground/55 truncate">
                 {t(sec.titleKey)}
               </div>
             ) : (
@@ -184,7 +194,7 @@ const SidebarContents = memo(function SidebarContents({
                         active
                           ? collapsed
                             ? "bg-primary text-primary-foreground shadow-md shadow-primary/25 ring-2 ring-primary/40"
-                            : "bg-gradient-to-r from-primary/20 via-primary/10 to-primary/5 text-foreground font-semibold shadow-[inset_0_0_0_1px_oklch(1_0_0_/_0.08)]"
+                            : "bg-gradient-to-r from-sidebar-primary/15 via-sidebar-primary/8 to-transparent text-foreground font-semibold shadow-[inset_0_0_0_1px_var(--sidebar-active-ring)]"
                           : collapsed
                             ? "text-muted-foreground hover:bg-surface-2 hover:text-foreground hover:scale-105"
                             : "text-muted-foreground hover:bg-sidebar-accent/70 hover:text-foreground",
@@ -193,7 +203,7 @@ const SidebarContents = memo(function SidebarContents({
                       {active && !collapsed && (
                         <span
                           className={cn(
-                            "absolute inset-y-2 w-[3px] rounded-full bg-primary",
+                            "absolute inset-y-2 w-[3px] rounded-full bg-sidebar-primary",
                             dir === "rtl" ? "right-0" : "left-0",
                           )}
                         />
@@ -207,8 +217,8 @@ const SidebarContents = memo(function SidebarContents({
                             ? "h-full w-full"
                             : cn(
                                 "h-7 w-7 rounded-lg group-hover:scale-110",
-                                "bg-surface-2/60",
-                                active && "ring-1 ring-primary/40 shadow-sm",
+                                "bg-sidebar-accent/60",
+                                active && "ring-1 ring-sidebar-primary/40 shadow-sm",
                               ),
                         )}
                       >
@@ -221,7 +231,7 @@ const SidebarContents = memo(function SidebarContents({
                                 ? "h-5 w-5 text-primary-foreground stroke-[2.2]"
                                 : "h-5 w-5 text-muted-foreground group-hover:text-foreground"
                               : active
-                                ? "h-4 w-4 text-primary stroke-[2.5]"
+                                ? "h-4 w-4 text-sidebar-primary stroke-[2.5]"
                                 : "h-4 w-4 text-muted-foreground group-hover:text-foreground",
                           )}
                         />
@@ -264,13 +274,57 @@ const SidebarContents = memo(function SidebarContents({
         ))}
       </nav>
 
-      {/* Footer Profile & Sign Out */}
+      {/* Footer: settings · profile · sign out */}
       <div
         className={cn(
           "border-t border-sidebar-border/60 p-2.5",
-          collapsed && "flex justify-center p-2",
+          collapsed ? "flex flex-col items-center gap-1 p-2" : "space-y-1",
         )}
       >
+        {/*
+         * زر الإعدادات.
+         *
+         * صفحة الإعدادات لم يكن لها أي مدخل في القائمة مطلقاً — لا قسماً
+         * (كانت فئتها غائبة من SIDEBAR_SECTION_ORDER) ولا زراً في التذييل.
+         * ولا تُفتح إلا بكتابة /settings يدوياً في شريط العنوان.
+         * الزر مقيّد بنفس شرط السجل المركزي: owner أو manager.
+         */}
+        {canOpenSettings && (
+          <Link
+            to="/settings"
+            onClick={onNavigate}
+            aria-current={isSettingsRoute ? "page" : undefined}
+            title={t("nav.settings")}
+            className={cn(
+              "group relative flex items-center rounded-xl text-[13.5px] font-medium transition-colors",
+              collapsed ? "h-10 w-10 justify-center p-0" : "w-full gap-2.5 px-3 p-2",
+              isSettingsRoute
+                ? "bg-sidebar-accent text-foreground font-semibold"
+                : "text-muted-foreground hover:bg-sidebar-accent hover:text-foreground",
+            )}
+          >
+            <Cog
+              className={cn(
+                "shrink-0 transition-transform duration-300 group-hover:rotate-90",
+                collapsed ? "h-5 w-5" : "h-4 w-4",
+              )}
+            />
+
+            {!collapsed && <span className="truncate">{t("nav.settings")}</span>}
+
+            {collapsed && (
+              <div
+                className={cn(
+                  "pointer-events-none absolute z-50 whitespace-nowrap rounded-xl bg-popover/95 backdrop-blur-md px-3 py-1.5 text-xs font-semibold text-popover-foreground shadow-xl border border-border/80 transition-all duration-150 scale-95 opacity-0 group-hover:scale-100 group-hover:opacity-100",
+                  dir === "rtl" ? "right-full me-3.5" : "left-full ms-3.5",
+                )}
+              >
+                {t("nav.settings")}
+              </div>
+            )}
+          </Link>
+        )}
+
         <button
           onClick={async () => {
             await signOut();

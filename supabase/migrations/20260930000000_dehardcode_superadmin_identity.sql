@@ -1,4 +1,4 @@
-﻿-- ============================================================================
+-- ============================================================================
 -- 20260930000000_dehardcode_superadmin_identity.sql
 --
 -- SECURITY / ARCHITECTURE FIX — removes developer identity from the signup path.

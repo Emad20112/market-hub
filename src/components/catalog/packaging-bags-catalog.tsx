@@ -161,12 +161,11 @@ export function PackagingBagsCatalogView() {
         is_active: formIsActive,
         category_id: cat?.id || null,
         unit_id: formUnitId,
-        // A packaging consumable: bought, stocked, sold, never milled.
-        item_class: "NON_STOCK_ITEM",
-        inventory_policy: "TRACKED",
-        tracking: "NONE",
-        costing_method: "MOVING_AVERAGE",
-        is_sellable: true,
+        // مادة تعبئة مخزنية (المواصفة §8): تُشترى وتُخزَّن وتُستهلك، لكنها
+        // ليست منتجاً نهائياً للبيع في نقاط البيع. NON_STOCK_ITEM كان يوهم
+        // النظام بأنها تُستهلك بلا رصيد — والرصيد الحقيقي موجود للمخزون.
+        item_class: "PACKAGING",
+        is_sellable: false,
         is_purchasable: true,
       };
 

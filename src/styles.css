@@ -201,6 +201,10 @@
   --sidebar-accent-foreground: oklch(0.98 0.006 260);
   --sidebar-border: oklch(1 0 0 / 0.08);
   --sidebar-ring: oklch(0.66 0.22 255 / 0.6);
+  /* الحلقة الداخلية لعتصر القائمة النشط: بيضاء في الليلي، وداكنة في الفاتح.
+     كانت مكتوبة oklch(1 0 0 / 0.08) مباشرة في الوسم، فتصير غير مرئية في
+     الوضع الفاتح. */
+  --sidebar-active-ring: oklch(1 0 0 / 0.10);
 
   /* Status tones (dark) */
   --tone-neutral: oklch(0.26 0.018 260);
@@ -264,6 +268,7 @@
   --sidebar-accent-foreground: oklch(0.16 0.040 258);
   --sidebar-border: oklch(0.20 0.03 258 / 0.08);
   --sidebar-ring: oklch(0.52 0.20 258 / 0.5);
+  --sidebar-active-ring: oklch(0.52 0.20 258 / 0.18);
 
   --surface-2: oklch(0.945 0.010 60);
   --surface-3: oklch(0.915 0.012 60);

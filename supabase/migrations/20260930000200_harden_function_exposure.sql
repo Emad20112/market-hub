@@ -1,4 +1,4 @@
-﻿-- ============================================================================
+-- ============================================================================
 -- 20260930000200_harden_function_exposure.sql
 --
 -- SECURITY HARDENING — closes the findings reported by Supabase's database

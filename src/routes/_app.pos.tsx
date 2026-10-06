@@ -495,7 +495,14 @@ function POSPage() {
           .select(
             "id,sku,barcode,name,name_ar,sale_price,tax_rate,image_url,category_id,brand_id,unit_id,origin_id,quality_grade_id,is_active,is_service,item_nature,inventory_policy",
           )
-          .neq("is_active", false)
+          // نقاط البيع تبيع المنتجات النهائية فقط (المواصفة §20): الخام
+          // والتعبئة والخدمات لا تُعرض هنا — الخدمة لها مسارها المستقل
+          // (تذكرة الطحن)، والخام/التعبئة مخزون داخلي لا سلعة بيع.
+          .eq("is_active", true)
+          .eq("is_sellable", true)
+          .neq("item_class", "RAW_MATERIAL")
+          .neq("item_class", "PACKAGING")
+          .neq("item_class", "SERVICE")
           .order("name")
           .limit(1000),
         supabase.from("categories").select("id,name,name_ar").order("name"),
