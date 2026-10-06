@@ -387,7 +387,7 @@ DECLARE
 BEGIN
   IF to_regclass('public.expenses') IS NOT NULL AND to_regclass('public.expense_entries') IS NOT NULL THEN
     -- Find a staff/owner user for audit attribution, or fallback to NULL
-    SELECT user_id INTO v_admin FROM public.user_roles WHERE role IN ('owner', 'superadmin', 'admin') LIMIT 1;
+    SELECT user_id INTO v_admin FROM public.user_roles WHERE role::text IN ('owner', 'superadmin', 'admin') LIMIT 1;
 
     FOR v_row IN
       SELECT x.*
