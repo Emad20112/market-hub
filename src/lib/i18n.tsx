@@ -62,7 +62,7 @@ const en: Dict = {
   "nav.section.inventory": "Inventory & Warehouses",
   "nav.section.sales": "Sales & Collection",
   "nav.section.finance": "Accounting & Finance",
-  "nav.section.settings": "Configuration",
+  "nav.section.settings": "System & Settings",
   "nav.milling": "Milling & Custody",
 
   // Common
@@ -1143,6 +1143,7 @@ const ar: Dict = {
   "nav.section.finance": "المحاسبة والمالية",
   "nav.section.settings": "الإعدادات العامة",
   "nav.section.milling": "المطحنة والأمانات",
+  "nav.section.settings": "النظام والإعدادات",
 
   // عام
   "common.search": "ابحث عن أي شيء...",
