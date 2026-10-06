@@ -67,6 +67,66 @@ import { useTheme } from "@/lib/theme";
 import { getSidebarSections, type SidebarSection } from "@/lib/navigation";
 import { routeIcon } from "@/lib/navigation/route-icons";
 
+
+const CATEGORY_STYLES: Record<string, { dotBg: string; iconColor: string; iconBg: string; activeBg: string; activeText: string }> = {
+  command_center: {
+    dotBg: 'bg-indigo-500 shadow-indigo-500/50',
+    iconColor: 'text-indigo-500 dark:text-indigo-400 group-hover:text-indigo-600',
+    iconBg: 'bg-indigo-500/10 group-hover:bg-indigo-500/20',
+    activeBg: 'bg-indigo-500/15 text-indigo-700 dark:text-indigo-300 font-semibold',
+    activeText: 'text-indigo-700 dark:text-indigo-300',
+  },
+  sales: {
+    dotBg: 'bg-emerald-500 shadow-emerald-500/50',
+    iconColor: 'text-emerald-500 dark:text-emerald-400 group-hover:text-emerald-600',
+    iconBg: 'bg-emerald-500/10 group-hover:bg-emerald-500/20',
+    activeBg: 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 font-semibold',
+    activeText: 'text-emerald-700 dark:text-emerald-300',
+  },
+  inventory: {
+    dotBg: 'bg-amber-500 shadow-amber-500/50',
+    iconColor: 'text-amber-500 dark:text-amber-400 group-hover:text-amber-600',
+    iconBg: 'bg-amber-500/10 group-hover:bg-amber-500/20',
+    activeBg: 'bg-amber-500/15 text-amber-700 dark:text-amber-300 font-semibold',
+    activeText: 'text-amber-700 dark:text-amber-300',
+  },
+  procurement: {
+    dotBg: 'bg-blue-500 shadow-blue-500/50',
+    iconColor: 'text-blue-500 dark:text-blue-400 group-hover:text-blue-600',
+    iconBg: 'bg-blue-500/10 group-hover:bg-blue-500/20',
+    activeBg: 'bg-blue-500/15 text-blue-700 dark:text-blue-300 font-semibold',
+    activeText: 'text-blue-700 dark:text-blue-300',
+  },
+  finance: {
+    dotBg: 'bg-purple-500 shadow-purple-500/50',
+    iconColor: 'text-purple-500 dark:text-purple-400 group-hover:text-purple-600',
+    iconBg: 'bg-purple-500/10 group-hover:bg-purple-500/20',
+    activeBg: 'bg-purple-500/15 text-purple-700 dark:text-purple-300 font-semibold',
+    activeText: 'text-purple-700 dark:text-purple-300',
+  },
+  milling: {
+    dotBg: 'bg-orange-500 shadow-orange-500/50',
+    iconColor: 'text-orange-500 dark:text-orange-400 group-hover:text-orange-700',
+    iconBg: 'bg-orange-500/10 group-hover:bg-orange-500/20',
+    activeBg: 'bg-orange-500/15 text-orange-800 dark:text-orange-200 font-semibold',
+    activeText: 'text-orange-800 dark:text-orange-200',
+  },
+  admin: {
+    dotBg: 'bg-rose-500 shadow-rose-500/50',
+    iconColor: 'text-rose-500 dark:text-rose-400 group-hover:text-rose-600',
+    iconBg: 'bg-rose-500/10 group-hover:bg-rose-500/20',
+    activeBg: 'bg-rose-500/15 text-rose-700 dark:text-rose-300 font-semibold',
+    activeText: 'text-rose-700 dark:text-rose-300',
+  },
+  settings: {
+    dotBg: 'bg-teal-500 shadow-teal-500/50',
+    iconColor: 'text-teal-500 dark:text-teal-400 group-hover:text-teal-600',
+    iconBg: 'bg-teal-500/10 group-hover:bg-teal-500/20',
+    activeBg: 'bg-teal-500/15 text-teal-700 dark:text-teal-300 font-semibold',
+    activeText: 'text-teal-700 dark:text-teal-300',
+  },
+};
+
 const SidebarContents = memo(function SidebarContents({
   onNavigate,
   collapsed = false,
@@ -161,11 +221,14 @@ const SidebarContents = memo(function SidebarContents({
           collapsed ? "px-2 py-3 space-y-2" : "px-3 py-3.5 space-y-4",
         )}
       >
-        {filteredSections.map((sec, secIdx) => (
+        {filteredSections.map((sec, secIdx) => {
+          const catStyle = CATEGORY_STYLES[sec.category] || CATEGORY_STYLES.command_center;
+          return (
           <div key={sec.titleKey}>
             {!collapsed ? (
-              <div className="px-3 pb-1.5 text-[11px] font-bold uppercase tracking-[0.14em] text-sidebar-foreground/55 truncate">
-                {t(sec.titleKey)}
+              <div className="flex items-center gap-2 px-3 pb-1.5 text-[11px] font-bold uppercase tracking-[0.14em] text-muted-foreground/90 truncate">
+                <span className={cn("h-2 w-2 rounded-full", catStyle.dotBg)} />
+                <span>{t(sec.titleKey)}</span>
               </div>
             ) : (
               secIdx > 0 && <div className="my-2 h-px w-7 mx-auto bg-sidebar-border/60" />
@@ -271,7 +334,7 @@ const SidebarContents = memo(function SidebarContents({
               })}
             </ul>
           </div>
-        ))}
+        );})}
       </nav>
 
       {/* Footer: settings · profile · sign out */}

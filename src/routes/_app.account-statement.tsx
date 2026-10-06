@@ -24,6 +24,7 @@ import {
   Wallet,
   ClipboardList,
   Eye,
+  Share2,
 } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { useI18n } from "@/lib/i18n";
@@ -78,6 +79,8 @@ import { money } from "@/lib/format";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { ReportPickerDialog } from "@/components/statements/report-picker-dialog";
+import { DocumentShareDialog } from "@/components/communication";
+import { statementToContext } from "@/lib/communication";
 import { PurchasesReport } from "@/components/statements/purchases-report";
 import { OperationalReports } from "@/components/statements/operational-reports";
 import { DebtsReport } from "@/components/statements/debts-report";
@@ -158,6 +161,8 @@ function AccountStatementPage() {
   const [loadingParties, setLoadingParties] = useState(false);
   /** الحركة المفتوحة في لوحة «تفاصيل القيد» */
   const [detailEntry, setDetailEntry] = useState<StatementTransaction | null>(null);
+  /** نافذة مشاركة كشف الحساب (PDF / Excel / واتساب) */
+  const [shareOpen, setShareOpen] = useState(false);
 
   // ── الخيارات (مضغوطة داخل نفس الشاشة) ──
   const [from, setFrom] = useState(savedPreferences.from);
@@ -312,6 +317,38 @@ function AccountStatementPage() {
     toast.success(ar ? "تم تصدير الملف (CSV)" : "File exported (CSV)");
   }
 
+  // جهة الكشف الحالية (عميل / مورد) — تُستخدم لمشاركة الملخص عبر واتساب
+  const activeParty = useMemo(
+    () => partyList.find((p) => p.id === partyId) ?? null,
+    [partyList, partyId],
+  );
+
+  const shareContext = useMemo(() => {
+    if (!result) return null;
+    return statementToContext(result);
+  }, [result]);
+
+  function handleShareStatement() {
+    if (!result) return;
+    if (partyType === "cash") {
+      toast.info(
+        ar
+          ? "مشاركة كشف الصندوق غير متاحة — اختر حساب عميل أو مورد."
+          : "Treasury statement sharing is not available — select a customer or supplier.",
+      );
+      return;
+    }
+    if (statementRows.length === 0) {
+      toast.warning(
+        ar
+          ? "لا توجد أي حركات مالية في هذه الفترة لمشاركتها"
+          : "No transactions in this period to share",
+      );
+      return;
+    }
+    setShareOpen(true);
+  }
+
   function handleReportSelect(nextType: ReportType) {
     const definition = reportDefinition(nextType);
     if (!definition.implemented || !definition.entityType) {
@@ -429,6 +466,15 @@ function AccountStatementPage() {
             </Button>
             {["customer-account", "supplier-account", "cash-account"].includes(reportType) && (
               <>
+                <Button
+                  onClick={handleShareStatement}
+                  variant="outline"
+                  disabled={!result || partyType === "cash"}
+                  className="gap-2 text-primary border-primary/30 hover:bg-primary/10"
+                >
+                  <Share2 className="h-4 w-4" />
+                  {ar ? "مشاركة الكشف" : "Share statement"}
+                </Button>
                 <Button
                   onClick={handleExportCsv}
                   variant="outline"
@@ -1029,6 +1075,26 @@ function AccountStatementPage() {
         onSelect={handleReportSelect}
         ar={ar}
       />
+
+      {/* مشاركة كشف الحساب (واتساب / PDF / Excel) */}
+      {shareContext && activeParty && (
+        <DocumentShareDialog
+          open={shareOpen}
+          onClose={() => setShareOpen(false)}
+          title={ar ? "مشاركة كشف الحساب" : "Share Statement"}
+          documentType="statement"
+          customer={{
+            id: activeParty.id,
+            name: activeParty.name,
+            phone: activeParty.phone ?? null,
+            balance: Number(activeParty.balance ?? closingBalance),
+            hasLedgerActivity: statementRows.length > 0,
+          }}
+          statement={shareContext}
+          onPrintPdf={handlePrintPDF}
+          onExportExcel={handleExportCsv}
+        />
+      )}
     </>
   );
 }

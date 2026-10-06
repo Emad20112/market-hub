@@ -1129,6 +1129,7 @@ const ar: Dict = {
   "nav.section.finance": "المحاسبة والمالية",
   "nav.section.settings": "التهيئة",
   "nav.section.milling": "المطحنة والأمانات",
+  "nav.section.settings": "الإعدادات العامة",
 
   // عام
   "common.search": "ابحث عن أي شيء...",
