@@ -361,6 +361,8 @@ function CustomersPage() {
     const dbMethodMap: Record<PaymentMethod, "cash" | "bank_transfer"> = {
       cash: "cash",
       transfer: "bank_transfer",
+      card: "bank_transfer",
+      mobile_money: "bank_transfer",
     };
     const dbMethod = dbMethodMap[data.method] || "cash";
     const receiptNumber = String(Date.now()).slice(-6);

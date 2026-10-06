@@ -86,8 +86,8 @@ export function VortexTransactionDetailSheet({
       transaction.type === "payment_voucher";
 
     return buildUnifiedContext({
-      type: isPayment ? "payment" : "invoice",
-      client: {
+      event: isPayment ? "payment_received" : "invoice_created",
+      customer: {
         id: transaction.id,
         name: transaction.customerName,
         phone: transaction.customerPhone || null,
@@ -118,10 +118,14 @@ export function VortexTransactionDetailSheet({
 
   const activeMessage = useMemo(() => {
     if (!messageContext) return "";
-    return renderMessage({
-      templateKey: selectedTemplate === "official" ? "payment_received" : "debt_reminder",
-      context: messageContext,
+    const rendered = renderMessage({
+      ...messageContext,
+      event:
+        selectedTemplate === "official"
+          ? ("payment_received" as const)
+          : ("payment_request" as const),
     });
+    return rendered.text;
   }, [messageContext, selectedTemplate]);
 
   if (!transaction) return null;
@@ -138,7 +142,12 @@ export function VortexTransactionDetailSheet({
   const handleWhatsApp = () => {
     const phone = transaction.customerPhone;
     if (phone && isValidWhatsAppPhone(phone)) {
-      window.open(buildWhatsAppLink(phone, activeMessage), "_blank");
+      // buildWhatsAppLink قد تُعيد null حين يكون الرقم غير صالح للواتساب.
+      window.open(
+        buildWhatsAppLink(phone, activeMessage) ||
+          `https://wa.me/?text=${encodeURIComponent(activeMessage)}`,
+        "_blank",
+      );
     } else {
       window.open(`https://wa.me/?text=${encodeURIComponent(activeMessage)}`, "_blank");
     }

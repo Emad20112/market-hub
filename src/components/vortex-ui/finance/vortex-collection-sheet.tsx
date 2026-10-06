@@ -194,8 +194,8 @@ export function VortexCollectionSheet({
   const messageContext = useMemo(() => {
     if (!successReceipt) return null;
     return buildUnifiedContext({
-      type: "payment",
-      client: {
+      event: "payment_received",
+      customer: {
         id: customer?.id || "temp",
         name: successReceipt.customerName,
         phone: successReceipt.customerPhone || null,
@@ -214,10 +214,16 @@ export function VortexCollectionSheet({
 
   const generatedMessage = useMemo(() => {
     if (!messageContext) return "";
-    return renderMessage({
-      templateKey: selectedTemplate === "official" ? "payment_received" : "debt_reminder",
-      context: messageContext,
+    // المحرك يُنتج RenderedMessage بغض النظر عن الحدث المُختار في السياق؛
+    // مفتاح القالب هنا يحدّد نصّ الواتساب فقط (إيصال أو تذكير بدين).
+    const rendered = renderMessage({
+      ...messageContext,
+      event:
+        selectedTemplate === "official"
+          ? ("payment_received" as const)
+          : ("payment_request" as const),
     });
+    return rendered.text;
   }, [messageContext, selectedTemplate]);
 
   const activeMessage = isEditingMessage ? customMessage : generatedMessage;
@@ -233,7 +239,12 @@ export function VortexCollectionSheet({
     if (!activeMessage) return;
     const phone = successReceipt?.customerPhone;
     if (phone && isValidWhatsAppPhone(phone)) {
-      window.open(buildWhatsAppLink(phone, activeMessage), "_blank");
+      // buildWhatsAppLink قد تُعيد null حين يكون الرقم غير صالح للواتساب.
+      window.open(
+        buildWhatsAppLink(phone, activeMessage) ||
+          `https://wa.me/?text=${encodeURIComponent(activeMessage)}`,
+        "_blank",
+      );
     } else {
       window.open(`https://wa.me/?text=${encodeURIComponent(activeMessage)}`, "_blank");
     }
