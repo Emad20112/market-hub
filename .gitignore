@@ -49,3 +49,6 @@ supabase/.linter/
 qa-login*.mjs
 dev-server.log
 metadata.json
+
+.qa-session.json
+temp_*.txt
