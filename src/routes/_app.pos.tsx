@@ -562,15 +562,26 @@ function POSPage() {
       if (!brs || brs.length === 0) brs = (await brandsRepo.getAll()) as any;
       if (!uns || uns.length === 0) uns = (await unitsRepo.getAll()) as any;
 
-      // Seed local repositories for future offline usage when fetch succeeds
-      if (ws && ws.length > 0) ws.forEach((w) => warehousesRepo.create(w as any).catch(() => {}));
+      // بيانات المستودعات/العملاء مرجعية كذلك: تخزين محلي دون outbox
+      // (نفس سبب 409 المذكور أدناه).
+      if (ws && ws.length > 0)
+        await Promise.all(ws.map((w) => (warehousesRepo as any).adapter.setItem('warehouses', w.id, w).catch(() => {})));
       if (cs && cs.length > 0) cs.forEach((c) => customersRepo.create(c as any).catch(() => {}));
+      // المنتجات/التصنيفات/العلامات/الوحدات بيانات مرجعية للعمل دون اتصال:
+      // تُخزَّن محليًا فقط. كتابتها في outbox المزامنة كانت ترفع 409
+      // (تعارض) على كل تحميل لأنها موجودة أصلًا في السحابة — والسحابة مصدر
+      // الحقيقة لهذه الجداول كلها.
       if (ps && ps.length > 0)
-        ps.forEach((p: any) => productsRepo.create(p as any).catch(() => {}));
+        await Promise.all(ps.map((p: any) => (productsRepo as any).adapter.setItem('products', p.id, p).catch(() => {})));
       if (cats && cats.length > 0)
-        cats.forEach((c) => categoriesRepo.create(c as any).catch(() => {}));
-      if (brs && brs.length > 0) brs.forEach((b) => brandsRepo.create(b as any).catch(() => {}));
-      if (uns && uns.length > 0) uns.forEach((u) => unitsRepo.create(u as any).catch(() => {}));
+        await Promise.all(cats.map((c) => (categoriesRepo as any).adapter.setItem('categories', c.id, c).catch(() => {})));
+      // بيانات العلامات والوحدات مرجعية للعمل دون اتصال: تُخزَّن محليًا فقط.
+      // كتابتها في outbox المزامنة كانت ترفع 409 (تعارض) على كل تحميل لأنها
+      // موجودة أصلاً في السحابة — والسحابة مصدر الحقيقة لهما.
+      if (brs && brs.length > 0)
+        await Promise.all(brs.map((b) => (brandsRepo as any).adapter.setItem('brands', b.id, b).catch(() => {})));
+      if (uns && uns.length > 0)
+        await Promise.all(uns.map((u) => (unitsRepo as any).adapter.setItem('units', u.id, u).catch(() => {})));
 
       const loadedWarehouses = ws ?? [];
       setWarehouses(loadedWarehouses);

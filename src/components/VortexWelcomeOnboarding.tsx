@@ -98,7 +98,7 @@ export function VortexWelcomeOnboarding() {
         supabase.from("products").select("id, name, name_ar, min_stock, sale_price").limit(1000),
         supabase.from("inventory").select("product_id, quantity").limit(2000),
         supabase.from("warehouses").select("id, name, is_active").limit(50),
-        (supabase as any).from("inventory_transfers").select("id, status").limit(50),
+        (supabase as any).from("stock_transfers").select("id, status").limit(50),
         supabase.from("sales_invoices").select("id, total, paid, status, created_at").limit(500),
         supabase.from("customers").select("id, name, balance").limit(500),
         supabase.from("suppliers").select("id, name").limit(200),
