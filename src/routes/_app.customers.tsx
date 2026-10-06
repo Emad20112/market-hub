@@ -56,6 +56,7 @@ import {
 } from "@/components/ui/table-toolbar";
 import { useRealtimeTable } from "@/lib/realtime";
 import { QUERY_KEYS } from "@/lib/query-keys";
+import { CustomerFormDialog } from "@/components/contacts/customer-form-dialog";
 
 export const Route = createFileRoute("/_app/customers")({
   head: () => ({ meta: [{ title: "العملاء — فورتيكس ERP" }] }),
@@ -116,7 +117,6 @@ function CustomersPage() {
   const [menuOpen, setMenuOpen] = useState<string | null>(null);
   const [hoveredRow, setHoveredRow] = useState<string | null>(null);
   const [detailTab, setDetailTab] = useState<"all" | "invoices" | "payments">("all");
-  const [saving, setSaving] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
   // أرصدة مؤكَّدة من الدفتر
@@ -300,28 +300,6 @@ function CustomersPage() {
       debtCount: debts,
     };
   }, [rows]);
-
-  async function save() {
-    if (saving) return;
-    if (!edit?.name?.trim()) return toast.error(t("common.required"));
-    setSaving(true);
-    const payload = {
-      name: edit.name.trim(),
-      phone: edit.phone || null,
-      email: edit.email || null,
-      address: edit.address || null,
-      credit_limit: Number(edit.credit_limit ?? 0),
-      is_active: edit.is_active ?? true,
-    };
-    const { error } = edit.id
-      ? await supabase.from("customers").update(payload).eq("id", edit.id)
-      : await supabase.from("customers").insert(payload);
-    setSaving(false);
-    if (error) return toast.error(error.message);
-    toast.success(edit.id ? t("common.updated") : t("common.created"));
-    setEdit(null);
-    await load();
-  }
 
   const remove = useCallback(
     async (id: string) => {
@@ -1409,225 +1387,13 @@ function CustomersPage() {
         </div>
       )}
 
-      {/* ─── Mullak-Style Edit / New Customer Sheet ─── */}
-      {edit && (
-        <div
-          className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-sm p-0 sm:items-center sm:p-4 animate-in fade-in duration-200"
-          onClick={() => !saving && setEdit(null)}
-        >
-          <div
-            className="w-full max-w-lg rounded-t-3xl sm:rounded-3xl border border-border/80 bg-background/95 backdrop-blur-md p-6 sm:p-7 shadow-2xl max-h-[92vh] overflow-y-auto animate-in slide-in-from-bottom-6 sm:zoom-in-95 duration-200"
-            onClick={(e) => e.stopPropagation()}
-            dir={lang === "ar" ? "rtl" : "ltr"}
-          >
-            {/* Sheet Header with Luxury Badge */}
-            <div className="flex items-start justify-between pb-5 border-b border-border/60">
-              <div className="flex items-center gap-3.5">
-                <div className="grid size-12 place-items-center rounded-2xl bg-primary/10 text-primary border border-primary/20 shadow-sm">
-                  <User className="size-6" />
-                </div>
-                <div>
-                  <h3 className="text-lg font-bold tracking-tight text-foreground">
-                    {edit.id
-                      ? lang === "ar"
-                        ? "تعديل بيانات العميل"
-                        : "Edit Customer Profile"
-                      : lang === "ar"
-                        ? "إضافة عميل جديد"
-                        : "New Customer Registration"}
-                  </h3>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    {lang === "ar"
-                      ? "سجل البيانات الأساسية ومعلومات التواصل والحد الائتماني"
-                      : "Fill in identity, contact info, and credit terms"}
-                  </p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setEdit(null)}
-                className="grid size-9 place-items-center rounded-full bg-surface-2 text-muted-foreground hover:text-foreground transition"
-              >
-                <X className="size-4" />
-              </button>
-            </div>
-
-            {/* Form Fields Divided into Sections */}
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                void save();
-              }}
-              className="mt-6 space-y-5"
-            >
-              {/* Section 1: Identity */}
-              <div className="space-y-3">
-                <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  <Sparkles className="size-3.5 text-primary" />
-                  <span>{lang === "ar" ? "البيانات الأساسية" : "Primary Information"}</span>
-                </div>
-                <div>
-                  <label className="mb-1.5 block text-xs font-medium text-foreground">
-                    {t("common.name")} <span className="text-rose-500">*</span>
-                  </label>
-                  <div className="relative">
-                    <User className="pointer-events-none absolute right-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-                    <input
-                      required
-                      value={edit.name ?? ""}
-                      onChange={(e) => setEdit({ ...edit, name: e.target.value })}
-                      placeholder={
-                        lang === "ar" ? "اسم العميل أو المؤسسة" : "Customer or Company Name"
-                      }
-                      className="h-11 w-full rounded-2xl border border-border/80 bg-surface/80 px-4 pr-10 text-sm font-medium placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 transition"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Section 2: Contact Information */}
-              <div className="space-y-3 pt-2">
-                <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  <Phone className="size-3.5 text-primary" />
-                  <span>{lang === "ar" ? "بيانات الاتصال والتواصل" : "Contact Details"}</span>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className="mb-1.5 block text-xs font-medium text-foreground">
-                      {t("common.phone")}
-                    </label>
-                    <div className="relative">
-                      <Phone className="pointer-events-none absolute right-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-                      <input
-                        dir="ltr"
-                        value={edit.phone ?? ""}
-                        onChange={(e) => setEdit({ ...edit, phone: e.target.value })}
-                        placeholder="+966 5x xxx xxxx"
-                        className="h-11 w-full rounded-2xl border border-border/80 bg-surface/80 px-4 pr-10 text-sm font-medium placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 transition text-right"
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="mb-1.5 block text-xs font-medium text-foreground">
-                      {t("common.email")}
-                    </label>
-                    <div className="relative">
-                      <Mail className="pointer-events-none absolute right-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-                      <input
-                        type="email"
-                        dir="ltr"
-                        value={edit.email ?? ""}
-                        onChange={(e) => setEdit({ ...edit, email: e.target.value })}
-                        placeholder="customer@domain.com"
-                        className="h-11 w-full rounded-2xl border border-border/80 bg-surface/80 px-4 pr-10 text-sm font-medium placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 transition text-right"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="mb-1.5 block text-xs font-medium text-foreground">
-                    {lang === "ar" ? "العنوان أو المدينة" : "Address"}
-                  </label>
-                  <div className="relative">
-                    <MapPin className="pointer-events-none absolute right-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-                    <input
-                      value={edit.address ?? ""}
-                      onChange={(e) => setEdit({ ...edit, address: e.target.value })}
-                      placeholder={
-                        lang === "ar" ? "المدينة، الحي، الشارع" : "City, District, Street"
-                      }
-                      className="h-11 w-full rounded-2xl border border-border/80 bg-surface/80 px-4 pr-10 text-sm font-medium placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 transition"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Section 3: Financial Terms & Status */}
-              <div className="space-y-3 pt-2">
-                <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  <Wallet className="size-3.5 text-primary" />
-                  <span>{lang === "ar" ? "الحد الائتماني والحالة" : "Credit & Status"}</span>
-                </div>
-
-                <div>
-                  <label className="mb-1.5 block text-xs font-medium text-foreground">
-                    {lang === "ar" ? "حد الائتمان المسموح" : "Credit Limit"}
-                  </label>
-                  <div className="relative">
-                    <input
-                      type="number"
-                      dir="ltr"
-                      min={0}
-                      step="any"
-                      value={edit.credit_limit ?? 0}
-                      onChange={(e) => setEdit({ ...edit, credit_limit: Number(e.target.value) })}
-                      className="h-11 w-full rounded-2xl border border-border/80 bg-surface/80 px-4 text-sm font-mono font-medium focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 transition text-right"
-                    />
-                  </div>
-                  <p className="mt-1 text-[10px] text-muted-foreground">
-                    {lang === "ar"
-                      ? "أقصى مبلغ يمكن للعميل شراؤه بالآجل قبل إيقاف الفواتير."
-                      : "Maximum allowable credit before blocking future credit sales."}
-                  </p>
-                </div>
-
-                {/* Active Switch Toggle */}
-                <div className="flex items-center justify-between rounded-2xl border border-border/70 bg-surface/60 p-3.5">
-                  <div>
-                    <p className="text-xs font-bold text-foreground">
-                      {lang === "ar" ? "حالة تفعيل العميل" : "Customer Active Status"}
-                    </p>
-                    <p className="text-[10px] text-muted-foreground mt-0.5">
-                      {lang === "ar"
-                        ? "العميل النشط يظهر تلقائياً في شاشات البيع ونقاط البيع"
-                        : "Active customers appear in POS and sales invoices"}
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setEdit({ ...edit, is_active: !(edit.is_active ?? true) })}
-                    className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                      (edit.is_active ?? true) ? "bg-primary" : "bg-muted"
-                    }`}
-                  >
-                    <span
-                      className={`pointer-events-none inline-block size-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                        (edit.is_active ?? true) ? "translate-x-5" : "translate-x-0"
-                      }`}
-                    />
-                  </button>
-                </div>
-              </div>
-
-              {/* Form Action Buttons */}
-              <div className="flex items-center justify-end gap-3 pt-4 border-t border-border/60">
-                <button
-                  type="button"
-                  disabled={saving}
-                  onClick={() => setEdit(null)}
-                  className="h-11 px-5 rounded-2xl border border-border/80 bg-surface text-xs font-bold text-muted-foreground hover:text-foreground hover:bg-surface-2 transition active:scale-95"
-                >
-                  {t("common.cancel")}
-                </button>
-                <button
-                  type="submit"
-                  disabled={saving}
-                  className="flex h-11 items-center gap-2 rounded-2xl bg-primary px-6 text-xs font-bold text-primary-foreground shadow-md shadow-primary/25 hover:bg-primary/90 transition active:scale-95 disabled:opacity-50"
-                >
-                  {saving ? (
-                    <Loader2 className="size-4 animate-spin" />
-                  ) : (
-                    <CheckCircle2 className="size-4" />
-                  )}
-                  <span>{edit.id ? t("common.save_changes") : t("common.create")}</span>
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      {/* ─── Customer form — shared with POS (same fields, validation & save) ─── */}
+      <CustomerFormDialog
+        open={edit !== null}
+        initial={edit}
+        onClose={() => setEdit(null)}
+        onSavedComplete={() => void load()}
+      />
 
       <VortexCollectionSheet
         open={collectionOpen}

@@ -1,6 +1,6 @@
 import { useCompanyCurrency } from "@/hooks/use-company-currency";
 import { Link, useRouterState, useNavigate } from "@tanstack/react-router";
-import { memo, useEffect, useMemo, useState } from "react";
+import { memo, useEffect, useMemo, useRef, useState } from "react";
 import {
   LayoutDashboard,
   ScanBarcode,
@@ -131,10 +131,12 @@ const SidebarContents = memo(function SidebarContents({
   onNavigate,
   collapsed = false,
   onToggleCollapse,
+  scrollStorageKey = "vortex.sidebar.desktop.scroll",
 }: {
   onNavigate?: () => void;
   collapsed?: boolean;
   onToggleCollapse?: () => void;
+  scrollStorageKey?: string;
 }) {
   const { t, dir, lang } = useI18n();
   const isAr = lang === "ar";
@@ -158,6 +160,8 @@ const SidebarContents = memo(function SidebarContents({
   const logoUrl = "/vortex-erp-mark.png";
 
   const { mode: millingMode } = useMillingMode();
+  const navScrollRef = useRef<HTMLElement>(null);
+  const didRestoreScroll = useRef(false);
 
   const filteredSections = useMemo<SidebarSection[]>(() => {
     return getSidebarSections({
@@ -177,6 +181,24 @@ const SidebarContents = memo(function SidebarContents({
     isPlatformAdmin,
     isPlatformSuperadmin,
   });
+
+  useEffect(() => {
+    if (didRestoreScroll.current || typeof window === "undefined") return;
+    const nav = navScrollRef.current;
+    if (!nav) return;
+
+    const saved = window.sessionStorage.getItem(scrollStorageKey);
+    requestAnimationFrame(() => {
+      if (saved !== null && Number.isFinite(Number(saved))) {
+        nav.scrollTop = Number(saved);
+      } else {
+        nav.querySelector<HTMLElement>("[data-sidebar-active='true']")?.scrollIntoView({
+          block: "nearest",
+        });
+      }
+      didRestoreScroll.current = true;
+    });
+  }, [filteredSections.length, scrollStorageKey]);
 
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden bg-sidebar text-sidebar-foreground">
@@ -216,6 +238,12 @@ const SidebarContents = memo(function SidebarContents({
 
       {/* Navigation Links */}
       <nav
+        ref={navScrollRef}
+        onScroll={(event) => {
+          if (typeof window !== "undefined") {
+            window.sessionStorage.setItem(scrollStorageKey, String(event.currentTarget.scrollTop));
+          }
+        }}
         className={cn(
           "flex-1 min-h-0 overflow-y-auto overflow-x-hidden overscroll-contain custom-scrollbar",
           collapsed ? "px-2 py-3 space-y-2" : "px-3 py-3.5 space-y-4",
@@ -247,6 +275,7 @@ const SidebarContents = memo(function SidebarContents({
                     <Link
                       to={it.path}
                       onClick={onNavigate}
+                      data-sidebar-active={active ? "true" : undefined}
                       className={cn(
                         "group relative flex items-center transition-all duration-200",
 
@@ -542,6 +571,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <SidebarContents
           collapsed={isSettingsRoute ? !settingsSidebarOpen : collapsed}
           onToggleCollapse={toggleCollapsed}
+          scrollStorageKey="vortex.sidebar.desktop.scroll"
         />
       </aside>
 
@@ -551,7 +581,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           side={dir === "rtl" ? "right" : "left"}
           className="w-72 p-0 bg-sidebar border-sidebar-border/60 overflow-hidden"
         >
-          <SidebarContents onNavigate={() => setMobileOpen(false)} />
+          <SidebarContents
+            onNavigate={() => setMobileOpen(false)}
+            scrollStorageKey="vortex.sidebar.mobile.scroll"
+          />
         </SheetContent>
       </Sheet>
 
@@ -711,7 +744,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           )}
         >
           {isPosRoute ? (
-            <div className="flex-1 min-h-0 flex flex-col p-3 sm:p-5 pb-16">{children}</div>
+            // POS is a viewport workspace, not a document page. Giving its
+            // children the actual available height lets the cart own the only
+            // item scroll area while the payment/action footer stays reachable.
+            <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden">{children}</div>
           ) : (
             <>
               <div className="mx-auto w-full max-w-[1400px] px-2 py-3 sm:px-1 sm:py-4 lg:px-1 lg:py-6">
