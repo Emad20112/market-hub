@@ -263,24 +263,16 @@ function CustomersPage() {
     const dbMethod = dbMethodMap[data.method] || "cash";
     const receiptNumber = String(Date.now()).slice(-6);
 
-    const { error: pError } = await (supabase as any).from("customer_payments").insert({
-      customer_id: data.customerId,
-      amount: data.amount,
-      payment_method: dbMethod,
-      note: data.notes || null,
-      payment_date: new Date().toISOString(),
+    // Call official security-definer RPC record_customer_payment
+    const { data: rpcRes, error: pError } = await (supabase as any).rpc("record_customer_payment", {
+      _customer_id: data.customerId,
+      _invoice_id: null,
+      _amount: data.amount,
+      _method: dbMethod,
+      _payment_date: new Date().toISOString().slice(0, 10),
+      _note: data.notes || null,
     });
     if (pError) throw pError;
-
-    // Update customer balance directly
-    const currentCust = rows.find((r) => r.id === data.customerId) || collectionCustomer;
-    if (currentCust) {
-      const newBal = Math.round(((Number(currentCust.balance) || 0) - data.amount) * 100) / 100;
-      await (supabase as any)
-        .from("customers")
-        .update({ balance: newBal })
-        .eq("id", data.customerId);
-    }
 
     toast.success(lang === "ar" ? "تم تسجيل سند التحصيل بنجاح" : "Payment recorded successfully");
     await load();
