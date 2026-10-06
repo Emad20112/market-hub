@@ -67,6 +67,84 @@ import { useTheme } from "@/lib/theme";
 import { getSidebarSections, type SidebarSection } from "@/lib/navigation";
 import { routeIcon } from "@/lib/navigation/route-icons";
 
+
+const CATEGORY_STYLES: Record<
+  string,
+  {
+    iconBoxActive: string;
+    iconBoxInactive: string;
+    iconActive: string;
+    iconInactive: string;
+    accentPill: string;
+    activeBg: string;
+  }
+> = {
+  command_center: {
+    iconBoxActive: "bg-blue-500/20 text-blue-500 ring-1 ring-blue-500/40",
+    iconBoxInactive: "bg-blue-500/10 text-blue-600 dark:text-blue-400 group-hover:bg-blue-500/20",
+    iconActive: "text-blue-500 stroke-[2.4]",
+    iconInactive: "text-blue-600 dark:text-blue-400 group-hover:scale-110",
+    accentPill: "bg-blue-500",
+    activeBg: "bg-gradient-to-r from-blue-500/15 via-blue-500/5 to-transparent border-blue-500/20",
+  },
+  sales: {
+    iconBoxActive: "bg-emerald-500/20 text-emerald-500 ring-1 ring-emerald-500/40",
+    iconBoxInactive: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 group-hover:bg-emerald-500/20",
+    iconActive: "text-emerald-500 stroke-[2.4]",
+    iconInactive: "text-emerald-600 dark:text-emerald-400 group-hover:scale-110",
+    accentPill: "bg-emerald-500",
+    activeBg: "bg-gradient-to-r from-emerald-500/15 via-emerald-500/5 to-transparent border-emerald-500/20",
+  },
+  inventory: {
+    iconBoxActive: "bg-cyan-500/20 text-cyan-500 ring-1 ring-cyan-500/40",
+    iconBoxInactive: "bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 group-hover:bg-cyan-500/20",
+    iconActive: "text-cyan-500 stroke-[2.4]",
+    iconInactive: "text-cyan-600 dark:text-cyan-400 group-hover:scale-110",
+    accentPill: "bg-cyan-500",
+    activeBg: "bg-gradient-to-r from-cyan-500/15 via-cyan-500/5 to-transparent border-cyan-500/20",
+  },
+  procurement: {
+    iconBoxActive: "bg-amber-500/20 text-amber-500 ring-1 ring-amber-500/40",
+    iconBoxInactive: "bg-amber-500/10 text-amber-600 dark:text-amber-400 group-hover:bg-amber-500/20",
+    iconActive: "text-amber-500 stroke-[2.4]",
+    iconInactive: "text-amber-600 dark:text-amber-400 group-hover:scale-110",
+    accentPill: "bg-amber-500",
+    activeBg: "bg-gradient-to-r from-amber-500/15 via-amber-500/5 to-transparent border-amber-500/20",
+  },
+  finance: {
+    iconBoxActive: "bg-violet-500/20 text-violet-500 ring-1 ring-violet-500/40",
+    iconBoxInactive: "bg-violet-500/10 text-violet-600 dark:text-violet-400 group-hover:bg-violet-500/20",
+    iconActive: "text-violet-500 stroke-[2.4]",
+    iconInactive: "text-violet-600 dark:text-violet-400 group-hover:scale-110",
+    accentPill: "bg-violet-500",
+    activeBg: "bg-gradient-to-r from-violet-500/15 via-violet-500/5 to-transparent border-violet-500/20",
+  },
+  milling: {
+    iconBoxActive: "bg-orange-500/20 text-orange-500 ring-1 ring-orange-500/40",
+    iconBoxInactive: "bg-orange-500/10 text-orange-600 dark:text-orange-400 group-hover:bg-orange-500/20",
+    iconActive: "text-orange-500 stroke-[2.4]",
+    iconInactive: "text-orange-600 dark:text-orange-400 group-hover:scale-110",
+    accentPill: "bg-orange-500",
+    activeBg: "bg-gradient-to-r from-orange-500/15 via-orange-500/5 to-transparent border-orange-500/20",
+  },
+  admin: {
+    iconBoxActive: "bg-rose-500/20 text-rose-500 ring-1 ring-rose-500/40",
+    iconBoxInactive: "bg-rose-500/10 text-rose-600 dark:text-rose-400 group-hover:bg-rose-500/20",
+    iconActive: "text-rose-500 stroke-[2.4]",
+    iconInactive: "text-rose-600 dark:text-rose-400 group-hover:scale-110",
+    accentPill: "bg-rose-500",
+    activeBg: "bg-gradient-to-r from-rose-500/15 via-rose-500/5 to-transparent border-rose-500/20",
+  },
+  settings: {
+    iconBoxActive: "bg-teal-500/20 text-teal-500 ring-1 ring-teal-500/40",
+    iconBoxInactive: "bg-teal-500/10 text-teal-600 dark:text-teal-400 group-hover:bg-teal-500/20",
+    iconActive: "text-teal-500 stroke-[2.4]",
+    iconInactive: "text-teal-600 dark:text-teal-400 group-hover:scale-110",
+    accentPill: "bg-teal-500",
+    activeBg: "bg-gradient-to-r from-teal-500/15 via-teal-500/5 to-transparent border-teal-500/20",
+  },
+};
+
 const SidebarContents = memo(function SidebarContents({
   onNavigate,
   collapsed = false,
@@ -171,91 +249,70 @@ const SidebarContents = memo(function SidebarContents({
 
                 return (
                   <li key={it.id} className="relative">
-                    <Link
-                      to={it.path}
-                      onClick={onNavigate}
-                      className={cn(
-                        "group relative flex items-center transition-all duration-200",
-
-                        collapsed
-                          ? "h-10 w-10 mx-auto justify-center rounded-xl p-0"
-                          : "gap-3 px-3 py-2.5 rounded-xl text-[13.5px] sm:text-sm font-medium",
-
-                        active
-                          ? collapsed
-                            ? "bg-primary text-primary-foreground shadow-md shadow-primary/25 ring-2 ring-primary/40"
-                            : "bg-gradient-to-r from-primary/20 via-primary/10 to-primary/5 text-foreground font-semibold shadow-[inset_0_0_0_1px_oklch(1_0_0_/_0.08)]"
-                          : collapsed
-                            ? "text-muted-foreground hover:bg-surface-2 hover:text-foreground hover:scale-105"
-                            : "text-muted-foreground hover:bg-sidebar-accent/70 hover:text-foreground",
-                      )}
-                    >
-                      {active && !collapsed && (
-                        <span
+                    {(() => {
+                      const catStyle = CATEGORY_STYLES[sec.category] || CATEGORY_STYLES.command_center;
+                      return (
+                        <Link
+                          to={it.path}
+                          onClick={onNavigate}
+                          title={collapsed ? title : undefined}
                           className={cn(
-                            "absolute inset-y-2 w-[3px] rounded-full bg-primary",
-                            dir === "rtl" ? "right-0" : "left-0",
-                          )}
-                        />
-                      )}
-
-                      <div
-                        className={cn(
-                          "grid place-items-center transition-transform duration-200",
-
-                          collapsed
-                            ? "h-full w-full"
-                            : cn(
-                                "h-7 w-7 rounded-lg group-hover:scale-110",
-                                "bg-surface-2/60",
-                                active && "ring-1 ring-primary/40 shadow-sm",
-                              ),
-                        )}
-                      >
-                        <Icon
-                          className={cn(
-                            "shrink-0 transition-colors",
-
+                            "group relative flex items-center transition-all duration-200 outline-none focus-visible:ring-2 focus-visible:ring-primary/50",
                             collapsed
-                              ? active
-                                ? "h-5 w-5 text-primary-foreground stroke-[2.2]"
-                                : "h-5 w-5 text-muted-foreground group-hover:text-foreground"
-                              : active
-                                ? "h-4 w-4 text-primary stroke-[2.5]"
-                                : "h-4 w-4 text-muted-foreground group-hover:text-foreground",
-                          )}
-                        />
-                      </div>
-
-                      {!collapsed && <span className="truncate leading-normal">{title}</span>}
-
-                      {/* Tooltip in Icon-only mode */}
-                      {collapsed && (
-                        <div
-                          className={cn(
-                            "pointer-events-none absolute z-50 whitespace-nowrap rounded-xl bg-popover/95 backdrop-blur-md px-3 py-1.5 text-xs font-semibold text-popover-foreground shadow-xl border border-border/80 transition-all duration-150 scale-95 opacity-0 group-hover:scale-100 group-hover:opacity-100",
-                            dir === "rtl" ? "right-full me-3.5" : "left-full ms-3.5",
+                              ? "h-10 w-10 mx-auto justify-center rounded-xl p-0"
+                              : "gap-3 px-3 py-2.5 rounded-xl text-[13.5px] sm:text-sm font-medium",
+                            active
+                              ? collapsed
+                                ? cn("shadow-md ring-2 ring-white/10", catStyle.iconBoxActive)
+                                : cn("text-foreground font-semibold shadow-sm border", catStyle.activeBg)
+                              : collapsed
+                                ? "text-muted-foreground hover:bg-surface-2 hover:text-foreground hover:scale-105"
+                                : "text-muted-foreground hover:bg-sidebar-accent/70 hover:text-foreground",
                           )}
                         >
-                          <div className="flex items-center gap-1.5">
-                            <span>{title}</span>
-
-                            {(it.superadminOnly || getRouteRule(it.path)?.superadminOnly) && (
-                              <Crown className="h-3 w-3 text-amber-500 shrink-0" />
-                            )}
-                          </div>
+                          {active && !collapsed && (
+                            <span
+                              className={cn(
+                                "absolute inset-y-2 w-[3.5px] rounded-full",
+                                catStyle.accentPill,
+                                dir === "rtl" ? "right-0" : "left-0",
+                              )}
+                            />
+                          )}
 
                           <div
                             className={cn(
-                              "absolute top-1/2 -translate-y-1/2 border-[5px] border-transparent",
-                              dir === "rtl"
-                                ? "left-full -ms-[1px] border-s-popover/95"
-                                : "right-full -me-[1px] border-e-popover/95",
+                              "grid place-items-center transition-all duration-200 shrink-0",
+                              collapsed
+                                ? "h-full w-full"
+                                : cn(
+                                    "h-7 w-7 rounded-lg",
+                                    active ? catStyle.iconBoxActive : catStyle.iconBoxInactive
+                                  ),
                             )}
-                          />
-                        </div>
-                      )}
-                    </Link>
+                          >
+                            <Icon
+                              className={cn(
+                                "shrink-0 transition-all duration-200",
+                                collapsed
+                                  ? active
+                                    ? "h-5 w-5 stroke-[2.4]"
+                                    : "h-5 w-5 group-hover:scale-110"
+                                  : active
+                                    ? cn("h-4 w-4", catStyle.iconActive)
+                                    : cn("h-4 w-4", catStyle.iconInactive),
+                              )}
+                            />
+                          </div>
+
+                          {!collapsed && (
+                            <span className="truncate leading-tight font-medium group-hover:text-foreground transition-colors">
+                              {title}
+                            </span>
+                          )}
+                        </Link>
+                      );
+                    })()}
                   </li>
                 );
               })}
@@ -263,6 +320,30 @@ const SidebarContents = memo(function SidebarContents({
           </div>
         ))}
       </nav>
+
+      
+      {/* ERP Tour trigger button */}
+      <div className={cn("px-2.5 pb-1", collapsed && "flex justify-center p-2 pb-1")}>
+        <button
+          type="button"
+          onClick={() => {
+            window.dispatchEvent(new CustomEvent("open-vortex-welcome"));
+            if (onNavigate) onNavigate();
+          }}
+          className={cn(
+            "group relative flex items-center rounded-xl text-xs font-semibold text-muted-foreground hover:bg-primary/10 hover:text-primary transition-all duration-200 border border-transparent hover:border-primary/20",
+            collapsed ? "h-9 w-9 justify-center p-0" : "w-full gap-2.5 px-3 py-2",
+          )}
+          title={isAr ? "جولة في النظام والتعريف بالواجهات" : "ERP Guided Tour"}
+        >
+          <div className="grid h-6 w-6 shrink-0 place-items-center rounded-lg bg-primary/15 text-primary">
+            <Sparkles className="size-3.5 group-hover:scale-110 transition-transform" />
+          </div>
+          {!collapsed && (
+            <span className="truncate">{isAr ? "جولة في النظام" : "ERP System Tour"}</span>
+          )}
+        </button>
+      </div>
 
       {/* Footer Profile & Sign Out */}
       <div
