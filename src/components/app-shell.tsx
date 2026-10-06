@@ -605,7 +605,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           )}
         >
           {isPosRoute ? (
-            <div className="flex-1 min-h-0 flex flex-col p-3 sm:p-5 pb-16">{children}</div>
+            // POS is a viewport workspace, not a document page. Giving its
+            // children the actual available height lets the cart own the only
+            // item scroll area while the payment/action footer stays reachable.
+            <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden">{children}</div>
           ) : (
             <>
               <div className="mx-auto w-full max-w-[1400px] px-2 py-3 sm:px-1 sm:py-4 lg:px-1 lg:py-6">

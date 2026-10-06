@@ -1,13 +1,17 @@
 import { ModuleGuard } from "@/lib/modules";
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { Building2, Plus, Search, Edit, Trash2, X, Loader2 } from "lucide-react";
+import { Building2, Plus, Search, Edit, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/page-header";
 import { useI18n } from "@/lib/i18n";
 import { money } from "@/lib/format";
 import { WhatsAppButton } from "@/components/whatsapp-button";
 import { supplierMessage } from "@/lib/whatsapp-templates";
+import {
+  SupplierFormDialog,
+  type SupplierRecord,
+} from "@/components/contacts/supplier-form-dialog";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_app/suppliers")({
@@ -19,16 +23,11 @@ export const Route = createFileRoute("/_app/suppliers")({
   ),
 });
 
-interface Supplier {
-  id: string;
-  name: string;
-  phone: string | null;
-  email: string | null;
-  address: string | null;
+type Supplier = SupplierRecord & {
   balance: number;
   is_active: boolean;
   created_at: string;
-}
+};
 
 function SuppliersPage() {
   const { t, lang } = useI18n();
@@ -37,7 +36,6 @@ function SuppliersPage() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [edit, setEdit] = useState<Partial<Supplier> | null>(null);
-  const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState<string | null>(null);
 
   async function load() {
@@ -64,29 +62,12 @@ function SuppliersPage() {
       (r.email ?? "").toLowerCase().includes(search.toLowerCase()),
   );
 
-  async function save() {
-    if (saving) return;
-    if (!edit?.name?.trim()) return toast.error(t("suppliers.name_required"));
-    const payload = {
-      name: edit.name.trim(),
-      phone: edit.phone || null,
-      email: edit.email || null,
-      address: edit.address || null,
-      is_active: edit.is_active ?? true,
-    };
-    const { error } = edit.id
-      ? await supabase.from("suppliers").update(payload).eq("id", edit.id)
-      : await supabase.from("suppliers").insert(payload);
-    if (error) return toast.error(error.message);
-    toast.success(edit.id ? t("common.updated") : t("common.created"));
-    setEdit(null);
-    await load();
-  }
-
   async function remove(id: string) {
     if (deleting) return;
     if (!confirm(t("suppliers.delete_confirm"))) return;
+    setDeleting(id);
     const { error } = await supabase.from("suppliers").delete().eq("id", id);
+    setDeleting(null);
     if (error) return toast.error(error.message);
     toast.success(t("common.deleted"));
     await load();
@@ -202,94 +183,12 @@ function SuppliersPage() {
         </div>
       </div>
 
-      {edit && (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-background/80 backdrop-blur-sm p-4">
-          <div className="panel-elevated w-full max-w-md p-6">
-            <div className="mb-4 flex items-center justify-between">
-              <h3 className="text-lg font-semibold">
-                {edit.id ? t("suppliers.edit") : t("suppliers.new")}
-              </h3>
-              <button onClick={() => setEdit(null)} className="rounded p-1 hover:bg-surface-2">
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-            <div className="space-y-3">
-              <Input
-                label={`${t("common.name")} *`}
-                value={edit.name ?? ""}
-                onChange={(v) => setEdit({ ...edit, name: v })}
-              />
-              <Input
-                label={t("common.phone")}
-                value={edit.phone ?? ""}
-                onChange={(v) => setEdit({ ...edit, phone: v })}
-              />
-              <Input
-                label={t("common.email")}
-                value={edit.email ?? ""}
-                onChange={(v) => setEdit({ ...edit, email: v })}
-                type="email"
-              />
-              <Input
-                label={t("common.address")}
-                value={edit.address ?? ""}
-                onChange={(v) => setEdit({ ...edit, address: v })}
-              />
-              <label className="flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={edit.is_active ?? true}
-                  onChange={(e) => setEdit({ ...edit, is_active: e.target.checked })}
-                  className="h-4 w-4 rounded border-border"
-                />
-                {t("common.active")}
-              </label>
-            </div>
-            <div className="mt-5 flex justify-end gap-2">
-              <button
-                onClick={() => setEdit(null)}
-                className="h-9 rounded-md border border-border px-4 text-sm hover:bg-surface-2"
-              >
-                {t("common.cancel")}
-              </button>
-              <button
-                onClick={save}
-                disabled={saving}
-                className="flex h-9 items-center justify-center gap-1.5 rounded-md bg-primary px-5 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50 disabled:pointer-events-none transition"
-              >
-                {saving && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-                <span>
-                  {saving ? (lang === "ar" ? "جاري الحفظ..." : "Saving...") : t("common.save")}
-                </span>
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </>
-  );
-}
-
-function Input({
-  label,
-  value,
-  onChange,
-  type = "text",
-}: {
-  label: string;
-  value: string;
-  onChange: (v: string) => void;
-  type?: string;
-}) {
-  return (
-    <div>
-      <label className="mb-1.5 block text-xs font-medium text-muted-foreground">{label}</label>
-      <input
-        type={type}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="h-9 w-full rounded-md border border-input bg-surface px-3 text-sm focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/20"
+      <SupplierFormDialog
+        open={edit !== null}
+        initial={edit}
+        onClose={() => setEdit(null)}
+        onSavedComplete={() => void load()}
       />
-    </div>
+    </>
   );
 }
