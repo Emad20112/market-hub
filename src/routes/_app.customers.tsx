@@ -1,6 +1,7 @@
 import { useModules } from "@/lib/modules";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Users,
   Plus,
@@ -28,6 +29,7 @@ import {
   MessageSquareText,
   LayoutGrid,
   List,
+  TableProperties,
   ChevronLeft,
   DollarSign,
   TrendingUp,
@@ -39,12 +41,22 @@ import { useI18n } from "@/lib/i18n";
 import { money } from "@/lib/format";
 import { useDebtIndex } from "@/hooks/use-debts-overview";
 import { StatementIntegrityBadge } from "@/components/statements/statement-integrity-badge";
-import { VortexCollectionSheet, type PaymentMethod } from "@/components/vortex-ui";
+import { VortexCollectionSheet, VortexMetricCard, type PaymentMethod } from "@/components/vortex-ui";
 import { toast } from "sonner";
 import { WhatsAppIcon } from "@/components/whatsapp-icon";
 import { Ltr } from "@/components/ltr-value";
 import { CustomerCommunicationMenu } from "@/components/communication/customer-communication-menu";
 import { buildUnifiedContext, renderMessage } from "@/lib/communication";
+import {
+  TableToolbar,
+  ToolbarAction,
+  type FilterDefinition,
+  type FilterValues,
+  type SortOption,
+} from "@/components/ui/table-toolbar";
+import { useRealtimeTable } from "@/lib/realtime";
+import { QUERY_KEYS } from "@/lib/query-keys";
+import { CustomerFormDialog } from "@/components/contacts/customer-form-dialog";
 
 export const Route = createFileRoute("/_app/customers")({
   head: () => ({ meta: [{ title: "العملاء — فورتيكس ERP" }] }),
@@ -65,7 +77,7 @@ interface Customer {
 }
 
 type FilterType = "all" | "debt" | "credit" | "active";
-type ViewMode = "cards" | "table";
+type ViewMode = "cards" | "list" | "table";
 
 function handleCustomerSMS(customer: Customer, lang: "ar" | "en") {
   if (!customer.phone) return;
@@ -88,10 +100,12 @@ function CustomersPage() {
   const { t, lang } = useI18n();
   const { isModuleEnabled } = useModules();
   const navigate = useNavigate();
-  const [rows, setRows] = useState<Customer[]>([]);
-  const [loading, setLoading] = useState(true);
+  const qc = useQueryClient();
+
   const [search, setSearch] = useState("");
   const [filterType, setFilterType] = useState<FilterType>("all");
+  const [filters, setFilters] = useState<FilterValues>({});
+  const [sortKey, setSortKey] = useState<string>("name_asc");
   const [viewMode, setViewMode] = useState<ViewMode>("cards");
   const [edit, setEdit] = useState<Partial<Customer> | null>(null);
   const [selected, setSelected] = useState<Customer | null>(null);
@@ -103,22 +117,29 @@ function CustomersPage() {
   const [menuOpen, setMenuOpen] = useState<string | null>(null);
   const [hoveredRow, setHoveredRow] = useState<string | null>(null);
   const [detailTab, setDetailTab] = useState<"all" | "invoices" | "payments">("all");
-  const [saving, setSaving] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
   // أرصدة مؤكَّدة من الدفتر
   const { index: ledgerIndex } = useDebtIndex("customer");
 
-  async function load() {
-    setLoading(true);
-    const { data } = await supabase.from("customers").select("*").order("name").limit(1000);
-    setRows((data ?? []) as Customer[]);
-    setLoading(false);
-  }
+  const { data: rows = [], isLoading: loading, refetch: load } = useQuery({
+    queryKey: QUERY_KEYS.customers,
+    queryFn: async () => {
+      const { data, error } = await supabase.from("customers").select("*").order("name").limit(1000);
+      if (error) throw error;
+      return (data ?? []) as Customer[];
+    },
+    staleTime: 60_000,
+  });
 
-  useEffect(() => {
-    void load();
-  }, []);
+  useRealtimeTable<Customer>(
+    {
+      table: "customers",
+      queryKey: QUERY_KEYS.customers,
+      debounceMs: 100,
+    },
+    qc,
+  );
 
   // Close menu on outside click
   useEffect(() => {
@@ -133,25 +154,128 @@ function CustomersPage() {
     }
   }, [menuOpen]);
 
+  const customerFilterDefinitions: FilterDefinition[] = useMemo(
+    () => [
+      {
+        key: "created_at",
+        label: lang === "ar" ? "تاريخ التسجيل" : "Registration Date",
+        type: "date-range",
+      },
+      {
+        key: "is_active",
+        label: lang === "ar" ? "حالة النشاط" : "Status",
+        type: "select",
+        options: [
+          { value: "true", label: lang === "ar" ? "نشط فقط" : "Active only" },
+          { value: "false", label: lang === "ar" ? "غير نشط فقط" : "Inactive only" },
+        ],
+      },
+      {
+        key: "debt_type",
+        label: lang === "ar" ? "حالة الرصيد" : "Balance Type",
+        type: "select",
+        options: [
+          { value: "debt", label: lang === "ar" ? "مدين (عليه مبالغ)" : "Debtor (owes)" },
+          { value: "credit", label: lang === "ar" ? "دائن (له رصيد)" : "Creditor (advance)" },
+          { value: "zero", label: lang === "ar" ? "متزن (صفر)" : "Zero balance" },
+        ],
+      },
+      {
+        key: "has_limit",
+        label: lang === "ar" ? "الحد الائتماني" : "Credit Limit",
+        type: "select",
+        options: [
+          { value: "yes", label: lang === "ar" ? "له حد ائتماني" : "Has credit limit" },
+          { value: "no", label: lang === "ar" ? "بدون حد ائتماني" : "No credit limit" },
+        ],
+      },
+    ],
+    [lang],
+  );
+
+  const customerSortOptions: SortOption[] = useMemo(
+    () => [
+      { value: "name_asc", label: lang === "ar" ? "الاسم (أ - ي)" : "Name (A - Z)" },
+      { value: "name_desc", label: lang === "ar" ? "الاسم (ي - أ)" : "Name (Z - A)" },
+      { value: "debt_desc", label: lang === "ar" ? "الأعلى مديونية (عليه)" : "Highest Debt" },
+      { value: "credit_desc", label: lang === "ar" ? "الأعلى رصيداً دائناً (له)" : "Highest Credit" },
+      { value: "limit_desc", label: lang === "ar" ? "أعلى حد ائتماني" : "Highest Credit Limit" },
+      { value: "points_desc", label: lang === "ar" ? "الأعلى نقاط ولاء" : "Highest Loyalty Points" },
+      { value: "date_desc", label: lang === "ar" ? "الأحدث تسجيلاً" : "Newest Registered" },
+      { value: "date_asc", label: lang === "ar" ? "الأقدم تسجيلاً" : "Oldest Registered" },
+    ],
+    [lang],
+  );
+
   const filtered = useMemo(() => {
-    return rows.filter((r) => {
+    let list = rows.filter((r) => {
       // Search match
-      const matchesSearch =
-        !search ||
-        r.name.toLowerCase().includes(search.toLowerCase()) ||
-        (r.phone ?? "").includes(search) ||
-        (r.email ?? "").toLowerCase().includes(search.toLowerCase());
+      if (search.trim()) {
+        const q = search.trim().toLowerCase();
+        const matches =
+          r.name.toLowerCase().includes(q) ||
+          (r.phone ?? "").includes(q) ||
+          (r.email ?? "").toLowerCase().includes(q) ||
+          (r.address ?? "").toLowerCase().includes(q);
+        if (!matches) return false;
+      }
 
-      if (!matchesSearch) return false;
-
-      // Filter tabs
+      // Quick filter tabs
       const bal = Number(r.balance);
-      if (filterType === "debt") return bal > 0;
-      if (filterType === "credit") return bal < 0;
-      if (filterType === "active") return r.is_active;
+      if (filterType === "debt" && bal <= 0) return false;
+      if (filterType === "credit" && bal >= 0) return false;
+      if (filterType === "active" && !r.is_active) return false;
+
+      // Advanced filters
+      if (filters.is_active && String(r.is_active) !== filters.is_active) return false;
+      if (filters.debt_type) {
+        if (filters.debt_type === "debt" && bal <= 0) return false;
+        if (filters.debt_type === "credit" && bal >= 0) return false;
+        if (filters.debt_type === "zero" && bal !== 0) return false;
+      }
+      if (filters.has_limit) {
+        const hasLimit = Number(r.credit_limit) > 0;
+        if (filters.has_limit === "yes" && !hasLimit) return false;
+        if (filters.has_limit === "no" && hasLimit) return false;
+      }
+      if (filters.created_at && typeof filters.created_at === "object") {
+        const rowTime = new Date(r.created_at).getTime();
+        if (filters.created_at.from && rowTime < new Date(filters.created_at.from).getTime()) return false;
+        if (filters.created_at.to) {
+          const toDate = new Date(filters.created_at.to);
+          toDate.setHours(23, 59, 59, 999);
+          if (rowTime > toDate.getTime()) return false;
+        }
+      }
+
       return true;
     });
-  }, [rows, search, filterType]);
+
+    list = [...list].sort((a, b) => {
+      switch (sortKey) {
+        case "name_asc":
+          return a.name.localeCompare(b.name, "ar");
+        case "name_desc":
+          return b.name.localeCompare(a.name, "ar");
+        case "debt_desc":
+          return Number(b.balance) - Number(a.balance);
+        case "credit_desc":
+          return Number(a.balance) - Number(b.balance);
+        case "limit_desc":
+          return Number(b.credit_limit) - Number(a.credit_limit);
+        case "points_desc":
+          return Number(b.loyalty_points) - Number(a.loyalty_points);
+        case "date_desc":
+          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+        case "date_asc":
+          return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+        default:
+          return 0;
+      }
+    });
+
+    return list;
+  }, [rows, search, filterType, filters, sortKey]);
 
   // Balance summaries
   const { totalOwed, totalCredit, activeCount, debtCount } = useMemo(() => {
@@ -176,28 +300,6 @@ function CustomersPage() {
       debtCount: debts,
     };
   }, [rows]);
-
-  async function save() {
-    if (saving) return;
-    if (!edit?.name?.trim()) return toast.error(t("common.required"));
-    setSaving(true);
-    const payload = {
-      name: edit.name.trim(),
-      phone: edit.phone || null,
-      email: edit.email || null,
-      address: edit.address || null,
-      credit_limit: Number(edit.credit_limit ?? 0),
-      is_active: edit.is_active ?? true,
-    };
-    const { error } = edit.id
-      ? await supabase.from("customers").update(payload).eq("id", edit.id)
-      : await supabase.from("customers").insert(payload);
-    setSaving(false);
-    if (error) return toast.error(error.message);
-    toast.success(edit.id ? t("common.updated") : t("common.created"));
-    setEdit(null);
-    await load();
-  }
 
   const remove = useCallback(
     async (id: string) => {
@@ -259,28 +361,22 @@ function CustomersPage() {
     const dbMethodMap: Record<PaymentMethod, "cash" | "bank_transfer"> = {
       cash: "cash",
       transfer: "bank_transfer",
+      card: "bank_transfer",
+      mobile_money: "bank_transfer",
     };
     const dbMethod = dbMethodMap[data.method] || "cash";
     const receiptNumber = String(Date.now()).slice(-6);
 
-    const { error: pError } = await (supabase as any).from("customer_payments").insert({
-      customer_id: data.customerId,
-      amount: data.amount,
-      payment_method: dbMethod,
-      note: data.notes || null,
-      payment_date: new Date().toISOString(),
+    // Call official security-definer RPC record_customer_payment
+    const { data: rpcRes, error: pError } = await (supabase as any).rpc("record_customer_payment", {
+      _customer_id: data.customerId,
+      _invoice_id: null,
+      _amount: data.amount,
+      _method: dbMethod,
+      _payment_date: new Date().toISOString().slice(0, 10),
+      _note: data.notes || null,
     });
     if (pError) throw pError;
-
-    // Update customer balance directly
-    const currentCust = rows.find((r) => r.id === data.customerId) || collectionCustomer;
-    if (currentCust) {
-      const newBal = Math.round(((Number(currentCust.balance) || 0) - data.amount) * 100) / 100;
-      await (supabase as any)
-        .from("customers")
-        .update({ balance: newBal })
-        .eq("id", data.customerId);
-    }
 
     toast.success(lang === "ar" ? "تم تسجيل سند التحصيل بنجاح" : "Payment recorded successfully");
     await load();
@@ -471,189 +567,135 @@ function CustomersPage() {
     <div className="space-y-5">
       <PageHeader title={t("customers.title")} subtitle={t("customers.subtitle")} />
 
-      {/* ─── Luxury Summary KPI Cards (Desktop & Mobile Responsive) ─── */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-        {/* Card 1: Total Customers */}
-        <div className="card-mullak relative overflow-hidden p-4 sm:p-5 flex items-center justify-between group">
-          <div className="min-w-0">
-            <p className="text-[11px] sm:text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-              {lang === "ar" ? "إجمالي العملاء" : "Total Customers"}
-            </p>
-            <h3 className="mt-1 font-mono text-xl sm:text-2xl font-bold tracking-tight text-foreground">
-              {rows.length}
-            </h3>
-            <span className="mt-1 inline-flex items-center gap-1 text-[10px] text-primary">
-              <Users className="size-3" />
-              {activeCount} {lang === "ar" ? "عميل نشط" : "active"}
-            </span>
-          </div>
-          <div className="grid size-12 shrink-0 place-items-center rounded-2xl bg-primary/10 text-primary border border-primary/20 shadow-sm group-hover:scale-105 transition-transform">
-            <Users className="size-6" />
-          </div>
-          <div className="absolute -left-6 -top-6 size-20 rounded-full bg-primary/10 blur-xl pointer-events-none" />
-        </div>
-
-        {/* Card 2: Total Owed (Receivables) */}
-        <div className="card-mullak relative overflow-hidden p-4 sm:p-5 flex items-center justify-between group">
-          <div className="min-w-0">
-            <p className="text-[11px] sm:text-xs font-semibold text-amber-500/90 uppercase tracking-wider">
-              {lang === "ar" ? "المبالغ عليهم (ديون)" : "Receivables (Owed)"}
-            </p>
-            <h3 className="mt-1 font-mono text-xl sm:text-2xl font-bold tracking-tight text-amber-400">
-              <Ltr>{money(totalOwed)}</Ltr>
-            </h3>
-            <span className="mt-1 inline-flex items-center gap-1 text-[10px] text-amber-500/80">
-              <AlertTriangle className="size-3" />
-              {debtCount} {lang === "ar" ? "عميل عليه مبالغ" : "with debt"}
-            </span>
-          </div>
-          <div className="grid size-12 shrink-0 place-items-center rounded-2xl bg-amber-500/10 text-amber-400 border border-amber-500/20 shadow-sm group-hover:scale-105 transition-transform">
-            <Wallet className="size-6" />
-          </div>
-          <div className="absolute -left-6 -top-6 size-20 rounded-full bg-amber-500/10 blur-xl pointer-events-none" />
-        </div>
-
-        {/* Card 3: Total Credit (Payables / Advance) */}
-        <div className="card-mullak relative overflow-hidden p-4 sm:p-5 flex items-center justify-between group">
-          <div className="min-w-0">
-            <p className="text-[11px] sm:text-xs font-semibold text-emerald-500/90 uppercase tracking-wider">
-              {lang === "ar" ? "المبالغ لهم (رصيد دائن)" : "Credits (Advance)"}
-            </p>
-            <h3 className="mt-1 font-mono text-xl sm:text-2xl font-bold tracking-tight text-emerald-400">
-              <Ltr>{money(totalCredit)}</Ltr>
-            </h3>
-            <span className="mt-1 inline-flex items-center gap-1 text-[10px] text-emerald-500/80">
-              <CheckCircle2 className="size-3" />
-              {lang === "ar" ? "أرصدة مدفوعة مقدماً" : "prepaid credits"}
-            </span>
-          </div>
-          <div className="grid size-12 shrink-0 place-items-center rounded-2xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 shadow-sm group-hover:scale-105 transition-transform">
-            <CreditCard className="size-6" />
-          </div>
-          <div className="absolute -left-6 -top-6 size-20 rounded-full bg-emerald-500/10 blur-xl pointer-events-none" />
-        </div>
-
-        {/* Card 4: Net Balance / Active Ratio */}
-        <div className="card-mullak relative overflow-hidden p-4 sm:p-5 flex items-center justify-between group">
-          <div className="min-w-0">
-            <p className="text-[11px] sm:text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-              {lang === "ar" ? "صافي المستحقات" : "Net Receivables"}
-            </p>
-            <h3
-              className={`mt-1 font-mono text-xl sm:text-2xl font-bold tracking-tight ${totalOwed - totalCredit >= 0 ? "text-amber-400" : "text-emerald-400"}`}
-            >
-              <Ltr>{money(totalOwed - totalCredit)}</Ltr>
-            </h3>
-            <span className="mt-1 inline-flex items-center gap-1 text-[10px] text-muted-foreground">
-              <TrendingUp className="size-3" />
-              {lang === "ar" ? "الرصيد الصافي للدفتر" : "Net ledger position"}
-            </span>
-          </div>
-          <div className="grid size-12 shrink-0 place-items-center rounded-2xl bg-surface-2 text-foreground border border-border/80 shadow-sm group-hover:scale-105 transition-transform">
-            <DollarSign className="size-6 text-primary" />
-          </div>
-          <div className="absolute -left-6 -top-6 size-20 rounded-full bg-surface-3 blur-xl pointer-events-none" />
-        </div>
+      {/* ─── Standard VORTEX KPI Metric Cards (2 on Mobile, 4 on Desktop) ─── */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
+        <VortexMetricCard
+          title={lang === "ar" ? "إجمالي العملاء" : "Total Customers"}
+          value={rows.length}
+          subtitle={`${activeCount} ${lang === "ar" ? "عميل نشط" : "active"}`}
+          icon={<Users className="size-4 text-primary" />}
+          tone="default"
+        />
+        <VortexMetricCard
+          title={lang === "ar" ? "المبالغ عليهم (ديون)" : "Receivables (Owed)"}
+          value={money(totalOwed)}
+          subtitle={`${debtCount} ${lang === "ar" ? "عميل عليه مبالغ" : "with debt"}`}
+          icon={<Wallet className="size-4 text-amber-500" />}
+          tone="warning"
+        />
+        <VortexMetricCard
+          title={lang === "ar" ? "المبالغ لهم (رصيد دائن)" : "Credits (Advance)"}
+          value={money(totalCredit)}
+          subtitle={lang === "ar" ? "أرصدة مدفوعة مقدماً" : "prepaid credits"}
+          icon={<CreditCard className="size-4 text-emerald-500" />}
+          tone="success"
+        />
+        <VortexMetricCard
+          title={lang === "ar" ? "صافي المستحقات" : "Net Receivables"}
+          value={money(totalOwed - totalCredit)}
+          subtitle={lang === "ar" ? "الرصيد الصافي للدفتر" : "Net ledger position"}
+          icon={<DollarSign className="size-4 text-sky-500" />}
+          tone={totalOwed - totalCredit >= 0 ? "warning" : "success"}
+        />
       </div>
 
-      {/* ─── Control Bar: Search + Filter Tabs + View Mode + New Customer Button ─── */}
-      <div className="card-mullak p-3 sm:p-4">
-        <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3">
-          {/* Search Input */}
-          <div className="relative flex-1">
-            <Search className="pointer-events-none absolute right-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-            <input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder={
-                lang === "ar"
-                  ? "ابحث بالاسم، رقم الهاتف، البريد..."
-                  : "Search by name, phone, email…"
-              }
-              className="h-11 w-full rounded-2xl border border-border/80 bg-surface/80 px-4 pr-10 text-sm font-medium placeholder:text-muted-foreground/70 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 transition"
-            />
-            {search && (
-              <button
-                onClick={() => setSearch("")}
-                className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-              >
-                <X className="size-3.5" />
-              </button>
-            )}
-          </div>
-
-          {/* Filter Pills */}
-          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 lg:pb-0 scrollbar-x-none">
-            {[
-              { id: "all", label: lang === "ar" ? "الكل" : "All", count: rows.length },
-              { id: "debt", label: lang === "ar" ? "عليهم مبالغ" : "With Debt", count: debtCount },
-              { id: "credit", label: lang === "ar" ? "لهم رصيد" : "With Credit" },
-              { id: "active", label: lang === "ar" ? "النشطين" : "Active", count: activeCount },
-            ].map((f) => (
-              <button
-                key={f.id}
-                onClick={() => setFilterType(f.id as FilterType)}
-                className={`flex items-center gap-1.5 shrink-0 rounded-full px-3.5 py-1.5 text-xs font-bold transition border ${
-                  filterType === f.id
-                    ? "border-primary bg-primary text-primary-foreground shadow-sm shadow-primary/20"
-                    : "border-border/70 bg-surface text-muted-foreground hover:text-foreground hover:bg-surface-2"
-                }`}
-              >
-                <span>{f.label}</span>
-                {f.count !== undefined && (
-                  <span
-                    className={`rounded-full px-1.5 py-0.2 text-[10px] font-mono ${
-                      filterType === f.id
-                        ? "bg-white/20 text-white"
-                        : "bg-muted text-muted-foreground"
-                    }`}
-                  >
-                    {f.count}
-                  </span>
-                )}
-              </button>
-            ))}
-          </div>
-
-          {/* View Mode Toggle + Shortcuts Pill + New Customer */}
-          <div className="flex items-center justify-between lg:justify-end gap-2.5">
-            {/* View Mode Toggle (Cards vs Table) */}
-            <div className="flex items-center rounded-2xl border border-border/80 bg-surface p-1">
-              <button
-                onClick={() => setViewMode("cards")}
-                title={lang === "ar" ? "عرض البطاقات الفاخرة" : "Cards view"}
-                className={`grid size-9 place-items-center rounded-xl transition ${
-                  viewMode === "cards"
-                    ? "bg-primary text-primary-foreground shadow-xs"
-                    : "text-muted-foreground hover:text-foreground hover:bg-surface-2"
-                }`}
-              >
-                <LayoutGrid className="size-4" />
-              </button>
-              <button
-                onClick={() => setViewMode("table")}
-                title={lang === "ar" ? "عرض الجدول المتقدم" : "Table view"}
-                className={`grid size-9 place-items-center rounded-xl transition ${
-                  viewMode === "table"
-                    ? "bg-primary text-primary-foreground shadow-xs"
-                    : "text-muted-foreground hover:text-foreground hover:bg-surface-2"
-                }`}
-              >
-                <List className="size-4" />
-              </button>
-            </div>
-
-            {/* New Customer Button */}
+      {/* ─── Standard VORTEX TableToolbar: Search + Filters + Sort + View Toggle + New Customer ─── */}
+      <TableToolbar
+        sticky
+        search={{
+          value: search,
+          onValueChange: setSearch,
+          placeholder:
+            lang === "ar"
+              ? "ابحث بالاسم، رقم الهاتف، البريد أو العنوان..."
+              : "Search by name, phone, email, address…",
+          resultCount: filtered.length,
+        }}
+        filters={{
+          definitions: customerFilterDefinitions,
+          values: filters,
+          onValueChange: setFilters,
+        }}
+        sort={{
+          options: customerSortOptions,
+          value: sortKey,
+          onValueChange: setSortKey,
+          label: lang === "ar" ? "ترتيب" : "Sort",
+        }}
+        viewToggle={
+          <ToolbarAction
+            label={
+              viewMode === "cards"
+                ? lang === "ar"
+                  ? "بطاقات"
+                  : "Cards"
+                : viewMode === "list"
+                  ? lang === "ar"
+                    ? "قائمة"
+                    : "List"
+                  : lang === "ar"
+                    ? "جدول"
+                    : "Table"
+            }
+            icon={
+              viewMode === "cards" ? (
+                <LayoutGrid />
+              ) : viewMode === "list" ? (
+                <List />
+              ) : (
+                <TableProperties />
+              )
+            }
+            onClick={() =>
+              setViewMode((prev) =>
+                prev === "cards" ? "list" : prev === "list" ? "table" : "cards",
+              )
+            }
+            tone="ghost"
+          />
+        }
+        action={
+          <ToolbarAction
+            label={lang === "ar" ? "عميل جديد" : "New Customer"}
+            icon={<Plus />}
+            tone="primary"
+            onClick={() => setEdit({})}
+          />
+        }
+      >
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 scrollbar-x-none">
+          {[
+            { id: "all", label: lang === "ar" ? "الكل" : "All", count: rows.length },
+            { id: "debt", label: lang === "ar" ? "عليهم مبالغ" : "With Debt", count: debtCount },
+            { id: "credit", label: lang === "ar" ? "لهم رصيد" : "With Credit" },
+            { id: "active", label: lang === "ar" ? "النشطين" : "Active", count: activeCount },
+          ].map((f) => (
             <button
-              onClick={() => setEdit({})}
-              className="flex h-11 items-center gap-2 rounded-2xl bg-primary px-4 sm:px-5 text-xs sm:text-sm font-bold text-primary-foreground shadow-md shadow-primary/25 hover:bg-primary/90 active:scale-95 transition"
+              key={f.id}
+              type="button"
+              onClick={() => setFilterType(f.id as FilterType)}
+              className={`flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-bold transition ${
+                filterType === f.id
+                  ? "border-primary bg-primary text-primary-foreground shadow-xs shadow-primary/20"
+                  : "border-border/70 bg-surface/70 text-muted-foreground hover:bg-surface-2 hover:text-foreground"
+              }`}
             >
-              <Plus className="size-4" />
-              <span>{lang === "ar" ? "عميل جديد" : "New Customer"}</span>
+              <span>{f.label}</span>
+              {f.count !== undefined && (
+                <span
+                  className={`rounded-full px-1.5 py-0.2 text-[10px] font-mono ${
+                    filterType === f.id
+                      ? "bg-white/20 text-white"
+                      : "bg-muted text-muted-foreground"
+                  }`}
+                >
+                  {f.count}
+                </span>
+              )}
             </button>
-          </div>
+          ))}
         </div>
-      </div>
+      </TableToolbar>
 
       {/* ─── Main Content Display: Mullak Cards View vs Advanced Table View ─── */}
       {loading ? (
@@ -850,6 +892,122 @@ function CustomersPage() {
                       onClick={() => setEdit(r)}
                       title={lang === "ar" ? "تعديل (F2)" : "Edit (F2)"}
                       className="grid size-8 place-items-center rounded-full bg-surface-2 hover:bg-surface-3 border border-border text-muted-foreground hover:text-foreground transition active:scale-95"
+                    >
+                      <Pencil className="size-3.5" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      ) : viewMode === "list" ? (
+        /* ─── Luxury Mullak Row-Cards View (List with Right Accent Strip) ─── */
+        <div className="space-y-2.5">
+          {filtered.map((r) => {
+            const meta = getRecordIndicator(r);
+            const bal = Number(r.balance);
+            const limit = Number(r.credit_limit);
+
+            return (
+              <div
+                key={r.id}
+                onClick={() => void openCustomer(r)}
+                onMouseEnter={() => setHoveredRow(r.id)}
+                onMouseLeave={() => setHoveredRow(null)}
+                className="card-mullak group relative flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 sm:px-4 sm:py-3 cursor-pointer hover:border-primary/40 transition-all rounded-2xl"
+              >
+                <div className="flex items-center gap-3 min-w-0">
+                  <span
+                    aria-hidden
+                    className={`h-10 w-1.5 shrink-0 rounded-full transition-all duration-300 ${meta.barClass}`}
+                  />
+                  <div className="grid size-10 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary font-bold text-sm border border-primary/20">
+                    {r.name.slice(0, 1)}
+                  </div>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h4 className="font-bold text-foreground group-hover:text-primary transition-colors text-sm truncate">
+                        {r.name}
+                      </h4>
+                      <span
+                        className={`rounded-full px-2 py-0.5 text-[9px] font-bold border shrink-0 ${meta.toneClass}`}
+                      >
+                        {meta.label}
+                      </span>
+                    </div>
+                    <div className="mt-0.5 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+                      {r.phone && (
+                        <span className="flex items-center gap-1 font-mono text-[11px]" dir="ltr">
+                          <Phone className="size-3 text-muted-foreground" />
+                          {r.phone}
+                        </span>
+                      )}
+                      {r.email && (
+                        <span className="flex items-center gap-1 truncate text-[11px] max-w-[150px]">
+                          <Mail className="size-3 text-muted-foreground" />
+                          {r.email}
+                        </span>
+                      )}
+                      {limit > 0 && (
+                        <span className="font-mono text-[10px] text-rose-400">
+                          {lang === "ar" ? "الحد:" : "Limit:"} <Ltr>{money(limit)}</Ltr>
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between gap-4 border-t pt-2 border-border/50 sm:justify-end sm:border-t-0 sm:pt-0 shrink-0">
+                  <div className="text-start sm:text-end">
+                    <span className="block text-[10px] text-muted-foreground">
+                      {bal > 0
+                        ? lang === "ar"
+                          ? "عليه"
+                          : "Owed"
+                        : bal < 0
+                          ? lang === "ar"
+                            ? "له"
+                            : "Credit"
+                          : lang === "ar"
+                            ? "الرصيد"
+                            : "Balance"}
+                    </span>
+                    <span
+                      className={`font-mono text-sm sm:text-base font-bold tracking-tight ${
+                        bal > 0
+                          ? "text-amber-400"
+                          : bal < 0
+                            ? "text-emerald-400"
+                            : "text-muted-foreground"
+                      }`}
+                    >
+                      <Ltr>{money(bal)}</Ltr>
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+                    {isModuleEnabled("payments") && (
+                      <button
+                        onClick={() => goPayment(r)}
+                        title={`${lang === "ar" ? "تحصيل" : "Payment"} (F3)`}
+                        className="flex h-8 items-center gap-1 rounded-lg border border-primary/20 bg-primary/10 px-2.5 text-xs font-semibold text-primary transition hover:bg-primary hover:text-primary-foreground active:scale-95"
+                      >
+                        <Wallet className="size-3.5" />
+                        <span className="hidden md:inline">{lang === "ar" ? "تحصيل" : "Pay"}</span>
+                      </button>
+                    )}
+                    <button
+                      onClick={() => goStatement(r)}
+                      title={`${lang === "ar" ? "كشف حساب" : "Statement"} (F5)`}
+                      className="grid size-8 place-items-center rounded-lg border border-border bg-surface text-muted-foreground transition hover:bg-surface-2 hover:text-foreground"
+                    >
+                      <FileText className="size-3.5" />
+                    </button>
+                    <button
+                      onClick={() => setEdit(r)}
+                      title={`${lang === "ar" ? "تعديل" : "Edit"} (F2)`}
+                      className="grid size-8 place-items-center rounded-lg border border-border bg-surface text-muted-foreground transition hover:bg-surface-2 hover:text-foreground"
                     >
                       <Pencil className="size-3.5" />
                     </button>
@@ -1231,225 +1389,13 @@ function CustomersPage() {
         </div>
       )}
 
-      {/* ─── Mullak-Style Edit / New Customer Sheet ─── */}
-      {edit && (
-        <div
-          className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-sm p-0 sm:items-center sm:p-4 animate-in fade-in duration-200"
-          onClick={() => !saving && setEdit(null)}
-        >
-          <div
-            className="w-full max-w-lg rounded-t-3xl sm:rounded-3xl border border-border/80 bg-background/95 backdrop-blur-md p-6 sm:p-7 shadow-2xl max-h-[92vh] overflow-y-auto animate-in slide-in-from-bottom-6 sm:zoom-in-95 duration-200"
-            onClick={(e) => e.stopPropagation()}
-            dir={lang === "ar" ? "rtl" : "ltr"}
-          >
-            {/* Sheet Header with Luxury Badge */}
-            <div className="flex items-start justify-between pb-5 border-b border-border/60">
-              <div className="flex items-center gap-3.5">
-                <div className="grid size-12 place-items-center rounded-2xl bg-primary/10 text-primary border border-primary/20 shadow-sm">
-                  <User className="size-6" />
-                </div>
-                <div>
-                  <h3 className="text-lg font-bold tracking-tight text-foreground">
-                    {edit.id
-                      ? lang === "ar"
-                        ? "تعديل بيانات العميل"
-                        : "Edit Customer Profile"
-                      : lang === "ar"
-                        ? "إضافة عميل جديد"
-                        : "New Customer Registration"}
-                  </h3>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    {lang === "ar"
-                      ? "سجل البيانات الأساسية ومعلومات التواصل والحد الائتماني"
-                      : "Fill in identity, contact info, and credit terms"}
-                  </p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setEdit(null)}
-                className="grid size-9 place-items-center rounded-full bg-surface-2 text-muted-foreground hover:text-foreground transition"
-              >
-                <X className="size-4" />
-              </button>
-            </div>
-
-            {/* Form Fields Divided into Sections */}
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                void save();
-              }}
-              className="mt-6 space-y-5"
-            >
-              {/* Section 1: Identity */}
-              <div className="space-y-3">
-                <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  <Sparkles className="size-3.5 text-primary" />
-                  <span>{lang === "ar" ? "البيانات الأساسية" : "Primary Information"}</span>
-                </div>
-                <div>
-                  <label className="mb-1.5 block text-xs font-medium text-foreground">
-                    {t("common.name")} <span className="text-rose-500">*</span>
-                  </label>
-                  <div className="relative">
-                    <User className="pointer-events-none absolute right-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-                    <input
-                      required
-                      value={edit.name ?? ""}
-                      onChange={(e) => setEdit({ ...edit, name: e.target.value })}
-                      placeholder={
-                        lang === "ar" ? "اسم العميل أو المؤسسة" : "Customer or Company Name"
-                      }
-                      className="h-11 w-full rounded-2xl border border-border/80 bg-surface/80 px-4 pr-10 text-sm font-medium placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 transition"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Section 2: Contact Information */}
-              <div className="space-y-3 pt-2">
-                <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  <Phone className="size-3.5 text-primary" />
-                  <span>{lang === "ar" ? "بيانات الاتصال والتواصل" : "Contact Details"}</span>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className="mb-1.5 block text-xs font-medium text-foreground">
-                      {t("common.phone")}
-                    </label>
-                    <div className="relative">
-                      <Phone className="pointer-events-none absolute right-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-                      <input
-                        dir="ltr"
-                        value={edit.phone ?? ""}
-                        onChange={(e) => setEdit({ ...edit, phone: e.target.value })}
-                        placeholder="+966 5x xxx xxxx"
-                        className="h-11 w-full rounded-2xl border border-border/80 bg-surface/80 px-4 pr-10 text-sm font-medium placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 transition text-right"
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="mb-1.5 block text-xs font-medium text-foreground">
-                      {t("common.email")}
-                    </label>
-                    <div className="relative">
-                      <Mail className="pointer-events-none absolute right-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-                      <input
-                        type="email"
-                        dir="ltr"
-                        value={edit.email ?? ""}
-                        onChange={(e) => setEdit({ ...edit, email: e.target.value })}
-                        placeholder="customer@domain.com"
-                        className="h-11 w-full rounded-2xl border border-border/80 bg-surface/80 px-4 pr-10 text-sm font-medium placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 transition text-right"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="mb-1.5 block text-xs font-medium text-foreground">
-                    {lang === "ar" ? "العنوان أو المدينة" : "Address"}
-                  </label>
-                  <div className="relative">
-                    <MapPin className="pointer-events-none absolute right-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-                    <input
-                      value={edit.address ?? ""}
-                      onChange={(e) => setEdit({ ...edit, address: e.target.value })}
-                      placeholder={
-                        lang === "ar" ? "المدينة، الحي، الشارع" : "City, District, Street"
-                      }
-                      className="h-11 w-full rounded-2xl border border-border/80 bg-surface/80 px-4 pr-10 text-sm font-medium placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 transition"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Section 3: Financial Terms & Status */}
-              <div className="space-y-3 pt-2">
-                <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  <Wallet className="size-3.5 text-primary" />
-                  <span>{lang === "ar" ? "الحد الائتماني والحالة" : "Credit & Status"}</span>
-                </div>
-
-                <div>
-                  <label className="mb-1.5 block text-xs font-medium text-foreground">
-                    {lang === "ar" ? "حد الائتمان المسموح" : "Credit Limit"}
-                  </label>
-                  <div className="relative">
-                    <input
-                      type="number"
-                      dir="ltr"
-                      min={0}
-                      step="any"
-                      value={edit.credit_limit ?? 0}
-                      onChange={(e) => setEdit({ ...edit, credit_limit: Number(e.target.value) })}
-                      className="h-11 w-full rounded-2xl border border-border/80 bg-surface/80 px-4 text-sm font-mono font-medium focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 transition text-right"
-                    />
-                  </div>
-                  <p className="mt-1 text-[10px] text-muted-foreground">
-                    {lang === "ar"
-                      ? "أقصى مبلغ يمكن للعميل شراؤه بالآجل قبل إيقاف الفواتير."
-                      : "Maximum allowable credit before blocking future credit sales."}
-                  </p>
-                </div>
-
-                {/* Active Switch Toggle */}
-                <div className="flex items-center justify-between rounded-2xl border border-border/70 bg-surface/60 p-3.5">
-                  <div>
-                    <p className="text-xs font-bold text-foreground">
-                      {lang === "ar" ? "حالة تفعيل العميل" : "Customer Active Status"}
-                    </p>
-                    <p className="text-[10px] text-muted-foreground mt-0.5">
-                      {lang === "ar"
-                        ? "العميل النشط يظهر تلقائياً في شاشات البيع ونقاط البيع"
-                        : "Active customers appear in POS and sales invoices"}
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setEdit({ ...edit, is_active: !(edit.is_active ?? true) })}
-                    className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                      (edit.is_active ?? true) ? "bg-primary" : "bg-muted"
-                    }`}
-                  >
-                    <span
-                      className={`pointer-events-none inline-block size-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                        (edit.is_active ?? true) ? "translate-x-5" : "translate-x-0"
-                      }`}
-                    />
-                  </button>
-                </div>
-              </div>
-
-              {/* Form Action Buttons */}
-              <div className="flex items-center justify-end gap-3 pt-4 border-t border-border/60">
-                <button
-                  type="button"
-                  disabled={saving}
-                  onClick={() => setEdit(null)}
-                  className="h-11 px-5 rounded-2xl border border-border/80 bg-surface text-xs font-bold text-muted-foreground hover:text-foreground hover:bg-surface-2 transition active:scale-95"
-                >
-                  {t("common.cancel")}
-                </button>
-                <button
-                  type="submit"
-                  disabled={saving}
-                  className="flex h-11 items-center gap-2 rounded-2xl bg-primary px-6 text-xs font-bold text-primary-foreground shadow-md shadow-primary/25 hover:bg-primary/90 transition active:scale-95 disabled:opacity-50"
-                >
-                  {saving ? (
-                    <Loader2 className="size-4 animate-spin" />
-                  ) : (
-                    <CheckCircle2 className="size-4" />
-                  )}
-                  <span>{edit.id ? t("common.save_changes") : t("common.create")}</span>
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      {/* ─── Customer form — shared with POS (same fields, validation & save) ─── */}
+      <CustomerFormDialog
+        open={edit !== null}
+        initial={edit}
+        onClose={() => setEdit(null)}
+        onSavedComplete={() => void load()}
+      />
 
       <VortexCollectionSheet
         open={collectionOpen}

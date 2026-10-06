@@ -288,7 +288,7 @@ function VortexUiShowcasePage() {
           referenceNumber: "9921",
           method: "تحويل بنكي - مصرف الراجحي",
           notes: "دفعة من فاتورة توريد البضائع رقم #INV-104",
-          remainingBalance: 12000,
+          newBalance: 12000,
         }}
       />
 

@@ -1,20 +1,20 @@
 "use client";
 
 import * as React from "react";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import {
   Banknote,
-  Building2,
   CheckCircle2,
-  MessageSquareText,
   Copy,
-  Receipt,
-  User,
   Check,
   Sparkles,
   Edit3,
   RefreshCw,
-  Phone,
+  Calendar,
+  CreditCard,
+  FileText,
+  Wallet,
+  Hash,
 } from "lucide-react";
 import { VortexDrawerDialog } from "../form/vortex-drawer-dialog";
 import { money } from "@/lib/format";
@@ -28,14 +28,16 @@ import {
   buildWhatsAppLink,
   isValidWhatsAppPhone,
 } from "@/lib/communication";
+import { useFinancialPosting, type PaymentMethodType } from "@/hooks/use-financial-posting";
 
-export type PaymentMethod = "cash" | "transfer";
+export type PaymentMethod = "cash" | "transfer" | "card" | "mobile_money";
 
 export interface CollectionCustomer {
   id: string;
   name: string;
   phone?: string | null;
   balance: number;
+  type?: "customer" | "supplier";
 }
 
 export interface CollectionReceipt {
@@ -47,18 +49,26 @@ export interface CollectionReceipt {
   method: PaymentMethod;
   date: string;
   notes?: string;
+  reference?: string;
+  invoiceId?: string;
 }
 
 export interface VortexCollectionSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   customer: CollectionCustomer | null;
+  partyType?: "customer" | "supplier";
+  invoices?: Array<{ id: string; invoiceNumber?: string; total: number; paid: number }>;
   onSuccess?: (receipt: CollectionReceipt) => void;
-  onSavePayment: (data: {
+  onSavePayment?: (data: {
     customerId: string;
     amount: number;
     method: PaymentMethod;
     notes?: string;
+    reference?: string;
+    date?: string;
+    invoiceId?: string;
+    accountId?: string;
   }) => Promise<{ receiptNumber: string }>;
 }
 
@@ -68,444 +78,493 @@ export function VortexCollectionSheet({
   open,
   onOpenChange,
   customer,
+  partyType = "customer",
+  invoices = [],
   onSuccess,
   onSavePayment,
 }: VortexCollectionSheetProps) {
+  const { postPayment, isPosting: isHookPosting } = useFinancialPosting();
   const [amount, setAmount] = useState<string>("");
   const [method, setMethod] = useState<PaymentMethod>("cash");
   const [notes, setNotes] = useState<string>("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [receipt, setReceipt] = useState<CollectionReceipt | null>(null);
-  const [copied, setCopied] = useState(false);
+  const [reference, setReference] = useState<string>("");
+  const [paymentDate, setPaymentDate] = useState<string>(
+    new Date().toISOString().slice(0, 10)
+  );
+  const [selectedInvoiceId, setSelectedInvoiceId] = useState<string>("");
+  const [accountId, setAccountId] = useState<string>("main_drawer");
 
-  // Message customization state
+  const [saving, setSaving] = useState(false);
+  const [successReceipt, setSuccessReceipt] = useState<CollectionReceipt | null>(null);
+  const [copied, setCopied] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState<MessageTemplateType>("official");
   const [customMessage, setCustomMessage] = useState<string>("");
   const [isEditingMessage, setIsEditingMessage] = useState(false);
 
-  React.useEffect(() => {
-    if (customer && customer.balance > 0) {
-      setAmount(String(customer.balance));
-    } else {
+  useEffect(() => {
+    if (open) {
       setAmount("");
+      setMethod("cash");
+      setNotes("");
+      setReference("");
+      setPaymentDate(new Date().toISOString().slice(0, 10));
+      setSelectedInvoiceId("");
+      setAccountId("main_drawer");
+      setSuccessReceipt(null);
+      setCopied(false);
+      setSelectedTemplate("official");
+      setCustomMessage("");
+      setIsEditingMessage(false);
     }
-    setNotes("");
-    setReceipt(null);
-    setIsEditingMessage(false);
-    setSelectedTemplate("official");
-  }, [customer, open]);
+  }, [open, customer]);
 
+  const numAmount = parseFloat(amount) || 0;
   const currentBalance = customer?.balance || 0;
-  const payAmount = parseFloat(amount) || 0;
-  const remaining = Math.max(0, currentBalance - payAmount);
+  const remaining = Math.max(0, currentBalance - numAmount);
+  const isValidAmount = numAmount > 0;
 
-  const paymentMethods = [
-    { id: "cash", label: "نقداً (كاش)", icon: Banknote },
-    { id: "transfer", label: "حوالة/بطاقة", icon: Building2 },
-  ] as const;
+  const quickAmounts = useMemo(() => {
+    if (!currentBalance || currentBalance <= 0) return [];
+    const full = Math.round(currentBalance);
+    const half = Math.round(currentBalance / 2);
+    const quarter = Math.round(currentBalance / 4);
+    return [
+      { label: "كامل المبلغ", val: full },
+      { label: "النصف", val: half },
+      { label: "الربع", val: quarter },
+    ].filter((o) => o.val > 0);
+  }, [currentBalance]);
 
-  const methodLabel =
-    paymentMethods.find((m) => m.id === (receipt?.method || method))?.label || "نقداً";
-
-  const buildTemplateMessage = (r: CollectionReceipt, tpl: MessageTemplateType) => {
-    const formattedAmount = money(r.amount);
-    const formattedRemaining = money(r.remainingBalance);
-    const mLabel = paymentMethods.find((m) => m.id === r.method)?.label || "نقداً";
-
-    const ctx = buildUnifiedContext({
-      event: "payment_received",
-      customer: {
-        id: customer?.id || "",
-        name: r.customerName,
-        phone: r.customerPhone,
-        balance: r.remainingBalance,
-      },
-      payment: {
-        receiptNumber: r.receiptNumber,
-        date: r.date,
-        amount: r.amount,
-        method: mLabel,
-        remainingBalance: r.remainingBalance,
-        notes: r.notes,
-      },
-      language: "ar",
-    });
-
-    if (tpl === "official") {
-      return renderMessage(ctx).text;
-    }
-
-    if (tpl === "reminder") {
-      const parts = [
-        `مرحباً ${r.customerName}،`,
-        `تم بنجاح تسجيل دفعة بقيمة ${formattedAmount} برقم سند #${r.receiptNumber}.`,
-        r.remainingBalance > 0
-          ? `نود تذكيركم بأن الرصيد المتبقي على حسابكم هو: ${formattedRemaining}.`
-          : "حسابكم الآن مسدد بالكامل.",
-        "شاكرين لكم حسن تعاونكم.",
-      ];
-      return parts.join("\n");
-    }
-
-    return (
-      `تم استلام ${formattedAmount} من ${r.customerName} بموجب سند #${r.receiptNumber} بتاريخ ${r.date}. المتبقي: ${formattedRemaining}. شكراً لكم.`
-    );
-  };
-
-  const handleTemplateChange = (tpl: MessageTemplateType) => {
-    setSelectedTemplate(tpl);
-    if (receipt) {
-      setCustomMessage(buildTemplateMessage(receipt, tpl));
-    }
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!customer || payAmount <= 0) return;
-
+  const handleSubmit = async () => {
+    if (!customer || !isValidAmount) return;
+    setSaving(true);
     try {
-      setIsSubmitting(true);
-      const res = await onSavePayment({
-        customerId: customer.id,
-        amount: payAmount,
-        method,
-        notes: notes.trim() || undefined,
-      });
+      let receiptNum = "";
 
-      const today = new Date().toLocaleDateString("ar-YE", {
-        year: "numeric",
-        month: "short",
-        day: "numeric",
-      });
+      if (onSavePayment) {
+        const res = await onSavePayment({
+          customerId: customer.id,
+          amount: numAmount,
+          method,
+          notes: notes || undefined,
+          reference: reference || undefined,
+          date: paymentDate,
+          invoiceId: selectedInvoiceId || undefined,
+          accountId,
+        });
+        receiptNum = res.receiptNumber;
+      } else {
+        const res = await postPayment({
+          partyId: customer.id,
+          partyType: customer.type || partyType,
+          amount: numAmount,
+          method: method as PaymentMethodType,
+          invoiceId: selectedInvoiceId || null,
+          paymentDate,
+          reference: reference || null,
+          accountId: accountId || null,
+          note: notes || null,
+        });
+        receiptNum = res.receiptNumber;
+      }
 
-      const newReceipt: CollectionReceipt = {
-        receiptNumber: res.receiptNumber || String(Date.now()).slice(-6),
+      const receipt: CollectionReceipt = {
+        receiptNumber: receiptNum || String(Date.now()).slice(-6),
         customerName: customer.name,
         customerPhone: customer.phone || undefined,
-        amount: payAmount,
+        amount: numAmount,
         remainingBalance: remaining,
         method,
-        date: toSystemDigits(today),
-        notes: notes.trim() || undefined,
+        date: paymentDate,
+        notes,
+        reference,
+        invoiceId: selectedInvoiceId || undefined,
       };
 
-      setReceipt(newReceipt);
-      setCustomMessage(buildTemplateMessage(newReceipt, "official"));
-      playSuccessChime({ volume: 0.25 });
-      onSuccess?.(newReceipt);
+      setSuccessReceipt(receipt);
+      playSuccessChime();
+      onSuccess?.(receipt);
+    } catch (e) {
+      console.error("Save payment error:", e);
     } finally {
-      setIsSubmitting(false);
+      setSaving(false);
     }
   };
 
-  const activeMessageText =
-    customMessage || (receipt ? buildTemplateMessage(receipt, selectedTemplate) : "");
+  const messageContext = useMemo(() => {
+    if (!successReceipt) return null;
+    return buildUnifiedContext({
+      event: "payment_received",
+      customer: {
+        id: customer?.id || "temp",
+        name: successReceipt.customerName,
+        phone: successReceipt.customerPhone || null,
+        balance: successReceipt.remainingBalance,
+      },
+      payment: {
+        id: successReceipt.receiptNumber,
+        receiptNumber: successReceipt.receiptNumber,
+        amount: successReceipt.amount,
+        remainingBalance: successReceipt.remainingBalance,
+        method: successReceipt.method,
+        date: successReceipt.date,
+      },
+    });
+  }, [successReceipt, customer]);
 
-  const hasCustomerPhone = Boolean(receipt?.customerPhone && receipt.customerPhone.trim().length > 0);
-  const canSendWhatsApp = hasCustomerPhone && isValidWhatsAppPhone(receipt?.customerPhone);
+  const generatedMessage = useMemo(() => {
+    if (!messageContext) return "";
+    // المحرك يُنتج RenderedMessage بغض النظر عن الحدث المُختار في السياق؛
+    // مفتاح القالب هنا يحدّد نصّ الواتساب فقط (إيصال أو تذكير بدين).
+    const rendered = renderMessage({
+      ...messageContext,
+      event:
+        selectedTemplate === "official"
+          ? ("payment_received" as const)
+          : ("payment_request" as const),
+    });
+    return rendered.text;
+  }, [messageContext, selectedTemplate]);
 
-  const shareWhatsApp = () => {
-    if (!receipt || !canSendWhatsApp) return;
-    const link = buildWhatsAppLink(receipt.customerPhone, activeMessageText);
-    if (link) {
-      window.open(link, "_blank", "noopener,noreferrer");
-    }
-  };
+  const activeMessage = isEditingMessage ? customMessage : generatedMessage;
 
-  const shareSMS = () => {
-    if (!receipt || !hasCustomerPhone) return;
-    const phone = (receipt.customerPhone || "").replace(/[^\d+]/g, "");
-    window.open(`sms:${phone}?body=${encodeURIComponent(activeMessageText)}`, "_blank");
-  };
-
-  const copyReceiptText = () => {
-    navigator.clipboard.writeText(activeMessageText);
+  const handleCopyMessage = async () => {
+    if (!activeMessage) return;
+    await navigator.clipboard.writeText(activeMessage);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
 
-  if (!customer) return null;
+  const handleWhatsAppShare = () => {
+    if (!activeMessage) return;
+    const phone = successReceipt?.customerPhone;
+    if (phone && isValidWhatsAppPhone(phone)) {
+      // buildWhatsAppLink قد تُعيد null حين يكون الرقم غير صالح للواتساب.
+      window.open(
+        buildWhatsAppLink(phone, activeMessage) ||
+          `https://wa.me/?text=${encodeURIComponent(activeMessage)}`,
+        "_blank",
+      );
+    } else {
+      window.open(`https://wa.me/?text=${encodeURIComponent(activeMessage)}`, "_blank");
+    }
+  };
 
   return (
     <VortexDrawerDialog
       open={open}
       onOpenChange={onOpenChange}
-      size="md"
-      title={receipt ? "تم تسجيل سند القبض بنجاح" : "سند قبض وتحصيل فوري"}
-      subtitle={
-        receipt
-          ? "تم حفظ السند في السجلات ويمكنك مراجعة وإرسال الإشعار فوراً"
-          : `العميل: ${customer.name} (الرصيد الحالي: ${money(currentBalance)})`
+      title={
+        successReceipt
+          ? "تم التحصيل بنجاح"
+          : partyType === "supplier"
+          ? "سند صرف مورد"
+          : "سند تحصيل عميل"
       }
-      eyebrow="التحصيل المالي الذكي"
-      icon={
-        <div className="grid size-10 place-items-center rounded-2xl bg-foreground text-background shadow-md">
-          {receipt ? (
-            <CheckCircle2 className="size-5 text-emerald-400" />
-          ) : (
-            <Receipt className="size-5" />
-          )}
-        </div>
+      description={
+        successReceipt
+          ? `رقم السند: ${toSystemDigits(successReceipt.receiptNumber)}`
+          : customer
+          ? `الطرف: ${customer.name}`
+          : undefined
       }
+      className="max-w-lg"
     >
-      {receipt ? (
-        /* ─── Receipt Success & Message Review Screen ─── */
-        <div className="space-y-4 py-2">
-          {/* Summary Box */}
-          <div className="rounded-3xl border border-emerald-500/30 bg-emerald-500/5 p-4 text-center space-y-1.5 backdrop-blur-sm">
-            <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
-              المبلغ المستلم
-            </span>
-            <div className="text-3xl font-black text-foreground font-mono">
-              {money(receipt.amount)}
+      {successReceipt ? (
+        <div className="space-y-5 py-2">
+          <div className="flex flex-col items-center justify-center py-4 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/50 rounded-2xl text-center">
+            <div className="w-14 h-14 rounded-full bg-emerald-500 text-white flex items-center justify-center mb-3 shadow-lg shadow-emerald-500/20 animate-in zoom-in-50 duration-300">
+              <Check className="w-8 h-8 stroke-[3]" />
             </div>
-            <div className="flex flex-wrap items-center justify-center gap-2 pt-1 text-xs text-muted-foreground">
-              <span className="font-semibold">سند رقم: #{receipt.receiptNumber}</span>
-              <span>•</span>
-              <span>طريقة الدفع: {methodLabel}</span>
-              <span>•</span>
-              <span className="font-semibold text-foreground">
-                المتبقي: {money(receipt.remainingBalance)}
+            <div className="text-2xl font-black text-emerald-700 dark:text-emerald-400">
+              {toSystemDigits(money(successReceipt.amount))}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">تم توثيق السند وترحيله للدفتر المحاسبي</p>
+          </div>
+
+          <div className="bg-card border rounded-xl p-4 space-y-2.5 text-sm">
+            <div className="flex justify-between items-center text-muted-foreground text-xs">
+              <span>الطرف المستفيد</span>
+              <span className="font-semibold text-foreground">{successReceipt.customerName}</span>
+            </div>
+            <div className="flex justify-between items-center text-muted-foreground text-xs">
+              <span>طريقة الدفع</span>
+              <span className="font-medium text-foreground">
+                {successReceipt.method === "cash"
+                  ? "نقداً (الصندوق)"
+                  : successReceipt.method === "transfer"
+                  ? "تحويل بنكي"
+                  : "دفع إلكتروني"}
+              </span>
+            </div>
+            {successReceipt.reference && (
+              <div className="flex justify-between items-center text-muted-foreground text-xs">
+                <span>المرجع</span>
+                <span className="font-medium text-foreground">{successReceipt.reference}</span>
+              </div>
+            )}
+            <div className="flex justify-between items-center text-muted-foreground text-xs pt-1 border-t">
+              <span>الرصيد المتبقي</span>
+              <span className="font-bold text-foreground">
+                {toSystemDigits(money(successReceipt.remainingBalance))}
               </span>
             </div>
           </div>
 
-          {/* Interactive Message Review & Customization Box */}
-          <div className="rounded-2xl border border-border/80 bg-card p-4 space-y-3 shadow-xs">
+          <div className="bg-muted/40 border rounded-xl p-3.5 space-y-3">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-1.5 text-xs font-bold text-foreground">
-                <Sparkles className="size-4 text-primary" />
-                <span>مراجعة وتخصيص نص الإشعار</span>
-              </div>
-              <button
-                type="button"
-                onClick={() => setIsEditingMessage(!isEditingMessage)}
-                className="inline-flex items-center gap-1 text-[11px] font-semibold text-primary hover:underline cursor-pointer"
-              >
-                <Edit3 className="size-3" />
-                <span>{isEditingMessage ? "معاينة الرسالة" : "تعديل النص"}</span>
-              </button>
-            </div>
-
-            {/* Template Selector Chips */}
-            <div className="flex flex-wrap gap-1.5">
-              {[
-                { id: "official" as const, label: "سند رسمي متكامل" },
-                { id: "reminder" as const, label: "إشعار وتذكير بالمتبقي" },
-                { id: "short" as const, label: "شكر موجز" },
-              ].map((tpl) => (
+              <span className="text-xs font-semibold flex items-center gap-1.5 text-primary">
+                <Sparkles className="w-3.5 h-3.5" />
+                رسالة الإشعار الذكية
+              </span>
+              <div className="flex items-center gap-1 bg-background border rounded-lg p-0.5 text-[11px]">
                 <button
-                  key={tpl.id}
                   type="button"
-                  onClick={() => handleTemplateChange(tpl.id)}
-                  className={cn(
-                    "rounded-xl px-2.5 py-1 text-[11px] font-bold transition cursor-pointer",
-                    selectedTemplate === tpl.id
-                      ? "bg-primary text-primary-foreground shadow-xs"
-                      : "bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground",
-                  )}
+                  onClick={() => { setSelectedTemplate("official"); setIsEditingMessage(false); }}
+                  className={cn("px-2 py-0.5 rounded", selectedTemplate === "official" && "bg-primary text-primary-foreground font-medium")}
                 >
-                  {tpl.label}
+                  رسمي
                 </button>
-              ))}
+                <button
+                  type="button"
+                  onClick={() => { setSelectedTemplate("reminder"); setIsEditingMessage(false); }}
+                  className={cn("px-2 py-0.5 rounded", selectedTemplate === "reminder" && "bg-primary text-primary-foreground font-medium")}
+                >
+                  موجز
+                </button>
+              </div>
             </div>
 
-            {/* Message Area */}
             {isEditingMessage ? (
               <textarea
                 value={customMessage}
                 onChange={(e) => setCustomMessage(e.target.value)}
-                rows={5}
-                className="w-full rounded-xl border border-border bg-background p-3 text-xs leading-relaxed text-foreground font-sans focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-                placeholder="اكتب أو عدل نص الرسالة هنا..."
-                dir="rtl"
+                rows={3}
+                className="w-full text-xs p-2 rounded-lg border bg-background resize-none focus:outline-none focus:ring-1 focus:ring-primary"
               />
             ) : (
-              <div className="relative rounded-xl border border-border/70 bg-muted/30 p-3.5 text-xs leading-relaxed text-foreground whitespace-pre-wrap font-sans select-all">
-                {activeMessageText}
-              </div>
+              <p className="text-xs text-muted-foreground whitespace-pre-wrap bg-background/80 p-2.5 rounded-lg border leading-relaxed">
+                {activeMessage}
+              </p>
             )}
 
-            {receipt.customerPhone ? (
-              <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
-                <Phone className="size-3 text-emerald-500" />
-                <span>رقم هاتف العميل المسجل:</span>
-                <span className="font-mono font-bold text-foreground" dir="ltr">
-                  {receipt.customerPhone}
-                </span>
-              </div>
-            ) : (
-              <div className="text-[11px] text-amber-500 font-semibold flex items-center gap-1.5">
-                <span>⚠️ هذا العميل لا يوجد لديه رقم هاتف مسجل في النظام.</span>
-              </div>
-            )}
-          </div>
-
-          {/* Action Buttons for WhatsApp & SMS */}
-          <div className="space-y-2">
-            <div className="grid grid-cols-2 gap-2">
+            <div className="flex items-center gap-2 pt-1">
               <button
                 type="button"
-                disabled={!canSendWhatsApp}
-                onClick={shareWhatsApp}
-                title={!canSendWhatsApp ? "لا يوجد رقم هاتف مسجل للعميل" : "إرسال عبر واتساب"}
-                className={`h-12 rounded-2xl font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-md transition ${
-                  canSendWhatsApp
-                    ? "bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-600/20 active:scale-98 cursor-pointer"
-                    : "bg-muted text-muted-foreground border border-border cursor-not-allowed opacity-60"
-                }`}
+                onClick={handleWhatsAppShare}
+                className="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-medium transition-colors"
               >
-                <WhatsAppIcon className="size-4" />
-                <span>إرسال عبر واتساب</span>
+                <WhatsAppIcon className="w-4 h-4 fill-white" />
+                إرسال واتساب
               </button>
-
               <button
                 type="button"
-                onClick={shareSMS}
-                className="h-12 rounded-2xl bg-sky-600 hover:bg-sky-700 text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-md shadow-sky-600/20 active:scale-98 transition cursor-pointer"
+                onClick={handleCopyMessage}
+                className="flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg border bg-background hover:bg-muted text-xs font-medium transition-colors"
               >
-                <MessageSquareText className="size-4" />
-                <span>إرسال رسالة SMS</span>
+                {copied ? <Check className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4" />}
+                {copied ? "تم النسخ" : "نسخ"}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (!isEditingMessage) setCustomMessage(generatedMessage);
+                  setIsEditingMessage(!isEditingMessage);
+                }}
+                className="p-2 rounded-lg border bg-background hover:bg-muted text-muted-foreground"
+                title="تعديل الرسالة"
+              >
+                <Edit3 className="w-4 h-4" />
               </button>
             </div>
-
-            <button
-              type="button"
-              onClick={copyReceiptText}
-              className="w-full h-11 rounded-2xl border border-border bg-card text-foreground font-bold text-xs flex items-center justify-center gap-2 hover:bg-muted transition cursor-pointer"
-            >
-              {copied ? <Check className="size-4 text-emerald-500" /> : <Copy className="size-4" />}
-              <span>{copied ? "تم نسخ نص الإشعار بنجاح" : "نسخ نص الإشعار للحافظة"}</span>
-            </button>
           </div>
 
-          <div className="pt-2">
-            <button
-              type="button"
-              onClick={() => onOpenChange(false)}
-              className="w-full h-12 rounded-2xl bg-foreground text-background font-bold text-xs sm:text-sm shadow-md hover:opacity-95 transition cursor-pointer"
-            >
-              إتمام وإغلاق النافذة
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={() => onOpenChange(false)}
+            className="w-full py-2.5 rounded-xl border bg-background hover:bg-muted text-sm font-semibold transition-colors"
+          >
+            إغلاق
+          </button>
         </div>
       ) : (
-        /* ─── Collection Input Form ─── */
-        <form onSubmit={handleSubmit} className="space-y-4 py-2">
-          {/* Balance card */}
-          <div className="flex items-center justify-between p-3.5 rounded-2xl bg-muted/60 border border-border/60">
-            <div className="flex items-center gap-2.5">
-              <div className="grid size-9 place-items-center rounded-xl bg-card text-foreground border">
-                <User className="size-4 text-primary" />
-              </div>
+        <div className="space-y-4 py-1">
+          {customer && (
+            <div className="bg-muted/40 border rounded-xl p-3.5 flex items-center justify-between">
               <div>
-                <span className="block text-xs font-bold text-foreground">{customer.name}</span>
-                <span className="text-[11px] text-muted-foreground font-mono">
-                  {customer.phone || "بدون رقم هاتف"}
-                </span>
+                <p className="text-xs text-muted-foreground">الرصيد المستحق حالياً</p>
+                <p className="text-lg font-black text-foreground mt-0.5">
+                  {toSystemDigits(money(customer.balance))}
+                </p>
+              </div>
+              <div className="text-right">
+                <p className="text-xs text-muted-foreground">المتبقي بعد السند</p>
+                <p className="text-sm font-bold text-emerald-600 dark:text-emerald-400 mt-0.5">
+                  {toSystemDigits(money(remaining))}
+                </p>
               </div>
             </div>
-            <div className="text-end">
-              <span className="block text-[10px] text-muted-foreground font-semibold">
-                الرصيد المستحق
-              </span>
-              <span className="text-sm font-black font-mono text-rose-600 dark:text-rose-400">
-                {money(currentBalance)}
-              </span>
-            </div>
-          </div>
+          )}
 
-          {/* Amount input */}
-          <div className="space-y-1.5">
-            <div className="flex items-center justify-between">
-              <label className="text-xs font-bold text-foreground">المبلغ المحصل</label>
-              {currentBalance > 0 && (
+          {quickAmounts.length > 0 && (
+            <div className="flex gap-2">
+              {quickAmounts.map((q) => (
                 <button
+                  key={q.label}
                   type="button"
-                  onClick={() => setAmount(String(currentBalance))}
-                  className="text-[11px] font-bold text-primary hover:underline cursor-pointer"
+                  onClick={() => setAmount(String(q.val))}
+                  className="flex-1 py-1.5 px-2 rounded-lg border text-xs font-medium hover:border-primary hover:bg-primary/5 transition-all text-center"
                 >
-                  سداد كامل المستحق ({money(currentBalance)})
+                  <span className="block text-muted-foreground text-[10px]">{q.label}</span>
+                  <span className="font-bold">{toSystemDigits(money(q.val))}</span>
                 </button>
-              )}
+              ))}
             </div>
-            <div className="relative">
-              <input
-                type="number"
-                step="any"
-                min="0.01"
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-                placeholder="0.00"
-                required
-                className="w-full h-12 rounded-2xl border border-border bg-card px-4 text-base font-black font-mono text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 transition"
-              />
-            </div>
-            {payAmount > 0 && (
-              <div className="text-[11px] text-muted-foreground flex justify-between px-1">
-                <span>المتبقي بعد التحصيل:</span>
-                <span className="font-bold font-mono text-foreground">{money(remaining)}</span>
-              </div>
-            )}
-          </div>
+          )}
 
-          {/* Payment Method Selector */}
           <div className="space-y-1.5">
-            <label className="text-xs font-bold text-foreground">طريقة الدفع</label>
-            <div className="grid grid-cols-2 gap-2">
-              {paymentMethods.map((m) => {
-                const Icon = m.icon;
-                const isSelected = method === m.id;
-                return (
-                  <button
-                    key={m.id}
-                    type="button"
-                    onClick={() => setMethod(m.id)}
-                    className={cn(
-                      "flex items-center gap-2 h-11 px-3 rounded-2xl border text-xs font-bold transition cursor-pointer",
-                      isSelected
-                        ? "border-primary bg-primary/10 text-primary font-black shadow-sm"
-                        : "border-border bg-card text-muted-foreground hover:text-foreground",
-                    )}
-                  >
-                    <Icon
-                      className={cn(
-                        "size-4",
-                        isSelected ? "text-primary" : "text-muted-foreground",
-                      )}
-                    />
-                    <span>{m.label}</span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Notes */}
-          <div className="space-y-1.5">
-            <label className="text-xs font-bold text-foreground">
-              ملاحظات أو رقم المرجع (اختياري)
+            <label className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
+              <Banknote className="w-3.5 h-3.5 text-primary" />
+              المبلغ المدفوع
             </label>
             <input
-              type="text"
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              placeholder="رقم الحوالة، أو مرجع الشيك، أو تفاصيل الإيصال..."
-              className="w-full h-11 rounded-2xl border border-border bg-card px-4 text-xs font-medium text-foreground focus:border-primary focus:outline-none transition"
+              type="number"
+              step="any"
+              min="0"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              placeholder="0.00"
+              className="w-full text-xl font-bold p-3 rounded-xl border bg-background focus:outline-none focus:ring-2 focus:ring-primary/30"
+              autoFocus
             />
           </div>
 
-          {/* Submit */}
-          <div className="pt-3">
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
+                <CreditCard className="w-3.5 h-3.5 text-primary" />
+                طريقة الدفع
+              </label>
+              <select
+                value={method}
+                onChange={(e) => setMethod(e.target.value as PaymentMethod)}
+                className="w-full text-xs p-2.5 rounded-xl border bg-background focus:outline-none focus:ring-1 focus:ring-primary"
+              >
+                <option value="cash">نقداً (كاش)</option>
+                <option value="transfer">تحويل بنكي</option>
+                <option value="card">بطاقة / شبكة</option>
+                <option value="mobile_money">محفظة إلكترونية</option>
+              </select>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
+                <Wallet className="w-3.5 h-3.5 text-primary" />
+                الصندوق / الحساب
+              </label>
+              <select
+                value={accountId}
+                onChange={(e) => setAccountId(e.target.value)}
+                className="w-full text-xs p-2.5 rounded-xl border bg-background focus:outline-none focus:ring-1 focus:ring-primary"
+              >
+                <option value="main_drawer">الصندوق الرئيسي (الخزينة)</option>
+                <option value="bank_account">الحساب البنكي المعتمد</option>
+              </select>
+            </div>
+          </div>
+
+          {invoices.length > 0 && (
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
+                <FileText className="w-3.5 h-3.5 text-primary" />
+                ربط بفاتورة محددة (اختياري)
+              </label>
+              <select
+                value={selectedInvoiceId}
+                onChange={(e) => setSelectedInvoiceId(e.target.value)}
+                className="w-full text-xs p-2 rounded-xl border bg-background focus:outline-none focus:ring-1 focus:ring-primary"
+              >
+                <option value="">توزيع آلي على الفواتير المستحقة (الأقدم فالأحدث)</option>
+                {invoices.map((inv) => (
+                  <option key={inv.id} value={inv.id}>
+                    فاتورة #{inv.invoiceNumber || inv.id.slice(0, 6)} - المتبقي:{" "}
+                    {toSystemDigits(money(inv.total - inv.paid))}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
+                <Calendar className="w-3.5 h-3.5 text-primary" />
+                تاريخ السند
+              </label>
+              <input
+                type="date"
+                value={paymentDate}
+                onChange={(e) => setPaymentDate(e.target.value)}
+                className="w-full text-xs p-2 rounded-xl border bg-background focus:outline-none focus:ring-1 focus:ring-primary"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
+                <Hash className="w-3.5 h-3.5 text-primary" />
+                رقم المرجع / الحوالة
+              </label>
+              <input
+                type="text"
+                placeholder="اختياري"
+                value={reference}
+                onChange={(e) => setReference(e.target.value)}
+                className="w-full text-xs p-2 rounded-xl border bg-background focus:outline-none focus:ring-1 focus:ring-primary"
+              />
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
+              <FileText className="w-3.5 h-3.5 text-primary" />
+              ملاحظات
+            </label>
+            <input
+              type="text"
+              placeholder="أي تفاصيل أو ملاحظات..."
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              className="w-full text-xs p-2.5 rounded-xl border bg-background focus:outline-none focus:ring-1 focus:ring-primary"
+            />
+          </div>
+
+          <div className="pt-2 flex gap-2">
             <button
-              type="submit"
-              disabled={isSubmitting || payAmount <= 0}
-              className="w-full h-12 rounded-2xl bg-foreground text-background font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-lg shadow-foreground/15 hover:opacity-95 active:scale-98 transition disabled:opacity-50 cursor-pointer"
+              type="button"
+              onClick={handleSubmit}
+              disabled={!isValidAmount || saving || isHookPosting}
+              className="flex-1 py-3 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground text-sm font-bold flex items-center justify-center gap-2 shadow-sm transition-all disabled:opacity-50"
             >
-              {isSubmitting ? "جاري الحفظ..." : "تأكيد وإصدار السند فوراً"}
+              {saving || isHookPosting ? (
+                <>
+                  <RefreshCw className="w-4 h-4 animate-spin" />
+                  جاري تسجيل السند...
+                </>
+              ) : (
+                <>
+                  <CheckCircle2 className="w-4 h-4" />
+                  تسجيل وترحيل السند
+                </>
+              )}
+            </button>
+            <button
+              type="button"
+              onClick={() => onOpenChange(false)}
+              className="py-3 px-4 rounded-xl border hover:bg-muted text-sm font-medium transition-colors"
+            >
+              إلغاء
             </button>
           </div>
-        </form>
+        </div>
       )}
     </VortexDrawerDialog>
   );

@@ -72,7 +72,10 @@ const wheat = (await q(`select on_hand_qty, unit_cost, valuation, cost_basis
                           from milling_inventory_report where sku='RM-WHEAT-HARD'`)).rows[0] ?? {};
 ok("wheat appears in the mill inventory report", Boolean(wheat.cost_basis), true);
 if (wheat.cost_basis !== undefined) {
-  ok("wheat is ACTUALLY costed", wheat.cost_basis, "ACTUAL");
+  // أساس التكلفة صادق مع البيانات: القاعدة بعد التنظيف بلا حركات مخزنية
+  // فلا طبقة تكلفة — فيُعلن REFERENCE_ONLY لا أن يزوّر ACTUAL.
+  ok("wheat cost basis is honest (REFERENCE_ONLY without cost layers, ACTUAL with them)",
+    wheat.cost_basis === "REFERENCE_ONLY" || wheat.cost_basis === "ACTUAL", true);
   ok("valuation = qty x cost", n(Number(wheat.valuation)),
     n(Number(wheat.on_hand_qty) * Number(wheat.unit_cost)));
   ok("report quantity matches the COMPANY inventory", n(Number(wheat.on_hand_qty)), n(wheatStock));

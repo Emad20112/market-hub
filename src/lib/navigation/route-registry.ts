@@ -524,7 +524,10 @@ export const ROUTE_REGISTRY: RouteSearchEntry[] = [
     titleEn: "Milling Quick Counter",
     descriptionAr: "شاشة سريعة لعمليات المطحنة اليومية من مكتب الاستقبال",
     descriptionEn: "Fast daily milling operations counter",
-    keywords: withSynonyms(["كاونتر", "سريع", "استقبال", "counter", "quick"], SEARCH_SYNONYMS.milling),
+    keywords: withSynonyms(
+      ["كاونتر", "سريع", "استقبال", "counter", "quick"],
+      SEARCH_SYNONYMS.milling,
+    ),
     category: "milling",
     moduleId: "milling_operations",
     requiredRoles: STOCK_OPS,
@@ -772,6 +775,18 @@ export const SIDEBAR_SECTION_ORDER: { category: RouteCategory; titleKey: string 
   { category: "finance", titleKey: "nav.section.finance" },
   { category: "milling", titleKey: "nav.section.milling" },
   { category: "admin", titleKey: "nav.section.admin" },
+  /**
+   * قسم الإعدادات كان غائباً من هذا الترتيب تماماً.
+   *
+   * فئة `settings` موجودة في السجل المركزي وفيها أربعة مداخل، لكن
+   * `getSidebarSections` يبني القائمة من هذا المصفوفة وحدها — فهي مرشّح
+   * ضمني: أي فئة غير مذكورة هنا تُسقَط بصمت مهما كانت صحيحة، ودون أي
+   * خطأ. ولذلك لم يكن في القائمة أي زر يقود إلى /settings، رغم أن المدخل
+   * نفسه سليم ومصرَّح به ويظهر في Omnisearch والـ Command Palette.
+   *
+   * المداخل الفرعية الثلاثة (printing/company/backup) تُفتح من داخل صفحة
+   * الإعدادات، وتُعرض هنا مدخلاً واحداً.
+   */
   { category: "settings", titleKey: "nav.section.settings" },
 ];
 
@@ -784,6 +799,14 @@ export const SIDEBAR_HIDDEN_IDS = new Set<string>([
   "printing-settings",
   "company-settings",
   "backup-settings",
+  /**
+   * المدخل الرئيسي للإعدادات لا يُعرض في القائمة.
+   *
+   * للإعدادات زر مخصّص في تذييل القائمة يقود إلى /settings، ويصدُر
+   * بصلاحية owner/manager. لو تُرك المدخل هنا أيضاً لظهر «الإعدادات»
+   * مرتين في القائمة نفسها. الزر المخصّص هو المدخل الوحيد المقصود.
+   */
+  "settings",
 ]);
 
 /** قسم في القائمة الجانبية مُشتق من السجل المركزي. */

@@ -129,6 +129,10 @@ await c.query("rollback");
 
 // ── 5. الصلاحيات ──
 await c.query("begin");
+// الدليل يُبنى داخل المعاملة: القاعدة بعد التنظيف بلا حركات، فالجدول قد
+// يكون فارغاً بحق — التوقع القديم "count > 0" كان يعتمد على بيانات عشوائية.
+await c.query(`insert into item_cost_layers (product_id,warehouse_id,quantity,total_value,owner_type)
+  select id,$1,1,1,'COMPANY' from products limit 1`, [wh]);
 await c.query(`set local role authenticated`);
 await c.query(`set local "request.jwt.claims" = '{"role":"authenticated","sub":"${owner}"}'`);
 ok("staff can read cost layers", (await c.query(`select count(*)::int n from item_cost_layers`)).rows[0].n > 0, true);

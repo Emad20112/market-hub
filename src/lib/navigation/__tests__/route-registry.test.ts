@@ -5,7 +5,13 @@
  * يُشغّل بـ: npx tsx src/lib/navigation/__tests__/route-registry.test.ts
  */
 
-import { ROUTE_REGISTRY, getVisibleRoutes, ROUTE_BY_ID } from "../route-registry";
+import {
+  ROUTE_REGISTRY,
+  getVisibleRoutes,
+  ROUTE_BY_ID,
+  SIDEBAR_SECTION_ORDER,
+  getSidebarSections,
+} from "../route-registry";
 import { searchRoutes } from "../route-search";
 
 let passed = 0;
@@ -123,6 +129,51 @@ check(
 check(
   "ROUTE_BY_ID matches registry size",
   Object.keys(ROUTE_BY_ID).length === ROUTE_REGISTRY.length,
+);
+
+/**
+ * فئات السجل كلها يجب أن يكون لها قسم في القائمة الجانبية.
+ *
+ * هذا هو الفحص الذي كان غائباً فسقط قسم الإعدادات بصمت: `settings` فئة
+ * صحيحة، ومداخلها الأربعة سليمة ومصرَّح بها، لكنها لم تُذكر في
+ * SIDEBAR_SECTION_ORDER — وهي مرشّح ضمني، فأي فئة غائبة منها لا تُعرض ولا
+ * يُشتكى. النتيجة كانت صفحة إعدادات بلا أي زر يقود إليها في القائمة.
+ */
+const declaredCategories = new Set(ROUTE_REGISTRY.map((e) => e.category));
+const sidebarCategories = new Set(SIDEBAR_SECTION_ORDER.map((s) => s.category));
+for (const category of declaredCategories) {
+  check(`category reachable from the sidebar: ${category}`, sidebarCategories.has(category));
+}
+
+/** وكل قسم في القائمة يجب أن يخرج بمداخل فعلية. */
+const sidebarSections = getSidebarSections();
+check(
+  "every sidebar section has entries",
+  sidebarSections.every((section) => section.entries.length > 0),
+);
+
+/**
+ * /settings يجب أن يبقى مسجّلاً ومسموحاً للمالك، لأن غلاف التطبيق يبني عليه
+ * زر الإعدادات: لو حُذف المدخل أو ضاقت صلاحيته لاختفى الزر بصمت.
+ */
+const settingsEntry = ROUTE_BY_ID["settings"];
+check("settings entry exists", Boolean(settingsEntry));
+check(
+  "settings is owner/manager only",
+  Boolean(settingsEntry) &&
+    ["owner", "manager"].every((role) =>
+      (settingsEntry!.requiredRoles ?? []).includes(role as never),
+    ),
+);
+check(
+  "settings is visible to an owner",
+  getVisibleRoutes().some((e) => e.id === "settings"),
+);
+
+/** المداخل الفرعية للإعدادات لا تتكرر داخل القائمة (زر التذييل يكفي). */
+check(
+  "settings sub-sections stay out of the sidebar",
+  !sidebarSections.some((section) => section.entries.some((e) => e.path.startsWith("/settings?"))),
 );
 
 if (failures.length > 0) {

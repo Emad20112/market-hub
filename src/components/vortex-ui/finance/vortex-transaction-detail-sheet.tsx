@@ -1,4 +1,7 @@
+"use client";
+
 import * as React from "react";
+import { useState, useMemo, useEffect } from "react";
 import {
   Receipt,
   CheckCircle2,
@@ -8,6 +11,13 @@ import {
   MessageSquareText,
   Copy,
   Check,
+  Share2,
+  Printer,
+  Sparkles,
+  Phone,
+  ArrowDownLeft,
+  ArrowUpRight,
+  Hash,
 } from "lucide-react";
 import { VortexDrawerDialog } from "../form/vortex-drawer-dialog";
 import { VortexDateBadge } from "../display/vortex-date-badge";
@@ -17,17 +27,21 @@ import { toSystemDigits, formatSystemNumber } from "@/lib/format-preferences";
 import {
   buildUnifiedContext,
   renderMessage,
+  playSuccessChime,
   buildWhatsAppLink,
   isValidWhatsAppPhone,
 } from "@/lib/communication";
+import { cn } from "@/lib/utils";
 
 export interface VortexTransactionDetailSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  mode?: "view" | "success";
+  playChime?: boolean;
   transaction: {
     id: string;
-    type: "payment" | "invoice" | "debt";
-    title: string;
+    type: "payment" | "invoice" | "debt" | "sale" | "purchase" | "receipt_voucher" | "payment_voucher";
+    title?: string;
     amount: number;
     date: string;
     customerName: string;
@@ -35,175 +49,310 @@ export interface VortexTransactionDetailSheetProps {
     referenceNumber?: string;
     method?: string;
     notes?: string;
-    remainingBalance?: number;
+    partyRole?: string;
+    accountName?: string;
+    previousBalance?: number;
+    newBalance?: number;
+    items?: Array<{ name: string; quantity: number; price: number; total: number }>;
   } | null;
+  onPrint?: () => void;
+  onNewOperation?: () => void;
 }
 
 export function VortexTransactionDetailSheet({
   open,
   onOpenChange,
+  mode = "view",
+  playChime = true,
   transaction,
+  onPrint,
+  onNewOperation,
 }: VortexTransactionDetailSheetProps) {
-  const [copied, setCopied] = React.useState(false);
-  const { currencySymbol } = useCompanyCurrency();
+  const { currency } = useCompanyCurrency();
+  const [copied, setCopied] = useState(false);
+  const [selectedTemplate, setSelectedTemplate] = useState<"official" | "reminder" | "short">("official");
 
-  if (!transaction) return null;
+  useEffect(() => {
+    if (open && mode === "success" && playChime) {
+      playSuccessChime();
+    }
+  }, [open, mode, playChime]);
 
-  const isPayment = transaction.type === "payment";
+  const messageContext = useMemo(() => {
+    if (!transaction) return null;
+    const isPayment =
+      transaction.type === "payment" ||
+      transaction.type === "receipt_voucher" ||
+      transaction.type === "payment_voucher";
 
-  const hasPhone = Boolean(transaction.customerPhone && transaction.customerPhone.trim().length > 0);
-  const canSendWhatsApp = hasPhone && isValidWhatsAppPhone(transaction.customerPhone);
-
-  const generateMessage = () => {
-    const ctx = buildUnifiedContext({
-      event: isPayment ? "payment_received" : "general_customer_notice",
+    return buildUnifiedContext({
+      event: isPayment ? "payment_received" : "invoice_created",
       customer: {
-        id: "",
+        id: transaction.id,
         name: transaction.customerName,
-        phone: transaction.customerPhone,
-        balance: transaction.remainingBalance ?? 0,
+        phone: transaction.customerPhone || null,
+        balance: transaction.newBalance ?? 0,
       },
       payment: isPayment
         ? {
-            receiptNumber: transaction.referenceNumber || transaction.id.slice(-6),
-            date: transaction.date,
+            id: transaction.id,
+            receiptNumber: transaction.referenceNumber || transaction.id.slice(0, 8),
             amount: transaction.amount,
-            method: transaction.method || "نقداً",
-            remainingBalance: transaction.remainingBalance,
-            notes: transaction.notes,
+            remainingBalance: transaction.newBalance ?? 0,
+            method: transaction.method || "cash",
+            date: transaction.date,
           }
         : undefined,
-      language: "ar",
+      invoice: !isPayment
+        ? {
+            id: transaction.id,
+            invoiceNumber: transaction.referenceNumber || transaction.id.slice(0, 8),
+            total: transaction.amount,
+            paid: transaction.amount,
+            remaining: transaction.newBalance ?? 0,
+            date: transaction.date,
+          }
+        : undefined,
     });
+  }, [transaction]);
 
-    return renderMessage(ctx).text;
-  };
+  const activeMessage = useMemo(() => {
+    if (!messageContext) return "";
+    const rendered = renderMessage({
+      ...messageContext,
+      event:
+        selectedTemplate === "official"
+          ? ("payment_received" as const)
+          : ("payment_request" as const),
+    });
+    return rendered.text;
+  }, [messageContext, selectedTemplate]);
 
-  const shareWhatsApp = () => {
-    if (!canSendWhatsApp) return;
-    const link = buildWhatsAppLink(transaction.customerPhone, generateMessage());
-    if (link) {
-      window.open(link, "_blank", "noopener,noreferrer");
-    }
-  };
+  if (!transaction) return null;
 
-  const shareSMS = () => {
-    if (!hasPhone) return;
-    const phone = (transaction.customerPhone || "").replace(/[^\d+]/g, "");
-    window.open(`sms:${phone}?body=${encodeURIComponent(generateMessage())}`, "_blank");
-  };
-
-  const copyText = () => {
-    navigator.clipboard.writeText(generateMessage());
+  const handleCopy = async () => {
+    const textToCopy =
+      activeMessage ||
+      `سند رقم: ${transaction.referenceNumber || transaction.id}\nالطرف: ${transaction.customerName}\nالمبلغ: ${transaction.amount} ${currency}\nالتاريخ: ${transaction.date}`;
+    await navigator.clipboard.writeText(textToCopy);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
+
+  const handleWhatsApp = () => {
+    const phone = transaction.customerPhone;
+    if (phone && isValidWhatsAppPhone(phone)) {
+      // buildWhatsAppLink قد تُعيد null حين يكون الرقم غير صالح للواتساب.
+      window.open(
+        buildWhatsAppLink(phone, activeMessage) ||
+          `https://wa.me/?text=${encodeURIComponent(activeMessage)}`,
+        "_blank",
+      );
+    } else {
+      window.open(`https://wa.me/?text=${encodeURIComponent(activeMessage)}`, "_blank");
+    }
+  };
+
+  const handlePrint = () => {
+    if (onPrint) {
+      onPrint();
+    } else {
+      window.print();
+    }
+  };
+
+  const isIncome =
+    transaction.type === "payment" ||
+    transaction.type === "receipt_voucher" ||
+    transaction.type === "sale";
 
   return (
     <VortexDrawerDialog
       open={open}
       onOpenChange={onOpenChange}
-      size="md"
       title={
-        <div className="flex items-center gap-2">
-          <span>تفاصيل السند المالي</span>
-          <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-bold text-primary border border-primary/20">
-            #{toSystemDigits(transaction.referenceNumber || transaction.id.slice(-6))}
-          </span>
-        </div>
+        mode === "success"
+          ? "تمت العملية بنجاح"
+          : transaction.title || "تفاصيل العملية المالية"
       }
-      subtitle={transaction.title}
-      icon={
-        <div className="grid size-10 place-items-center rounded-2xl bg-foreground text-background shadow-md">
-          {isPayment ? (
-            <CheckCircle2 className="size-5 text-emerald-500" />
-          ) : (
-            <Receipt className="size-5" />
-          )}
-        </div>
-      }
+      description={`المرجع: ${toSystemDigits(transaction.referenceNumber || transaction.id.slice(0, 8))}`}
+      className="max-w-lg"
     >
       <div className="space-y-4 py-2">
-        <div className="rounded-3xl border border-border/80 bg-gradient-to-br from-card via-card to-muted/40 p-5 text-center space-y-1.5 shadow-sm">
-          <span className="text-xs font-bold text-muted-foreground">قيمة العملية</span>
-          <div className="text-3xl sm:text-4xl font-black text-foreground font-mono tracking-tight">
-            {formatSystemNumber(transaction.amount)}{" "}
-            <span className="text-sm font-bold text-muted-foreground">{currencySymbol}</span>
+        {mode === "success" ? (
+          <div className="flex flex-col items-center justify-center py-4 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/50 rounded-2xl text-center">
+            <div className="w-14 h-14 rounded-full bg-emerald-500 text-white flex items-center justify-center mb-2 shadow-lg shadow-emerald-500/20 animate-in zoom-in-50 duration-300">
+              <Check className="w-8 h-8 stroke-[3]" />
+            </div>
+            <div className="text-2xl font-black text-emerald-700 dark:text-emerald-400">
+              {toSystemDigits(formatSystemNumber(transaction.amount))} {currency}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">تم توثيق وترحيل العملية بنجاح</p>
           </div>
-          <div className="pt-2">
-            <VortexDateBadge date={transaction.date} showWeekday size="sm" />
+        ) : (
+          <div className="flex items-center justify-between p-4 bg-muted/40 border rounded-2xl">
+            <div className="flex items-center gap-3">
+              <div
+                className={cn(
+                  "w-12 h-12 rounded-xl flex items-center justify-center",
+                  isIncome
+                    ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                    : "bg-rose-500/10 text-rose-600 dark:text-rose-400"
+                )}
+              >
+                {isIncome ? (
+                  <ArrowDownLeft className="w-6 h-6" />
+                ) : (
+                  <ArrowUpRight className="w-6 h-6" />
+                )}
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">قيمة السند</p>
+                <p className="text-xl font-black text-foreground">
+                  {toSystemDigits(formatSystemNumber(transaction.amount))} {currency}
+                </p>
+              </div>
+            </div>
+            <VortexDateBadge date={transaction.date} />
           </div>
-        </div>
+        )}
 
-        <div className="rounded-2xl border border-border/70 bg-card p-4 space-y-3">
-          <div className="flex items-center justify-between text-xs pb-2 border-b border-border/50">
-            <span className="text-muted-foreground flex items-center gap-1.5 font-bold">
-              <User className="size-3.5 text-primary" /> الطرف المعني:
+        <div className="bg-card border rounded-xl p-4 space-y-2.5 text-xs">
+          <div className="flex justify-between items-center text-muted-foreground">
+            <span className="flex items-center gap-1.5">
+              <User className="w-3.5 h-3.5 text-primary" />
+              {transaction.partyRole || "الطرف المعني"}
             </span>
-            <span className="font-bold text-foreground">{transaction.customerName}</span>
+            <span className="font-semibold text-foreground">{transaction.customerName}</span>
           </div>
 
-          <div className="flex items-center justify-between text-xs pb-2 border-b border-border/50">
-            <span className="text-muted-foreground flex items-center gap-1.5 font-bold">
-              <CreditCard className="size-3.5 text-primary" /> طريقة السداد:
+          {transaction.customerPhone && (
+            <div className="flex justify-between items-center text-muted-foreground">
+              <span className="flex items-center gap-1.5">
+                <Phone className="w-3.5 h-3.5 text-primary" />
+                رقم الهاتف
+              </span>
+              <span className="font-mono text-foreground" dir="ltr">
+                {transaction.customerPhone}
+              </span>
+            </div>
+          )}
+
+          <div className="flex justify-between items-center text-muted-foreground">
+            <span className="flex items-center gap-1.5">
+              <CreditCard className="w-3.5 h-3.5 text-primary" />
+              طريقة الدفع
             </span>
-            <span className="font-bold text-foreground">{transaction.method || "نقداً (كاش)"}</span>
+            <span className="font-medium text-foreground">
+              {transaction.method || "نقداً (الصندوق الرئيسي)"}
+            </span>
           </div>
 
-          {transaction.remainingBalance !== undefined && (
-            <div className="flex items-center justify-between text-xs pb-2 border-b border-border/50">
-              <span className="text-muted-foreground font-bold">الرصيد المتبقي:</span>
-              <span className="font-mono font-bold text-rose-600 dark:text-rose-400">
-                {formatSystemNumber(transaction.remainingBalance, { currency: currencySymbol })}
+          {transaction.accountName && (
+            <div className="flex justify-between items-center text-muted-foreground">
+              <span>الحساب / الصندوق</span>
+              <span className="font-medium text-foreground">{transaction.accountName}</span>
+            </div>
+          )}
+
+          {transaction.previousBalance !== undefined && (
+            <div className="flex justify-between items-center text-muted-foreground">
+              <span>الرصيد السابق</span>
+              <span className="font-medium text-foreground">
+                {toSystemDigits(formatSystemNumber(transaction.previousBalance))} {currency}
+              </span>
+            </div>
+          )}
+
+          {transaction.newBalance !== undefined && (
+            <div className="flex justify-between items-center text-muted-foreground pt-1.5 border-t">
+              <span>الرصيد الحالي المتبقي</span>
+              <span className="font-bold text-foreground">
+                {toSystemDigits(formatSystemNumber(transaction.newBalance))} {currency}
               </span>
             </div>
           )}
 
           {transaction.notes && (
-            <div className="text-xs pt-1">
-              <span className="text-muted-foreground font-bold block mb-1">ملاحظات:</span>
-              <p className="rounded-xl bg-muted/60 p-2 text-foreground font-medium">
-                {transaction.notes}
-              </p>
+            <div className="pt-2 border-t text-muted-foreground">
+              <span className="block mb-1 font-medium">ملاحظات:</span>
+              <p className="text-foreground bg-muted/40 p-2 rounded-lg">{transaction.notes}</p>
             </div>
           )}
         </div>
 
-        <div className="space-y-2 pt-1">
-          <label className="text-xs font-bold text-foreground block">مشاركة السند والإشعار</label>
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              type="button"
-              disabled={!canSendWhatsApp}
-              onClick={shareWhatsApp}
-              title={!canSendWhatsApp ? "لا يوجد رقم هاتف مسجل للعميل" : "واتساب للعميل"}
-              className={`h-12 rounded-2xl font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-md transition ${
-                canSendWhatsApp
-                  ? "bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-600/20 active:scale-98 cursor-pointer"
-                  : "bg-muted text-muted-foreground border border-border cursor-not-allowed opacity-60"
-              }`}
-            >
-              <WhatsAppIcon className="size-4" />
-              <span>واتساب للعميل</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={shareSMS}
-              className="h-12 rounded-2xl bg-sky-600 hover:bg-sky-700 text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-md shadow-sky-600/20 active:scale-98 transition cursor-pointer"
-            >
-              <MessageSquareText className="size-4" />
-              <span>رسالة SMS</span>
-            </button>
+        <div className="bg-muted/40 border rounded-xl p-3.5 space-y-2.5">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold flex items-center gap-1.5 text-primary">
+              <Sparkles className="w-3.5 h-3.5" />
+              إشعار العميل الذكي
+            </span>
+            <div className="flex items-center gap-1 bg-background border rounded-lg p-0.5 text-[10px]">
+              <button
+                type="button"
+                onClick={() => setSelectedTemplate("official")}
+                className={cn("px-2 py-0.5 rounded", selectedTemplate === "official" && "bg-primary text-primary-foreground font-medium")}
+              >
+                رسمي
+              </button>
+              <button
+                type="button"
+                onClick={() => setSelectedTemplate("reminder")}
+                className={cn("px-2 py-0.5 rounded", selectedTemplate === "reminder" && "bg-primary text-primary-foreground font-medium")}
+              >
+                موجز
+              </button>
+            </div>
           </div>
 
+          <p className="text-xs text-muted-foreground whitespace-pre-wrap bg-background/80 p-2.5 rounded-lg border leading-relaxed">
+            {activeMessage || "لا توجد رسالة متاحة"}
+          </p>
+
+          <div className="grid grid-cols-3 gap-2 pt-1">
+            <button
+              type="button"
+              onClick={handleWhatsApp}
+              className="flex items-center justify-center gap-1.5 py-2 px-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-medium transition-colors"
+            >
+              <WhatsAppIcon className="w-3.5 h-3.5 fill-white" />
+              واتساب
+            </button>
+            <button
+              type="button"
+              onClick={handleCopy}
+              className="flex items-center justify-center gap-1.5 py-2 px-2 rounded-lg border bg-background hover:bg-muted text-xs font-medium transition-colors"
+            >
+              {copied ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
+              {copied ? "تم النسخ" : "نسخ التفاصيل"}
+            </button>
+            <button
+              type="button"
+              onClick={handlePrint}
+              className="flex items-center justify-center gap-1.5 py-2 px-2 rounded-lg border bg-background hover:bg-muted text-xs font-medium transition-colors"
+            >
+              <Printer className="w-3.5 h-3.5" />
+              طباعة السند
+            </button>
+          </div>
+        </div>
+
+        <div className="flex gap-2 pt-1">
+          {mode === "success" && onNewOperation && (
+            <button
+              type="button"
+              onClick={onNewOperation}
+              className="flex-1 py-2.5 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-bold transition-all"
+            >
+              عملية جديدة
+            </button>
+          )}
           <button
             type="button"
-            onClick={copyText}
-            className="w-full h-11 rounded-2xl border border-border bg-card text-foreground font-bold text-xs flex items-center justify-center gap-2 hover:bg-muted transition cursor-pointer"
+            onClick={() => onOpenChange(false)}
+            className="flex-1 py-2.5 rounded-xl border bg-background hover:bg-muted text-xs font-semibold transition-colors"
           >
-            {copied ? <Check className="size-4 text-emerald-500" /> : <Copy className="size-4" />}
-            <span>{copied ? "تم نسخ نص الإشعار" : "نسخ نص الإشعار كاملاً"}</span>
+            إغلاق
           </button>
         </div>
       </div>
