@@ -289,15 +289,43 @@ export function DataTable<T>({
   const showEmpty = !showSkeleton && displayRows.length === 0;
 
   /* ---- infinite scroll sentinel ---- */
+  /*
+   * `onLoadMore` is read through a ref so the observer is created once per
+   * (infinite, hasMore) change instead of once per parent render. Callers pass
+   * inline arrows (`onLoadMore={() => fetchNextPage()}`), and rebuilding an
+   * IntersectionObserver on every render re-fires the callback while the
+   * sentinel stays visible — which is how a single scroll ends up issuing
+   * repeated page requests.
+   *
+   * The `loadingMore` guard is applied inside the callback (not as an effect
+   * dependency) for the same reason, and a ref-level latch swallows the extra
+   * intersection callbacks the browser delivers before React has re-rendered
+   * with `loadingMore = true`.
+   */
+  const onLoadMoreRef = React.useRef(onLoadMore);
+  onLoadMoreRef.current = onLoadMore;
+  const loadingMoreRef = React.useRef(loadingMore);
+  loadingMoreRef.current = loadingMore;
+  const loadMoreLatchRef = React.useRef(false);
+
   React.useEffect(() => {
-    if (!infinite || !hasMore || !onLoadMore) return;
+    if (!loadingMore) loadMoreLatchRef.current = false;
+  }, [loadingMore]);
+
+  React.useEffect(() => {
+    if (!infinite || !hasMore) return;
     const sentinel = sentinelRef.current;
     if (!sentinel) return;
 
     const root = scrollRef.current;
     const observer = new IntersectionObserver(
       (entries) => {
-        if (entries[0]?.isIntersecting && !loadingMore) onLoadMore();
+        if (!entries[0]?.isIntersecting) return;
+        if (loadingMoreRef.current || loadMoreLatchRef.current) return;
+        const loadMore = onLoadMoreRef.current;
+        if (!loadMore) return;
+        loadMoreLatchRef.current = true;
+        loadMore();
       },
       // Begin loading slightly before the user actually reaches the bottom.
       {
@@ -308,7 +336,7 @@ export function DataTable<T>({
 
     observer.observe(sentinel);
     return () => observer.disconnect();
-  }, [infinite, hasMore, onLoadMore, loadingMore]);
+  }, [infinite, hasMore]);
 
   /* ---- error ---- */
   if (error) {
