@@ -16,8 +16,8 @@ export const Route = createFileRoute("/_app/settings")({
 
 function SettingsPage() {
   const { t, lang } = useI18n();
-  const { hasRole, isPlatformSuperadmin } = useAuth();
-  const canEdit = hasRole("owner") || isPlatformSuperadmin;
+  const { hasRole } = useAuth();
+  const canEdit = hasRole("owner") || hasRole("manager");
   const [form, setForm] = useState<any>({
     name: "",
     legal_name: "",

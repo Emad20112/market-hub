@@ -1,4 +1,11 @@
-import React, { useState, useRef, useMemo, useEffect, type Dispatch, type SetStateAction } from "react";
+import React, {
+  useState,
+  useRef,
+  useMemo,
+  useEffect,
+  type Dispatch,
+  type SetStateAction,
+} from "react";
 import { Hash, CalendarDays, ChevronDown, Check } from "lucide-react";
 import {
   Command,
@@ -82,21 +89,17 @@ export function InvoicingSection({
 
   const setPrintMode = (v: "auto" | "ask" | "off") => {
     setPrintModeState(v);
-    savePrintSettings({ printMode: v });
   };
 
   const setDefaultPrintTemplate = (v: InvoiceTemplate) => {
     setDefaultPrintTemplateState(v);
-    savePrintSettings({ defaultCustomerTemplate: v });
   };
 
   async function uploadCompanyLogo(file: File) {
     const allowedTypes = ["image/png", "image/jpeg", "image/webp"];
     if (!allowedTypes.includes(file.type)) {
       toast.error(
-        isAr
-          ? "اختر صورة بصيغة PNG أو JPG أو WebP."
-          : "Choose a PNG, JPG, or WebP image.",
+        isAr ? "اختر صورة بصيغة PNG أو JPG أو WebP." : "Choose a PNG, JPG, or WebP image.",
       );
       return;
     }
@@ -113,13 +116,11 @@ export function InvoicingSection({
     const path = `company/logo-${Date.now()}.${extension}`;
 
     try {
-      const { error } = await supabase.storage
-        .from("company-logos")
-        .upload(path, file, {
-          contentType: file.type,
-          cacheControl: "31536000",
-          upsert: false,
-        });
+      const { error } = await supabase.storage.from("company-logos").upload(path, file, {
+        contentType: file.type,
+        cacheControl: "31536000",
+        upsert: false,
+      });
       if (error) throw error;
 
       const { data } = supabase.storage.from("company-logos").getPublicUrl(path);
@@ -367,7 +368,6 @@ export function InvoicingSection({
             />
           </div>
         </div>
-
       </CardContent>
     </Card>
   );
@@ -405,7 +405,15 @@ function CurrencyPicker({
           >
             <span className="flex min-w-0 items-center gap-2">
               <span aria-hidden="true" className="text-lg leading-none">
-                {selected ? <FlagIcon code={currencyToCountryCode(selected.code) || ""} emoji={selected.flag} size="size-5" /> : "🌐"}
+                {selected ? (
+                  <FlagIcon
+                    code={currencyToCountryCode(selected.code) || ""}
+                    emoji={selected.flag}
+                    size="size-5"
+                  />
+                ) : (
+                  "🌐"
+                )}
               </span>
               <span className="truncate text-start">
                 <span className="font-mono font-semibold">{selectedCode}</span>
@@ -420,9 +428,7 @@ function CurrencyPicker({
         <PopoverContent align="start" className="w-[min(360px,calc(100vw-2rem))] p-0">
           <Command dir={isAr ? "rtl" : "ltr"}>
             <CommandInput
-              placeholder={
-                isAr ? "ابحث باسم العملة أو رمزها..." : "Search by currency or code..."
-              }
+              placeholder={isAr ? "ابحث باسم العملة أو رمزها..." : "Search by currency or code..."}
             />
             <CommandList>
               <CommandEmpty>{isAr ? "لم يتم العثور على عملة." : "No currency found."}</CommandEmpty>
@@ -438,7 +444,11 @@ function CurrencyPicker({
                     className="gap-2"
                   >
                     <span aria-hidden="true" className="text-lg leading-none">
-                      <FlagIcon code={currencyToCountryCode(currency.code) || ""} emoji={currency.flag} size="size-5" />
+                      <FlagIcon
+                        code={currencyToCountryCode(currency.code) || ""}
+                        emoji={currency.flag}
+                        size="size-5"
+                      />
                     </span>
                     <span className="min-w-0 flex-1 truncate">{currency.name}</span>
                     <span className="font-mono text-xs text-muted-foreground">

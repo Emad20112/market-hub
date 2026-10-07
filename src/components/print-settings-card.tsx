@@ -146,9 +146,7 @@ export function PrintSettingsCard({ canEdit = true }: PrintSettingsCardProps) {
     setSettings((current) => ({
       ...current,
       [key]: !current[key],
-      ...(key === "autoPrintCustomerInvoice"
-        ? { printMode: !current[key] ? "auto" : "ask" }
-        : {}),
+      ...(key === "autoPrintCustomerInvoice" ? { printMode: !current[key] ? "auto" : "ask" } : {}),
     }));
   }
 
@@ -195,9 +193,17 @@ export function PrintSettingsCard({ canEdit = true }: PrintSettingsCardProps) {
     // Keep legacy invoice profile values in the same unsaved component state.
     setSettings((current) =>
       docType === "customer_invoice"
-        ? { ...current, defaultCustomerTemplate: templateId, defaultCustomerPaperProfile: paperId as PaperProfileId }
+        ? {
+            ...current,
+            defaultCustomerTemplate: templateId,
+            defaultCustomerPaperProfile: paperId as PaperProfileId,
+          }
         : docType === "inventory_document"
-          ? { ...current, defaultInventoryTemplate: templateId, defaultInventoryPaperProfile: paperId as PaperProfileId }
+          ? {
+              ...current,
+              defaultInventoryTemplate: templateId,
+              defaultInventoryPaperProfile: paperId as PaperProfileId,
+            }
           : current,
     );
   }
@@ -786,7 +792,7 @@ export function PrintSettingsCard({ canEdit = true }: PrintSettingsCardProps) {
         </div>
       )}
 
-      {/* ── Luxury Live Preview Modal for instant testing ── */>
+      {/* ── Luxury Live Preview Modal for instant testing ── */}
       <LuxuryPrintPreviewModal
         open={previewOpen}
         onClose={() => setPreviewOpen(false)}

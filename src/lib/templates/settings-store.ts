@@ -127,7 +127,6 @@ export function savePrintSettings(settings: Partial<PrintSettings>): PrintSettin
       // Sync legacy keys so older screens (settings page, POS) stay consistent
       localStorage.setItem(LEGACY_TEMPLATE_KEY, updated.defaultCustomerTemplate);
       localStorage.setItem(LEGACY_MODE_KEY, updated.printMode);
-
     } catch (err) {
       console.error("Failed to save print settings:", err);
     }
