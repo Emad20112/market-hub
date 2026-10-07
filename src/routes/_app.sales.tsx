@@ -42,6 +42,7 @@ import { money } from "@/lib/format";
 import { toSystemDigits } from "@/lib/format-preferences";
 import { generateInvoicePDF, type InvoiceDoc } from "@/lib/pdf";
 import { printInvoice, type InvoiceTemplate } from "@/lib/invoice-print";
+import { LuxuryPrintPreviewModal } from "@/components/luxury-print-preview-modal";
 import {
   VortexMetricCard,
   VortexSearchInput,
@@ -142,6 +143,7 @@ export function SalesPage() {
   const [lines, setLines] = useState<Line[]>([]);
   const [loadingLines, setLoadingLines] = useState(false);
   const [printOpen, setPrintOpen] = useState(false);
+  const [printDoc, setPrintDoc] = useState<InvoiceDoc | null>(null);
   const [copiedInvoiceId, setCopiedInvoiceId] = useState<string | null>(null);
 
   // Quick Collection Sheet State
@@ -943,9 +945,7 @@ export function SalesPage() {
               )
             }
             onClick={() =>
-              setViewMode((prev) =>
-                prev === "grid" ? "list" : prev === "list" ? "table" : "grid",
-              )
+              setViewMode((prev) => (prev === "grid" ? "list" : prev === "list" ? "table" : "grid"))
             }
             tone="ghost"
           />
@@ -986,8 +986,7 @@ export function SalesPage() {
               id: "partial",
               label: isRtl ? "دفع جزئي" : "Partial",
               count: metrics.partialCount,
-              activeCls:
-                "border-amber-600 bg-amber-600 text-white shadow-xs shadow-amber-600/20",
+              activeCls: "border-amber-600 bg-amber-600 text-white shadow-xs shadow-amber-600/20",
               inactiveCls:
                 "border-amber-500/30 bg-amber-500/10 text-amber-600 hover:bg-amber-500/20",
               pillCls: "bg-amber-500/20 text-amber-600",
@@ -996,20 +995,16 @@ export function SalesPage() {
               id: "unpaid",
               label: isRtl ? "غير مسددة (آجلة)" : "Unpaid",
               count: metrics.unpaidCount,
-              activeCls:
-                "border-rose-600 bg-rose-600 text-white shadow-xs shadow-rose-600/20",
-              inactiveCls:
-                "border-rose-500/30 bg-rose-500/10 text-rose-600 hover:bg-rose-500/20",
+              activeCls: "border-rose-600 bg-rose-600 text-white shadow-xs shadow-rose-600/20",
+              inactiveCls: "border-rose-500/30 bg-rose-500/10 text-rose-600 hover:bg-rose-500/20",
               pillCls: "bg-rose-500/20 text-rose-600",
             },
             {
               id: "cancelled",
               label: isRtl ? "ملغاة" : "Cancelled",
               count: metrics.cancelledCount,
-              activeCls:
-                "border-red-600 bg-red-600 text-white shadow-xs shadow-red-600/20",
-              inactiveCls:
-                "border-red-500/30 bg-red-500/10 text-red-500 hover:bg-red-500/20",
+              activeCls: "border-red-600 bg-red-600 text-white shadow-xs shadow-red-600/20",
+              inactiveCls: "border-red-500/30 bg-red-500/10 text-red-500 hover:bg-red-500/20",
               pillCls: "bg-red-500/20 text-red-500",
             },
           ].map((f) => {
@@ -1410,9 +1405,7 @@ export function SalesPage() {
                       </th>
                       <th className="px-4 py-3 text-start">{isRtl ? "العميل" : "Customer"}</th>
                       {hasMultiWarehouse && (
-                        <th className="px-4 py-3 text-start">
-                          {isRtl ? "المستودع" : "Warehouse"}
-                        </th>
+                        <th className="px-4 py-3 text-start">{isRtl ? "المستودع" : "Warehouse"}</th>
                       )}
                       <th className="px-4 py-3 text-start">{isRtl ? "طريقة السداد" : "Payment"}</th>
                       <th className="px-4 py-3 text-start">{isRtl ? "الحالة" : "Status"}</th>
@@ -2030,7 +2023,10 @@ export function SalesPage() {
 
                 <button
                   type="button"
-                  onClick={() => setPrintOpen(true)}
+                  onClick={async () => {
+                    const doc = await buildDoc();
+                    if (doc) setPrintDoc(doc);
+                  }}
                   className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-primary px-4 text-xs font-semibold text-primary-foreground shadow-sm hover:opacity-95 transition"
                 >
                   <Printer className="h-4 w-4" />
@@ -2050,79 +2046,17 @@ export function SalesPage() {
         </div>
       )}
 
-      {/* Print Selection Dialog */}
-      {printOpen && selected && (
-        <div
-          className="fixed inset-0 z-[60] grid place-items-center bg-background/80 backdrop-blur-sm p-4"
-          onClick={() => setPrintOpen(false)}
-        >
-          <div
-            className="panel-elevated w-full max-w-xl p-6 shadow-2xl border border-border/80"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="mb-5 flex items-center justify-between">
-              <div>
-                <h3 className="text-lg font-bold text-foreground">
-                  {isRtl ? "خيارات ونماذج الطباعة الفاخرة" : "Invoice Print Templates"}
-                </h3>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  {isRtl
-                    ? "اختر القالب الأنسب لطابعتك ونوع الورق"
-                    : "Select the best template for your printer"}
-                </p>
-              </div>
-              <button
-                onClick={() => setPrintOpen(false)}
-                className="rounded-lg p-1.5 text-muted-foreground hover:bg-surface-2 hover:text-foreground"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-
-            <div className="grid gap-3 sm:grid-cols-3">
-              <TemplateCard
-                icon={<ScrollText className="h-6 w-6 text-amber-500" />}
-                title={isRtl ? "فاتورة حرارية" : "Thermal Receipt"}
-                desc={isRtl ? "طابعات الكاشير 80mm و 58mm" : "Cashier POS rolls (80mm/58mm)"}
-                accent="from-amber-500/20 to-orange-500/10 border-amber-500/30"
-                onClick={() => doPrint("thermal")}
-              />
-              <TemplateCard
-                icon={<Printer className="h-6 w-6 text-blue-500" />}
-                title={isRtl ? "قياسي A4" : "Standard A4"}
-                desc={isRtl ? "نموذج رسمي كلاسيكي متكامل" : "Classic official corporate layout"}
-                accent="from-blue-500/20 to-indigo-500/10 border-blue-500/30"
-                onClick={() => doPrint("standard")}
-              />
-              <TemplateCard
-                icon={<Sparkles className="h-6 w-6 text-yellow-500" />}
-                title={isRtl ? "تصميم فاخر" : "Luxury Elegant"}
-                desc={isRtl ? "تنسيق تنفيذي أنيق لكبار العملاء" : "VIP executive styled format"}
-                accent="from-yellow-500/20 via-amber-500/10 to-rose-500/10 border-yellow-500/40"
-                onClick={() => doPrint("elegant")}
-              />
-            </div>
-
-            <div className="mt-6 flex items-center justify-between border-t border-border/80 pt-4">
-              <button
-                type="button"
-                onClick={doPDF}
-                className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-border bg-surface px-4 text-xs font-medium text-foreground hover:bg-surface-2 transition"
-              >
-                <FileDown className="h-4 w-4" />
-                <span>{isRtl ? "تنزيل نسخة PDF" : "Download PDF"}</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setPrintOpen(false)}
-                className="h-9 rounded-lg border border-border bg-surface px-4 text-xs font-medium text-foreground hover:bg-surface-2"
-              >
-                {isRtl ? "إلغاء" : "Cancel"}
-              </button>
-            </div>
-          </div>
-        </div>
+      {/* Luxury Print Preview Modal */}
+      {printDoc && (
+        <LuxuryPrintPreviewModal
+          open={Boolean(printDoc)}
+          onClose={() => setPrintDoc(null)}
+          doc={printDoc}
+          documentType="customer_invoice"
+          title={isRtl ? "معاينة وطباعة فاتورة المبيعات" : "Sales Invoice Print Preview"}
+          customerPhone={selected?.customers?.phone || undefined}
+          customerName={selected?.customers?.name || undefined}
+        />
       )}
 
       {/* Vortex Collection Sheet for Quick Collection */}

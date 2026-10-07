@@ -7,6 +7,7 @@ import { PageHeader } from "@/components/page-header";
 import { useI18n } from "@/lib/i18n";
 import { money } from "@/lib/format";
 import { printUnifiedDocument } from "@/lib/printing";
+import { LuxuryPrintPreviewModal } from "@/components/luxury-print-preview-modal";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_app/purchases")({
@@ -292,6 +293,7 @@ function ViewDialog({
   hasMultiWarehouse?: boolean;
 }) {
   const { t, lang } = useI18n();
+  const [previewOpen, setPreviewOpen] = useState(false);
   const wh = invoice.warehouses;
   const whLabel = !wh ? "—" : lang === "ar" ? wh.name_ar || wh.name : wh.name || wh.name_ar || "—";
   return (
@@ -353,37 +355,11 @@ function ViewDialog({
         </div>
         <div className="mt-4 flex justify-end gap-2">
           <button
-            onClick={() =>
-              printUnifiedDocument({
-                doc: {
-                  docType: "purchase_invoice",
-                  title: t("purchases.title"),
-                  number: invoice.invoice_number,
-                  date: new Date(invoice.created_at).toLocaleString(),
-                  partyLabel: t("common.supplier"),
-                  partyName: invoice.suppliers?.name ?? "",
-                  warehouse: hasMultiWarehouse ? whLabel : undefined,
-                  payment: pmLabel(invoice.payment_method),
-                  status: statusLabel(invoice.status),
-                  lines: lines.map((l) => ({
-                    product: l.products?.name ?? "—",
-                    qty: Number(l.quantity),
-                    price: Number(l.unit_cost),
-                    total: Number(l.total),
-                  })),
-                  subtotal: Number(invoice.subtotal),
-                  tax: Number(invoice.tax),
-                  discount: Number(invoice.discount),
-                  total: Number(invoice.total),
-                  paid: Number(invoice.paid),
-                },
-                documentType: "purchase_invoice",
-                rtl: lang === "ar",
-              })
-            }
-            className="h-9 rounded-md border border-border px-4 text-sm hover:bg-surface-2"
+            onClick={() => setPreviewOpen(true)}
+            className="h-9 rounded-md border border-border px-4 text-sm hover:bg-surface-2 flex items-center gap-1.5"
           >
-            {t("common.print")}
+            <Printer className="h-4 w-4" />
+            <span>{t("common.print")}</span>
           </button>
           <button
             onClick={onClose}
@@ -393,6 +369,42 @@ function ViewDialog({
           </button>
         </div>
       </div>
+
+      {previewOpen && (
+        <LuxuryPrintPreviewModal
+          open={previewOpen}
+          onClose={() => setPreviewOpen(false)}
+          doc={{
+            docType: "purchase_invoice",
+            title: t("purchases.title") || "فاتورة مشتريات وتوريد",
+            number: invoice.invoice_number,
+            date: new Date(invoice.created_at).toLocaleString(lang === "ar" ? "ar-EG" : "en-US"),
+            partyLabel: t("common.supplier") || "المورد",
+            partyName: invoice.suppliers?.name ?? "",
+            warehouse: hasMultiWarehouse ? whLabel : undefined,
+            payment: pmLabel(invoice.payment_method),
+            status: statusLabel(invoice.status),
+            lines: lines.map((l) => ({
+              product: l.products?.name ?? "—",
+              qty: Number(l.quantity),
+              price: Number(l.unit_cost),
+              total: Number(l.total),
+            })),
+            subtotal: Number(invoice.subtotal),
+            tax: Number(invoice.tax),
+            discount: Number(invoice.discount),
+            total: Number(invoice.total),
+            paid: Number(invoice.paid),
+            balance: Math.max(0, Number(invoice.total) - Number(invoice.paid)),
+          }}
+          documentType="purchase_invoice"
+          title={
+            lang === "ar" ? "معاينة وطباعة فاتورة المشتريات" : "Purchase Invoice Print Preview"
+          }
+          defaultFormat="standard"
+          customerName={invoice.suppliers?.name ?? undefined}
+        />
+      )}
     </div>
   );
 }
