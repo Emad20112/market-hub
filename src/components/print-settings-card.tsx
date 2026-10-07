@@ -28,7 +28,8 @@ import {
 } from "@/lib/templates";
 import {
   getUnifiedPrintSettings,
-  saveUnifiedPrintSettings,
+  commitPrintSettings,
+  normalizePrintSettings,
   PRINT_PAPERS,
   type PrintBehavior,
   type PrintMethod,
@@ -121,22 +122,53 @@ export function PrintSettingsCard({ canEdit = true }: PrintSettingsCardProps) {
   // Modal preview state
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewDocType, setPreviewDocType] = useState<PrintingDocumentType>("customer_invoice");
+  const [isSaving, setIsSaving] = useState(false);
+  const [savedSnapshot, setSavedSnapshot] = useState(() => ({
+    settings: getPrintSettings(),
+    unified: getUnifiedPrintSettings(),
+  }));
+  const isDirty = useMemo(
+    () =>
+      JSON.stringify(settings) !== JSON.stringify(savedSnapshot.settings) ||
+      JSON.stringify(unified) !== JSON.stringify(savedSnapshot.unified),
+    [settings, unified, savedSnapshot],
+  );
 
   useEffect(() => {
-    setSettings(getPrintSettings());
-    setUnified(getUnifiedPrintSettings());
+    const currentSettings = getPrintSettings();
+    const currentUnified = getUnifiedPrintSettings();
+    setSettings(currentSettings);
+    setUnified(currentUnified);
+    setSavedSnapshot({ settings: currentSettings, unified: currentUnified });
   }, []);
 
   function handleToggle(key: keyof PrintSettings) {
-    const updated = savePrintSettings({ [key]: !settings[key] });
-    setSettings(updated);
-    toast.success("تم تحديث خيارات إظهار العناصر");
+    setSettings((current) => ({
+      ...current,
+      [key]: !current[key],
+      ...(key === "autoPrintCustomerInvoice"
+        ? { printMode: !current[key] ? "auto" : "ask" }
+        : {}),
+    }));
   }
 
-  function updateUnified(patch: Parameters<typeof saveUnifiedPrintSettings>[0], silent = false) {
-    const updated = saveUnifiedPrintSettings(patch);
-    setUnified(updated);
-    if (!silent) toast.success("تم حفظ إعدادات الطباعة بنجاح");
+  function updateUnified(patch: Partial<typeof unified>) {
+    setUnified((current) => normalizePrintSettings({ ...current, ...patch }));
+  }
+
+  function saveAllSettings() {
+    if (!canEdit || !isDirty) return;
+    setIsSaving(true);
+    try {
+      const savedSettings = savePrintSettings(settings);
+      const savedUnified = commitPrintSettings(unified);
+      setSettings(savedSettings);
+      setUnified(savedUnified);
+      setSavedSnapshot({ settings: savedSettings, unified: savedUnified });
+      toast.success("تم حفظ إعدادات الطباعة لهذا المستخدم والجهاز");
+    } finally {
+      setIsSaving(false);
+    }
   }
 
   // Handle department template & paper profile change
@@ -158,24 +190,16 @@ export function PrintSettingsCard({ canEdit = true }: PrintSettingsCardProps) {
       },
     };
 
-    updateUnified({ overrides: nextOverrides }, true);
+    updateUnified({ overrides: nextOverrides });
 
-    // Also sync legacy settings store for customer_invoice and inventory_document
-    if (docType === "customer_invoice") {
-      const updated = savePrintSettings({
-        defaultCustomerTemplate: templateId,
-        defaultCustomerPaperProfile: paperId as PaperProfileId,
-      });
-      setSettings(updated);
-    } else if (docType === "inventory_document") {
-      const updated = savePrintSettings({
-        defaultInventoryTemplate: templateId,
-        defaultInventoryPaperProfile: paperId as PaperProfileId,
-      });
-      setSettings(updated);
-    }
-
-    toast.success("تم تحديث إعدادات القسم بنجاح");
+    // Keep legacy invoice profile values in the same unsaved component state.
+    setSettings((current) =>
+      docType === "customer_invoice"
+        ? { ...current, defaultCustomerTemplate: templateId, defaultCustomerPaperProfile: paperId as PaperProfileId }
+        : docType === "inventory_document"
+          ? { ...current, defaultInventoryTemplate: templateId, defaultInventoryPaperProfile: paperId as PaperProfileId }
+          : current,
+    );
   }
 
   const sampleDoc = useMemo(() => sampleDocumentFor(previewDocType), [previewDocType]);
@@ -750,7 +774,19 @@ export function PrintSettingsCard({ canEdit = true }: PrintSettingsCardProps) {
         </CardContent>
       </Card>
 
-      {/* ── Luxury Live Preview Modal for instant testing ── */}
+      {canEdit && (
+        <div className="sticky bottom-4 z-30 flex items-center justify-between gap-3 rounded-2xl border-primary/30 bg-background/95 px-4 py-3 shadow-xl backdrop-blur">
+          <span className="text-xs text-muted-foreground">
+            {isDirty ? "لديك تغييرات غير محفوظة في هذا المكون" : "كل تغييرات الطباعة محفوظة"}
+          </span>
+          <Button type="button" onClick={saveAllSettings} disabled={!isDirty || isSaving}>
+            <Check className="h-4 w-4" />
+            {isSaving ? "جارٍ الحفظ..." : "حفظ إعدادات الطباعة"}
+          </Button>
+        </div>
+      )}
+
+      {/* ── Luxury Live Preview Modal for instant testing ── */>
       <LuxuryPrintPreviewModal
         open={previewOpen}
         onClose={() => setPreviewOpen(false)}
