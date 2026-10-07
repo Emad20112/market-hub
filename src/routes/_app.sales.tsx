@@ -41,7 +41,6 @@ import { useModules } from "@/lib/modules";
 import { money } from "@/lib/format";
 import { toSystemDigits } from "@/lib/format-preferences";
 import { generateInvoicePDF, type InvoiceDoc } from "@/lib/pdf";
-import { printInvoice, type InvoiceTemplate } from "@/lib/invoice-print";
 import { LuxuryPrintPreviewModal } from "@/components/luxury-print-preview-modal";
 import {
   VortexMetricCard,
@@ -67,6 +66,10 @@ import {
   type FilterValues,
   type SortOption,
 } from "@/components/ui/table-toolbar";
+import { DataTable, type DataTableColumn, type DataTableSort } from "@/components/ui/data-table";
+import { StatusBadge } from "@/components/ui/status-badge";
+import { IconButton } from "@/components/ui/icon-button";
+import { useBreakpoint } from "@/design/breakpoints";
 import { useRealtimeTable } from "@/lib/realtime";
 import { QUERY_KEYS } from "@/lib/query-keys";
 
@@ -130,6 +133,17 @@ export function SalesPage() {
   const [sortKey, setSortKey] = useState<string>("date_desc");
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
 
+  /*
+   * Two sort channels on purpose. The toolbar's sort dropdown writes
+   * `sortKey` (a preset), while the classic table lets the operator click a
+   * column header, which writes `sort`. Precedence is decided in
+   * `filteredRows` so a header click always wins over the stale preset.
+   */
+  const [sort, setSort] = useState<DataTableSort | null>(null);
+  const breakpoint = useBreakpoint();
+  const tableUsesHorizontalScroll =
+    breakpoint === "xs" || breakpoint === "sm" || breakpoint === "md";
+
   // Filter Sheet State
   const [filterOpen, setFilterOpen] = useState(false);
   const [filterPaymentMethod, setFilterPaymentMethod] = useState<string>("all");
@@ -142,7 +156,6 @@ export function SalesPage() {
   const [selected, setSelected] = useState<Invoice | null>(null);
   const [lines, setLines] = useState<Line[]>([]);
   const [loadingLines, setLoadingLines] = useState(false);
-  const [printOpen, setPrintOpen] = useState(false);
   const [printDoc, setPrintDoc] = useState<InvoiceDoc | null>(null);
   const [copiedInvoiceId, setCopiedInvoiceId] = useState<string | null>(null);
 
@@ -258,6 +271,27 @@ export function SalesPage() {
       if (!error) {
         setLines((data ?? []) as any);
       }
+    } finally {
+      setLoadingLines(false);
+    }
+  }
+
+  async function openPrintPreview(inv: Invoice) {
+    setSelected(inv);
+    setLoadingLines(true);
+    try {
+      const { data, error } = await supabase
+        .from("sales_invoice_items")
+        .select("id,quantity,unit_price,tax,total,line_type,stock_effect,products(name,name_ar,sku)")
+        .eq("invoice_id", inv.id);
+      if (error) throw error;
+
+      const invoiceLines = (data ?? []) as any as Line[];
+      setLines(invoiceLines);
+      const doc = await buildDoc(inv, invoiceLines);
+      if (doc) setPrintDoc(doc);
+    } catch {
+      toast.error(isRtl ? "تعذر تحميل بنود الفاتورة للطباعة" : "Could not load invoice items for printing.");
     } finally {
       setLoadingLines(false);
     }
@@ -496,29 +530,32 @@ export function SalesPage() {
   };
 
   // Build Invoice Document for Print & PDF
-  async function buildDoc(): Promise<InvoiceDoc | null> {
-    if (!selected) return null;
+  async function buildDoc(
+    invoice: Invoice | null = selected,
+    invoiceLines: Line[] = lines,
+  ): Promise<InvoiceDoc | null> {
+    if (!invoice) return null;
     const { data: cs } = await supabase.from("company_settings").select("*").limit(1).maybeSingle();
     return {
       title: isRtl ? "فاتورة مبيعات ضريبية" : "Tax Sales Invoice",
-      number: selected.invoice_number,
-      date: new Date(selected.created_at).toLocaleString(isRtl ? "ar-EG" : "en-US"),
+      number: invoice.invoice_number,
+      date: new Date(invoice.created_at).toLocaleString(isRtl ? "ar-EG" : "en-US"),
       partyLabel: isRtl ? "العميل / المشترى:" : "Bill To:",
-      partyName: selected.customers?.name ?? (isRtl ? "عميل نقدي" : "Walk-in"),
-      warehouse: hasMultiWarehouse ? (whName(selected.warehouses) ?? undefined) : undefined,
-      payment: pmLabel(selected.payment_method, selected.note),
-      status: statusLabel(selected.status),
-      lines: lines.map((l) => ({
+      partyName: invoice.customers?.name ?? (isRtl ? "عميل نقدي" : "Walk-in"),
+      warehouse: hasMultiWarehouse ? (whName(invoice.warehouses) ?? undefined) : undefined,
+      payment: pmLabel(invoice.payment_method, invoice.note),
+      status: statusLabel(invoice.status),
+      lines: invoiceLines.map((l) => ({
         product: l.products?.name_ar || l.products?.name || "—",
         qty: Number(l.quantity),
         price: Number(l.unit_price),
         total: Number(l.total),
       })),
-      subtotal: Number(selected.subtotal),
-      tax: Number(selected.tax),
-      discount: Number(selected.discount),
-      total: Number(selected.total),
-      paid: Number(selected.paid),
+      subtotal: Number(invoice.subtotal),
+      tax: Number(invoice.tax),
+      discount: Number(invoice.discount),
+      total: Number(invoice.total),
+      paid: Number(invoice.paid),
       company: cs
         ? {
             // Company Profile only — never invent a company name or phone.
@@ -534,37 +571,6 @@ export function SalesPage() {
       currency:
         (cs as any)?.currency_symbol?.trim() || (cs as any)?.currency || (isRtl ? "ريال" : ""),
     };
-  }
-
-  async function doPrint(template: InvoiceTemplate) {
-    const doc = await buildDoc();
-    if (!doc) return;
-    printInvoice(
-      doc,
-      template,
-      {
-        invoice: isRtl ? "فاتورة مبيعات" : "Sales Invoice",
-        date: t("common.date"),
-        billTo: isRtl ? "العميل" : "Bill To",
-        warehouse: t("common.warehouse"),
-        payment: isRtl ? "طريقة السداد" : "Payment",
-        status: t("common.status"),
-        product: isRtl ? "الصنف / المنتج" : "Item",
-        qty: t("common.qty"),
-        price: t("common.price"),
-        total: t("common.total"),
-        subtotal: t("common.subtotal"),
-        tax: t("common.tax"),
-        discount: t("common.discount"),
-        grandTotal: isRtl ? "الإجمالي الكلي" : "Grand Total",
-        paid: isRtl ? "المسدد" : "Paid",
-        balance: isRtl ? "المتبقي" : "Balance",
-        thanks: isRtl ? "شكراً لزيارتكم ونتمنى لكم يوماً سعيداً" : "Thank you for your visit!",
-        poweredBy: "Vortex ERP",
-      },
-      isRtl,
-    );
-    setPrintOpen(false);
   }
 
   async function doPDF() {
@@ -681,6 +687,187 @@ export function SalesPage() {
     [isRtl],
   );
 
+  /*
+   * Classic table columns.
+   *
+   * Mirrors the products table: every column carries its own `sortValue` so a
+   * header click sorts on the *displayed* value (localized customer name, the
+   * translated payment label) rather than a raw database field the operator
+   * cannot see. Cells stay on one line and let the long values truncate, which
+   * is what keeps a dense finance table scannable.
+   */
+  const columns = useMemo<DataTableColumn<Invoice>[]>(() => {
+    const cols: DataTableColumn<Invoice>[] = [
+      {
+        key: "invoice_number",
+        header: isRtl ? "رقم الفاتورة" : "Invoice #",
+        sortable: true,
+        width: "w-[190px]",
+        sortValue: (inv) => inv.invoice_number,
+        cell: (inv) => (
+          <div className="flex flex-col py-0.5">
+            <span className="truncate font-mono text-xs font-bold text-foreground">
+              {inv.invoice_number}
+            </span>
+            <VortexDateBadge date={inv.created_at} variant="subtle" size="sm" />
+          </div>
+        ),
+      },
+      {
+        key: "customer",
+        header: isRtl ? "العميل" : "Customer",
+        sortable: true,
+        width: "w-[220px]",
+        sortValue: (inv) => inv.customers?.name ?? "",
+        cell: (inv) => {
+          const customerName = inv.customers?.name ?? (isRtl ? "عميل نقدي" : "Walk-in");
+          return (
+            <div className="flex items-center gap-2 py-0.5">
+              <span className="grid size-7 shrink-0 place-items-center rounded-full bg-surface-2 text-[10px] font-bold text-muted-foreground">
+                {customerName.slice(0, 1).toUpperCase()}
+              </span>
+              <div className="min-w-0">
+                <span className="block truncate text-xs font-medium text-foreground">
+                  {customerName}
+                </span>
+                {inv.customers?.phone && (
+                  <span className="block truncate font-mono text-[10px] text-muted-foreground">
+                    {toSystemDigits(inv.customers.phone)}
+                  </span>
+                )}
+              </div>
+            </div>
+          );
+        },
+      },
+    ];
+
+    if (hasMultiWarehouse) {
+      cols.push({
+        key: "warehouse",
+        header: isRtl ? "المستودع" : "Warehouse",
+        sortable: true,
+        width: "w-[130px]",
+        sortValue: (inv) => whName(inv.warehouses) ?? "",
+        cell: (inv) => (
+          <span className="block truncate text-xs text-muted-foreground">
+            {whName(inv.warehouses) ?? "—"}
+          </span>
+        ),
+      });
+    }
+
+    cols.push(
+      {
+        key: "payment_method",
+        header: isRtl ? "طريقة السداد" : "Payment",
+        sortable: true,
+        width: "w-[130px]",
+        sortValue: (inv) => pmLabel(inv.payment_method, inv.note),
+        cell: (inv) => (
+          <span className="inline-flex items-center gap-1 whitespace-nowrap rounded-lg border border-border/80 bg-surface-2/60 px-2 py-0.5 text-[11px] text-muted-foreground">
+            {pmIcon(inv.payment_method, inv.note)}
+            <span>{pmLabel(inv.payment_method, inv.note)}</span>
+          </span>
+        ),
+      },
+      {
+        key: "status",
+        header: t("common.status"),
+        sortable: true,
+        width: "w-[110px]",
+        sortValue: (inv) => inv.status,
+        cell: (inv) => statusBadge(inv.status),
+      },
+      {
+        key: "total",
+        header: isRtl ? "الإجمالي" : "Total",
+        align: "end",
+        sortable: true,
+        width: "w-[124px]",
+        sortValue: (inv) => Number(inv.total) || 0,
+        cell: (inv) => (
+          <span className="font-mono text-xs font-bold tabular-nums text-foreground">
+            {toSystemDigits(money(Number(inv.total) || 0))}
+          </span>
+        ),
+      },
+      {
+        key: "paid",
+        header: isRtl ? "المدفوع / المتبقي" : "Paid / Due",
+        align: "end",
+        sortable: true,
+        width: "w-[140px]",
+        sortValue: (inv) => Number(inv.paid) || 0,
+        cell: (inv) => {
+          const total = Number(inv.total) || 0;
+          const paid = Number(inv.paid) || 0;
+          const remaining = Math.max(0, total - paid);
+          return (
+            <div className="flex flex-col py-0.5">
+              <span className="font-mono text-xs font-medium tabular-nums text-emerald-500">
+                {toSystemDigits(money(paid))}
+              </span>
+              {remaining > 0 ? (
+                <span className="font-mono text-[10px] font-semibold tabular-nums text-rose-500">
+                  {toSystemDigits(money(remaining))}
+                </span>
+              ) : (
+                <span className="text-[10px] text-muted-foreground">
+                  {isRtl ? "خالص" : "Settled"}
+                </span>
+              )}
+            </div>
+          );
+        },
+      },
+      {
+        key: "actions",
+        header: t("common.actions"),
+        align: "end",
+        width: "w-[128px]",
+        cell: (inv) => {
+          const total = Number(inv.total) || 0;
+          const paid = Number(inv.paid) || 0;
+          const remaining = Math.max(0, total - paid);
+          return (
+            <div className="inline-flex items-center gap-1.5 pe-2">
+              {remaining > 0 && inv.status !== "cancelled" && (
+                <IconButton
+                  size="sm"
+                  variant="outline"
+                  tooltip
+                  ariaLabel={isRtl ? "تحصيل سريع" : "Quick Collect"}
+                  icon={<Wallet />}
+                  round
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    triggerQuickCollect(inv);
+                  }}
+                />
+              )}
+              <IconButton
+                size="sm"
+                variant="ghost"
+                tooltip
+                ariaLabel={isRtl ? "عرض التفاصيل" : "View details"}
+                icon={<Eye />}
+                round
+                onClick={(event) => {
+                  event.stopPropagation();
+                  openInvoice(inv);
+                }}
+              />
+            </div>
+          );
+        },
+      },
+    );
+
+    return cols;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isRtl, hasMultiWarehouse, t]);
+
   // Filter & Sort Rows
   const filteredRows = useMemo(() => {
     let list = rows.filter((r) => {
@@ -779,6 +966,38 @@ export function SalesPage() {
       const aRem = Math.max(0, aTotal - (Number(a.paid) || 0));
       const bRem = Math.max(0, bTotal - (Number(b.paid) || 0));
 
+      /*
+       * A column-header click (classic table) takes precedence over the
+       * toolbar preset, so the two controls can never disagree about which
+       * order the operator asked for.
+       */
+      if (sort) {
+        const dir = sort.direction === "asc" ? 1 : -1;
+        switch (sort.key) {
+          case "invoice_number":
+            return a.invoice_number.localeCompare(b.invoice_number) * dir;
+          case "customer":
+            return (a.customers?.name ?? "").localeCompare(b.customers?.name ?? "", "ar") * dir;
+          case "payment_method":
+            return (
+              pmLabel(a.payment_method, a.note).localeCompare(
+                pmLabel(b.payment_method, b.note),
+                "ar",
+              ) * dir
+            );
+          case "status":
+            return a.status.localeCompare(b.status) * dir;
+          case "created_at":
+            return (new Date(a.created_at).getTime() - new Date(b.created_at).getTime()) * dir;
+          case "total":
+            return (aTotal - bTotal) * dir;
+          case "paid":
+            return ((Number(a.paid) || 0) - (Number(b.paid) || 0)) * dir;
+          default:
+            break;
+        }
+      }
+
       switch (sortKey) {
         case "date_desc":
           return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
@@ -809,6 +1028,7 @@ export function SalesPage() {
     minAmount,
     maxAmount,
     filterDatePreset,
+    sort,
   ]);
 
   // Count active filters
@@ -901,6 +1121,7 @@ export function SalesPage() {
       {/* ─── Standard VORTEX TableToolbar: Search + Filters + Sort + View Toggle + Action ─── */}
       <TableToolbar
         sticky
+        lang={isRtl ? "ar" : "en"}
         search={{
           value: search,
           onValueChange: setSearch,
@@ -917,7 +1138,13 @@ export function SalesPage() {
         sort={{
           options: salesSortOptions,
           value: sortKey,
-          onValueChange: setSortKey,
+          onValueChange: (value) => {
+            setSortKey(value);
+            // Switching to a preset means the operator no longer wants the
+            // column-header order, so drop it rather than letting the table
+            // keep sorting by a column the dropdown no longer shows.
+            setSort(null);
+          },
           label: isRtl ? "ترتيب" : "Sort",
         }}
         viewToggle={
@@ -1080,9 +1307,9 @@ export function SalesPage() {
         </div>
       ) : (
         <>
-          {/* 1. Cards View (Grid Mode) — Works across Mobile & Desktop seamlessly */}
+          {/* 1. Cards View (Grid Mode) — same 2-column mobile grid as products */}
           {viewMode === "grid" && (
-            <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid grid-cols-2 gap-2.5 sm:gap-4 md:grid-cols-3 lg:grid-cols-4">
               {filteredRows.map((inv) => {
                 const total = Number(inv.total) || 0;
                 const paid = Number(inv.paid) || 0;
@@ -1094,14 +1321,14 @@ export function SalesPage() {
                     key={inv.id}
                     data-qa="sales-card"
                     onClick={() => openInvoice(inv)}
-                    className="group flex cursor-pointer flex-col justify-between rounded-2xl border border-border/80 bg-surface p-4 shadow-sm transition hover:border-primary/50 hover:shadow-md active:scale-[0.995]"
+                    className="card-mullak group relative flex cursor-pointer flex-col justify-between overflow-hidden rounded-2xl p-3 transition-all duration-200 hover:shadow-md sm:p-4.5"
                   >
                     <div>
                       {/* Header: Invoice # + Copy + Status */}
                       <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0">
                           <div className="flex items-center gap-1">
-                            <span className="break-all font-mono text-sm font-bold text-foreground group-hover:text-primary transition">
+                            <span className="truncate font-mono text-sm font-bold text-foreground transition group-hover:text-primary">
                               {inv.invoice_number}
                             </span>
                             <button
@@ -1134,21 +1361,19 @@ export function SalesPage() {
                             {customerName.slice(0, 1).toUpperCase()}
                           </div>
                           <div className="min-w-0">
-                            <div className="line-clamp-1 font-medium text-foreground">
+                            <div className="truncate font-medium text-foreground">
                               {customerName}
                             </div>
                             {inv.customers?.phone && (
-                              <div className="dir-ltr truncate text-[10px] text-muted-foreground font-mono">
+                              <div className="dir-ltr truncate font-mono text-[10px] text-muted-foreground">
                                 {toSystemDigits(inv.customers.phone)}
                               </div>
                             )}
                           </div>
                         </div>
-                        <div className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-border/80 bg-surface-2/60 px-2 py-1 text-[11px] text-muted-foreground">
+                        <div className="inline-flex max-w-[45%] shrink-0 items-center gap-1 truncate rounded-lg border border-border/80 bg-surface-2/60 px-2 py-1 text-[11px] text-muted-foreground">
                           {pmIcon(inv.payment_method, inv.note)}
-                          <span className="whitespace-nowrap">
-                            {pmLabel(inv.payment_method, inv.note)}
-                          </span>
+                          <span className="truncate">{pmLabel(inv.payment_method, inv.note)}</span>
                         </div>
                       </div>
 
@@ -1165,7 +1390,7 @@ export function SalesPage() {
                           <span className="text-muted-foreground">
                             {isRtl ? "إجمالي الفاتورة" : "Total"}
                           </span>
-                          <span className="whitespace-nowrap font-mono text-sm font-bold text-foreground">
+                          <span className="truncate font-mono text-sm font-bold text-foreground">
                             {toSystemDigits(money(total))}
                           </span>
                         </div>
@@ -1173,14 +1398,14 @@ export function SalesPage() {
                           <span className="text-muted-foreground">
                             {isRtl ? "المدفوع" : "Paid"}
                           </span>
-                          <span className="whitespace-nowrap font-mono font-medium text-emerald-500">
+                          <span className="truncate font-mono font-medium text-emerald-500">
                             {toSystemDigits(money(paid))}
                           </span>
                         </div>
                         {remaining > 0 && (
                           <div className="flex items-center justify-between gap-2 border-t border-border/40 pt-1.5 font-semibold text-rose-500">
                             <span>{isRtl ? "المتبقي (آجل)" : "Remaining Due"}</span>
-                            <span className="whitespace-nowrap font-mono">
+                            <span className="truncate font-mono">
                               {toSystemDigits(money(remaining))}
                             </span>
                           </div>
@@ -1237,10 +1462,7 @@ export function SalesPage() {
                       ) : (
                         <button
                           type="button"
-                          onClick={() => {
-                            setSelected(inv);
-                            setPrintOpen(true);
-                          }}
+                          onClick={() => void openPrintPreview(inv)}
                           className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-border bg-surface px-3 text-xs font-medium text-foreground transition hover:bg-surface-2"
                         >
                           <Printer className="h-3.5 w-3.5" />
@@ -1275,7 +1497,7 @@ export function SalesPage() {
                   <div
                     key={inv.id}
                     onClick={() => openInvoice(inv)}
-                    className="card-mullak group relative flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 sm:p-4 rounded-2xl cursor-pointer border transition-all duration-200 hover:border-primary/50 hover:shadow-md bg-surface"
+                    className="card-mullak group relative flex cursor-pointer flex-col justify-between gap-3 rounded-2xl border p-3.5 transition-all duration-200 hover:border-primary/50 hover:shadow-md sm:flex-row sm:items-center sm:p-4"
                   >
                     <div className="flex items-center gap-3 min-w-0 flex-1">
                       <span
@@ -1287,19 +1509,23 @@ export function SalesPage() {
                       </div>
                       <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap items-center gap-2">
-                          <span className="font-mono text-sm sm:text-base font-bold text-foreground group-hover:text-primary transition-colors">
+                          <span className="truncate font-mono text-sm font-bold text-foreground transition-colors group-hover:text-primary sm:text-base">
                             {inv.invoice_number}
                           </span>
                           <div className="shrink-0">{statusBadge(inv.status)}</div>
-                          <div className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
+                          <div className="inline-flex items-center gap-1 truncate text-[11px] text-muted-foreground">
                             {pmIcon(inv.payment_method, inv.note)}
-                            <span>{pmLabel(inv.payment_method, inv.note)}</span>
+                            <span className="truncate">
+                              {pmLabel(inv.payment_method, inv.note)}
+                            </span>
                           </div>
                         </div>
-                        <div className="flex flex-wrap items-center gap-3 mt-1 text-[11px] text-muted-foreground">
-                          <span className="font-medium text-foreground">{customerName}</span>
+                        <div className="mt-1 flex flex-wrap items-center gap-3 text-[11px] text-muted-foreground">
+                          <span className="truncate font-medium text-foreground">
+                            {customerName}
+                          </span>
                           {inv.customers?.phone && (
-                            <span className="dir-ltr text-muted-foreground/80 font-mono">
+                            <span className="dir-ltr truncate font-mono text-muted-foreground/80">
                               {toSystemDigits(inv.customers.phone)}
                             </span>
                           )}
@@ -1308,21 +1534,21 @@ export function SalesPage() {
                       </div>
                     </div>
 
-                    <div className="flex items-center justify-between sm:justify-end gap-4 border-t sm:border-t-0 pt-2 sm:pt-0 border-border/60">
-                      <div className="text-start sm:text-end min-w-[120px]">
+                    <div className="flex items-center justify-between gap-4 border-t border-border/60 pt-2 sm:justify-end sm:border-t-0 sm:pt-0">
+                      <div className="min-w-0 text-start sm:min-w-[120px] sm:text-end">
                         <div className="text-[10px] text-muted-foreground">
                           {isRtl ? "الإجمالي:" : "Total:"}
                         </div>
-                        <div className="font-mono font-bold text-sm sm:text-base text-foreground">
+                        <div className="truncate font-mono text-sm font-bold text-foreground sm:text-base">
                           {toSystemDigits(money(total))}
                         </div>
                         {remaining > 0 ? (
-                          <div className="text-[10px] font-semibold text-rose-500">
+                          <div className="truncate font-mono text-[10px] font-semibold text-rose-500">
                             {isRtl ? "متبقي: " : "Due: "}
                             {toSystemDigits(money(remaining))}
                           </div>
                         ) : (
-                          <div className="text-[10px] text-emerald-500 font-medium">
+                          <div className="text-[10px] font-medium text-emerald-500">
                             {isRtl ? "مدفوعة بالكامل" : "Fully paid"}
                           </div>
                         )}
@@ -1345,10 +1571,7 @@ export function SalesPage() {
                         ) : (
                           <button
                             type="button"
-                            onClick={() => {
-                              setSelected(inv);
-                              setPrintOpen(true);
-                            }}
+                            onClick={() => void openPrintPreview(inv)}
                             className="inline-flex h-8 items-center gap-1 rounded-lg border border-border bg-surface px-2.5 text-xs font-medium text-foreground hover:bg-surface-2 transition"
                             title={isRtl ? "طباعة" : "Print"}
                           >
@@ -1395,188 +1618,42 @@ export function SalesPage() {
 
           {/* 3. Classic Table View */}
           {viewMode === "table" && (
-            <div className="panel-elevated overflow-hidden border border-border/80 rounded-2xl">
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead className="border-b border-border bg-surface-2/60 text-xs font-medium text-muted-foreground">
-                    <tr>
-                      <th className="px-4 py-3 text-start">
-                        {isRtl ? "رقم الفاتورة والتاريخ" : "Invoice & Date"}
-                      </th>
-                      <th className="px-4 py-3 text-start">{isRtl ? "العميل" : "Customer"}</th>
-                      {hasMultiWarehouse && (
-                        <th className="px-4 py-3 text-start">{isRtl ? "المستودع" : "Warehouse"}</th>
-                      )}
-                      <th className="px-4 py-3 text-start">{isRtl ? "طريقة السداد" : "Payment"}</th>
-                      <th className="px-4 py-3 text-start">{isRtl ? "الحالة" : "Status"}</th>
-                      <th className="px-4 py-3 text-end">{isRtl ? "الإجمالي" : "Total"}</th>
-                      <th className="px-4 py-3 text-end">
-                        {isRtl ? "المدفوع / المتبقي" : "Paid / Due"}
-                      </th>
-                      <th className="px-4 py-3 text-center">{isRtl ? "الإجراءات" : "Actions"}</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-border/60">
-                    {filteredRows.map((inv) => {
-                      const total = Number(inv.total) || 0;
-                      const paid = Number(inv.paid) || 0;
-                      const remaining = Math.max(0, total - paid);
-
-                      return (
-                        <tr
-                          key={inv.id}
-                          className="group transition hover:bg-surface-2/40 cursor-pointer"
-                          onClick={() => openInvoice(inv)}
-                        >
-                          {/* Invoice & Date */}
-                          <td className="px-4 py-3">
-                            <div className="flex items-center gap-2">
-                              <span className="font-mono text-xs font-semibold text-foreground group-hover:text-primary transition">
-                                {inv.invoice_number}
-                              </span>
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  copyInvoiceNumber(inv.invoice_number, inv.id);
-                                }}
-                                className="rounded p-1 text-muted-foreground hover:bg-surface hover:text-foreground"
-                                title={isRtl ? "نسخ الرقم" : "Copy number"}
-                              >
-                                {copiedInvoiceId === inv.id ? (
-                                  <Check className="h-3 w-3 text-emerald-500" />
-                                ) : (
-                                  <Copy className="h-3 w-3" />
-                                )}
-                              </button>
-                            </div>
-                            <div className="mt-1">
-                              <VortexDateBadge date={inv.created_at} variant="subtle" />
-                            </div>
-                          </td>
-
-                          {/* Customer */}
-                          <td className="px-4 py-3">
-                            <div className="flex items-center gap-2">
-                              <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-surface-2 text-xs font-semibold text-foreground">
-                                {(inv.customers?.name ?? (isRtl ? "ع" : "W"))
-                                  .slice(0, 1)
-                                  .toUpperCase()}
-                              </div>
-                              <div>
-                                <div className="font-medium text-foreground">
-                                  {inv.customers?.name ?? (isRtl ? "عميل نقدي" : "Walk-in")}
-                                </div>
-                                {inv.customers?.phone && (
-                                  <div className="text-[11px] text-muted-foreground dir-ltr font-mono">
-                                    {toSystemDigits(inv.customers.phone)}
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          </td>
-
-                          {/* Warehouse (if multi-warehouse enabled) */}
-                          {hasMultiWarehouse && (
-                            <td className="px-4 py-3 text-xs text-muted-foreground">
-                              {whName(inv.warehouses) ?? "—"}
-                            </td>
-                          )}
-
-                          {/* Payment Method */}
-                          <td className="px-4 py-3">
-                            <div className="inline-flex items-center gap-1.5 rounded-lg border border-border/80 bg-surface px-2.5 py-1 text-xs">
-                              {pmIcon(inv.payment_method, inv.note)}
-                              <span>{pmLabel(inv.payment_method, inv.note)}</span>
-                            </div>
-                          </td>
-
-                          {/* Status Badge */}
-                          <td className="px-4 py-3">{statusBadge(inv.status)}</td>
-
-                          {/* Total */}
-                          <td className="px-4 py-3 text-end font-semibold text-foreground">
-                            {toSystemDigits(money(total))}
-                          </td>
-
-                          {/* Paid / Due */}
-                          <td className="px-4 py-3 text-end text-xs">
-                            <div className="font-medium text-emerald-500">
-                              {toSystemDigits(money(paid))}
-                            </div>
-                            {remaining > 0 ? (
-                              <div className="text-[11px] font-semibold text-rose-500">
-                                {isRtl ? "متبقي: " : "Due: "}
-                                {toSystemDigits(money(remaining))}
-                              </div>
-                            ) : (
-                              <div className="text-[10px] text-muted-foreground">
-                                {isRtl ? "خالص" : "Settled"}
-                              </div>
-                            )}
-                          </td>
-
-                          {/* Actions */}
-                          <td
-                            className="px-4 py-3 text-center"
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            <div className="flex items-center justify-center gap-1">
-                              {/* Quick Collect button if due */}
-                              {remaining > 0 && inv.status !== "cancelled" && (
-                                <button
-                                  type="button"
-                                  onClick={() => triggerQuickCollect(inv)}
-                                  className="inline-flex items-center gap-1 rounded-md bg-amber-500/10 px-2 py-1 text-xs font-semibold text-amber-500 hover:bg-amber-500/20 transition"
-                                  title={isRtl ? "تحصيل سريع" : "Quick Collect"}
-                                >
-                                  <Wallet className="h-3.5 w-3.5" />
-                                  <span className="hidden xl:inline">
-                                    {isRtl ? "تحصيل" : "Collect"}
-                                  </span>
-                                </button>
-                              )}
-
-                              {/* WhatsApp Share */}
-                              <button
-                                type="button"
-                                disabled={!inv.customers?.phone}
-                                onClick={() => shareInvoiceWhatsApp(inv)}
-                                className={`rounded-md p-1.5 transition ${
-                                  inv.customers?.phone
-                                    ? "text-muted-foreground hover:bg-surface hover:text-emerald-500 cursor-pointer"
-                                    : "text-muted-foreground/30 cursor-not-allowed opacity-50"
-                                }`}
-                                title={
-                                  !inv.customers?.phone
-                                    ? isRtl
-                                      ? "هذا العميل لا يوجد لديه رقم هاتف مسجل في النظام"
-                                      : "This customer has no phone number registered"
-                                    : isRtl
-                                      ? "مشاركة عبر واتساب"
-                                      : "Share via WhatsApp"
-                                }
-                              >
-                                <WhatsAppIcon className="h-4 w-4" />
-                              </button>
-
-                              {/* Details */}
-                              <button
-                                type="button"
-                                onClick={() => openInvoice(inv)}
-                                className="rounded-md p-1.5 text-muted-foreground hover:bg-surface hover:text-foreground transition"
-                                title={isRtl ? "عرض التفاصيل" : "View Details"}
-                              >
-                                <Eye className="h-4 w-4" />
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
+            <div className="panel-elevated -mx-1 sm:mx-0 overflow-hidden rounded-2xl border border-border/70">
+              <DataTable
+                className="px-0"
+                columns={columns}
+                rows={filteredRows}
+                rowKey={(inv) => inv.id}
+                loading={loading}
+                initialLoading={loading}
+                error={null}
+                sort={sort}
+                onSortChange={setSort}
+                infinite
+                hasMore={Boolean(hasNextPage)}
+                onLoadMore={() => {
+                  if (hasNextPage && !isFetchingNextPage) void fetchNextPage();
+                }}
+                loadingMore={isFetchingNextPage}
+                pageSize={INVOICES_PAGE_SIZE}
+                totalCount={totalInvoiceCount}
+                minWidth={hasMultiWarehouse ? 1120 : 980}
+                horizontalScroll={tableUsesHorizontalScroll}
+                stickyHeader
+                onRowClick={(inv) => openInvoice(inv)}
+                empty={{
+                  icon: <Receipt />,
+                  title: isRtl ? "لا توجد فواتير مبيعات مطابقة" : "No matching sales invoices",
+                  description:
+                    search || activeFiltersCount > 0 || statusTab !== "all"
+                      ? isRtl
+                        ? "جرب تعديل خيارات البحث أو التصفية"
+                        : "Try adjusting your search query or filters"
+                      : isRtl
+                        ? "يمكنك إنشاء أول فاتورة عبر نقطة البيع الآن"
+                        : "Start creating invoices via the POS page",
+                }}
+              />
             </div>
           )}
 

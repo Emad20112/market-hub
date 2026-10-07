@@ -1,13 +1,40 @@
 import { ModuleGuard, useModules } from "@/lib/modules";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
-import { ShoppingCart, Plus, Search, Eye, X, Loader2, Trash2 } from "lucide-react";
+import { useEffect, useMemo, useState, useCallback } from "react";
+import {
+  ShoppingCart,
+  Plus,
+  Eye,
+  X,
+  Loader2,
+  Trash2,
+  LayoutGrid,
+  List,
+  TableProperties,
+  Wallet,
+  PackageCheck,
+  TrendingDown,
+  Clock,
+  CheckCircle2,
+} from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/page-header";
 import { useI18n } from "@/lib/i18n";
 import { money } from "@/lib/format";
-import { printUnifiedDocument } from "@/lib/printing";
+import { toSystemDigits } from "@/lib/format-preferences";
+import { Ltr } from "@/components/ltr-value";
 import { LuxuryPrintPreviewModal } from "@/components/luxury-print-preview-modal";
+import { VortexMetricCard, VortexDateBadge } from "@/components/vortex-ui";
+import {
+  TableToolbar,
+  ToolbarAction,
+  type FilterDefinition,
+  type FilterValues,
+  type SortOption,
+} from "@/components/ui/table-toolbar";
+import { DataTable, type DataTableColumn, type DataTableSort } from "@/components/ui/data-table";
+import { IconButton } from "@/components/ui/icon-button";
+import { useBreakpoint } from "@/design/breakpoints";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_app/purchases")({
@@ -33,6 +60,9 @@ interface Invoice {
   suppliers: { name: string } | null;
   warehouses: { name: string; name_ar: string | null } | null;
 }
+
+type ViewMode = "cards" | "list" | "table";
+type StatusTab = "all" | "paid" | "partial" | "unpaid" | "cancelled";
 interface Line {
   id: string;
   quantity: number;
@@ -74,14 +104,30 @@ function PurchasesPage() {
   const { isModuleEnabled } = useModules();
   const hasMultiWarehouse = isModuleEnabled("multi_warehouse");
   const { t, lang } = useI18n();
+  const isRtl = lang === "ar";
   const whName = (w?: { name: string; name_ar: string | null } | null) =>
     !w ? "—" : lang === "ar" ? w.name_ar || w.name : w.name || w.name_ar || "—";
   const [rows, setRows] = useState<Invoice[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [statusTab, setStatusTab] = useState<StatusTab>("all");
+  const [filters, setFilters] = useState<FilterValues>({});
+  const [sortKey, setSortKey] = useState<string>("date_desc");
+  const [viewMode, setViewMode] = useState<ViewMode>("cards");
   const [selected, setSelected] = useState<Invoice | null>(null);
   const [lines, setLines] = useState<Line[]>([]);
   const [creating, setCreating] = useState(false);
+
+  /*
+   * Column-header sorting for the classic table, kept separate from the
+   * toolbar preset (`sortKey`). `filtered` decides precedence so a header
+   * click always wins over a stale dropdown value.
+   */
+  const [sort, setSort] = useState<DataTableSort | null>(null);
+  const breakpoint = useBreakpoint();
+  const tableUsesHorizontalScroll =
+    breakpoint === "xs" || breakpoint === "sm" || breakpoint === "md";
+
   const productLabel = (p?: Pick<Product, "name" | "name_ar"> | null) =>
     !p ? "—" : lang === "ar" ? p.name_ar || p.name : p.name || p.name_ar || "—";
 
@@ -110,12 +156,198 @@ function PurchasesPage() {
     setLines((data ?? []) as any);
   }
 
-  const filtered = rows.filter(
-    (r) =>
-      !search ||
-      r.invoice_number.toLowerCase().includes(search.toLowerCase()) ||
-      (r.suppliers?.name ?? "").toLowerCase().includes(search.toLowerCase()),
+  /*
+   * Label helpers are declared before `filtered`/`columns` because both
+   * `useMemo` dependency arrays reference them; a later declaration would put
+   * them in the temporal dead zone during render. `pmLabel` is memoized so it
+   * does not invalidate the filter memo on every render.
+   */
+  const pmLabel = useCallback(
+    (m: string) => {
+      const map: Record<string, string> = {
+        cash: t("pos.pm.cash"),
+        card: t("pos.pm.card"),
+        bank_transfer: t("pos.pm.bank"),
+        bank: t("pos.pm.bank"),
+        credit: t("pos.pm.credit"),
+      };
+      return map[m] ?? m;
+    },
+    [t],
   );
+  const statusLabel = useCallback(
+    (s: string) => {
+      const map: Record<string, string> = {
+        paid: t("sales.status.paid"),
+        partial: t("sales.status.partial"),
+        unpaid: t("sales.status.unpaid"),
+        cancelled: t("sales.status.cancelled"),
+      };
+      return map[s] ?? s;
+    },
+    [t],
+  );
+
+  const purchaseFilterDefinitions: FilterDefinition[] = useMemo(
+    () => [
+      {
+        key: "created_at",
+        label: isRtl ? "تاريخ الفاتورة" : "Invoice Date",
+        type: "date-range",
+      },
+      {
+        key: "payment_method",
+        label: isRtl ? "طريقة السداد" : "Payment Method",
+        type: "select",
+        options: [
+          { value: "cash", label: t("pos.pm.cash") },
+          { value: "card", label: t("pos.pm.card") },
+          { value: "bank_transfer", label: t("pos.pm.bank") },
+          { value: "credit", label: t("pos.pm.credit") },
+        ],
+      },
+      {
+        key: "status",
+        label: t("common.status"),
+        type: "select",
+        options: [
+          { value: "paid", label: t("sales.status.paid") },
+          { value: "partial", label: t("sales.status.partial") },
+          { value: "unpaid", label: t("sales.status.unpaid") },
+          { value: "cancelled", label: t("sales.status.cancelled") },
+        ],
+      },
+    ],
+    [isRtl, t],
+  );
+
+  const purchaseSortOptions: SortOption[] = useMemo(
+    () => [
+      { value: "date_desc", label: isRtl ? "الأحدث تاريخاً" : "Newest Date" },
+      { value: "date_asc", label: isRtl ? "الأقدم تاريخاً" : "Oldest Date" },
+      { value: "total_desc", label: isRtl ? "الأعلى قيمة (الإجمالي)" : "Highest Total" },
+      { value: "total_asc", label: isRtl ? "الأقل قيمة (الإجمالي)" : "Lowest Total" },
+      { value: "remaining_desc", label: isRtl ? "الأعلى متبقي" : "Highest Due" },
+      { value: "number_asc", label: isRtl ? "رقم الفاتورة" : "Invoice Number" },
+    ],
+    [isRtl],
+  );
+
+  const filtered = useMemo(() => {
+    let list = rows.filter((r) => {
+      // Status tab
+      if (statusTab !== "all" && r.status !== statusTab) return false;
+
+      // Search
+      if (search.trim()) {
+        const q = search.trim().toLowerCase();
+        const matches =
+          r.invoice_number.toLowerCase().includes(q) ||
+          (r.suppliers?.name ?? "").toLowerCase().includes(q);
+        if (!matches) return false;
+      }
+
+      // Toolbar filters
+      if (filters.payment_method && r.payment_method !== filters.payment_method) return false;
+      if (filters.status && r.status !== filters.status) return false;
+      if (filters.created_at && typeof filters.created_at === "object") {
+        const rowTime = new Date(r.created_at).getTime();
+        if (filters.created_at.from && rowTime < new Date(filters.created_at.from).getTime())
+          return false;
+        if (filters.created_at.to) {
+          const toDate = new Date(filters.created_at.to);
+          toDate.setHours(23, 59, 59, 999);
+          if (rowTime > toDate.getTime()) return false;
+        }
+      }
+
+      return true;
+    });
+
+    list = [...list].sort((a, b) => {
+      const aTotal = Number(a.total) || 0;
+      const bTotal = Number(b.total) || 0;
+      const aRem = Math.max(0, aTotal - (Number(a.paid) || 0));
+      const bRem = Math.max(0, bTotal - (Number(b.paid) || 0));
+
+      // A column-header click (classic table) takes precedence over the preset.
+      if (sort) {
+        const dir = sort.direction === "asc" ? 1 : -1;
+        switch (sort.key) {
+          case "invoice_number":
+            return a.invoice_number.localeCompare(b.invoice_number) * dir;
+          case "supplier":
+            return (a.suppliers?.name ?? "").localeCompare(b.suppliers?.name ?? "", "ar") * dir;
+          case "payment_method":
+            return pmLabel(a.payment_method).localeCompare(pmLabel(b.payment_method), "ar") * dir;
+          case "status":
+            return a.status.localeCompare(b.status) * dir;
+          case "created_at":
+            return (new Date(a.created_at).getTime() - new Date(b.created_at).getTime()) * dir;
+          case "total":
+            return (aTotal - bTotal) * dir;
+          case "paid":
+            return ((Number(a.paid) || 0) - (Number(b.paid) || 0)) * dir;
+          default:
+            break;
+        }
+      }
+
+      switch (sortKey) {
+        case "date_desc":
+          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+        case "date_asc":
+          return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+        case "total_desc":
+          return bTotal - aTotal;
+        case "total_asc":
+          return aTotal - bTotal;
+        case "remaining_desc":
+          return bRem - aRem;
+        case "number_asc":
+          return a.invoice_number.localeCompare(b.invoice_number);
+        default:
+          return 0;
+      }
+    });
+
+    return list;
+  }, [rows, statusTab, search, filters, sortKey, sort, pmLabel]);
+
+  // KPI metrics
+  const metrics = useMemo(() => {
+    let totalValue = 0;
+    let totalPaid = 0;
+    let paidCount = 0;
+    let partialCount = 0;
+    let unpaidCount = 0;
+    let cancelledCount = 0;
+    for (const r of rows) {
+      if (r.status === "cancelled") {
+        cancelledCount++;
+        continue;
+      }
+      const total = Number(r.total) || 0;
+      const paid = Number(r.paid) || 0;
+      totalValue += total;
+      totalPaid += paid;
+      if (r.status === "paid") paidCount++;
+      else if (r.status === "partial") partialCount++;
+      else unpaidCount++;
+    }
+    const activeCount = paidCount + partialCount + unpaidCount;
+    return {
+      totalValue,
+      totalPaid,
+      totalPending: Math.max(0, totalValue - totalPaid),
+      avgTicket: activeCount > 0 ? totalValue / activeCount : 0,
+      paidCount,
+      partialCount,
+      unpaidCount,
+      cancelledCount,
+      totalCount: rows.length,
+    };
+  }, [rows]);
 
   const statusColor = (s: string) =>
     s === "paid"
@@ -126,28 +358,167 @@ function PurchasesPage() {
           ? "bg-red-500/10 text-red-400 border-red-500/20"
           : "bg-muted text-muted-foreground border-border";
 
-  const pmLabel = (m: string) => {
-    const map: Record<string, string> = {
-      cash: t("pos.pm.cash"),
-      card: t("pos.pm.card"),
-      bank_transfer: t("pos.pm.bank"),
-      bank: t("pos.pm.bank"),
-      credit: t("pos.pm.credit"),
-    };
-    return map[m] ?? m;
-  };
-  const statusLabel = (s: string) => {
-    const map: Record<string, string> = {
-      paid: t("sales.status.paid"),
-      partial: t("sales.status.partial"),
-      unpaid: t("sales.status.unpaid"),
-      cancelled: t("sales.status.cancelled"),
-    };
-    return map[s] ?? s;
-  };
+  const statusBadge = (s: string) => (
+    <span
+      className={`inline-flex whitespace-nowrap rounded-full border px-2 py-0.5 text-[10px] font-bold ${statusColor(s)}`}
+    >
+      {statusLabel(s)}
+    </span>
+  );
+
+  /*
+   * Classic table columns.
+   *
+   * Same contract as the products/sales tables: each column is independently
+   * sortable on its *displayed* value, values stay on one line and truncate,
+   * and money is rendered through `<Ltr>` so a number never gets mangled by
+   * bidi reordering inside an RTL layout.
+   */
+  const columns = useMemo<DataTableColumn<Invoice>[]>(() => {
+    const cols: DataTableColumn<Invoice>[] = [
+      {
+        key: "invoice_number",
+        header: t("purchases.po"),
+        sortable: true,
+        width: "w-[190px]",
+        sortValue: (inv) => inv.invoice_number,
+        cell: (inv) => (
+          <div className="flex flex-col py-0.5">
+            <span className="truncate font-mono text-xs font-bold text-foreground">
+              {inv.invoice_number}
+            </span>
+            <VortexDateBadge date={inv.created_at} variant="subtle" size="sm" />
+          </div>
+        ),
+      },
+      {
+        key: "supplier",
+        header: t("common.supplier"),
+        sortable: true,
+        width: "w-[220px]",
+        sortValue: (inv) => inv.suppliers?.name ?? "",
+        cell: (inv) => {
+          const name = inv.suppliers?.name ?? "—";
+          return (
+            <div className="flex items-center gap-2 py-0.5">
+              <span className="grid size-7 shrink-0 place-items-center rounded-full bg-surface-2 text-[10px] font-bold text-muted-foreground">
+                {name.slice(0, 1).toUpperCase()}
+              </span>
+              <span className="min-w-0 truncate text-xs font-medium text-foreground">{name}</span>
+            </div>
+          );
+        },
+      },
+    ];
+
+    if (hasMultiWarehouse) {
+      cols.push({
+        key: "warehouse",
+        header: t("common.warehouse"),
+        sortable: true,
+        width: "w-[130px]",
+        sortValue: (inv) => whName(inv.warehouses),
+        cell: (inv) => (
+          <span className="block truncate text-xs text-muted-foreground">
+            {whName(inv.warehouses)}
+          </span>
+        ),
+      });
+    }
+
+    cols.push(
+      {
+        key: "payment_method",
+        header: t("sales.payment"),
+        sortable: true,
+        width: "w-[130px]",
+        sortValue: (inv) => pmLabel(inv.payment_method),
+        cell: (inv) => (
+          <span className="inline-flex items-center whitespace-nowrap rounded-lg border border-border/80 bg-surface-2/60 px-2 py-0.5 text-[11px] text-muted-foreground">
+            {pmLabel(inv.payment_method)}
+          </span>
+        ),
+      },
+      {
+        key: "status",
+        header: t("common.status"),
+        sortable: true,
+        width: "w-[110px]",
+        sortValue: (inv) => inv.status,
+        cell: (inv) => statusBadge(inv.status),
+      },
+      {
+        key: "total",
+        header: t("common.total"),
+        align: "end",
+        sortable: true,
+        width: "w-[124px]",
+        sortValue: (inv) => Number(inv.total) || 0,
+        cell: (inv) => (
+          <span className="font-mono text-xs font-bold tabular-nums text-foreground">
+            <Ltr>{money(Number(inv.total) || 0)}</Ltr>
+          </span>
+        ),
+      },
+      {
+        key: "paid",
+        header: isRtl ? "المدفوع / المتبقي" : "Paid / Due",
+        align: "end",
+        sortable: true,
+        width: "w-[140px]",
+        sortValue: (inv) => Number(inv.paid) || 0,
+        cell: (inv) => {
+          const total = Number(inv.total) || 0;
+          const paid = Number(inv.paid) || 0;
+          const remaining = Math.max(0, total - paid);
+          return (
+            <div className="flex flex-col py-0.5">
+              <span className="font-mono text-xs font-medium tabular-nums text-emerald-500">
+                <Ltr>{money(paid)}</Ltr>
+              </span>
+              {remaining > 0 ? (
+                <span className="font-mono text-[10px] font-semibold tabular-nums text-rose-500">
+                  <Ltr>{money(remaining)}</Ltr>
+                </span>
+              ) : (
+                <span className="text-[10px] text-muted-foreground">
+                  {isRtl ? "خالص" : "Settled"}
+                </span>
+              )}
+            </div>
+          );
+        },
+      },
+      {
+        key: "actions",
+        header: t("common.actions"),
+        align: "end",
+        width: "w-[110px]",
+        cell: (inv) => (
+          <div className="inline-flex items-center gap-1.5 pe-2">
+            <IconButton
+              size="sm"
+              variant="outline"
+              tooltip
+              ariaLabel={isRtl ? "عرض التفاصيل" : "View details"}
+              icon={<Eye />}
+              round
+              onClick={(event) => {
+                event.stopPropagation();
+                void openInvoice(inv);
+              }}
+            />
+          </div>
+        ),
+      },
+    );
+
+    return cols;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isRtl, hasMultiWarehouse, t]);
 
   return (
-    <>
+    <div className="space-y-5 pb-12">
       <PageHeader
         title={t("purchases.title")}
         subtitle={t("purchases.subtitle")}
@@ -155,103 +526,424 @@ function PurchasesPage() {
           <div className="flex items-center gap-2">
             <Link
               to="/purchase-pos"
-              className="flex h-9 items-center gap-1.5 rounded-md border border-primary/40 bg-primary/10 px-3 text-sm font-medium text-primary hover:bg-primary/20 transition"
+              className="flex h-9 items-center gap-1.5 rounded-xl border border-primary/40 bg-primary/10 px-3 text-sm font-medium text-primary transition hover:bg-primary/20"
             >
               <ShoppingCart className="h-4 w-4" />{" "}
-              {lang === "ar" ? "نقطة المشتريات السريعة (POP)" : "Fast Purchase POS"}
+              {isRtl ? "نقطة المشتريات السريعة (POP)" : "Fast Purchase POS"}
             </Link>
             <button
               onClick={() => setCreating(true)}
-              className="flex h-9 items-center gap-1.5 rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground hover:opacity-90"
+              className="flex h-9 items-center gap-1.5 rounded-xl bg-primary px-3 text-sm font-bold text-primary-foreground shadow-xs shadow-primary/20 transition hover:opacity-90"
             >
               <Plus className="h-4 w-4" /> {t("purchases.new")}
             </button>
           </div>
         }
       />
-      <div className="panel-elevated p-4">
-        <div className="relative mb-4">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground rtl:left-auto rtl:right-3" />
-          <input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder={t("purchases.search")}
-            className="h-10 w-full rounded-md border border-input bg-surface pl-9 pr-3 text-sm rtl:pl-3 rtl:pr-9 focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/20"
+
+      {/* ─── Luxury Vortex KPI Metrics Cards (2 columns on mobile, 4 on desktop) ─── */}
+      <div className="grid grid-cols-2 gap-2.5 sm:gap-4 lg:grid-cols-4">
+        <VortexMetricCard
+          title={isRtl ? "إجمالي المشتريات" : "Total Purchases"}
+          value={toSystemDigits(money(metrics.totalValue))}
+          subtitle={`${toSystemDigits(metrics.totalCount.toString())} ${isRtl ? "فاتورة مسجلة" : "invoices"}`}
+          icon={<ShoppingCart className="size-5" />}
+          iconClassName="bg-primary/10 text-primary border border-primary/20"
+          badge={isRtl ? "المشتريات" : "Purchases"}
+          onClick={() => setStatusTab("all")}
+          highlight={statusTab === "all"}
+          className="cursor-pointer"
+        />
+        <VortexMetricCard
+          title={isRtl ? "المبالغ المدفوعة" : "Paid to Vendors"}
+          value={toSystemDigits(money(metrics.totalPaid))}
+          subtitle={`${toSystemDigits(metrics.paidCount.toString())} ${isRtl ? "مسددة بالكامل" : "fully paid"}`}
+          icon={<CheckCircle2 className="size-5" />}
+          iconClassName="bg-blue-500/10 text-blue-500 border border-blue-500/20"
+          badge={isRtl ? "مدفوع" : "Paid"}
+          onClick={() => setStatusTab("paid")}
+          highlight={statusTab === "paid"}
+          className="cursor-pointer"
+        />
+        <VortexMetricCard
+          title={isRtl ? "المتبقي والآجل" : "Outstanding & Due"}
+          value={toSystemDigits(money(metrics.totalPending))}
+          subtitle={`${toSystemDigits((metrics.unpaidCount + metrics.partialCount).toString())} ${isRtl ? "فواتير معلقة" : "pending invoices"}`}
+          icon={<Clock className="size-5" />}
+          iconClassName="bg-amber-500/10 text-amber-500 border border-amber-500/20"
+          badge={isRtl ? "التزامات" : "Liabilities"}
+          onClick={() => setStatusTab("unpaid")}
+          highlight={statusTab === "unpaid"}
+          className="cursor-pointer"
+        />
+        <VortexMetricCard
+          title={isRtl ? "متوسط قيمة الفاتورة" : "Average Ticket"}
+          value={toSystemDigits(money(metrics.avgTicket))}
+          subtitle={isRtl ? "لكل عملية شراء نشطة" : "per active purchase"}
+          icon={<TrendingDown className="size-5" />}
+          iconClassName="bg-purple-500/10 text-purple-500 border border-purple-500/20"
+          badge={isRtl ? "متوسط" : "Average"}
+        />
+      </div>
+
+      {/* ─── Standard VORTEX TableToolbar: Search + Filters + Sort + View Toggle + Action ─── */}
+      <TableToolbar
+        sticky
+        lang={isRtl ? "ar" : "en"}
+        search={{
+          value: search,
+          onValueChange: setSearch,
+          placeholder: isRtl
+            ? "ابحث برقم الفاتورة أو اسم المورد..."
+            : "Search PO number or supplier name...",
+          resultCount: filtered.length,
+        }}
+        filters={{
+          definitions: purchaseFilterDefinitions,
+          values: filters,
+          onValueChange: setFilters,
+        }}
+        sort={{
+          options: purchaseSortOptions,
+          value: sortKey,
+          onValueChange: (value) => {
+            setSortKey(value);
+            // A preset replaces whatever the table header had selected.
+            setSort(null);
+          },
+          label: isRtl ? "ترتيب" : "Sort",
+        }}
+        viewToggle={
+          <ToolbarAction
+            label={
+              viewMode === "cards"
+                ? isRtl
+                  ? "بطاقات"
+                  : "Cards"
+                : viewMode === "list"
+                  ? isRtl
+                    ? "قائمة"
+                    : "List"
+                  : isRtl
+                    ? "كلاسيكي"
+                    : "Classic"
+            }
+            icon={
+              viewMode === "cards" ? (
+                <LayoutGrid />
+              ) : viewMode === "list" ? (
+                <List />
+              ) : (
+                <TableProperties />
+              )
+            }
+            onClick={() =>
+              setViewMode((prev) =>
+                prev === "cards" ? "list" : prev === "list" ? "table" : "cards",
+              )
+            }
+            tone="ghost"
+          />
+        }
+        action={
+          <ToolbarAction
+            label={isRtl ? "أمر شراء جديد" : "New Purchase"}
+            icon={<Plus />}
+            tone="primary"
+            onClick={() => setCreating(true)}
+          />
+        }
+      >
+        {/* Quick Filter Tabs — visible in all view modes */}
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 scrollbar-x-none">
+          {[
+            { id: "all", label: isRtl ? "الكل" : "All", count: metrics.totalCount },
+            { id: "paid", label: isRtl ? "مسددة" : "Paid", count: metrics.paidCount },
+            { id: "partial", label: isRtl ? "دفع جزئي" : "Partial", count: metrics.partialCount },
+            {
+              id: "unpaid",
+              label: isRtl ? "غير مسددة (آجلة)" : "Unpaid",
+              count: metrics.unpaidCount,
+            },
+            {
+              id: "cancelled",
+              label: isRtl ? "ملغاة" : "Cancelled",
+              count: metrics.cancelledCount,
+            },
+          ].map((f) => (
+            <button
+              key={f.id}
+              type="button"
+              onClick={() => setStatusTab(f.id as StatusTab)}
+              className={`flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-bold transition ${
+                statusTab === f.id
+                  ? "border-primary bg-primary text-primary-foreground shadow-xs shadow-primary/20"
+                  : "border-border/70 bg-surface/70 text-muted-foreground hover:bg-surface-2 hover:text-foreground"
+              }`}
+            >
+              <span>{f.label}</span>
+              <span
+                className={`rounded-full px-1.5 py-0.2 text-[10px] font-mono ${
+                  statusTab === f.id ? "bg-white/20 text-white" : "bg-muted text-muted-foreground"
+                }`}
+              >
+                {toSystemDigits(f.count.toString())}
+              </span>
+            </button>
+          ))}
+        </div>
+      </TableToolbar>
+
+      {/* ─── Main Content: Cards Grid vs List vs Classic Table ─── */}
+      {loading ? (
+        <div className="card-mullak p-12 text-center">
+          <div className="mx-auto size-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+          <p className="mt-3 text-sm text-muted-foreground">
+            {isRtl ? "جارِ تحميل فواتير المشتريات..." : "Loading purchases…"}
+          </p>
+        </div>
+      ) : filtered.length === 0 ? (
+        <div className="card-mullak flex flex-col items-center gap-3 p-12 text-center">
+          <div className="grid size-16 place-items-center rounded-3xl border border-primary/20 bg-primary/10 text-primary shadow-sm">
+            <ShoppingCart className="size-8" />
+          </div>
+          <h3 className="text-base font-bold text-foreground">
+            {search || statusTab !== "all"
+              ? isRtl
+                ? "لا توجد فواتير مشتريات مطابقة"
+                : "No matching purchase invoices"
+              : t("purchases.no_purchases")}
+          </h3>
+          <p className="max-w-sm text-xs text-muted-foreground">
+            {search || statusTab !== "all"
+              ? isRtl
+                ? "جرب تعديل خيارات البحث أو التصفية"
+                : "Try adjusting your search query or filters"
+              : isRtl
+                ? "ابدأ بتسجيل أول أمر شراء من نقطة المشتريات."
+                : "Start by recording your first purchase order."}
+          </p>
+          <Link
+            to="/purchase-pos"
+            className="mt-2 inline-flex items-center gap-2 rounded-full bg-primary px-5 py-2.5 text-xs font-bold text-primary-foreground shadow-sm transition hover:bg-primary/90 active:scale-95"
+          >
+            <ShoppingCart className="size-4" />
+            <span>{isRtl ? "إنشاء أمر شراء الآن" : "Create Purchase Now"}</span>
+          </Link>
+        </div>
+      ) : viewMode === "cards" ? (
+        /* ─── Mullak Luxury Cards Grid — same 2-column mobile grid as products ─── */
+        <div className="grid grid-cols-2 gap-2.5 sm:gap-4 md:grid-cols-3 lg:grid-cols-4">
+          {filtered.map((inv) => {
+            const total = Number(inv.total) || 0;
+            const paid = Number(inv.paid) || 0;
+            const remaining = Math.max(0, total - paid);
+            const supplierName = inv.suppliers?.name ?? "—";
+
+            return (
+              <div
+                key={inv.id}
+                data-qa="purchase-card"
+                onClick={() => void openInvoice(inv)}
+                className="card-mullak group relative flex cursor-pointer flex-col justify-between overflow-hidden rounded-2xl p-3 transition-all duration-200 hover:shadow-md sm:p-4.5"
+              >
+                <div>
+                  {/* Header: PO number + status */}
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <span className="block truncate font-mono text-sm font-bold text-foreground transition group-hover:text-primary">
+                        {inv.invoice_number}
+                      </span>
+                      <div className="mt-1">
+                        <VortexDateBadge date={inv.created_at} variant="subtle" size="sm" />
+                      </div>
+                    </div>
+                    <div className="shrink-0">{statusBadge(inv.status)}</div>
+                  </div>
+
+                  {/* Supplier + payment */}
+                  <div className="mt-3 flex items-center justify-between gap-2 border-t border-border/60 pt-2.5 text-xs">
+                    <div className="flex min-w-0 items-center gap-1.5">
+                      <div className="grid size-6 shrink-0 place-items-center rounded-full bg-surface-2 text-[10px] font-bold">
+                        {supplierName.slice(0, 1).toUpperCase()}
+                      </div>
+                      <div className="truncate font-medium text-foreground">{supplierName}</div>
+                    </div>
+                    <div className="inline-flex max-w-[45%] shrink-0 items-center gap-1 truncate rounded-lg border border-border/80 bg-surface-2/60 px-2 py-1 text-[11px] text-muted-foreground">
+                      <span className="truncate">{pmLabel(inv.payment_method)}</span>
+                    </div>
+                  </div>
+
+                  {hasMultiWarehouse && inv.warehouses && (
+                    <div className="mt-2 truncate text-[11px] text-muted-foreground">
+                      {isRtl ? "المستودع: " : "Warehouse: "}
+                      {whName(inv.warehouses)}
+                    </div>
+                  )}
+
+                  {/* Financial summary */}
+                  <div className="mt-3 space-y-1.5 rounded-xl border border-border/60 bg-surface-2/40 p-2.5 text-xs">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-muted-foreground">{t("common.total")}</span>
+                      <span className="truncate font-mono text-sm font-bold text-foreground">
+                        <Ltr>{money(total)}</Ltr>
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-muted-foreground">{t("common.paid")}</span>
+                      <span className="truncate font-mono font-medium text-emerald-500">
+                        <Ltr>{money(paid)}</Ltr>
+                      </span>
+                    </div>
+                    {remaining > 0 && (
+                      <div className="flex items-center justify-between gap-2 border-t border-border/40 pt-1.5 font-semibold text-rose-500">
+                        <span>{isRtl ? "المتبقي" : "Due"}</span>
+                        <span className="truncate font-mono">
+                          <Ltr>{money(remaining)}</Ltr>
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Actions */}
+                <div
+                  className="mt-3.5 flex items-center justify-between gap-2 border-t border-border/60 pt-3"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div className="flex items-center gap-1.5">
+                    <IconButton
+                      size="sm"
+                      variant="outline"
+                      tooltip
+                      ariaLabel={isRtl ? "عرض التفاصيل" : "View details"}
+                      icon={<Eye className="size-3.5" />}
+                      round
+                      onClick={() => void openInvoice(inv)}
+                    />
+                  </div>
+                  <span className="text-[10px] font-medium text-muted-foreground">
+                    {isRtl ? "فاتورة مشتريات" : "Purchase"}
+                  </span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      ) : viewMode === "list" ? (
+        /* ─── Luxury Mullak Row-Cards View (List with Accent Strip) ─── */
+        <div className="space-y-2.5">
+          {filtered.map((inv) => {
+            const total = Number(inv.total) || 0;
+            const paid = Number(inv.paid) || 0;
+            const remaining = Math.max(0, total - paid);
+            const supplierName = inv.suppliers?.name ?? "—";
+            const barColor =
+              inv.status === "paid"
+                ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.4)]"
+                : inv.status === "partial"
+                  ? "bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.5)]"
+                  : inv.status === "unpaid"
+                    ? "bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.5)]"
+                    : "bg-muted-foreground/30";
+
+            return (
+              <div
+                key={inv.id}
+                onClick={() => void openInvoice(inv)}
+                className="card-mullak group relative flex cursor-pointer flex-col justify-between gap-3 rounded-2xl border p-3.5 transition-all duration-200 hover:border-primary/50 hover:shadow-md sm:flex-row sm:items-center sm:p-4"
+              >
+                <div className="flex min-w-0 flex-1 items-center gap-3">
+                  <span
+                    aria-hidden
+                    className={`h-11 w-1.5 shrink-0 rounded-full sm:h-12 ${barColor}`}
+                  />
+                  <div className="grid size-11 shrink-0 place-items-center rounded-xl border border-primary/20 bg-primary/10 text-primary transition-all group-hover:scale-105 group-hover:bg-primary group-hover:text-primary-foreground">
+                    <ShoppingCart className="size-5" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="truncate font-mono text-sm font-bold text-foreground transition-colors group-hover:text-primary sm:text-base">
+                        {inv.invoice_number}
+                      </span>
+                      <div className="shrink-0">{statusBadge(inv.status)}</div>
+                      <div className="inline-flex items-center gap-1 truncate text-[11px] text-muted-foreground">
+                        <span className="truncate">{pmLabel(inv.payment_method)}</span>
+                      </div>
+                    </div>
+                    <div className="mt-1 flex flex-wrap items-center gap-3 text-[11px] text-muted-foreground">
+                      <span className="truncate font-medium text-foreground">{supplierName}</span>
+                      <VortexDateBadge date={inv.created_at} variant="subtle" size="sm" />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between gap-4 border-t border-border/60 pt-2 sm:justify-end sm:border-t-0 sm:pt-0">
+                  <div className="min-w-0 text-start sm:min-w-[120px] sm:text-end">
+                    <div className="text-[10px] text-muted-foreground">
+                      {isRtl ? "الإجمالي:" : "Total:"}
+                    </div>
+                    <div className="truncate font-mono text-sm font-bold text-foreground sm:text-base">
+                      <Ltr>{money(total)}</Ltr>
+                    </div>
+                    {remaining > 0 ? (
+                      <div className="truncate font-mono text-[10px] font-semibold text-rose-500">
+                        {isRtl ? "متبقي: " : "Due: "}
+                        <Ltr>{money(remaining)}</Ltr>
+                      </div>
+                    ) : (
+                      <div className="text-[10px] font-medium text-emerald-500">
+                        {isRtl ? "مدفوعة بالكامل" : "Fully paid"}
+                      </div>
+                    )}
+                  </div>
+
+                  <div
+                    className="flex shrink-0 items-center gap-1"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <IconButton
+                      size="sm"
+                      variant="outline"
+                      tooltip
+                      ariaLabel={isRtl ? "عرض التفاصيل" : "View details"}
+                      icon={<Eye className="size-3.5" />}
+                      round
+                      onClick={() => void openInvoice(inv)}
+                    />
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        /* ─── Classic Table View: same DataTable as products/sales ─── */
+        <div className="panel-elevated -mx-1 overflow-hidden rounded-2xl border border-border/70 sm:mx-0">
+          <DataTable
+            className="px-0"
+            columns={columns}
+            rows={filtered}
+            rowKey={(inv) => inv.id}
+            loading={loading}
+            initialLoading={loading}
+            error={null}
+            sort={sort}
+            onSortChange={setSort}
+            minWidth={hasMultiWarehouse ? 1120 : 980}
+            horizontalScroll={tableUsesHorizontalScroll}
+            stickyHeader
+            onRowClick={(inv) => void openInvoice(inv)}
+            empty={{
+              icon: <ShoppingCart />,
+              title: t("purchases.no_purchases"),
+              description: isRtl
+                ? "ابدأ بتسجيل أول أمر شراء من نقطة المشتريات."
+                : "Start by recording your first purchase order.",
+            }}
           />
         </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="text-xs uppercase tracking-wide text-muted-foreground">
-              <tr className="border-b border-border">
-                <th className="px-3 py-2 text-start font-medium">{t("purchases.po")}</th>
-                <th className="px-3 py-2 text-start font-medium">{t("common.date")}</th>
-                <th className="px-3 py-2 text-start font-medium">{t("common.supplier")}</th>
-                {hasMultiWarehouse && (
-                  <th className="px-3 py-2 text-start font-medium">{t("common.warehouse")}</th>
-                )}
-                <th className="px-3 py-2 text-start font-medium">{t("sales.payment")}</th>
-                <th className="px-3 py-2 text-start font-medium">{t("common.status")}</th>
-                <th className="px-3 py-2 text-end font-medium">{t("common.total")}</th>
-                <th className="px-3 py-2"></th>
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
-                <tr>
-                  <td
-                    colSpan={hasMultiWarehouse ? 8 : 7}
-                    className="py-10 text-center text-muted-foreground"
-                  >
-                    {t("common.loading")}
-                  </td>
-                </tr>
-              ) : filtered.length === 0 ? (
-                <tr>
-                  <td
-                    colSpan={hasMultiWarehouse ? 8 : 7}
-                    className="py-12 text-center text-muted-foreground"
-                  >
-                    <ShoppingCart className="mx-auto mb-2 h-8 w-8 opacity-50" />
-                    {t("purchases.no_purchases")}
-                  </td>
-                </tr>
-              ) : (
-                filtered.map((r) => (
-                  <tr key={r.id} className="border-b border-border/50 hover:bg-surface-2/50">
-                    <td className="px-3 py-2.5 font-mono text-xs">{r.invoice_number}</td>
-                    <td className="px-3 py-2.5 text-muted-foreground">
-                      {new Date(r.created_at).toLocaleString()}
-                    </td>
-                    <td className="px-3 py-2.5">{r.suppliers?.name ?? "—"}</td>
-                    {hasMultiWarehouse && (
-                      <td className="px-3 py-2.5 text-muted-foreground">{whName(r.warehouses)}</td>
-                    )}
-                    <td className="px-3 py-2.5 text-muted-foreground">
-                      {pmLabel(r.payment_method)}
-                    </td>
-                    <td className="px-3 py-2.5">
-                      <span
-                        className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] ${statusColor(r.status)}`}
-                      >
-                        {statusLabel(r.status)}
-                      </span>
-                    </td>
-                    <td className="px-3 py-2.5 text-end font-semibold">{money(Number(r.total))}</td>
-                    <td className="px-3 py-2.5 text-end">
-                      <button
-                        onClick={() => openInvoice(r)}
-                        className="rounded p-1.5 text-muted-foreground hover:bg-surface-2 hover:text-foreground"
-                      >
-                        <Eye className="h-4 w-4" />
-                      </button>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
+      )}
 
       {selected && (
         <ViewDialog
@@ -273,7 +965,7 @@ function PurchasesPage() {
           hasMultiWarehouse={hasMultiWarehouse}
         />
       )}
-    </>
+    </div>
   );
 }
 
