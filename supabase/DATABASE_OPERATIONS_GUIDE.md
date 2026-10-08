@@ -1,6 +1,6 @@
 # دليل تشغيل قاعدة البيانات — Market Hub ERP
 
-> **الملف:** `docs/DATABASE_OPERATIONS_GUIDE.md`
+> **الملف:** `supabase/DATABASE_OPERATIONS_GUIDE.md`
 > **الجمهور:** من يدير قاعدة البيانات أو ينقل النظام لعميل جديد
 > **المتطلبات المسبقة:** قراءة `supabase/MIGRATIONS_RULES.md`
 
@@ -20,6 +20,7 @@
 7. [استكشاف الأخطاء](#7-استكشاف-الأخطاء)
 8. [مرجع الأوامر](#8-مرجع-الأوامر)
 9. [أخطاء لا تفعلها](#9-أخطاء-لا-تفعلها)
+10. [المراجع](#10-المراجع)
 
 ---
 
@@ -50,21 +51,63 @@
 
 ## 2. الإعداد الأول للمشروع
 
-### 2.1 تثبيت الأدوات
+### 2.1 المتطلبات
 
-```bash
-# Node.js — لتشغيل التطبيق والـ seeds
-node --version        # يجب 18 أو أحدث
+قاعدة البيانات المحلية تعمل داخل حاويات Docker، فأدوات التطوير مطلوبة على جهاز
+المبرمج. **جهاز العميل النهائي لا يحتاج أياً منها** — التطبيق يوزَّع كبرنامج
+Windows يعمل بقاعدة بياناته الخاصة (راجع
+`docs/architecture/offline-first-architecture-audit-ar.md`).
 
-# Supabase CLI — لإدارة قاعدة البيانات
-npm install -g supabase
-supabase --version
+| الأداة | لماذا | كيف تتحقق |
+|---|---|---|
+| **Docker Desktop** | يشغّل حاويات Supabase المحلية (Postgres، Auth، Storage…) | `docker --version` |
+| **Node.js 18+** | يشغّل التطبيق ويمدّ `npx supabase` بالـ CLI | `node --version` |
+| **Supabase CLI** | إدارة الترحيلات والبذور والنسخ الاحتياطي | `npx supabase --version` |
+| **psql** (اختياري) | تشغيل ملفات SQL مباشرةً على السحابة | `psql --version` |
+| **Git** | تتبّع التغييرات | `git --version` |
 
-# psql — لتشغيل ملفات SQL مباشرة
-psql --version
+#### على Windows — تنبيه عملي
+
+بيئة التشغيل هذه على Windows، ولها ثلاث مفاجآت متكررة:
+
+1. **Docker Desktop يجب أن يكون قيد التشغيل** قبل أي أمر `supabase`.
+   إن رأيت `error during connect` أو `Cannot connect to the Docker daemon`،
+   فالمشكلة أن Docker لم يبدأ بعد — افتحه وانتظر حتى تصبح أيقونته خضراء.
+
+2. **Supabase CLI لا يوجد كأمر عالمي في هذا المشروع.** استخدم `npx supabase`
+   الذي ينزّل النسخة المثبّتة تلقائياً. أو حدّث PATH ليشمل
+   `C:\Program Files\Docker\Docker\resources\bin` و`C:\Program Files\Git\cmd`
+   و`C:\Program Files\nodejs`.
+
+3. **لا تستخدم `< redirect` في PowerShell** لتمرير ملف إلى `psql` أو
+   `docker exec -i`. المشغّل لا يدعم `<` ويرفضها:
+   ```
+   The '<' operator is reserved for future use.
+   ```
+   البديل الصحيح واحد من اثنين:
+   ```powershell
+   # الأفضل: انسخ الملف داخل الحاوية ثم شغّله
+   docker cp supabase\seeds\01_system\05_expense_categories.sql supabase_db_<ref>:/tmp/seed.sql
+   docker exec supabase_db_<ref> psql -U postgres -d postgres -f /tmp/seed.sql
+
+   # أو مرّر المحتوى عبر الأنبوب
+   Get-Content file.sql -Raw | docker exec -i supabase_db_<ref> psql -U postgres -d postgres
+   ```
+   > إن مرّرت الملف عبر `Get-Content -Raw`، فقد يسبق المحتوى علامة BOM
+   > (`\uFEFF`) فيرفضها Postgres بـ `syntax error at or near ""`. عندها
+   > استخدم `docker cp` فهو يحفظ الملف كما هو بلا BOM.
+
+#### أول تشغيل لـ `supabase start`
+
+المرة الأولى تنزّل صور Docker (نحو 1 غيغابايت)، وقد تستغرق **عدة دقائق**.
+شغّلها في الخلفية إن أردت:
+
+```powershell
+npx supabase start | Out-File supabase-start.log -Encoding utf8
 ```
 
-إن لم يكن `psql` مثبتًا، ثبّت PostgreSQL، أو استخدم محرر SQL في لوحة Supabase.
+واتبع التقدم بـ `Get-Content supabase-start.log -Tail 10`. عند الانتهاء سيُطبع
+جدول فيه عنوان القاعدة ومفاتيحها المحلية.
 
 ### 2.2 الملفات المطلوبة في المشروع
 
@@ -73,6 +116,7 @@ supabase/
 ├── config.toml          ← إعدادات المشروع ومسارات الـ seeds
 ├── migrations/          ← 13 ملف بنية
 ├── seeds/               ← البيانات
+├── DATABASE_OPERATIONS_GUIDE.md  ← هذا الدليل
 └── MIGRATIONS_RULES.md  ← القانون
 ```
 
@@ -93,11 +137,17 @@ SUPABASE_DB_PASSWORD=...
 ### 3.1 الطريقة الأولى: Supabase محلي (للتطوير)
 
 ```bash
-# ابدأ Docker أولًا، ثم:
+# ابدأ Docker Desktop أولًا، ثم:
 supabase start
 ```
 
-سيطبع لك عناوين لوحة التحكم المحلية وقاعدة البيانات.
+سيطبع لك عناوين لوحة التحكم المحلية وقاعدة البيانات، ومنها:
+
+| الخدمة | العنوان |
+|---|---|
+| API | `http://127.0.0.1:54321` |
+| Database | `postgresql://postgres:postgres@127.0.0.1:5432/postgres` |
+| Studio | `http://127.0.0.1:54323` |
 
 **لبناء المخطط والبيانات معًا:**
 
@@ -113,6 +163,14 @@ supabase db reset
 | 2 | ينشئ قاعدة فارغة |
 | 3 | يطبّق كل ملف في `migrations/` بالترتيب الرقمي |
 | 4 | يطبّق ملفات `seeds/01_system/*.sql` |
+
+**للتحقق من عدد الترحيلات المطبَّقة:**
+
+```powershell
+npx supabase db query "SELECT count(*) AS migrations FROM supabase_migrations.schema_migrations;"
+```
+
+النتيجة المتوقعة: **13**.
 
 > ⚠️ **`db reset` يحذف كل شيء.** لا تشغّله على إنتاج أبدًا.
 
@@ -189,12 +247,27 @@ for f in supabase/seeds/01_system/*.sql; do psql "$DATABASE_URL" -f "$f"; done
 
 ### 4.2 تشغيل ملف واحد
 
-**PowerShell:**
+**على قاعدة محلية (Docker) — الطريقة المضمونة على Windows:**
+
+```powershell
+# اعرف اسم حاوية قاعدة البيانات أولاً
+docker ps --format "{{.Names}}" | Select-String supabase_db
+
+# انسخ الملف داخل الحاوية ثم شغّله
+docker cp supabase\seeds\03_samples\sample-mill.sql supabase_db_<ref>:/tmp/seed.sql
+docker exec supabase_db_<ref> psql -U postgres -d postgres -v ON_ERROR_STOP=1 -f /tmp/seed.sql
+```
+
+> **لماذا `docker cp` تحديداً؟** لأنه ينسخ الملف بايتاً ببايت بلا BOM، بخلاف
+> `Get-Content -Raw | docker exec -i` الذي قد يضيف BOM فيرفضه Postgres.
+> و`-v ON_ERROR_STOP=1` يجعل psql يتوقف عند أول خطأ بدل أن يكمل بصمت.
+
+**على قاعدة سحابية:**
+
 ```powershell
 psql "$env:DATABASE_URL" -f supabase\seeds\03_samples\sample-mill.sql
 ```
 
-**Bash / Linux / macOS:**
 ```bash
 psql "$DATABASE_URL" -f supabase/seeds/03_samples/sample-mill.sql
 ```
@@ -214,32 +287,40 @@ psql "$DATABASE_URL" -f supabase/seeds/01_system/05_expense_categories.sql
 ```
 
 **لماذا هذا الترتيب؟** لأن `02_plans.sql` يفحص أن كل وحدة تفتحها الباقة مسجّلة
-في `platform_modules` — والوحدات في `01`. لو عكست الترتيب، يفشل الملف برسالة:
+في `platform_modules` — والوحدات في `01`. و`05_expense_categories.sql` يحلّ
+الحساب **بالكود** من `accounts`، فلو شُغّل قبل `03_chart_of_accounts.sql` لما
+وجد الحساب، ولرفع فحصه الذاتي استثناءً. لو عكست الترتيب، يفشل الملف برسالة:
 
 ```
 باقة تشير إلى وحدات غير مسجّلة في platform_modules: ...
 ```
 
-### 4.4 التحقق بعد التشغيل
+**تشغيلها كلها محليًا بأمر واحد:**
 
-```sql
--- في محرر SQL
-SELECT 'الوحدات'  AS البيان, count(*) FROM public.units
-UNION ALL SELECT 'الحسابات',   count(*) FROM public.accounts
-UNION ALL SELECT 'وحدات النظام', count(*) FROM public.platform_modules
-UNION ALL SELECT 'الباقات',     count(*) FROM public.platform_plans
-UNION ALL SELECT 'تصنيفات المصروف', count(*) FROM public.expense_categories;
+```powershell
+$ref = (docker ps --format "{{.Names}}" | Select-String "supabase_db_").ToString()
+foreach ($f in @("01_modules","02_plans","03_chart_of_accounts","04_units","05_expense_categories")) {
+  Write-Host "--- $f ---"
+  docker cp "supabase\seeds\01_system\$f.sql" "${ref}:/tmp/$f.sql"
+  docker exec $ref psql -U postgres -d postgres -v ON_ERROR_STOP=1 -f "/tmp/$f.sql"
+}
 ```
 
-**الأرقام المتوقعة:**
+### 4.4 التحقق بعد التشغيل
+
+```powershell
+npx supabase db query "SELECT 'الوحدات' AS البيان, count(*) FROM public.units UNION ALL SELECT 'الحسابات', count(*) FROM public.accounts UNION ALL SELECT 'وحدات النظام', count(*) FROM public.platform_modules UNION ALL SELECT 'الباقات', count(*) FROM public.platform_plans UNION ALL SELECT 'تصنيفات المصروف', count(*) FROM public.expense_categories;"
+```
+
+**الأرقام المتوقعة** (مقيسة على `db reset` نظيف):
 
 | البيان | العدد |
 |---|---|
 | الوحدات | 13 |
-| الحسابات | ~52 |
+| الحسابات | 53 |
 | وحدات النظام | 14 |
 | الباقات | 3 |
-| تصنيفات المصروف | 10 |
+| تصنيفات المصروف | 11 |
 
 ### 4.5 هل البيانات صحيحة؟
 
@@ -255,6 +336,36 @@ SELECT
 ```
 
 إن ظهر أي رقم غير صفر، فمعنى ذلك أن بيانات أعمال تسرّبت إلى ملفات النظام.
+
+### 4.6 فحص ربط تصنيفات المصروف بالحسابات
+
+التصنيفات صارت تحمل `account_id`، فيجب ألّا يبقى تصنيف نشط بلا حساب:
+
+```sql
+SELECT
+  c.name_ar,
+  a.code  AS كود_الحساب,
+  a.name_ar AS اسم_الحساب
+FROM public.expense_categories c
+LEFT JOIN public.accounts a ON a.id = c.account_id
+ORDER BY c.sort_order;
+```
+
+النتيجة الصحيحة: **11 صفاً، كلها بكود حساب غير فارغ**. ولو بقي تصنيف بلا
+حساب، فقد فشل ربطه — ولن يسكت الملف نفسه عن ذلك لأنه يرفع استثناءً.
+
+### 4.7 الثبات (Idempotency) — شغّل الملف مرتين
+
+كل ملف نظام يجب أن يُشغَّل مرتين بلا خطأ أو تكرار:
+
+```powershell
+docker cp supabase\seeds\01_system\05_expense_categories.sql supabase_db_<ref>:/tmp/seed05.sql
+docker exec supabase_db_<ref> psql -U postgres -d postgres -f /tmp/seed05.sql   # INSERT 0 11
+docker exec supabase_db_<ref> psql -U postgres -d postgres -f /tmp/seed05.sql   # INSERT 0 0
+```
+
+المرة الثانية تعطي `INSERT 0 0` — أي لا جديد. إن أعطت `INSERT 0 11` فقد
+تضاعفت الصفوف، وإن رمت `duplicate key` فقد غاب `ON CONFLICT`.
 
 ---
 
@@ -320,6 +431,12 @@ psql "$DATABASE_URL" -f acme-2026.sql
 
 ```bash
 supabase db dump -f backup-$(date +%Y%m%d).sql
+```
+
+على PowerShell (لا يوجد `$(date)`):
+
+```powershell
+npx supabase db dump -f "backup-$(Get-Date -Format 'yyyyMMdd').sql"
 ```
 
 ### 6.2 البنية فقط
@@ -427,6 +544,39 @@ Database: postgres
 
 المنطقة تجدها في: لوحة التحكم ← Project Settings ← General ← Region.
 
+### 7.8 `Cannot connect to the Docker daemon` / `error during connect`
+
+**السبب:** Docker Desktop ليس قيد التشغيل.
+
+**الحل:** افتح Docker Desktop وانتظر حتى تصبح أيقونته في شريط المهام خضراء، ثم
+أعد الأمر. تحقّق بـ:
+
+```powershell
+docker info --format "{{.ServerVersion}}"
+```
+
+### 7.9 `syntax error at or near ""` عند تمرير ملف عبر الأنبوب
+
+**السبب:** علامة BOM (`\uFEFF`) في أول الملف، أضافها PowerShell عند تمريره عبر
+الأنبوب.
+
+**الحل:** استخدم `docker cp` بدل الأنبوب:
+
+```powershell
+docker cp file.sql supabase_db_<ref>:/tmp/file.sql
+docker exec supabase_db_<ref> psql -U postgres -d postgres -f /tmp/file.sql
+```
+
+### 7.10 حاوية `supabase_vector_...` تُعيد التشغيل باستمرار
+
+**السبب:** خدمة التحليلات (Analytics) تحتاج Docker daemon مكشوفاً على
+`tcp://localhost:2375`، وهو غير مفعّل افتراضياً على Windows.
+
+**الأثر:** **لا شيء يمسّ قاعدة البيانات.** التحليلات فقط معطّلة. كل الحاويات
+الأخرى (db، auth، rest، storage…) تعمل سليمة. تجاهلها، أو فعّل
+`Expose daemon on tcp://localhost:2375 without TLS` من إعدادات Docker Desktop
+إن أردت إسكاتها.
+
 ---
 
 ## 8. مرجع الأوامر
@@ -445,6 +595,9 @@ Database: postgres
 | `supabase db dump` | نسخة احتياطية | لا |
 | `supabase link` | يربط المشروع | لا |
 | `supabase db diff` | يعرض الفرق بين Local والسحابة | لا |
+| `supabase db query "<SQL>"` | ينفّذ استعلاماً على القاعدة المحلية | لا |
+
+> على هذا المشروع، سبق كل أمر بـ `npx` — مثل `npx supabase start`.
 
 ### أوامر psql
 
@@ -481,6 +634,9 @@ $env:DATABASE_URL = "postgresql://postgres.xxxx:pass@aws-0-ap-northeast-1.pooler
 ```bash
 export DATABASE_URL="postgresql://postgres.xxxx:pass@aws-0-ap-northeast-1.pooler.supabase.com:5432/postgres"
 ```
+
+> **للقاعدة المحلية** لا تحتاج `DATABASE_URL` أصلاً؛ الاتصال ثابت:
+> `postgresql://postgres:postgres@127.0.0.1:5432/postgres`.
 
 ---
 
