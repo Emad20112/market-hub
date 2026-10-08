@@ -58,6 +58,7 @@ import { toast } from "sonner";
 import { printInvoice, type InvoiceTemplate } from "@/lib/invoice-print";
 import type { InvoiceDoc } from "@/lib/pdf";
 import { OperationSuccessModal } from "@/components/communication";
+import { LuxuryPrintPreviewModal } from "@/components/luxury-print-preview-modal";
 import {
   createSalesInvoice,
   fetchSellableProducts,
@@ -237,6 +238,7 @@ function SalesInvoicePage() {
     doc: InvoiceDoc;
   } | null>(null);
   const [successModalOpen, setSuccessModalOpen] = useState(false);
+  const [luxuryPreviewOpen, setLuxuryPreviewOpen] = useState(false);
 
   const setT = <K extends keyof TicketForm>(key: K, value: TicketForm[K]) =>
     setTicket((current) => ({ ...current, [key]: value }));
@@ -1356,7 +1358,13 @@ function SalesInvoicePage() {
         open={successModalOpen}
         onClose={() => setSuccessModalOpen(false)}
         title={isRtl ? "تم إصدار الفاتورة بنجاح" : "Invoice Issued Successfully"}
-        subtitle={lastInvoice ? (isRtl ? `فاتورة مبيعات #${lastInvoice.number}` : `Sales Invoice #${lastInvoice.number}`) : undefined}
+        subtitle={
+          lastInvoice
+            ? isRtl
+              ? `فاتورة مبيعات #${lastInvoice.number}`
+              : `Sales Invoice #${lastInvoice.number}`
+            : undefined
+        }
         amount={lastInvoice?.total}
         referenceNumber={lastInvoice?.number}
         customer={
@@ -1383,8 +1391,20 @@ function SalesInvoicePage() {
             : null
         }
         eventType="invoice_created"
-        onPrint={() => printLast("standard")}
+        onPrint={() => setLuxuryPreviewOpen(true)}
       />
+
+      {lastInvoice && (
+        <LuxuryPrintPreviewModal
+          open={luxuryPreviewOpen}
+          onClose={() => setLuxuryPreviewOpen(false)}
+          doc={lastInvoice.doc}
+          documentType="customer_invoice"
+          title={isRtl ? "معاينة وطباعة الفاتورة" : "Invoice Print Preview"}
+          customerPhone={selectedCustomer?.phone || undefined}
+          customerName={selectedCustomer?.name || undefined}
+        />
+      )}
     </div>
   );
 }
