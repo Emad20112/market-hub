@@ -1,123 +1,190 @@
-# Seed files
+# ملفات البيانات (Seeds)
 
-Two very different kinds of data live in this folder. Mixing them is what broke
-`supabase db reset` with:
+هذا المجلد يحتوي **البيانات**، منفصلة تمامًا عن **البنية**.
+
+البنية في `supabase/migrations/` وهي نفسها لكل عميل. أما هذا المجلد فهو المكان
+الوحيد الذي يجوز فيه إدخال بيانات. خلط الاثنين هو ما أفسد النظام سابقًا:
 
 ```
-Seeding data from supabase/seeds/seed.sql...
-ERROR: duplicate key value violates unique constraint "company_settings_pkey" (SQLSTATE 23505)
+ERROR: duplicate key value violates unique constraint "company_settings_pkey"
 ```
 
-That happened because the auto-run seed (`seed.sql`) contained reference rows,
-demo business rows **and** `auth.users` rows at the same time, while
-`reference.sql` inserted the same reference rows under a different conflict key.
-The two files collided, and the whole seed transaction aborted.
+والأسوأ: كان كل عميل جديد يستلم كتالوج منتجات مطحنة يمنية ومخزونًا وهميًا بمقدار
+999,999، من دون أن يطلب ذلك.
 
-## Layout
+---
+
+## البنية
 
 ```
 supabase/seeds/
-├── README.md              <- this file
-├── reference/             <- AUTO-RUN. The system cannot start without these.
-│   ├── 01_platform_modules.sql
-│   ├── 02_platform_plans.sql
-│   ├── 03_chart_of_accounts.sql
-│   ├── 04_units.sql
-│   ├── 05_expense_categories.sql
-│   └── 06_milling_reference.sql
-├── demo/                  <- NEVER AUTO-RUN. One business's fabricated data.
-│   ├── accounts.sql             <- demo staff accounts (run FIRST)
-│   ├── wholesale-retail.sql     <- grocery / wholesale + retail dataset
-│   ├── stationery.sql           <- office-supplies dataset
-│   ├── stationery-legacy.sql    <- superseded variant, reference only
-│   ├── mill-catalog.sql         <- mill product families (moved out of migrations)
-│   ├── mill-products.sql        <- mill products (moved out of migrations)
-│   ├── warehouses.sql           <- warehouse rows (moved out of migrations)
-│   └── customers.sql            <- customer rows (moved out of migrations)
-├── test/                  <- NEVER AUTO-RUN. Fixtures for automated tests.
-└── customer/              <- NEVER COMMITTED. A real customer's own data.
+├── README.md                    ← هذا الملف
+│
+├── 01_system/                   ← يُشغَّل تلقائيًا على كل قاعدة جديدة
+│   ├── 01_modules.sql           سجل وحدات النظام
+│   ├── 02_plans.sql             باقات الاشتراك
+│   ├── 03_chart_of_accounts.sql دليل الحسابات
+│   ├── 04_units.sql             وحدات القياس
+│   ├── 05_expense_categories.sql تصنيفات المصروفات
+│   └── 06_milling_reference.sql مرجعيات وحدة الطحن
+│
+├── 02_company/                  ← يدوي، مرة واحدة لكل عميل
+│   ├── README.md
+│   └── customer-template.sql.example
+│
+├── 03_samples/                  ← يدوي، بيانات عرض لكل نشاط
+│   ├── README.md
+│   └── sample-mill.sql          مطحنة دقيق
+│
+├── 04_tests/                    ← يدوي، من الاختبارات الآلية
+│   ├── README.md
+│   └── fixtures.sql.example
+│
+└── _archive/                    ← ملفات موروثة لا تعمل، للمرجعية فقط
+    ├── README.md
+    ├── supermarket-inherited.sql
+    └── stationery-inherited.sql
 ```
 
-## The boundary — one question decides it
+---
 
-> **Can any new customer run the system without this row?**
+## كيف تقرّر أين يذهب أي صف؟ سؤال واحد
 
-| Answer | Where it goes |
+> **هل يستطيع أي عميل جديد تشغيل النظام بدون هذا الصف؟**
+
+| الجواب | المكان | يُشغَّل |
+| --- | --- | --- |
+| لا — الكود يحلّه بمفتاح ثابت | `01_system/` | **تلقائيًا** |
+| يخصّ هوية عميل بعينه | `02_company/` | يدويًا |
+| مفيد لعرض النظام فقط | `03_samples/` | يدويًا |
+| يثبّت نتيجة اختبار آلي | `04_tests/` | يدويًا |
+
+---
+
+## الفرق بين `01_system` و `03_samples` — بالمثال
+
+هذا هو الفرق الذي يلتبس على كثيرين. لنأخذ «الكيلوجرام» و«قمح بلدي»:
+
+| الصف | أين مكانه؟ | لماذا |
+| --- | --- | --- |
+| `Kilogram` في جدول الوحدات | `01_system` | الكيلوجرام كيلوجرام في أي منشأة. مطحنة أو صيدلية أو مكتبة — لا فرق. |
+| `قمح بلدي` في جدول المنتجات | `03_samples` | منتج تشتريه مطحنة بعينها. متجر القرطاسية لا علاقة له به. |
+
+**القاعدة:** إن كان الصف **صحيحًا لكل منشأة في العالم** فهو نظامي. وإن كان صحيحًا
+لمنشأة واحدة فهو عيّنة.
+
+### أمثلة على الحدّ الفاصل
+
+| ✅ في `01_system` | ❌ في `03_samples` |
 | --- | --- |
-| No — the code resolves it by a fixed key | `reference/` |
-| It is useful only for a product demo | `demo/` |
-| It exists to make an automated test deterministic | `test/` |
-| It belongs to one real business | `customer/` (never committed) |
+| الكيلوجرام، اللتر، المتر | كيس 50 كجم، شوال خيش |
+| الإيجار، الرواتب كتصنيفات | «نخالة قمح»، «دقيق نمرة 1» |
+| دليل الحسابات (الأكواد) | «البنك الأهلي» كاسم بنك بعينه |
+| وحدات النظام (المبيعات، المخزون) | منتجات مطحنة، عملاء، موردون |
+| أنواع العبوات: شوال، كيس | المستودع «المحل الرئيسي» |
+| حالات الفاتورة: مسدد، جزئي | رصيد افتتاحي لعميل |
 
-### Why `accounts` is reference but `products` is not
+---
 
-The posting functions contain account codes as literals — `'1211'`, `'4111'`,
-`'5111'`. A missing account makes every posting that touches it fail, so the
-chart is structure. A product catalogue describes what one business happens to
-sell, so it is not.
+## لماذا دليل الحسابات في `01_system`؟
 
-## What runs automatically
+لأن **دوال الترحيل في قاعدة البيانات تحتوي أكواد الحسابات كنصوص ثابتة**:
 
-`supabase/config.toml` wires **only** the files under `./seeds/reference/`:
-
-```toml
-[db.seed]
-enabled = true
-sql_paths = ["./seeds/reference/*.sql"]
+```sql
+-- من migrations/08_accounting_ledger.sql
+v_cash_acct := '1101';                        -- النقدية
+WHEN 'RAW_MATERIAL' THEN '1311';              -- المخزون
+WHEN 'SERVICE'      THEN '4311';              -- الإيراد
 ```
 
-Files in `reference/` may contain only rows the application cannot function
-without, and every statement must be idempotent:
+لو نقص حساب، يفشل ترحيل الفاتورة برسالة:
+`One or more account codes do not exist`
 
-| Allowed                               | Forbidden                                |
-| ------------------------------------- | ---------------------------------------- |
-| `platform_modules`, `platform_plans`  | Products, customers, suppliers, invoices |
-| `accounts` (the chart of accounts)    | `warehouses` (a physical location)       |
-| Default `units`, `expense_categories` | `auth.users`, `profiles`, `user_roles`   |
-| Milling lookups resolved by code      | `company_settings` (customer identity)   |
+**الأكواد عقد مع البرنامج.** أما الأسماء فقد صيغت محايدة، ويُعاد تسميتها من
+شاشة دليل الحسابات.
 
-Company identity is a setting each customer edits in the app. It must never
-arrive from a migration or a seed.
+---
 
-## Running a demo dataset
+## لماذا لا تُوضع هوية الشركة في أي ملف؟
 
-Demo datasets are opt-in and are **never** executed by `supabase db reset`.
-Run them in this order, on a local or throwaway project only:
+اسم الشركة والعملة والرقم الضريبي والشعار **إعداد** يحرّره العميل من الشاشة.
+وصولها من ملف يعني أن كل عميل يبدأ باسم وعملة عميل آخر. هذا ممنوع بنصّ
+`MIGRATIONS_RULES.md` القاعدة R-02.
+
+---
+
+## تشغيل ملفات العيّنات
+
+ملفات `03_samples/` اختيارية و**لا تُشغَّل تلقائيًا**:
 
 ```bash
-# 1. accounts first — demo transactions carry created_by / actor_id FKs to these ids
-psql "$DATABASE_URL" -f supabase/seeds/demo/accounts.sql
-
-# 2. then exactly one dataset
-psql "$DATABASE_URL" -f supabase/seeds/demo/wholesale-retail.sql   # grocery
-psql "$DATABASE_URL" -f supabase/seeds/demo/stationery.sql         # office supplies
+# مطحنة
+psql "$DATABASE_URL" -f supabase/seeds/03_samples/sample-mill.sql
 ```
 
-Or paste the file into Supabase Studio → SQL Editor and press Run.
+أو الصق الملف في Supabase Studio ← محرر SQL ← تشغيل.
 
-> Never run a file from `demo/` against a customer database. It writes fabricated
-> invoices into their books and, for the datasets that touch `company_settings`,
-> their company identity.
+> **تحذير:** لا تُشغّل أي ملف من `03_samples/` على قاعدة عميل حقيقي. سيُدخل
+> منتجات وعملاء وهميين في دفاتره.
 
-## Rules for demo files
+### نشاط غير موجود في القائمة؟
 
-1. **Idempotent.** Every `INSERT` ends with `ON CONFLICT`, so re-running is safe.
-2. **Never overwrite identity.** `company_settings` uses `ON CONFLICT (id) DO
-NOTHING`, not `DO UPDATE`.
-3. **Key shared rows on the business key.** `units` and `expense_categories` are
-   also written by `reference.sql`, so they conflict on `(name)` — a UUID-keyed
-   conflict would create duplicate rows instead of detecting the collision.
-4. **Wrap in `BEGIN` / `COMMIT`.** A failure then leaves nothing behind.
-5. **No working credentials.** Demo accounts carry a NULL password hash and no
-   `auth.identities` row, so they cannot sign in.
+شغّل `01_system` فقط، ثم أدخل منتجاتك من التطبيق. النظام يعمل بلا أي ملف عيّنة.
 
-## Which dataset do I want?
+---
 
-| Dataset                      | Contents                                                          |
-| ---------------------------- | ----------------------------------------------------------------- |
-| `demo/wholesale-retail.sql`  | Groceries, beverages, consumer goods; wholesale + retail pricing  |
-| `demo/stationery.sql`        | 56 office-supply items, 20 customers, purchases, sales, transfers |
-| `demo/stationery-legacy.sql` | The pre-fix stationery dataset. Not idempotent — reference only.  |
+## قواعد كتابة أي ملف بيانات
 
-All datasets leave `created_by` / `actor_id` NULL unless you ran
-`demo/accounts.sql` first.
+هذه القواعد ملزمة لكل ملف في هذا المجلد. المرجع الكامل:
+`supabase/MIGRATIONS_RULES.md`.
+
+### 1. ثابت (Idempotent)
+كل `INSERT` ينتهي بـ `ON CONFLICT` على **مفتاح أعمال حقيقي** — اسم أو رمز أو
+SKU. **لا** على UUID عشوائي، لأن الصفّ المكرر يظهر بدل أن يُكتشف التعارض.
+
+### 2. ملفوف في معاملة
+`BEGIN` … `COMMIT`. لو فشل جزء، لا يبقى شيء.
+
+### 3. بلا معرّفات ثابتة
+ممنوع كتابة UUID صريح مأخوذ من قاعدة المطوّر، لأن ذلك المعرّف لا وجود له في
+قاعدة جديدة، فيفشل الملف برسالة «violates foreign key constraint».
+
+الطريقة الصحيحة: حلّ المعرّف بالاسم أو الرمز.
+```sql
+(SELECT id FROM public.categories WHERE name = 'Wheat')
+```
+
+### 4. بلا تواريخ إنشاء ثابتة
+لا تكتب `created_at`. اتركه للقيمة الافتراضية، وإلا تجمّد تاريخ البناء في
+بيانات تجارية.
+
+### 5. بلا أسرار
+لا كلمات مرور، ولا مفاتيح، ولا رموز وصول. إنشاء المستخدمين عبر التطبيق أو
+دالة `admin-create-user`.
+
+### 6. بلا بيانات اختبار
+ممنوع أسماء ضغط لوحة المفاتيح، أو أرصدة مختلقة بلا فاتورة تقابلها.
+
+---
+
+## إنشاء حساب المالك الأول
+
+**لا** تضع مسؤولًا في ملف بيانات. المخطط يوفّر دالة `bootstrap_first_owner()`
+ترقّي مستخدمًا مسجّلًا إلى مالك، وتنجح فقط ما دام لا يوجد مالك.
+
+1. سجّل المستخدم من التطبيق.
+2. نادِ الدالة:
+
+```sql
+SELECT public.bootstrap_first_owner();
+```
+
+بهذا لا تدخل أي كلمة مرور إلى المستودع.
+
+---
+
+## المراجع
+
+- `supabase/MIGRATIONS_RULES.md` — قانون الترحيلات والبيانات (ملزم)
+- `supabase/SEEDS_AND_REFERENCE_REFACTOR_PLAN.md` — خطة هذا التنظيم
+- `supabase/migrations/README.md` — دليل البنية
