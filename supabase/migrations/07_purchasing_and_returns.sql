@@ -13,7 +13,10 @@ CREATE TABLE public.purchase_invoices (
   invoice_number text NOT NULL,
   supplier_id uuid,
   warehouse_id uuid,
+  -- حالة الدورة: مسودة / مؤكدة / ملغاة. لا تُكتب من مبلغ السداد.
   status public.invoice_status DEFAULT 'draft'::invoice_status NOT NULL,
+  -- حالة السداد، منفصلة، وتُشتقّ من (paid مقابل total).
+  payment_status public.payment_status DEFAULT 'unpaid'::payment_status NOT NULL,
   subtotal numeric(14,2) DEFAULT 0 NOT NULL,
   discount numeric(14,2) DEFAULT 0 NOT NULL,
   tax numeric(14,2) DEFAULT 0 NOT NULL,
@@ -154,14 +157,15 @@ BEGIN
   v_invoice_no := public.next_purchase_number();
 
   INSERT INTO public.purchase_invoices (
-    invoice_number, supplier_id, warehouse_id, status,
+    invoice_number, supplier_id, warehouse_id, status, payment_status,
     subtotal, discount, tax, total, paid, payment_method, note, created_by
   )
   VALUES (
     v_invoice_no, _supplier_id, _warehouse_id,
-    CASE WHEN coalesce(_paid, 0) >= v_total
-         THEN 'paid'::public.invoice_status
-         ELSE 'partial'::public.invoice_status END,
+    -- حالة الدورة: مشتريات أُنشئت مؤكدة — أثرها المخزني والمالي واقع.
+    'confirmed'::public.invoice_status,
+    -- حالة السداد مشتقّة، لا مكتوبة من مبلغ الدفع مباشرةً.
+    public.derive_payment_status(coalesce(_paid, 0), v_total),
     v_subtotal, coalesce(_discount, 0), v_tax_total, v_total, coalesce(_paid, 0),
     _payment_method::public.payment_method, nullif(btrim(_note), ''), v_user
   )
@@ -332,7 +336,7 @@ BEGIN
         'Purchase return',
         'COMPANY'::public.owner_type,
         NULL,
-        'return_out'::public.movement_type
+        'purchase_return'::public.movement_type
       );
     END IF;
   END LOOP;

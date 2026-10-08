@@ -31,7 +31,7 @@
 --   1. الوحدات الخاصة بالمطحنة (العبوات بوزنها)   ← تعتمد على: لا شيء
 --   2. المستودع                                    ← تعتمد على: لا شيء
 --   3. التصنيفات                                   ← تعتمد على: لا شيء
---   4. المنتجات                                    ← تعتمد على: 1، 3
+--   4. أنواع العبوات + المنتجات                    ← تعتمد على: 1، 3
 --   5. درجات الحبوب                                ← تعتمد على: 4
 --   6. المورّد والعميلان                            ← تعتمد على: لا شيء
 --
@@ -54,9 +54,9 @@ BEGIN;
 -- تُدخل المنشأة عبواتها كمنتجات في القسم 4، وهو أدقّ تصنيفًا.
 
 INSERT INTO public.units (name, short_name, name_ar) VALUES
-  ('Bag 25kg',   'bag25', 'كيس 25 كجم'),
+  ('Bag 25kg',   'Bag 25kg', 'كيس 25 كجم'),
   ('Bag 40kg',   'bag40', 'كيس 40 كجم'),
-  ('Bag 50kg',   'bag50', 'كيس 50 كجم'),
+  ('Bag 50kg',   'Bag 50kg', 'كيس 50 كجم'),
   ('Sack 50kg',  'sack50','شوال 50 كجم')
 ON CONFLICT (name) DO NOTHING;
 
@@ -100,12 +100,25 @@ ON CONFLICT DO NOTHING;
 -- عشرون منتجًا: مواد خام (قمح، ذرة، شعير)، ومنتجات تامة (دقيق بدرجاته،
 -- سميد، نخالة)، ومستلزمات تعبئة، وخدمات (أجور طحن وتعبئة).
 --
--- ── كيف تُربط المنتجات بمحتوياتها ───────────────────────────────────────────
---   التصنيف  يُحلّ بالاسم   : (SELECT id FROM categories WHERE name = '...')
---   الوحدة   تُحلّ برمزها   : (SELECT id FROM units WHERE name = '...')
---   العبوة   تُحلّ برمزها   : (SELECT id FROM packaging_types WHERE code = '...')
+-- ── قبل المنتجات: أنواع العبوات الخاصة بالمطحنة ──────────────────────────
+-- جدول packaging_types **يبدأ فارغًا في النظام**، وقصدًا: نوع العبوة اختيار
+-- يخصّ المنشأة («شوال» يفيد مطحنة ولا يفيد مكتبة)، فلا يُفرض على كل عميل.
 --
---   فلا يوجد أي معرّف ثابت في هذا الملف.
+-- لكن المطحنة تحتاج هذه الأنواع لتصف عبواتها، فننشئها هنا في بياناتها — لا
+-- في بيانات النظام. وهذا هو الفرق: ما يُفرض على الجميع في 01_system، وما يخص
+-- نشاطًا في 03_samples.
+
+INSERT INTO public.packaging_types (code, name_ar, name_en, is_active, sort_order) VALUES
+  ('SACK', 'شوال', 'Sack', true, 1),
+  ('BAG',  'كيس',  'Bag',  true, 2)
+ON CONFLICT (code) DO NOTHING;
+
+-- ── كيف تُربط المنتجات بمحتوياتها ──────────────────────────────────────────
+--   التصنيف  يُحلّ بالاسم   : (SELECT id FROM categories WHERE name = '...')
+--   الوحدة   تُحلّ بالاسم   : (SELECT id FROM units WHERE name = '...')
+--   العبوة   تُحلّ بالرمز   : (SELECT id FROM packaging_types WHERE code = '...')
+--
+--   فلا يوجد أي معرّف ثابت في هذا الملف، فيعمل على أي قاعدة وفي أي وقت.
 
 INSERT INTO public.products (
   sku, name, name_ar, description,
@@ -118,52 +131,64 @@ INSERT INTO public.products (
 )
 SELECT
   v.sku, v.name, v.name_ar, v.description,
+  -- التصنيف يُحلّ بالاسم
   (SELECT id FROM public.categories WHERE name = v.category),
-  u.id, u.id, u.id, u.id,
+  -- الوحدة تُحلّ بالاسم (عمود name في units هو المفتاح الفريد)
+  (SELECT id FROM public.units WHERE name = v.unit),
+  (SELECT id FROM public.units WHERE name = v.unit),
+  (SELECT id FROM public.units WHERE name = v.unit),
+  (SELECT id FROM public.units WHERE name = v.unit),
   v.cost, v.price, 0, 0,
-  v.is_service, true, 'ACTIVE',
-  v.nature, v.policy, v.tracking, v.costing,
+  v.is_service,
+  true,
+  -- قيم VALUES تُستنتج كنص في PostgreSQL، فالأعمدة من نوع ENUM تحتاج تحويلًا صريحًا.
+  'ACTIVE'::public.item_status,
+  v.nature::public.item_nature,
+  v.policy::public.inventory_policy,
+  v.tracking::public.item_tracking,
+  v.costing::public.costing_method,
   v.sellable, v.purchasable,
-  v.item_class,
+  v.item_class::public.item_class,
+  -- العبوة تُحلّ بالرمز (اختيارية: NULL للأصناف بلا عبوة)
   (SELECT id FROM public.packaging_types WHERE code = v.pkg),
   v.weight
 FROM (VALUES
   -- ── مواد خام ──────────────────────────────────────────────────────────────
   ('RM-WHEAT-HARD',  'Wheat Hard Imported', 'قمح صلب مستورد (درجة أولى)',
-   'قمح صلب مستورد من الدرجة الأولى.', 'Wheat', 'bag50',
+   'قمح صلب مستورد من الدرجة الأولى.', 'Wheat', 'Bag 50kg',
    11400, 0, false, 'GOOD', 'TRACKED', 'BATCH', 'MOVING_AVERAGE', false, true, 'RAW_MATERIAL', NULL, NULL),
 
   ('RM-WHEAT-LOCAL', 'Wheat Local', 'قمح بلدي محلي',
-   'قمح بلدي موسمي — التكلفة الفعلية تتحدد عند الشراء.', 'Wheat', 'bag50',
+   'قمح بلدي موسمي — التكلفة الفعلية تتحدد عند الشراء.', 'Wheat', 'Bag 50kg',
    11000, 0, false, 'GOOD', 'TRACKED', 'BATCH', 'MOVING_AVERAGE', false, true, 'RAW_MATERIAL', NULL, NULL),
 
   ('RM-WHEAT-SOFT',  'Wheat Soft', 'قمح طري للمخبوزات',
-   'قمح طري مخصص للمخبوزات والحلويات.', 'Wheat', 'bag50',
+   'قمح طري مخصص للمخبوزات والحلويات.', 'Wheat', 'Bag 50kg',
    10800, 0, false, 'GOOD', 'TRACKED', 'BATCH', 'MOVING_AVERAGE', false, true, 'RAW_MATERIAL', NULL, NULL),
 
   ('RM-CORN-YELLOW', 'Yellow Corn', 'ذرة صفراء خام',
-   'ذرة صفراء خام تصلح للطحن أو التغذية.', 'Corn', 'bag50',
+   'ذرة صفراء خام تصلح للطحن أو التغذية.', 'Corn', 'Bag 50kg',
    12500, 0, false, 'GOOD', 'TRACKED', 'BATCH', 'MOVING_AVERAGE', false, true, 'RAW_MATERIAL', NULL, NULL),
 
   ('RM-BARLEY',      'Barley', 'شعير حبوب خام',
-   'شعير خام للطحن أو التغذية.', 'Barley', 'bag50',
+   'شعير خام للطحن أو التغذية.', 'Barley', 'Bag 50kg',
    9000, 0, false, 'GOOD', 'TRACKED', 'BATCH', 'MOVING_AVERAGE', false, true, 'RAW_MATERIAL', NULL, NULL),
 
   -- ── منتجات تامة (مطحونة) ───────────────────────────────────────────────────
   ('FG-FLOUR-SUPER-50',  'Flour Super Grade 1 50kg', 'دقيق فاخر نمرة 1 — شوال 50 كجم',
-   'دقيق فاخر درجة أولى معبأ في شوال 50 كجم.', 'White Flour', 'bag50',
+   'دقيق فاخر درجة أولى معبأ في شوال 50 كجم.', 'White Flour', 'Bag 50kg',
    0, 13500, true, 'GOOD', 'TRACKED', 'BATCH', 'MOVING_AVERAGE', true, false, 'FINISHED_GOOD', 'SACK', 50),
 
   ('FG-FLOUR-SUPER-25',  'Flour Super Grade 1 25kg', 'دقيق فاخر نمرة 1 — كيس 25 كجم',
-   'دقيق فاخر درجة أولى معبأ في كيس 25 كجم.', 'White Flour', 'bag25',
+   'دقيق فاخر درجة أولى معبأ في كيس 25 كجم.', 'White Flour', 'Bag 25kg',
    0, 6800, true, 'GOOD', 'TRACKED', 'BATCH', 'MOVING_AVERAGE', true, false, 'FINISHED_GOOD', 'BAG', 25),
 
   ('FG-FLOUR-BROWN-50',  'Flour Brown 50kg', 'دقيق بر كامل — شوال 50 كجم',
-   'دقيق بر كامل (بلدي نمرة 2) معبأ في شوال 50 كجم.', 'Brown Flour', 'bag50',
+   'دقيق بر كامل (بلدي نمرة 2) معبأ في شوال 50 كجم.', 'Brown Flour', 'Bag 50kg',
    0, 13000, true, 'GOOD', 'TRACKED', 'BATCH', 'MOVING_AVERAGE', true, false, 'FINISHED_GOOD', 'SACK', 50),
 
   ('FG-SEMOLINA-50',     'Semolina 50kg', 'سميد ناعم — شوال 50 كجم',
-   'سميد ناعم معبأ في شوال 50 كجم.', 'Semolina', 'bag50',
+   'سميد ناعم معبأ في شوال 50 كجم.', 'Semolina', 'Bag 50kg',
    0, 18000, true, 'GOOD', 'TRACKED', 'BATCH', 'MOVING_AVERAGE', true, false, 'FINISHED_GOOD', 'SACK', 50),
 
   ('FG-BRAN-40',         'Wheat Bran 40kg', 'نخالة قمح خشنة — كيس 40 كجم',
@@ -172,40 +197,40 @@ FROM (VALUES
 
   -- ── مستلزمات تعبئة ─────────────────────────────────────────────────────────
   ('PKG-BAG-PP-50',   'PP Woven Bag 50kg', 'كيس بولي بروبيلين فارغ 50 كجم',
-   'كيس منسوج قابل لإعادة الاستخدام.', 'Packaging Supplies', 'piece',
+   'كيس منسوج قابل لإعادة الاستخدام.', 'Packaging Supplies', 'Piece',
    350, 500, false, 'GOOD', 'TRACKED', 'NONE', 'MOVING_AVERAGE', false, true, 'PACKAGING', 'BAG', 50),
 
   ('PKG-BAG-PP-25',   'PP Woven Bag 25kg', 'كيس بولي بروبيلين فارغ 25 كجم',
-   'كيس منسوج متوسط للتجزئة والمخابز.', 'Packaging Supplies', 'piece',
+   'كيس منسوج متوسط للتجزئة والمخابز.', 'Packaging Supplies', 'Piece',
    250, 400, false, 'GOOD', 'TRACKED', 'NONE', 'MOVING_AVERAGE', false, true, 'PACKAGING', 'BAG', 25),
 
   ('PKG-BAG-JUTE-50', 'Jute Natural Bag 50kg', 'خيش طبيعي فارغ 50 كجم',
-   'خيش طبيعي عالي المتانة للحبوب.', 'Packaging Supplies', 'piece',
+   'خيش طبيعي عالي المتانة للحبوب.', 'Packaging Supplies', 'Piece',
    900, 1300, false, 'GOOD', 'TRACKED', 'NONE', 'MOVING_AVERAGE', false, true, 'PACKAGING', 'SACK', 50),
 
   ('PKG-THREAD-ROLL', 'Sewing Thread Roll', 'بكرة خيط حياكة أكياس',
-   'خيط صناعي لماكينات خياطة الأكياس.', 'Packaging Supplies', 'piece',
+   'خيط صناعي لماكينات خياطة الأكياس.', 'Packaging Supplies', 'Piece',
    6000, 0, false, 'GOOD', 'TRACKED', 'NONE', 'MOVING_AVERAGE', false, true, 'PACKAGING', NULL, NULL),
 
   -- ── خدمات (أجور طحن وتعبئة) ────────────────────────────────────────────────
   ('SRV-MILL-BAG50',  'Milling Service 50kg Bag', 'أجرة طحن شوال 50 كجم',
-   'أجرة طحن الشوال — تُحدَّد في أمر الطحن.', 'Wheat', 'piece',
+   'أجرة طحن الشوال — تُحدَّد في أمر الطحن.', 'Wheat', 'Piece',
    0, 1000, false, 'SERVICE', 'UNTRACKED', 'NONE', 'NONE', true, false, 'SERVICE', NULL, NULL),
 
   ('SRV-MILL-TON',    'Milling Service per Ton', 'أجرة طحن بالطن',
-   'أجرة طحن بالطن المتري — تُحدَّد في أمر الطحن.', 'Wheat', 'piece',
+   'أجرة طحن بالطن المتري — تُحدَّد في أمر الطحن.', 'Wheat', 'Piece',
    0, 0, false, 'SERVICE', 'UNTRACKED', 'NONE', 'NONE', true, false, 'SERVICE', NULL, NULL),
 
   ('SRV-CLEAN-TON',   'Cleaning & Sieving per Ton', 'أجرة تنظيف وفرز بالطن',
-   'أجرة تنظيف وغربلة الشوائب بالطن.', 'Wheat', 'piece',
+   'أجرة تنظيف وغربلة الشوائب بالطن.', 'Wheat', 'Piece',
    0, 0, false, 'SERVICE', 'UNTRACKED', 'NONE', 'NONE', true, false, 'SERVICE', NULL, NULL),
 
   ('SRV-SEWING-BAG',  'Bagging & Sewing per Unit', 'أجرة تعبئة وحياكة للكيس',
-   'أجرة تعبئة وحياكة كيس واحد.', 'Packaging Supplies', 'piece',
+   'أجرة تعبئة وحياكة كيس واحد.', 'Packaging Supplies', 'Piece',
    0, 0, false, 'SERVICE', 'UNTRACKED', 'NONE', 'NONE', true, false, 'SERVICE', NULL, NULL),
 
   ('SRV-STORAGE-DAY', 'Storage per Day per Ton', 'رسوم تخزين أمانات',
-   'رسوم تخزين الأمانات لليوم والطن.', 'Wheat', 'piece',
+   'رسوم تخزين الأمانات لليوم والطن.', 'Wheat', 'Piece',
    0, 0, false, 'SERVICE', 'UNTRACKED', 'NONE', 'NONE', true, false, 'SERVICE', NULL, NULL)
 
 ) AS v(sku, name, name_ar, description, category, unit, cost, price, is_service,

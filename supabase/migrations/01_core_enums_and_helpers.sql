@@ -9,27 +9,35 @@
 -- ============================================================================
 
 -- ── ENUMS ──────────────────────────────────────────────────────────────
+-- كل نوع هنا يمثّل **مفهومًا واحدًا فقط**. لا تُخلط حالتان في نوع واحد، لأن
+-- العمود الواحد لا يحمل قيمتين — فتضيع إحداهما بلا أثر.
+
+-- نوع الحساب في محاسبة القيد المزدوج.
 CREATE TYPE public.account_type AS ENUM (
-  'ASSET',
-  'LIABILITY',
-  'EQUITY',
-  'REVENUE',
-  'EXPENSE'
+  'ASSET',       -- أصول
+  'LIABILITY',   -- خصوم
+  'EQUITY',      -- حقوق ملكية
+  'REVENUE',     -- إيرادات
+  'EXPENSE'      -- مصروفات
 );
 
+-- أدوار النظام. الترتيب هنا لا يحدّد الصلاحية — الرتبة في expense_role_rank().
 CREATE TYPE public.app_role AS ENUM (
-  'owner',
-  'manager',
-  'accountant',
-  'cashier',
-  'warehouse'
+  'owner',       -- المالك: كل الصلاحيات
+  'manager',     -- مدير: التشغيل والاعتماد
+  'accountant',  -- محاسب: القيود والتقارير المالية
+  'cashier',     -- كاشير: البيع والتحصيل
+  'warehouse'    -- أمين مخزن: الاستلام والصرف والجرد
 );
 
+-- طريقة تقييم المخزون.
+-- NONE ليست طريقة تكلفة بل غيابها، وهي مقصودة للخدمات: الصنف نوعه SERVICE
+-- لا يُكلَّف أصلًا. كتابة NONE أوضح للمحاسب من NULL في تقرير التكلفة.
 CREATE TYPE public.costing_method AS ENUM (
-  'MOVING_AVERAGE',
-  'FIFO',
-  'STANDARD',
-  'NONE'
+  'MOVING_AVERAGE',  -- المتوسط المتحرك المرجّح (الافتراضي)
+  'FIFO',            -- الوارد أولًا صادر أولًا
+  'STANDARD',        -- التكلفة المعيارية
+  'NONE'             -- بلا تكلفة — للخدمات
 );
 
 CREATE TYPE public.expense_entry_type AS ENUM (
@@ -74,21 +82,34 @@ CREATE TYPE public.expense_tax_mode AS ENUM (
 );
 
 CREATE TYPE public.inventory_policy AS ENUM (
-  'TRACKED',
-  'UNTRACKED',
-  'CUSTOMER_OWNED'
+  'TRACKED',        -- يُتابَع رصيده
+  'UNTRACKED',      -- يُباع ولا يُتابَع
+  'CUSTOMER_OWNED'  -- ملك عميل (أمانة)
 );
 
+-- ── دورة حياة المستند — وحدها ──────────────────────────────────────────────
+-- هذا النوع يصف **أين المستند** في دورة حياته، لا كم دُفع منه.
+--
+-- كان سابقًا يخلط أربعة مفاهيم في نوع واحد: حالة المستند، وحالة السداد،
+-- وحالة الإرجاع، ودورة الشراء. والنتيجة أن العمود الواحد لا يحمل قيمتين:
+-- فاتورة «مؤكدة» و«مدفوعة جزئيًا» في وقت واحد كان يستحيل تمثيلها، فتضيع
+-- إحدى الحالتين. وحالة المستند كانت تُكتب من مبلغ السداد، فتُمحى «مؤكدة».
+--
+-- اليوم: حالة الدورة هنا، وحالة السداد في payment_status.
 CREATE TYPE public.invoice_status AS ENUM (
-  'draft',
-  'confirmed',
-  'paid',
-  'partial',
-  'cancelled',
-  'returned',
-  'received',
-  'completed',
-  'unpaid'
+  'draft',      -- مسودة: قابلة للتعديل، بلا أثر مالي
+  'confirmed',  -- مؤكدة: أُصدرت وأصبحت دليلًا
+  'cancelled',  -- ملغاة: لم تحدث
+  'returned'    -- مُرجَعة: أُعيدت بالكامل
+);
+
+-- ── حالة السداد — منفصلة ───────────────────────────────────────────────────
+-- تُشتقّ من مبلغ المدفوع مقابل الإجمالي، ولا تُكتب يدويًا.
+CREATE TYPE public.payment_status AS ENUM (
+  'unpaid',    -- لم يُدفع منه شيء
+  'partial',   -- دُفع جزء
+  'paid',      -- سُدّد بالكامل
+  'overpaid'   -- دُفع أكثر من المستحق (دفعة مقدمة أو إفراط)
 );
 
 CREATE TYPE public.item_class AS ENUM (
@@ -134,17 +155,22 @@ CREATE TYPE public.milling_status AS ENUM (
   'CANCELLED'
 );
 
+-- ── نوع حركة المخزون — بلا تكرار ───────────────────────────────────────────
+-- كان سابقًا عشرة قيم فيها تكرار فعلي: return_in ≡ sale_return،
+-- و return_out ≡ purchase_return. فأي تقرير للمرتجعات كان يجب أن يبحث عن
+-- أربع قيم لنفس المفهومين، وإن نسي إحداها نقصت الأرقام بلا رسالة خطأ.
+-- اليوم: قيمة واحدة لكل حدث.
 CREATE TYPE public.movement_type AS ENUM (
-  'purchase',
-  'sale',
-  'adjustment',
-  'transfer_in',
-  'transfer_out',
-  'return_in',
-  'return_out',
-  'opening',
-  'purchase_return',
-  'sale_return'
+  'purchase',         -- شراء يُدخل بضاعة
+  'sale',             -- بيع يُخرج بضاعة
+  'adjustment',       -- تسوية جرد
+  'transfer_in',      -- وارد تحويل بين مستودعين
+  'transfer_out',     -- صادر تحويل
+  'sale_return',      -- مرتجع بيع يُدخل البضاعة
+  'purchase_return',  -- مرتجع شراء يُخرج البضاعة
+  'opening',          -- رصيد أول المدة
+  'production_in',    -- ناتج إنتاج يدخل المخزون
+  'production_out'    -- مواد تُصرف للإنتاج
 );
 
 CREATE TYPE public.owner_type AS ENUM (
@@ -154,13 +180,20 @@ CREATE TYPE public.owner_type AS ENUM (
   'OTHER'
 );
 
+-- ── طرق الدفع ──────────────────────────────────────────────────────────────
+-- cheque أُضيفت لأن الواجهة كانت تترجمها بلا وجود لها في النوع، فكان الشيك
+-- يُقيَّد في «النقدية بالصندوق» لأن دالة الترحيل لا تجد له قيمة، فتفترض النقدية.
+-- والأثر خطير: شيك بمليون ريال يُظهر صندوقًا فيه مليون غير موجود، ويُفقد
+-- البنك حوالة واردة. وميزان المراجعة يبقى متوازنًا لأن الخطأ في أي حساب
+-- استُخدم لا في الحساب الرياضي — فلا يُكتشف أبدًا.
 CREATE TYPE public.payment_method AS ENUM (
-  'cash',
-  'card',
-  'bank_transfer',
-  'credit',
-  'mobile_money',
-  'split'
+  'cash',           -- نقدًا: يُقيَّد في 1101 الصندوق
+  'card',           -- شبكة/بطاقة: تُقيَّد في 1111 البنك
+  'bank_transfer',  -- حوالة بنكية: تُقيَّد في 1111 البنك
+  'mobile_money',   -- محفظة إلكترونية: تُقيَّد في 1111 البنك
+  'cheque',         -- شيك مصرفي: يُقيَّد في 1111 البنك
+  'credit',         -- آجل: ذمم، لا نقدية
+  'split'           -- مجزّأ: أكثر من وسيلة في سند واحد
 );
 
 CREATE TYPE public.stock_movement_kind AS ENUM (
@@ -174,15 +207,40 @@ CREATE TYPE public.stock_movement_kind AS ENUM (
 );
 
 -- ── PURE HELPERS ───────────────────────────────────────────────────
--- No table and no other function dependency, so they are safe here and
--- available to every later file. Emission follows the dependency order.
+-- دوال حسابية بلا جداول ولا اعتماديات. تُعرَّف هنا لتكون متاحة لكل ملف لاحق.
+
+-- اشتقاق حالة السداد من المدفوع مقابل الإجمالي.
+-- المصدر الوحيد للحقيقة: استخدامها في كل دالة تكتب مدفوعة يمنع حالة سداد
+-- وُكتبت يدويًا ثم خالفت المبالغ الفعلية.
+--
+-- الحدود: 0 مدفوع ⇒ unpaid، مساوٍ للإجمالي ⇒ paid، أكثر منه ⇒ overpaid،
+-- وما بينهما ⇒ partial. واستخدمت 0.005 كهامش لأن العمليات المالية تُدوَّر
+-- إلى منزلتين، وبقايا الهللة يجب ألّا تُبقي فاتورة «جزئية» للأبد.
+CREATE OR REPLACE FUNCTION public.derive_payment_status(p_paid numeric, p_total numeric)
+RETURNS public.payment_status
+LANGUAGE sql
+IMMUTABLE
+AS $function$
+  SELECT CASE
+    WHEN coalesce(p_total, 0) <= 0            THEN 'unpaid'::public.payment_status
+    WHEN coalesce(p_paid, 0) <= 0             THEN 'unpaid'::public.payment_status
+    WHEN p_paid >= p_total - 0.005            THEN 'paid'::public.payment_status
+    ELSE 'partial'::public.payment_status
+  END
+$function$;
+
+COMMENT ON FUNCTION public.derive_payment_status(numeric, numeric) IS
+  'يشتقّ حالة السداد من (المدفوع مقابل الإجمالي). نقطة الحقيقة الواحدة — لا تُكتب الحالة يدويًا.';
+
+-- التقريب المعياري: منزلتان عشريتان، بنوع numeric لا float لتفادي انزلاق
+-- الفاصلة العائمة عبر ملايين الصفوف.
 CREATE OR REPLACE FUNCTION public.expense_round(p_value numeric)
  RETURNS numeric
  LANGUAGE sql
  IMMUTABLE
 AS $function$
-  -- Numeric, not float: 0.005 must round the way the accountant expects and
-  -- SUM() over a million rows must not accumulate binary drift.
+  -- numeric لا float: الـ 0.005 يجب أن تُدوَّر كما يتوقّع المحاسب، ومجموع مليون
+  -- صف لا يجب أن يراكم انزلاق الفاصلة العائمة.
   SELECT round(coalesce(p_value, 0)::numeric, 2)
 $function$;
 

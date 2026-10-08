@@ -464,12 +464,13 @@ BEGIN
     RAISE EXCEPTION 'Purchase % has already been posted to the ledger', v_inv.invoice_number;
   END IF;
 
+  -- الشيك يُودَع في البنك لا في الصندوق — كما في المبيعات.
   IF v_inv.payment_method = 'credit' THEN
-    v_cash_acct := NULL;
-  ELSIF v_inv.payment_method IN ('bank_transfer','card','mobile_money') THEN
-    v_cash_acct := '1111';
+    v_cash_acct := NULL;                       -- لم يُسدَّد شيء
+  ELSIF v_inv.payment_method IN ('bank_transfer','card','mobile_money','cheque') THEN
+    v_cash_acct := '1111';                     -- يخرج من البنك
   ELSE
-    v_cash_acct := '1101';
+    v_cash_acct := '1101';                     -- نقدًا
   END IF;
 
   v_owed := greatest(v_inv.total - v_inv.paid, 0);
@@ -602,12 +603,16 @@ BEGIN
     RAISE EXCEPTION 'Invoice % has already been posted to the ledger', v_inv.invoice_number;
   END IF;
 
+  -- ── أين يُقيَّد المبلغ المحصّل ───────────────────────────────────────────
+  -- الشيك يُودَع في البنك لا في الصندوق. وكان غياب cheque من نوع payment_method
+  -- يُسقطه في فرع ELSE فيُقيَّد في النقدية — خطأ لا يظهر في ميزان المراجعة لأن
+  -- الخطأ في أي حساب استُخدم لا في الحساب الرياضي.
   IF v_inv.payment_method = 'credit' THEN
-    v_cash_acct := NULL;                       -- nothing collected
-  ELSIF v_inv.payment_method IN ('bank_transfer','card','mobile_money') THEN
-    v_cash_acct := '1111';                     -- leaves via a bank
+    v_cash_acct := NULL;                       -- لم يُحصّل شيء
+  ELSIF v_inv.payment_method IN ('bank_transfer','card','mobile_money','cheque') THEN
+    v_cash_acct := '1111';                     -- يدخل البنك
   ELSE
-    v_cash_acct := '1101';                     -- cash; 'split' resolved against cash
+    v_cash_acct := '1101';                     -- نقدًا؛ و split تُحلّ على النقدية
   END IF;
 
   v_collectable := greatest(v_inv.total - v_inv.paid, 0);

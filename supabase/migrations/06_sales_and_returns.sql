@@ -13,7 +13,13 @@ CREATE TABLE public.sales_invoices (
   invoice_number text NOT NULL,
   customer_id uuid,
   warehouse_id uuid,
+  -- حالة الدورة: مسودة / مؤكدة / ملغاة / مُرجَعة. لا تُكتب من مبلغ السداد.
   status public.invoice_status DEFAULT 'draft'::invoice_status NOT NULL,
+  -- حالة السداد: غير مدفوعة / جزئية / مدفوعة / مدفوعة بالزيادة.
+  -- منفصلة عن status لأن العمود الواحد لا يحمل قيمتين: فاتورة «مؤكدة»
+  -- و«مدفوعة جزئيًا» في وقت واحد يستحيل تمثيلها بعمود واحد.
+  -- تُشتقّ من (paid مقابل total) ولا تُكتب يدويًا.
+  payment_status public.payment_status DEFAULT 'unpaid'::payment_status NOT NULL,
   subtotal numeric(14,2) DEFAULT 0 NOT NULL,
   discount numeric(14,2) DEFAULT 0 NOT NULL,
   tax numeric(14,2) DEFAULT 0 NOT NULL,
@@ -410,20 +416,20 @@ BEGIN
       coalesce(v_customer_balance, 0), v_outstanding, coalesce(v_credit_limit, 0);
   END IF;
 
-  v_status := CASE
-    WHEN v_paid >= v_total THEN 'paid'::public.invoice_status
-    WHEN v_paid = 0      THEN 'unpaid'::public.invoice_status
-    ELSE 'partial'::public.invoice_status
-  END;
+  -- حالة الدورة: فاتورة أُنشئت وهي مؤكدة (أثرها المالي واقع بعد الإنشاء).
+  -- السداد له عمود مستقل فلا يمحو «مؤكدة».
+  v_status := 'confirmed'::public.invoice_status;
 
   v_invoice_number := public.next_invoice_number();
 
   INSERT INTO public.sales_invoices (
-    invoice_number, customer_id, warehouse_id, status,
+    invoice_number, customer_id, warehouse_id, status, payment_status,
     subtotal, discount, tax, total, paid, payment_method, note, created_by
   )
   VALUES (
     v_invoice_number, _customer_id, _warehouse_id, v_status,
+    -- payment_status يُشتقّ من paid مقابل total، ولا يُكتب يدويًا.
+    public.derive_payment_status(v_paid, v_total),
     v_subtotal, v_discount, v_tax_total, v_total, v_paid,
     _payment_method::public.payment_method, nullif(btrim(_note), ''), v_user
   )
@@ -657,7 +663,7 @@ BEGIN
         'Sales return',
         'COMPANY'::public.owner_type,
         NULL,
-        'return_in'::public.movement_type
+        'sale_return'::public.movement_type
       );
     END IF;
   END LOOP;
@@ -816,11 +822,10 @@ BEGIN
 
     UPDATE public.sales_invoices
     SET paid = paid + v_remaining,
-        status = CASE
-          WHEN paid + v_remaining >= total THEN 'paid'::public.invoice_status
-          WHEN paid + v_remaining = 0 THEN 'unpaid'::public.invoice_status
-          ELSE 'partial'::public.invoice_status
-        END,
+        -- حالة الدورة تبقى «مؤكدة» — الدفع لا يغيّرها.
+        -- حالة السداد تُحدّث في عمودها المستقل.
+        status = 'confirmed'::public.invoice_status,
+        payment_status = public.derive_payment_status(paid + v_remaining, total),
         updated_at = now()
     WHERE id = _invoice_id;
   ELSE
@@ -850,10 +855,8 @@ BEGIN
 
       UPDATE public.sales_invoices
       SET paid = paid + v_allocation,
-          status = CASE
-            WHEN paid + v_allocation >= total THEN 'paid'::public.invoice_status
-            ELSE 'partial'::public.invoice_status
-          END,
+          status = 'confirmed'::public.invoice_status,
+          payment_status = public.derive_payment_status(paid + v_allocation, total),
           updated_at = now()
       WHERE id = v_invoice.id;
 

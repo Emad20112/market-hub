@@ -1150,6 +1150,9 @@ BEGIN
       WHEN 'TRANSFER_IN'  THEN 'transfer_in'::public.movement_type
       WHEN 'TRANSFER_OUT' THEN 'transfer_out'::public.movement_type
       WHEN 'OPENING'      THEN 'opening'::public.movement_type
+      -- PRODUCTION كان يسقط في ELSE فيُسجّل «adjustment»، وهو خطأ: ناتج الإنتاج
+      -- ليس تسوية جرد، وتسجيله كذلك يجعل تقرير الإنتاج يخلو من نواتجه.
+      WHEN 'PRODUCTION'   THEN 'production_in'::public.movement_type
       ELSE 'adjustment'::public.movement_type
     END
   );
