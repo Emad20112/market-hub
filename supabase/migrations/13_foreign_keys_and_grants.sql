@@ -38,6 +38,9 @@ ALTER TABLE public.expense_attachments ADD CONSTRAINT "expense_attachments_entry
 ALTER TABLE public.expense_attachments ADD CONSTRAINT "expense_attachments_line_id_fkey" FOREIGN KEY (line_id) REFERENCES expense_lines(id) ON DELETE CASCADE;
 ALTER TABLE public.expense_attachments ADD CONSTRAINT "expense_attachments_uploaded_by_fkey" FOREIGN KEY (uploaded_by) REFERENCES auth.users(id) ON DELETE SET NULL;
 ALTER TABLE public.expense_categories ADD CONSTRAINT "expense_categories_created_by_fkey" FOREIGN KEY (created_by) REFERENCES auth.users(id) ON DELETE SET NULL;
+-- الحساب المحاسبي للتصنيف. ON DELETE SET NULL لا CASCADE: حذف حساب لا يجوز
+-- أن يحذف التصنيف — يُفرغ رابطه فقط، فيقع على الحساب الافتراضي.
+ALTER TABLE public.expense_categories ADD CONSTRAINT "expense_categories_account_id_fkey" FOREIGN KEY (account_id) REFERENCES accounts(id) ON DELETE SET NULL;
 ALTER TABLE public.expense_cost_centers ADD CONSTRAINT "expense_cost_centers_created_by_fkey" FOREIGN KEY (created_by) REFERENCES auth.users(id) ON DELETE SET NULL;
 ALTER TABLE public.expense_entries ADD CONSTRAINT "expense_entries_approved_by_fkey" FOREIGN KEY (approved_by) REFERENCES auth.users(id) ON DELETE SET NULL;
 ALTER TABLE public.expense_entries ADD CONSTRAINT "expense_entries_cancelled_by_fkey" FOREIGN KEY (cancelled_by) REFERENCES auth.users(id) ON DELETE SET NULL;

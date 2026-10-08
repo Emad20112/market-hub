@@ -12,6 +12,18 @@ CREATE TABLE public.expense_categories (
   id uuid DEFAULT gen_random_uuid() NOT NULL,
   name text NOT NULL,
   name_ar text,
+  -- الحساب المحاسبي الذي يُرحَّل إليه مصروف هذا التصنيف.
+  --
+  -- لماذا عمود لا تسمية فقط؟ لأن التصنيف تنظيم إداري («كيف صنّفه المالك»)،
+  -- والحساب وجهة محاسبية («إلى أين يذهب في الدفاتر»). فصلهما مقصود:
+  --   • تصنيف واحد قد يُرحَّل لأكثر من حساب بحسب السياق (إيجار مصنع ومكتب).
+  --   • تعديل شجرة الحسابات يجب ألّا يغيّر تسمية المصروف عند المالك.
+  --
+  -- لكن بلا ربط، كانت 10 تصنيفات تُدفن في 5 حسابات، فيفقد المالك معرفة
+  -- ما صرفه على التسويق مثلًا — لأنه اختلط بالمواصلات في سطر واحد.
+  --
+  -- NULL مقبول: تصنيف بلا حساب مُعيَّن يقع على الحساب الافتراضي عند الترحيل.
+  account_id uuid,
   created_at timestamp with time zone DEFAULT now() NOT NULL,
   is_active boolean DEFAULT true NOT NULL,
   sort_order integer DEFAULT 100 NOT NULL,
