@@ -1,0 +1,89 @@
+-- ============================================================================
+-- customer-template.sql.example
+--
+-- COPY this file to a name of your own, fill it in, and KEEP IT OUT OF GIT.
+--   cp customer-template.sql.example acme-trading-2026.sql
+--
+-- It loads one customer's opening balances. It is an EXAMPLE, not a script to
+-- run as-is: the identifiers below are placeholders.
+--
+-- WHY AN RPC AND NOT INSERT STATEMENTS
+-- ------------------------------------
+-- post_opening_balance() refuses to post unless debits equal credits, and it
+-- writes the stock movements, cost layers and ledger rows that belong with each
+-- line. A raw INSERT would create a document that looks posted while nothing
+-- downstream knows about it. See supabase/MIGRATIONS_RULES.md.
+--
+-- WHAT THIS FILE MUST NOT CONTAIN
+--   * company identity  -> the customer edits it in Settings
+--   * passwords/secrets -> create users through the app
+--   * another customer's data
+-- ============================================================================
+
+BEGIN;
+
+-- ---------------------------------------------------------------------------
+-- 1. Replace these with real ids from the customer's own masters.
+-- ---------------------------------------------------------------------------
+-- select id, name from public.warehouses;
+-- select id, sku, name_ar from public.products;
+-- select id, name from public.customers;
+
+DO $$
+DECLARE
+  v_doc uuid;
+BEGIN
+  -- -------------------------------------------------------------------------
+  -- 2. Create the opening document as a DRAFT.
+  --    Sections and sides:
+  --      STOCK, RECEIVABLE, CASH, BANK, ASSET       -> debit
+  --      PAYABLE, LIABILITY, CAPITAL                -> credit
+  --    The side is DERIVED from the section; you never supply it.
+  -- -------------------------------------------------------------------------
+  v_doc := public.create_opening_balance(
+    _effective_date => '2026-01-01',
+    _lines => '[
+      {"section":"STOCK",      "product_id":"00000000-0000-0000-0000-000000000000",
+                               "warehouse_id":"00000000-0000-0000-0000-000000000000",
+                               "quantity":1000, "unit_cost":250, "amount":250000,
+                               "description":"رصيد افتتاحي - مخزون"},
+
+      {"section":"RECEIVABLE", "customer_id":"00000000-0000-0000-0000-000000000000",
+                               "amount":50000, "description":"رصيد افتتاحي - ذمم عميل"},
+
+      {"section":"CASH",       "amount":100000, "description":"رصيد افتتاحي - نقدية"},
+
+      {"section":"CAPITAL",    "amount":400000, "description":"رأس المال"}
+    ]'::jsonb,
+    _notes => 'الأرصدة الافتتاحية — <customer name> — <date>'
+  );
+
+  -- -------------------------------------------------------------------------
+  -- 3. Verify it balances BEFORE posting.
+  --    is_balanced is computed from the lines; a false here means the figures
+  --    above do not add up and post_opening_balance will refuse.
+  -- -------------------------------------------------------------------------
+  PERFORM 1 FROM public.opening_balance_summary
+   WHERE id = v_doc AND is_balanced;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION
+      'Opening entry does not balance. Fix the lines before posting. Document: %', v_doc;
+  END IF;
+
+  -- -------------------------------------------------------------------------
+  -- 4. Post it. This writes the stock movements and ledger rows.
+  -- -------------------------------------------------------------------------
+  PERFORM public.post_opening_balance(v_doc);
+
+  RAISE NOTICE 'Opening balance posted: %', v_doc;
+END $$;
+
+-- Inspect the result before committing. If anything is wrong, run ROLLBACK.
+SELECT document_number, status, total_assets, total_liabilities, capital_required, is_balanced
+  FROM public.opening_balance_summary
+ ORDER BY created_at DESC
+ LIMIT 1;
+
+COMMIT;
+-- ROLLBACK;   -- <- use this instead if the summary above looks wrong

@@ -1,0 +1,522 @@
+[
+  {
+    "enum_name": "account_type",
+    "label": "ASSET",
+    "ord": 1
+  },
+  {
+    "enum_name": "account_type",
+    "label": "LIABILITY",
+    "ord": 2
+  },
+  {
+    "enum_name": "account_type",
+    "label": "EQUITY",
+    "ord": 3
+  },
+  {
+    "enum_name": "account_type",
+    "label": "REVENUE",
+    "ord": 4
+  },
+  {
+    "enum_name": "account_type",
+    "label": "EXPENSE",
+    "ord": 5
+  },
+  {
+    "enum_name": "app_role",
+    "label": "owner",
+    "ord": 1
+  },
+  {
+    "enum_name": "app_role",
+    "label": "manager",
+    "ord": 2
+  },
+  {
+    "enum_name": "app_role",
+    "label": "accountant",
+    "ord": 3
+  },
+  {
+    "enum_name": "app_role",
+    "label": "cashier",
+    "ord": 4
+  },
+  {
+    "enum_name": "app_role",
+    "label": "warehouse",
+    "ord": 5
+  },
+  {
+    "enum_name": "costing_method",
+    "label": "MOVING_AVERAGE",
+    "ord": 1
+  },
+  {
+    "enum_name": "costing_method",
+    "label": "FIFO",
+    "ord": 2
+  },
+  {
+    "enum_name": "costing_method",
+    "label": "STANDARD",
+    "ord": 3
+  },
+  {
+    "enum_name": "costing_method",
+    "label": "NONE",
+    "ord": 4
+  },
+  {
+    "enum_name": "expense_entry_type",
+    "label": "DIRECT",
+    "ord": 1
+  },
+  {
+    "enum_name": "expense_entry_type",
+    "label": "EMPLOYEE",
+    "ord": 2
+  },
+  {
+    "enum_name": "expense_entry_type",
+    "label": "SUPPLIER",
+    "ord": 3
+  },
+  {
+    "enum_name": "expense_entry_type",
+    "label": "RECURRING",
+    "ord": 4
+  },
+  {
+    "enum_name": "expense_entry_type",
+    "label": "ADVANCE",
+    "ord": 5
+  },
+  {
+    "enum_name": "expense_payee_type",
+    "label": "NONE",
+    "ord": 1
+  },
+  {
+    "enum_name": "expense_payee_type",
+    "label": "SUPPLIER",
+    "ord": 2
+  },
+  {
+    "enum_name": "expense_payee_type",
+    "label": "EMPLOYEE",
+    "ord": 3
+  },
+  {
+    "enum_name": "expense_payee_type",
+    "label": "OTHER",
+    "ord": 4
+  },
+  {
+    "enum_name": "expense_source_kind",
+    "label": "MANUAL",
+    "ord": 1
+  },
+  {
+    "enum_name": "expense_source_kind",
+    "label": "LEGACY",
+    "ord": 2
+  },
+  {
+    "enum_name": "expense_source_kind",
+    "label": "RECURRING",
+    "ord": 3
+  },
+  {
+    "enum_name": "expense_source_kind",
+    "label": "IMPORT",
+    "ord": 4
+  },
+  {
+    "enum_name": "expense_status",
+    "label": "DRAFT",
+    "ord": 1
+  },
+  {
+    "enum_name": "expense_status",
+    "label": "SUBMITTED",
+    "ord": 2
+  },
+  {
+    "enum_name": "expense_status",
+    "label": "APPROVED",
+    "ord": 3
+  },
+  {
+    "enum_name": "expense_status",
+    "label": "REJECTED",
+    "ord": 4
+  },
+  {
+    "enum_name": "expense_status",
+    "label": "POSTED",
+    "ord": 5
+  },
+  {
+    "enum_name": "expense_status",
+    "label": "PARTIALLY_PAID",
+    "ord": 6
+  },
+  {
+    "enum_name": "expense_status",
+    "label": "PAID",
+    "ord": 7
+  },
+  {
+    "enum_name": "expense_status",
+    "label": "CLOSED",
+    "ord": 8
+  },
+  {
+    "enum_name": "expense_status",
+    "label": "CANCELLED",
+    "ord": 9
+  },
+  {
+    "enum_name": "expense_status",
+    "label": "REVERSED",
+    "ord": 10
+  },
+  {
+    "enum_name": "expense_tax_mode",
+    "label": "NONE",
+    "ord": 1
+  },
+  {
+    "enum_name": "expense_tax_mode",
+    "label": "INCLUSIVE",
+    "ord": 2
+  },
+  {
+    "enum_name": "expense_tax_mode",
+    "label": "EXCLUSIVE",
+    "ord": 3
+  },
+  {
+    "enum_name": "inventory_policy",
+    "label": "TRACKED",
+    "ord": 1
+  },
+  {
+    "enum_name": "inventory_policy",
+    "label": "UNTRACKED",
+    "ord": 2
+  },
+  {
+    "enum_name": "inventory_policy",
+    "label": "CUSTOMER_OWNED",
+    "ord": 3
+  },
+  {
+    "enum_name": "invoice_status",
+    "label": "draft",
+    "ord": 1
+  },
+  {
+    "enum_name": "invoice_status",
+    "label": "confirmed",
+    "ord": 2
+  },
+  {
+    "enum_name": "invoice_status",
+    "label": "paid",
+    "ord": 3
+  },
+  {
+    "enum_name": "invoice_status",
+    "label": "partial",
+    "ord": 4
+  },
+  {
+    "enum_name": "invoice_status",
+    "label": "cancelled",
+    "ord": 5
+  },
+  {
+    "enum_name": "invoice_status",
+    "label": "returned",
+    "ord": 6
+  },
+  {
+    "enum_name": "invoice_status",
+    "label": "received",
+    "ord": 7
+  },
+  {
+    "enum_name": "invoice_status",
+    "label": "completed",
+    "ord": 8
+  },
+  {
+    "enum_name": "invoice_status",
+    "label": "unpaid",
+    "ord": 9
+  },
+  {
+    "enum_name": "item_class",
+    "label": "RAW_MATERIAL",
+    "ord": 1
+  },
+  {
+    "enum_name": "item_class",
+    "label": "FINISHED_GOOD",
+    "ord": 2
+  },
+  {
+    "enum_name": "item_class",
+    "label": "BY_PRODUCT",
+    "ord": 3
+  },
+  {
+    "enum_name": "item_class",
+    "label": "SERVICE",
+    "ord": 4
+  },
+  {
+    "enum_name": "item_class",
+    "label": "NON_STOCK_ITEM",
+    "ord": 5
+  },
+  {
+    "enum_name": "item_class",
+    "label": "PACKAGING",
+    "ord": 6
+  },
+  {
+    "enum_name": "item_nature",
+    "label": "GOOD",
+    "ord": 1
+  },
+  {
+    "enum_name": "item_nature",
+    "label": "SERVICE",
+    "ord": 2
+  },
+  {
+    "enum_name": "item_status",
+    "label": "ACTIVE",
+    "ord": 1
+  },
+  {
+    "enum_name": "item_status",
+    "label": "INACTIVE",
+    "ord": 2
+  },
+  {
+    "enum_name": "item_status",
+    "label": "ARCHIVED",
+    "ord": 3
+  },
+  {
+    "enum_name": "item_tracking",
+    "label": "NONE",
+    "ord": 1
+  },
+  {
+    "enum_name": "item_tracking",
+    "label": "BATCH",
+    "ord": 2
+  },
+  {
+    "enum_name": "item_tracking",
+    "label": "SERIAL",
+    "ord": 3
+  },
+  {
+    "enum_name": "milling_output_type",
+    "label": "FLOUR_GRADE_1",
+    "ord": 1
+  },
+  {
+    "enum_name": "milling_output_type",
+    "label": "FLOUR_GRADE_2",
+    "ord": 2
+  },
+  {
+    "enum_name": "milling_output_type",
+    "label": "BRAN",
+    "ord": 3
+  },
+  {
+    "enum_name": "milling_output_type",
+    "label": "SEMOLINA",
+    "ord": 4
+  },
+  {
+    "enum_name": "milling_output_type",
+    "label": "WASTE",
+    "ord": 5
+  },
+  {
+    "enum_name": "milling_status",
+    "label": "DRAFT",
+    "ord": 1
+  },
+  {
+    "enum_name": "milling_status",
+    "label": "RECEIVED",
+    "ord": 2
+  },
+  {
+    "enum_name": "milling_status",
+    "label": "PROCESSING",
+    "ord": 3
+  },
+  {
+    "enum_name": "milling_status",
+    "label": "COMPLETED",
+    "ord": 4
+  },
+  {
+    "enum_name": "milling_status",
+    "label": "DELIVERED",
+    "ord": 5
+  },
+  {
+    "enum_name": "milling_status",
+    "label": "CANCELLED",
+    "ord": 6
+  },
+  {
+    "enum_name": "movement_type",
+    "label": "purchase",
+    "ord": 1
+  },
+  {
+    "enum_name": "movement_type",
+    "label": "sale",
+    "ord": 2
+  },
+  {
+    "enum_name": "movement_type",
+    "label": "adjustment",
+    "ord": 3
+  },
+  {
+    "enum_name": "movement_type",
+    "label": "transfer_in",
+    "ord": 4
+  },
+  {
+    "enum_name": "movement_type",
+    "label": "transfer_out",
+    "ord": 5
+  },
+  {
+    "enum_name": "movement_type",
+    "label": "return_in",
+    "ord": 6
+  },
+  {
+    "enum_name": "movement_type",
+    "label": "return_out",
+    "ord": 7
+  },
+  {
+    "enum_name": "movement_type",
+    "label": "opening",
+    "ord": 8
+  },
+  {
+    "enum_name": "movement_type",
+    "label": "purchase_return",
+    "ord": 9
+  },
+  {
+    "enum_name": "movement_type",
+    "label": "sale_return",
+    "ord": 10
+  },
+  {
+    "enum_name": "owner_type",
+    "label": "COMPANY",
+    "ord": 1
+  },
+  {
+    "enum_name": "owner_type",
+    "label": "CUSTOMER",
+    "ord": 2
+  },
+  {
+    "enum_name": "owner_type",
+    "label": "SUPPLIER",
+    "ord": 3
+  },
+  {
+    "enum_name": "owner_type",
+    "label": "OTHER",
+    "ord": 4
+  },
+  {
+    "enum_name": "payment_method",
+    "label": "cash",
+    "ord": 1
+  },
+  {
+    "enum_name": "payment_method",
+    "label": "card",
+    "ord": 2
+  },
+  {
+    "enum_name": "payment_method",
+    "label": "bank_transfer",
+    "ord": 3
+  },
+  {
+    "enum_name": "payment_method",
+    "label": "credit",
+    "ord": 4
+  },
+  {
+    "enum_name": "payment_method",
+    "label": "mobile_money",
+    "ord": 5
+  },
+  {
+    "enum_name": "payment_method",
+    "label": "split",
+    "ord": 6
+  },
+  {
+    "enum_name": "stock_movement_kind",
+    "label": "RECEIPT",
+    "ord": 1
+  },
+  {
+    "enum_name": "stock_movement_kind",
+    "label": "ISSUE",
+    "ord": 2
+  },
+  {
+    "enum_name": "stock_movement_kind",
+    "label": "TRANSFER_IN",
+    "ord": 3
+  },
+  {
+    "enum_name": "stock_movement_kind",
+    "label": "TRANSFER_OUT",
+    "ord": 4
+  },
+  {
+    "enum_name": "stock_movement_kind",
+    "label": "ADJUSTMENT",
+    "ord": 5
+  },
+  {
+    "enum_name": "stock_movement_kind",
+    "label": "OPENING",
+    "ord": 6
+  },
+  {
+    "enum_name": "stock_movement_kind",
+    "label": "PRODUCTION",
+    "ord": 7
+  }
+]

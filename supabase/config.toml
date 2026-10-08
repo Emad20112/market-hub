@@ -1,7 +1,15 @@
 project_id = "kwzqvgdyadylwnvjghqn"
 
 [db.seed]
-# ONLY the safe, idempotent reference file runs automatically.
+# ONLY the reference files run automatically.
+#
+# supabase/seeds/reference/ holds rows the application cannot start without:
+#   * platform_modules  — the app reads these codes to enable screens
+#   * platform_plans    — the subscription tiers
+#   * accounts          — the posting engine resolves codes like '4111'
+#   * units             — every product carries a unit
+#   * expense_categories— the expense form requires one
+#   * milling lookups   — resolved by code
 #
 # It must never contain business data, accounts, or company identity:
 #   * business data (products, customers, suppliers, invoices, stock) would be
@@ -10,12 +18,12 @@ project_id = "kwzqvgdyadylwnvjghqn"
 #   * company_settings would overwrite the customer's own name/currency/tax
 #
 # Demo datasets are opt-in and live outside this path:
-#   supabase/seeds/demo/wholesale-retail.sql   (grocery / wholesale+retail)
-#   supabase/seeds/demo/stationery.sql         (office supplies)
-#   supabase/seeds/demo/accounts.sql           (demo users, never auto-run)
-# See supabase/seeds/README.md for how to run them.
+#   supabase/seeds/demo/    — fabricated business data, manual runs only
+#   supabase/seeds/test/    — fixtures for automated tests
+#   supabase/seeds/customer/— a real customer's data, never committed
+# See supabase/seeds/README.md and supabase/MIGRATIONS_RULES.md.
 enabled = true
-sql_paths = ["./seeds/reference.sql"]
+sql_paths = ["./seeds/reference/*.sql"]
 
 # ---------------------------------------------------------------------------
 # Edge Functions

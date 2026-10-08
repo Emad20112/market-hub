@@ -1,0 +1,1252 @@
+[
+  {
+    "schemaname": "public",
+    "tablename": "accounts",
+    "policyname": "accounts_read",
+    "permissive": "PERMISSIVE",
+    "roles": "{authenticated}",
+    "cmd": "SELECT",
+    "qual": "is_staff(auth.uid())",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "ad_hoc_service_lines",
+    "policyname": "ad_hoc_service_lines_read",
+    "permissive": "PERMISSIVE",
+    "roles": "{authenticated}",
+    "cmd": "SELECT",
+    "qual": "is_staff(auth.uid())",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "audit_logs",
+    "policyname": "Owners/managers read audit",
+    "permissive": "PERMISSIVE",
+    "roles": "{authenticated}",
+    "cmd": "SELECT",
+    "qual": "(has_role(auth.uid(), 'owner'::app_role) OR has_role(auth.uid(), 'manager'::app_role))",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "audit_logs",
+    "policyname": "Staff insert audit",
+    "permissive": "PERMISSIVE",
+    "roles": "{authenticated}",
+    "cmd": "INSERT",
+    "qual": null,
+    "with_check": "is_staff(auth.uid())"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "backup_logs",
+    "policyname": "Users can insert backup logs for their tenant",
+    "permissive": "PERMISSIVE",
+    "roles": "{public}",
+    "cmd": "INSERT",
+    "qual": null,
+    "with_check": "(auth.uid() IS NOT NULL)"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "backup_logs",
+    "policyname": "Users can view backup logs for their tenant",
+    "permissive": "PERMISSIVE",
+    "roles": "{public}",
+    "cmd": "SELECT",
+    "qual": "(auth.uid() IS NOT NULL)",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "brands",
+    "policyname": "brand_manage",
+    "permissive": "PERMISSIVE",
+    "roles": "{authenticated}",
+    "cmd": "ALL",
+    "qual": "(has_role(auth.uid(), 'owner'::app_role) OR has_role(auth.uid(), 'manager'::app_role))",
+    "with_check": "(has_role(auth.uid(), 'owner'::app_role) OR has_role(auth.uid(), 'manager'::app_role))"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "brands",
+    "policyname": "brand_view",
+    "permissive": "PERMISSIVE",
+    "roles": "{authenticated}",
+    "cmd": "SELECT",
+    "qual": "is_staff(auth.uid())",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "categories",
+    "policyname": "cat_manage",
+    "permissive": "PERMISSIVE",
+    "roles": "{authenticated}",
+    "cmd": "ALL",
+    "qual": "(has_role(auth.uid(), 'owner'::app_role) OR has_role(auth.uid(), 'manager'::app_role))",
+    "with_check": "(has_role(auth.uid(), 'owner'::app_role) OR has_role(auth.uid(), 'manager'::app_role))"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "categories",
+    "policyname": "cat_view",
+    "permissive": "PERMISSIVE",
+    "roles": "{authenticated}",
+    "cmd": "SELECT",
+    "qual": "is_staff(auth.uid())",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "company_costing_settings",
+    "policyname": "costing_settings_read",
+    "permissive": "PERMISSIVE",
+    "roles": "{authenticated}",
+    "cmd": "SELECT",
+    "qual": "is_staff(auth.uid())",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "company_items",
+    "policyname": "company_items_manage",
+    "permissive": "PERMISSIVE",
+    "roles": "{authenticated}",
+    "cmd": "ALL",
+    "qual": "(has_role(auth.uid(), 'owner'::app_role) OR has_role(auth.uid(), 'manager'::app_role))",
+    "with_check": "(has_role(auth.uid(), 'owner'::app_role) OR has_role(auth.uid(), 'manager'::app_role))"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "company_items",
+    "policyname": "company_items_staff_read",
+    "permissive": "PERMISSIVE",
+    "roles": "{authenticated}",
+    "cmd": "SELECT",
+    "qual": "is_staff(auth.uid())",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "company_settings",
+    "policyname": "company insert",
+    "permissive": "PERMISSIVE",
+    "roles": "{authenticated}",
+    "cmd": "INSERT",
+    "qual": null,
+    "with_check": "(has_role(auth.uid(), 'owner'::app_role) OR has_role(auth.uid(), 'manager'::app_role))"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "company_settings",
+    "policyname": "company_update",
+    "permissive": "PERMISSIVE",
+    "roles": "{authenticated}",
+    "cmd": "UPDATE",
+    "qual": "(has_role(auth.uid(), 'owner'::app_role) OR has_role(auth.uid(), 'manager'::app_role))",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "company_settings",
+    "policyname": "company_view",
+    "permissive": "PERMISSIVE",
+    "roles": "{authenticated}",
+    "cmd": "SELECT",
+    "qual": "true",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "costing_policy_history",
+    "policyname": "costing_history_read",
+    "permissive": "PERMISSIVE",
+    "roles": "{authenticated}",
+    "cmd": "SELECT",
+    "qual": "is_staff(auth.uid())",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "countries_of_origin",
+    "policyname": "origin_staff",
+    "permissive": "PERMISSIVE",
+    "roles": "{authenticated}",
+    "cmd": "ALL",
+    "qual": "is_staff(auth.uid())",
+    "with_check": "(has_role(auth.uid(), 'owner'::app_role) OR has_role(auth.uid(), 'manager'::app_role))"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "customer_ledger",
+    "policyname": "customer_ledger_view",
+    "permissive": "PERMISSIVE",
+    "roles": "{authenticated}",
+    "cmd": "SELECT",
+    "qual": "is_staff(auth.uid())",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "customer_payment_splits",
+    "policyname": "customer_payment_splits staff read",
+    "permissive": "PERMISSIVE",
+    "roles": "{authenticated}",
+    "cmd": "SELECT",
+    "qual": "is_staff(auth.uid())",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "customer_payment_splits",
+    "policyname": "customer_payment_splits staff write",
+    "permissive": "PERMISSIVE",
+    "roles": "{authenticated}",
+    "cmd": "INSERT",
+    "qual": null,
+    "with_check": "is_staff(auth.uid())"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "customer_payments",
+    "policyname": "staff_view_customer_payments",
+    "permissive": "PERMISSIVE",
+    "roles": "{authenticated}",
+    "cmd": "SELECT",
+    "qual": "is_staff(auth.uid())",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "customers",
+    "policyname": "cust_manage",
+    "permissive": "PERMISSIVE",
+    "roles": "{authenticated}",
+    "cmd": "ALL",
+    "qual": "(has_role(auth.uid(), 'owner'::app_role) OR has_role(auth.uid(), 'manager'::app_role) OR has_role(auth.uid(), 'cashier'::app_role) OR has_role(auth.uid(), 'accountant'::app_role))",
+    "with_check": "(has_role(auth.uid(), 'owner'::app_role) OR has_role(auth.uid(), 'manager'::app_role) OR has_role(auth.uid(), 'cashier'::app_role) OR has_role(auth.uid(), 'accountant'::app_role))"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "customers",
+    "policyname": "cust_view",
+    "permissive": "PERMISSIVE",
+    "roles": "{authenticated}",
+    "cmd": "SELECT",
+    "qual": "is_staff(auth.uid())",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "device_registrations",
+    "policyname": "Authenticated users can read device registrations",
+    "permissive": "PERMISSIVE",
+    "roles": "{authenticated}",
+    "cmd": "SELECT",
+    "qual": "true",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "expense_approvals",
+    "policyname": "expense_approvals_read",
+    "permissive": "PERMISSIVE",
+    "roles": "{authenticated}",
+    "cmd": "SELECT",
+    "qual": "can_read_expense_entry(entry_id, auth.uid())",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "expense_attachments",
+    "policyname": "expense_attachments_delete",
+    "permissive": "PERMISSIVE",
+    "roles": "{authenticated}",
+    "cmd": "DELETE",
+    "qual": "((expense_role_rank(auth.uid()) >= 30) AND (EXISTS ( SELECT 1\n   FROM expense_entries e\n  WHERE ((e.id = expense_attachments.entry_id) AND (e.status = ANY (ARRAY['DRAFT'::expense_status, 'REJECTED'::expense_status]))))))",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "expense_attachments",
+    "policyname": "expense_attachments_insert",
+    "permissive": "PERMISSIVE",
+    "roles": "{authenticated}",
+    "cmd": "INSERT",
+    "qual": null,
+    "with_check": "(is_staff(auth.uid()) AND (uploaded_by = auth.uid()) AND (EXISTS ( SELECT 1\n   FROM expense_entries e\n  WHERE ((e.id = expense_attachments.entry_id) AND (e.status = ANY (ARRAY['DRAFT'::expense_status, 'REJECTED'::expense_status]))))))"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "expense_attachments",
+    "policyname": "expense_attachments_read",
+    "permissive": "PERMISSIVE",
+    "roles": "{authenticated}",
+    "cmd": "SELECT",
+    "qual": "can_read_expense_entry(entry_id, auth.uid())",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "expense_categories",
+    "policyname": "staff read expense cats",
+    "permissive": "PERMISSIVE",
+    "roles": "{authenticated}",
+    "cmd": "SELECT",
+    "qual": "is_staff(auth.uid())",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "expense_categories",
+    "policyname": "staff write expense cats",
+    "permissive": "PERMISSIVE",
+    "roles": "{authenticated}",
+    "cmd": "ALL",
+    "qual": "is_staff(auth.uid())",
+    "with_check": "is_staff(auth.uid())"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "expense_cost_centers",
+    "policyname": "expense_cost_centers_manage",
+    "permissive": "PERMISSIVE",
+    "roles": "{authenticated}",
+    "cmd": "ALL",
+    "qual": "(has_role(auth.uid(), 'owner'::app_role) OR has_role(auth.uid(), 'manager'::app_role))",
+    "with_check": "(has_role(auth.uid(), 'owner'::app_role) OR has_role(auth.uid(), 'manager'::app_role))"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "expense_cost_centers",
+    "policyname": "expense_cost_centers_read",
+    "permissive": "PERMISSIVE",
+    "roles": "{authenticated}",
+    "cmd": "SELECT",
+    "qual": "is_staff(auth.uid())",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "expense_entries",
+    "policyname": "expense_entries_read",
+    "permissive": "PERMISSIVE",
+    "roles": "{authenticated}",
+    "cmd": "SELECT",
+    "qual": "(can_read_finance(auth.uid()) OR (is_staff(auth.uid()) AND (created_by = auth.uid())))",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "expense_lines",
+    "policyname": "expense_lines_read",
+    "permissive": "PERMISSIVE",
+    "roles": "{authenticated}",
+    "cmd": "SELECT",
+    "qual": "can_read_expense_entry(entry_id, auth.uid())",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "expense_payments",
+    "policyname": "expense_payments_read",
+    "permissive": "PERMISSIVE",
+    "roles": "{authenticated}",
+    "cmd": "SELECT",
+    "qual": "can_read_expense_entry(entry_id, auth.uid())",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "expense_projects",
+    "policyname": "expense_projects_manage",
+    "permissive": "PERMISSIVE",
+    "roles": "{authenticated}",
+    "cmd": "ALL",
+    "qual": "(has_role(auth.uid(), 'owner'::app_role) OR has_role(auth.uid(), 'manager'::app_role))",
+    "with_check": "(has_role(auth.uid(), 'owner'::app_role) OR has_role(auth.uid(), 'manager'::app_role))"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "expense_projects",
+    "policyname": "expense_projects_read",
+    "permissive": "PERMISSIVE",
+    "roles": "{authenticated}",
+    "cmd": "SELECT",
+    "qual": "is_staff(auth.uid())",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "expenses",
+    "policyname": "finance read expenses",
+    "permissive": "PERMISSIVE",
+    "roles": "{authenticated}",
+    "cmd": "SELECT",
+    "qual": "can_read_finance(auth.uid())",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "expenses",
+    "policyname": "finance write expenses",
+    "permissive": "PERMISSIVE",
+    "roles": "{authenticated}",
+    "cmd": "ALL",
+    "qual": "can_read_finance(auth.uid())",
+    "with_check": "can_read_finance(auth.uid())"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "inventory",
+    "policyname": "inv_read_only_staff",
+    "permissive": "PERMISSIVE",
+    "roles": "{authenticated}",
+    "cmd": "SELECT",
+    "qual": "is_staff(auth.uid())",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "inventory",
+    "policyname": "inv_view",
+    "permissive": "PERMISSIVE",
+    "roles": "{authenticated}",
+    "cmd": "SELECT",
+    "qual": "is_staff(auth.uid())",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "item_cost_layers",
+    "policyname": "cost_layers_read",
+    "permissive": "PERMISSIVE",
+    "roles": "{authenticated}",
+    "cmd": "SELECT",
+    "qual": "(is_staff(auth.uid()) AND ((owner_type = 'COMPANY'::owner_type) OR (owner_id = auth.uid())))",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "item_cost_transactions",
+    "policyname": "cost_tx_read",
+    "permissive": "PERMISSIVE",
+    "roles": "{authenticated}",
+    "cmd": "SELECT",
+    "qual": "(is_staff(auth.uid()) AND ((owner_type = 'COMPANY'::owner_type) OR (owner_id = auth.uid())))",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "item_policy_review_queue",
+    "policyname": "item_policy_review_manage",
+    "permissive": "PERMISSIVE",
+    "roles": "{authenticated}",
+    "cmd": "ALL",
+    "qual": "(has_role(auth.uid(), 'owner'::app_role) OR has_role(auth.uid(), 'manager'::app_role))",
+    "with_check": "(has_role(auth.uid(), 'owner'::app_role) OR has_role(auth.uid(), 'manager'::app_role))"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "item_policy_review_queue",
+    "policyname": "item_policy_review_staff_read",
+    "permissive": "PERMISSIVE",
+    "roles": "{authenticated}",
+    "cmd": "SELECT",
+    "qual": "is_staff(auth.uid())",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "journal_entries",
+    "policyname": "journal_read",
+    "permissive": "PERMISSIVE",
+    "roles": "{authenticated}",
+    "cmd": "SELECT",
+    "qual": "is_staff(auth.uid())",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "journal_lines",
+    "policyname": "journal_lines_read",
+    "permissive": "PERMISSIVE",
+    "roles": "{authenticated}",
+    "cmd": "SELECT",
+    "qual": "is_staff(auth.uid())",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "loyalty_transactions",
+    "policyname": "Staff read loyalty",
+    "permissive": "PERMISSIVE",
+    "roles": "{authenticated}",
+    "cmd": "SELECT",
+    "qual": "is_staff(auth.uid())",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "loyalty_transactions",
+    "policyname": "Staff write loyalty",
+    "permissive": "PERMISSIVE",
+    "roles": "{authenticated}",
+    "cmd": "INSERT",
+    "qual": null,
+    "with_check": "is_staff(auth.uid())"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "milling_delivery_items",
+    "policyname": "milling_delivery_items_read",
+    "permissive": "PERMISSIVE",
+    "roles": "{authenticated}",
+    "cmd": "SELECT",
+    "qual": "(EXISTS ( SELECT 1\n   FROM milling_delivery_notes d\n  WHERE (d.id = milling_delivery_items.delivery_id)))",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "milling_delivery_notes",
+    "policyname": "milling_delivery_read",
+    "permissive": "PERMISSIVE",
+    "roles": "{authenticated}",
+    "cmd": "SELECT",
+    "qual": "can_view_milling()",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "milling_grain_grades",
+    "policyname": "milling_grain_grades_read",
+    "permissive": "PERMISSIVE",
+    "roles": "{authenticated}",
+    "cmd": "SELECT",
+    "qual": "is_staff(auth.uid())",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "milling_intake_receipts",
+    "policyname": "milling_intake_read",
+    "permissive": "PERMISSIVE",
+    "roles": "{authenticated}",
+    "cmd": "SELECT",
+    "qual": "can_view_milling()",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "milling_job_outputs",
+    "policyname": "milling_job_outputs_read",
+    "permissive": "PERMISSIVE",
+    "roles": "{authenticated}",
+    "cmd": "SELECT",
+    "qual": "(EXISTS ( SELECT 1\n   FROM milling_jobs j\n  WHERE (j.id = milling_job_outputs.job_id)))",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "milling_jobs",
+    "policyname": "milling_jobs_read",
+    "permissive": "PERMISSIVE",
+    "roles": "{authenticated}",
+    "cmd": "SELECT",
+    "qual": "can_view_milling()",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "milling_service_agreements",
+    "policyname": "milling_agreements_read",
+    "permissive": "PERMISSIVE",
+    "roles": "{authenticated}",
+    "cmd": "SELECT",
+    "qual": "is_staff(auth.uid())",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "milling_unit_conversions",
+    "policyname": "milling_unit_conversions_read",
+    "permissive": "PERMISSIVE",
+    "roles": "{authenticated}",
+    "cmd": "SELECT",
+    "qual": "is_staff(auth.uid())",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "opening_balance_documents",
+    "policyname": "opening_bal_read",
+    "permissive": "PERMISSIVE",
+    "roles": "{authenticated}",
+    "cmd": "SELECT",
+    "qual": "is_staff(auth.uid())",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "opening_balance_lines",
+    "policyname": "opening_bal_lines_read",
+    "permissive": "PERMISSIVE",
+    "roles": "{authenticated}",
+    "cmd": "SELECT",
+    "qual": "is_staff(auth.uid())",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "packaging_types",
+    "policyname": "packaging_types_read",
+    "permissive": "PERMISSIVE",
+    "roles": "{authenticated}",
+    "cmd": "SELECT",
+    "qual": "is_staff(auth.uid())",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "packaging_types",
+    "policyname": "packaging_types_write",
+    "permissive": "PERMISSIVE",
+    "roles": "{authenticated}",
+    "cmd": "ALL",
+    "qual": "(has_role(auth.uid(), 'owner'::app_role) OR has_role(auth.uid(), 'manager'::app_role))",
+    "with_check": "(has_role(auth.uid(), 'owner'::app_role) OR has_role(auth.uid(), 'manager'::app_role))"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "platform_admins",
+    "policyname": "platform_admins_manage",
+    "permissive": "PERMISSIVE",
+    "roles": "{authenticated}",
+    "cmd": "ALL",
+    "qual": "is_platform_superadmin(auth.uid())",
+    "with_check": "is_platform_superadmin(auth.uid())"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "platform_admins",
+    "policyname": "platform_admins_select",
+    "permissive": "PERMISSIVE",
+    "roles": "{authenticated}",
+    "cmd": "SELECT",
+    "qual": "is_platform_admin(auth.uid())",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "platform_admins",
+    "policyname": "platform_admins_self_read",
+    "permissive": "PERMISSIVE",
+    "roles": "{authenticated}",
+    "cmd": "SELECT",
+    "qual": "(user_id = auth.uid())",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "platform_audit_logs",
+    "policyname": "platform_audit_logs_insert",
+    "permissive": "PERMISSIVE",
+    "roles": "{authenticated}",
+    "cmd": "INSERT",
+    "qual": null,
+    "with_check": "(is_platform_admin(auth.uid()) OR (auth.uid() IS NOT NULL))"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "platform_audit_logs",
+    "policyname": "platform_audit_logs_select",
+    "permissive": "PERMISSIVE",
+    "roles": "{authenticated}",
+    "cmd": "SELECT",
+    "qual": "is_platform_admin(auth.uid())",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "platform_modules",
+    "policyname": "platform_modules_read",
+    "permissive": "PERMISSIVE",
+    "roles": "{authenticated}",
+    "cmd": "SELECT",
+    "qual": "true",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "platform_plans",
+    "policyname": "platform_plans_read",
+    "permissive": "PERMISSIVE",
+    "roles": "{authenticated}",
+    "cmd": "SELECT",
+    "qual": "true",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "product_batches",
+    "policyname": "Staff read batches",
+    "permissive": "PERMISSIVE",
+    "roles": "{authenticated}",
+    "cmd": "SELECT",
+    "qual": "is_staff(auth.uid())",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "product_batches",
+    "policyname": "Staff write batches",
+    "permissive": "PERMISSIVE",
+    "roles": "{authenticated}",
+    "cmd": "ALL",
+    "qual": "is_staff(auth.uid())",
+    "with_check": "is_staff(auth.uid())"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "product_compatibilities",
+    "policyname": "fitment_staff",
+    "permissive": "PERMISSIVE",
+    "roles": "{authenticated}",
+    "cmd": "ALL",
+    "qual": "is_staff(auth.uid())",
+    "with_check": "(has_role(auth.uid(), 'owner'::app_role) OR has_role(auth.uid(), 'manager'::app_role))"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "production_bom_lines",
+    "policyname": "production_bom_lines_read",
+    "permissive": "PERMISSIVE",
+    "roles": "{authenticated}",
+    "cmd": "SELECT",
+    "qual": "is_staff(auth.uid())",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "production_boms",
+    "policyname": "production_boms_read",
+    "permissive": "PERMISSIVE",
+    "roles": "{authenticated}",
+    "cmd": "SELECT",
+    "qual": "is_staff(auth.uid())",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "production_order_losses",
+    "policyname": "production_order_losses_read",
+    "permissive": "PERMISSIVE",
+    "roles": "{authenticated}",
+    "cmd": "SELECT",
+    "qual": "is_staff(auth.uid())",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "production_order_materials",
+    "policyname": "production_order_materials_read",
+    "permissive": "PERMISSIVE",
+    "roles": "{authenticated}",
+    "cmd": "SELECT",
+    "qual": "is_staff(auth.uid())",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "production_order_outputs",
+    "policyname": "production_order_outputs_read",
+    "permissive": "PERMISSIVE",
+    "roles": "{authenticated}",
+    "cmd": "SELECT",
+    "qual": "is_staff(auth.uid())",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "production_orders",
+    "policyname": "production_orders_read",
+    "permissive": "PERMISSIVE",
+    "roles": "{authenticated}",
+    "cmd": "SELECT",
+    "qual": "is_staff(auth.uid())",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "products",
+    "policyname": "prod_manage",
+    "permissive": "PERMISSIVE",
+    "roles": "{authenticated}",
+    "cmd": "ALL",
+    "qual": "(has_role(auth.uid(), 'owner'::app_role) OR has_role(auth.uid(), 'manager'::app_role) OR has_role(auth.uid(), 'warehouse'::app_role))",
+    "with_check": "(has_role(auth.uid(), 'owner'::app_role) OR has_role(auth.uid(), 'manager'::app_role) OR has_role(auth.uid(), 'warehouse'::app_role))"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "products",
+    "policyname": "prod_view",
+    "permissive": "PERMISSIVE",
+    "roles": "{authenticated}",
+    "cmd": "SELECT",
+    "qual": "is_staff(auth.uid())",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "profiles",
+    "policyname": "profiles read",
+    "permissive": "PERMISSIVE",
+    "roles": "{authenticated}",
+    "cmd": "SELECT",
+    "qual": "((id = auth.uid()) OR has_role(auth.uid(), 'owner'::app_role) OR has_role(auth.uid(), 'manager'::app_role))",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "profiles",
+    "policyname": "profiles_admin_toggle_active",
+    "permissive": "PERMISSIVE",
+    "roles": "{authenticated}",
+    "cmd": "UPDATE",
+    "qual": "(has_role(auth.uid(), 'owner'::app_role) OR is_platform_superadmin(auth.uid()))",
+    "with_check": "(has_role(auth.uid(), 'owner'::app_role) OR is_platform_superadmin(auth.uid()))"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "profiles",
+    "policyname": "profiles_self_insert",
+    "permissive": "PERMISSIVE",
+    "roles": "{authenticated}",
+    "cmd": "INSERT",
+    "qual": null,
+    "with_check": "(id = auth.uid())"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "profiles",
+    "policyname": "profiles_self_update",
+    "permissive": "PERMISSIVE",
+    "roles": "{authenticated}",
+    "cmd": "UPDATE",
+    "qual": "(id = auth.uid())",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "purchase_invoice_items",
+    "policyname": "pur_item_manage",
+    "permissive": "PERMISSIVE",
+    "roles": "{authenticated}",
+    "cmd": "ALL",
+    "qual": "(has_role(auth.uid(), 'owner'::app_role) OR has_role(auth.uid(), 'manager'::app_role) OR has_role(auth.uid(), 'accountant'::app_role) OR has_role(auth.uid(), 'warehouse'::app_role))",
+    "with_check": "(has_role(auth.uid(), 'owner'::app_role) OR has_role(auth.uid(), 'manager'::app_role) OR has_role(auth.uid(), 'accountant'::app_role) OR has_role(auth.uid(), 'warehouse'::app_role))"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "purchase_invoice_items",
+    "policyname": "pur_item_view",
+    "permissive": "PERMISSIVE",
+    "roles": "{authenticated}",
+    "cmd": "SELECT",
+    "qual": "is_staff(auth.uid())",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "purchase_invoices",
+    "policyname": "pur_manage",
+    "permissive": "PERMISSIVE",
+    "roles": "{authenticated}",
+    "cmd": "ALL",
+    "qual": "(has_role(auth.uid(), 'owner'::app_role) OR has_role(auth.uid(), 'manager'::app_role) OR has_role(auth.uid(), 'accountant'::app_role) OR has_role(auth.uid(), 'warehouse'::app_role))",
+    "with_check": "(has_role(auth.uid(), 'owner'::app_role) OR has_role(auth.uid(), 'manager'::app_role) OR has_role(auth.uid(), 'accountant'::app_role) OR has_role(auth.uid(), 'warehouse'::app_role))"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "purchase_invoices",
+    "policyname": "pur_view",
+    "permissive": "PERMISSIVE",
+    "roles": "{authenticated}",
+    "cmd": "SELECT",
+    "qual": "is_staff(auth.uid())",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "purchase_return_items",
+    "policyname": "staff read pret_i",
+    "permissive": "PERMISSIVE",
+    "roles": "{authenticated}",
+    "cmd": "SELECT",
+    "qual": "is_staff(auth.uid())",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "purchase_return_items",
+    "policyname": "staff write pret_i",
+    "permissive": "PERMISSIVE",
+    "roles": "{authenticated}",
+    "cmd": "ALL",
+    "qual": "is_staff(auth.uid())",
+    "with_check": "is_staff(auth.uid())"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "purchase_returns",
+    "policyname": "staff read pret",
+    "permissive": "PERMISSIVE",
+    "roles": "{authenticated}",
+    "cmd": "SELECT",
+    "qual": "is_staff(auth.uid())",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "purchase_returns",
+    "policyname": "staff write pret",
+    "permissive": "PERMISSIVE",
+    "roles": "{authenticated}",
+    "cmd": "ALL",
+    "qual": "is_staff(auth.uid())",
+    "with_check": "is_staff(auth.uid())"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "quality_grades",
+    "policyname": "quality_staff",
+    "permissive": "PERMISSIVE",
+    "roles": "{authenticated}",
+    "cmd": "ALL",
+    "qual": "is_staff(auth.uid())",
+    "with_check": "(has_role(auth.uid(), 'owner'::app_role) OR has_role(auth.uid(), 'manager'::app_role))"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "sales_invoice_items",
+    "policyname": "sale_item_view",
+    "permissive": "PERMISSIVE",
+    "roles": "{authenticated}",
+    "cmd": "SELECT",
+    "qual": "is_staff(auth.uid())",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "sales_invoices",
+    "policyname": "sale_view",
+    "permissive": "PERMISSIVE",
+    "roles": "{authenticated}",
+    "cmd": "SELECT",
+    "qual": "is_staff(auth.uid())",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "sales_return_items",
+    "policyname": "staff read sret_i",
+    "permissive": "PERMISSIVE",
+    "roles": "{authenticated}",
+    "cmd": "SELECT",
+    "qual": "is_staff(auth.uid())",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "sales_return_items",
+    "policyname": "staff write sret_i",
+    "permissive": "PERMISSIVE",
+    "roles": "{authenticated}",
+    "cmd": "ALL",
+    "qual": "is_staff(auth.uid())",
+    "with_check": "is_staff(auth.uid())"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "sales_returns",
+    "policyname": "staff read sret",
+    "permissive": "PERMISSIVE",
+    "roles": "{authenticated}",
+    "cmd": "SELECT",
+    "qual": "is_staff(auth.uid())",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "sales_returns",
+    "policyname": "staff write sret",
+    "permissive": "PERMISSIVE",
+    "roles": "{authenticated}",
+    "cmd": "ALL",
+    "qual": "is_staff(auth.uid())",
+    "with_check": "is_staff(auth.uid())"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "stock_adjustment_items",
+    "policyname": "stock_adjustment_items_read",
+    "permissive": "PERMISSIVE",
+    "roles": "{authenticated}",
+    "cmd": "SELECT",
+    "qual": "is_staff(auth.uid())",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "stock_adjustments",
+    "policyname": "stock_adjustments_read",
+    "permissive": "PERMISSIVE",
+    "roles": "{authenticated}",
+    "cmd": "SELECT",
+    "qual": "is_staff(auth.uid())",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "stock_movements",
+    "policyname": "mv_view",
+    "permissive": "PERMISSIVE",
+    "roles": "{authenticated}",
+    "cmd": "SELECT",
+    "qual": "is_staff(auth.uid())",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "stock_opening_items",
+    "policyname": "stock_opening_items_read",
+    "permissive": "PERMISSIVE",
+    "roles": "{authenticated}",
+    "cmd": "SELECT",
+    "qual": "is_staff(auth.uid())",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "stock_openings",
+    "policyname": "stock_openings_read",
+    "permissive": "PERMISSIVE",
+    "roles": "{authenticated}",
+    "cmd": "SELECT",
+    "qual": "is_staff(auth.uid())",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "stock_transfer_items",
+    "policyname": "staff read xfer_i",
+    "permissive": "PERMISSIVE",
+    "roles": "{authenticated}",
+    "cmd": "SELECT",
+    "qual": "is_staff(auth.uid())",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "stock_transfer_items",
+    "policyname": "staff write xfer_i",
+    "permissive": "PERMISSIVE",
+    "roles": "{authenticated}",
+    "cmd": "ALL",
+    "qual": "is_staff(auth.uid())",
+    "with_check": "is_staff(auth.uid())"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "stock_transfers",
+    "policyname": "staff read xfer",
+    "permissive": "PERMISSIVE",
+    "roles": "{authenticated}",
+    "cmd": "SELECT",
+    "qual": "is_staff(auth.uid())",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "stock_transfers",
+    "policyname": "staff write xfer",
+    "permissive": "PERMISSIVE",
+    "roles": "{authenticated}",
+    "cmd": "ALL",
+    "qual": "is_staff(auth.uid())",
+    "with_check": "is_staff(auth.uid())"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "suppliers",
+    "policyname": "supp_manage",
+    "permissive": "PERMISSIVE",
+    "roles": "{authenticated}",
+    "cmd": "ALL",
+    "qual": "(has_role(auth.uid(), 'owner'::app_role) OR has_role(auth.uid(), 'manager'::app_role) OR has_role(auth.uid(), 'accountant'::app_role))",
+    "with_check": "(has_role(auth.uid(), 'owner'::app_role) OR has_role(auth.uid(), 'manager'::app_role) OR has_role(auth.uid(), 'accountant'::app_role))"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "suppliers",
+    "policyname": "supp_view",
+    "permissive": "PERMISSIVE",
+    "roles": "{authenticated}",
+    "cmd": "SELECT",
+    "qual": "is_staff(auth.uid())",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "sync_idempotency_keys",
+    "policyname": "Authenticated users can check and insert idempotency keys",
+    "permissive": "PERMISSIVE",
+    "roles": "{authenticated}",
+    "cmd": "ALL",
+    "qual": "true",
+    "with_check": "true"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "tenant_subscriptions",
+    "policyname": "tenant_subscriptions_insert",
+    "permissive": "PERMISSIVE",
+    "roles": "{authenticated}",
+    "cmd": "INSERT",
+    "qual": null,
+    "with_check": "is_platform_admin(auth.uid())"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "tenant_subscriptions",
+    "policyname": "tenant_subscriptions_read",
+    "permissive": "PERMISSIVE",
+    "roles": "{authenticated}",
+    "cmd": "SELECT",
+    "qual": "true",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "tenant_subscriptions",
+    "policyname": "tenant_subscriptions_select",
+    "permissive": "PERMISSIVE",
+    "roles": "{authenticated}",
+    "cmd": "SELECT",
+    "qual": "true",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "tenant_subscriptions",
+    "policyname": "tenant_subscriptions_update",
+    "permissive": "PERMISSIVE",
+    "roles": "{authenticated}",
+    "cmd": "UPDATE",
+    "qual": "is_platform_admin(auth.uid())",
+    "with_check": "is_platform_admin(auth.uid())"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "units",
+    "policyname": "unit_manage",
+    "permissive": "PERMISSIVE",
+    "roles": "{authenticated}",
+    "cmd": "ALL",
+    "qual": "(has_role(auth.uid(), 'owner'::app_role) OR has_role(auth.uid(), 'manager'::app_role))",
+    "with_check": "(has_role(auth.uid(), 'owner'::app_role) OR has_role(auth.uid(), 'manager'::app_role))"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "units",
+    "policyname": "unit_view",
+    "permissive": "PERMISSIVE",
+    "roles": "{authenticated}",
+    "cmd": "SELECT",
+    "qual": "is_staff(auth.uid())",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "user_roles",
+    "policyname": "owner manage roles del",
+    "permissive": "PERMISSIVE",
+    "roles": "{authenticated}",
+    "cmd": "DELETE",
+    "qual": "has_role(auth.uid(), 'owner'::app_role)",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "user_roles",
+    "policyname": "owner manage roles ins",
+    "permissive": "PERMISSIVE",
+    "roles": "{authenticated}",
+    "cmd": "INSERT",
+    "qual": null,
+    "with_check": "has_role(auth.uid(), 'owner'::app_role)"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "user_roles",
+    "policyname": "owner manage roles upd",
+    "permissive": "PERMISSIVE",
+    "roles": "{authenticated}",
+    "cmd": "UPDATE",
+    "qual": "has_role(auth.uid(), 'owner'::app_role)",
+    "with_check": "has_role(auth.uid(), 'owner'::app_role)"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "user_roles",
+    "policyname": "roles_self_view",
+    "permissive": "PERMISSIVE",
+    "roles": "{authenticated}",
+    "cmd": "SELECT",
+    "qual": "((user_id = auth.uid()) OR has_role(auth.uid(), 'owner'::app_role) OR has_role(auth.uid(), 'manager'::app_role))",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "vehicle_makes",
+    "policyname": "make_staff",
+    "permissive": "PERMISSIVE",
+    "roles": "{authenticated}",
+    "cmd": "ALL",
+    "qual": "is_staff(auth.uid())",
+    "with_check": "(has_role(auth.uid(), 'owner'::app_role) OR has_role(auth.uid(), 'manager'::app_role))"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "vehicle_models",
+    "policyname": "model_staff",
+    "permissive": "PERMISSIVE",
+    "roles": "{authenticated}",
+    "cmd": "ALL",
+    "qual": "is_staff(auth.uid())",
+    "with_check": "(has_role(auth.uid(), 'owner'::app_role) OR has_role(auth.uid(), 'manager'::app_role))"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "warehouses",
+    "policyname": "wh_manage",
+    "permissive": "PERMISSIVE",
+    "roles": "{authenticated}",
+    "cmd": "ALL",
+    "qual": "(has_role(auth.uid(), 'owner'::app_role) OR has_role(auth.uid(), 'manager'::app_role))",
+    "with_check": "(has_role(auth.uid(), 'owner'::app_role) OR has_role(auth.uid(), 'manager'::app_role))"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "warehouses",
+    "policyname": "wh_view",
+    "permissive": "PERMISSIVE",
+    "roles": "{authenticated}",
+    "cmd": "SELECT",
+    "qual": "is_staff(auth.uid())",
+    "with_check": null
+  }
+]

@@ -17,33 +17,64 @@ The two files collided, and the whole seed transaction aborted.
 
 ```
 supabase/seeds/
-├── README.md                  <- this file
-├── reference.sql              <- AUTO-RUN on every `supabase db reset`
-└── demo/
-    ├── accounts.sql           <- demo staff accounts (run FIRST)
-    ├── wholesale-retail.sql   <- grocery / wholesale + retail dataset
-    ├── stationery.sql         <- office-supplies dataset (current)
-    └── stationery-legacy.sql  <- superseded variant, reference only
+├── README.md              <- this file
+├── reference/             <- AUTO-RUN. The system cannot start without these.
+│   ├── 01_platform_modules.sql
+│   ├── 02_platform_plans.sql
+│   ├── 03_chart_of_accounts.sql
+│   ├── 04_units.sql
+│   ├── 05_expense_categories.sql
+│   └── 06_milling_reference.sql
+├── demo/                  <- NEVER AUTO-RUN. One business's fabricated data.
+│   ├── accounts.sql             <- demo staff accounts (run FIRST)
+│   ├── wholesale-retail.sql     <- grocery / wholesale + retail dataset
+│   ├── stationery.sql           <- office-supplies dataset
+│   ├── stationery-legacy.sql    <- superseded variant, reference only
+│   ├── mill-catalog.sql         <- mill product families (moved out of migrations)
+│   ├── mill-products.sql        <- mill products (moved out of migrations)
+│   ├── warehouses.sql           <- warehouse rows (moved out of migrations)
+│   └── customers.sql            <- customer rows (moved out of migrations)
+├── test/                  <- NEVER AUTO-RUN. Fixtures for automated tests.
+└── customer/              <- NEVER COMMITTED. A real customer's own data.
 ```
+
+## The boundary — one question decides it
+
+> **Can any new customer run the system without this row?**
+
+| Answer | Where it goes |
+| --- | --- |
+| No — the code resolves it by a fixed key | `reference/` |
+| It is useful only for a product demo | `demo/` |
+| It exists to make an automated test deterministic | `test/` |
+| It belongs to one real business | `customer/` (never committed) |
+
+### Why `accounts` is reference but `products` is not
+
+The posting functions contain account codes as literals — `'1211'`, `'4111'`,
+`'5111'`. A missing account makes every posting that touches it fail, so the
+chart is structure. A product catalogue describes what one business happens to
+sell, so it is not.
 
 ## What runs automatically
 
-`supabase/config.toml` wires **only** `./seeds/reference.sql`:
+`supabase/config.toml` wires **only** the files under `./seeds/reference/`:
 
 ```toml
 [db.seed]
 enabled = true
-sql_paths = ["./seeds/reference.sql"]
+sql_paths = ["./seeds/reference/*.sql"]
 ```
 
-`reference.sql` may contain only rows the application cannot function without,
-and every statement must be idempotent:
+Files in `reference/` may contain only rows the application cannot function
+without, and every statement must be idempotent:
 
 | Allowed                               | Forbidden                                |
 | ------------------------------------- | ---------------------------------------- |
-| Default `units`, `expense_categories` | Products, customers, suppliers, invoices |
-| `ON CONFLICT` on a real business key  | `auth.users`, `profiles`, `user_roles`   |
-|                                       | `company_settings` (customer identity)   |
+| `platform_modules`, `platform_plans`  | Products, customers, suppliers, invoices |
+| `accounts` (the chart of accounts)    | `warehouses` (a physical location)       |
+| Default `units`, `expense_categories` | `auth.users`, `profiles`, `user_roles`   |
+| Milling lookups resolved by code      | `company_settings` (customer identity)   |
 
 Company identity is a setting each customer edits in the app. It must never
 arrive from a migration or a seed.

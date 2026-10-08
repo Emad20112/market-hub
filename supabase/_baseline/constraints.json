@@ -1,0 +1,2540 @@
+[
+  {
+    "conname": "accounts_parent_id_fkey",
+    "contype": "f",
+    "table_name": "accounts",
+    "def": "FOREIGN KEY (parent_id) REFERENCES accounts(id) ON DELETE RESTRICT"
+  },
+  {
+    "conname": "accounts_pkey",
+    "contype": "p",
+    "table_name": "accounts",
+    "def": "PRIMARY KEY (id)"
+  },
+  {
+    "conname": "accounts_code_key",
+    "contype": "u",
+    "table_name": "accounts",
+    "def": "UNIQUE (code)"
+  },
+  {
+    "conname": "ad_hoc_service_lines_quantity_check",
+    "contype": "c",
+    "table_name": "ad_hoc_service_lines",
+    "def": "CHECK ((quantity > (0)::numeric))"
+  },
+  {
+    "conname": "ad_hoc_service_lines_unit_price_check",
+    "contype": "c",
+    "table_name": "ad_hoc_service_lines",
+    "def": "CHECK ((unit_price >= (0)::numeric))"
+  },
+  {
+    "conname": "ad_hoc_service_lines_created_by_fkey",
+    "contype": "f",
+    "table_name": "ad_hoc_service_lines",
+    "def": "FOREIGN KEY (created_by) REFERENCES auth.users(id) ON DELETE SET NULL"
+  },
+  {
+    "conname": "ad_hoc_service_lines_invoice_id_fkey",
+    "contype": "f",
+    "table_name": "ad_hoc_service_lines",
+    "def": "FOREIGN KEY (invoice_id) REFERENCES sales_invoices(id) ON DELETE CASCADE"
+  },
+  {
+    "conname": "ad_hoc_service_lines_invoice_item_id_fkey",
+    "contype": "f",
+    "table_name": "ad_hoc_service_lines",
+    "def": "FOREIGN KEY (invoice_item_id) REFERENCES sales_invoice_items(id) ON DELETE SET NULL"
+  },
+  {
+    "conname": "ad_hoc_service_lines_pkey",
+    "contype": "p",
+    "table_name": "ad_hoc_service_lines",
+    "def": "PRIMARY KEY (id)"
+  },
+  {
+    "conname": "audit_logs_actor_id_fkey",
+    "contype": "f",
+    "table_name": "audit_logs",
+    "def": "FOREIGN KEY (actor_id) REFERENCES auth.users(id)"
+  },
+  {
+    "conname": "audit_logs_pkey",
+    "contype": "p",
+    "table_name": "audit_logs",
+    "def": "PRIMARY KEY (id)"
+  },
+  {
+    "conname": "backup_logs_action_type_check",
+    "contype": "c",
+    "table_name": "backup_logs",
+    "def": "CHECK ((action_type = ANY (ARRAY['manual_local'::text, 'manual_cloud'::text, 'auto_scheduled'::text, 'pre_restore_safety'::text])))"
+  },
+  {
+    "conname": "backup_logs_status_check",
+    "contype": "c",
+    "table_name": "backup_logs",
+    "def": "CHECK ((status = ANY (ARRAY['success'::text, 'failed'::text, 'in_progress'::text, 'pending'::text])))"
+  },
+  {
+    "conname": "backup_logs_storage_type_check",
+    "contype": "c",
+    "table_name": "backup_logs",
+    "def": "CHECK ((storage_type = ANY (ARRAY['local'::text, 'cloud'::text, 'both'::text])))"
+  },
+  {
+    "conname": "backup_logs_actor_id_fkey",
+    "contype": "f",
+    "table_name": "backup_logs",
+    "def": "FOREIGN KEY (actor_id) REFERENCES auth.users(id) ON DELETE SET NULL"
+  },
+  {
+    "conname": "backup_logs_pkey",
+    "contype": "p",
+    "table_name": "backup_logs",
+    "def": "PRIMARY KEY (id)"
+  },
+  {
+    "conname": "brands_pkey",
+    "contype": "p",
+    "table_name": "brands",
+    "def": "PRIMARY KEY (id)"
+  },
+  {
+    "conname": "categories_parent_id_fkey",
+    "contype": "f",
+    "table_name": "categories",
+    "def": "FOREIGN KEY (parent_id) REFERENCES categories(id) ON DELETE SET NULL"
+  },
+  {
+    "conname": "categories_pkey",
+    "contype": "p",
+    "table_name": "categories",
+    "def": "PRIMARY KEY (id)"
+  },
+  {
+    "conname": "company_costing_settings_singleton",
+    "contype": "c",
+    "table_name": "company_costing_settings",
+    "def": "CHECK ((id = 1))"
+  },
+  {
+    "conname": "company_costing_settings_standard_cost_source_check",
+    "contype": "c",
+    "table_name": "company_costing_settings",
+    "def": "CHECK ((standard_cost_source = ANY (ARRAY['CATALOGUE'::text, 'ROLLING_AVERAGE'::text, 'MANUAL'::text])))"
+  },
+  {
+    "conname": "company_costing_settings_updated_by_fkey",
+    "contype": "f",
+    "table_name": "company_costing_settings",
+    "def": "FOREIGN KEY (updated_by) REFERENCES auth.users(id)"
+  },
+  {
+    "conname": "company_costing_settings_pkey",
+    "contype": "p",
+    "table_name": "company_costing_settings",
+    "def": "PRIMARY KEY (id)"
+  },
+  {
+    "conname": "company_items_cost_nonnegative",
+    "contype": "c",
+    "table_name": "company_items",
+    "def": "CHECK (((default_cost IS NULL) OR (default_cost >= (0)::numeric)))"
+  },
+  {
+    "conname": "company_items_price_nonnegative",
+    "contype": "c",
+    "table_name": "company_items",
+    "def": "CHECK (((default_sale_price IS NULL) OR (default_sale_price >= (0)::numeric)))"
+  },
+  {
+    "conname": "company_items_tax_valid",
+    "contype": "c",
+    "table_name": "company_items",
+    "def": "CHECK (((tax_rate IS NULL) OR ((tax_rate >= (0)::numeric) AND (tax_rate <= (100)::numeric))))"
+  },
+  {
+    "conname": "company_items_company_id_fkey",
+    "contype": "f",
+    "table_name": "company_items",
+    "def": "FOREIGN KEY (company_id) REFERENCES company_settings(id) ON DELETE CASCADE"
+  },
+  {
+    "conname": "company_items_item_id_fkey",
+    "contype": "f",
+    "table_name": "company_items",
+    "def": "FOREIGN KEY (item_id) REFERENCES products(id) ON DELETE CASCADE"
+  },
+  {
+    "conname": "company_items_pkey",
+    "contype": "p",
+    "table_name": "company_items",
+    "def": "PRIMARY KEY (id)"
+  },
+  {
+    "conname": "company_items_unique",
+    "contype": "u",
+    "table_name": "company_items",
+    "def": "UNIQUE (company_id, item_id)"
+  },
+  {
+    "conname": "company_settings_invoice_number_digits_check",
+    "contype": "c",
+    "table_name": "company_settings",
+    "def": "CHECK (((invoice_number_digits >= 1) AND (invoice_number_digits <= 8)))"
+  },
+  {
+    "conname": "company_settings_invoice_number_period_check",
+    "contype": "c",
+    "table_name": "company_settings",
+    "def": "CHECK ((invoice_number_period = ANY (ARRAY['none'::text, 'year'::text, 'year_month'::text])))"
+  },
+  {
+    "conname": "only_one_row",
+    "contype": "c",
+    "table_name": "company_settings",
+    "def": "CHECK ((id = 1))"
+  },
+  {
+    "conname": "company_settings_pkey",
+    "contype": "p",
+    "table_name": "company_settings",
+    "def": "PRIMARY KEY (id)"
+  },
+  {
+    "conname": "costing_policy_history_changed_by_fkey",
+    "contype": "f",
+    "table_name": "costing_policy_history",
+    "def": "FOREIGN KEY (changed_by) REFERENCES auth.users(id)"
+  },
+  {
+    "conname": "costing_policy_history_pkey",
+    "contype": "p",
+    "table_name": "costing_policy_history",
+    "def": "PRIMARY KEY (id)"
+  },
+  {
+    "conname": "countries_of_origin_pkey",
+    "contype": "p",
+    "table_name": "countries_of_origin",
+    "def": "PRIMARY KEY (id)"
+  },
+  {
+    "conname": "countries_of_origin_code_key",
+    "contype": "u",
+    "table_name": "countries_of_origin",
+    "def": "UNIQUE (code)"
+  },
+  {
+    "conname": "customer_ledger_check",
+    "contype": "c",
+    "table_name": "customer_ledger",
+    "def": "CHECK ((NOT ((debit > (0)::numeric) AND (credit > (0)::numeric))))"
+  },
+  {
+    "conname": "customer_ledger_check1",
+    "contype": "c",
+    "table_name": "customer_ledger",
+    "def": "CHECK (((debit + credit) > (0)::numeric))"
+  },
+  {
+    "conname": "customer_ledger_credit_check",
+    "contype": "c",
+    "table_name": "customer_ledger",
+    "def": "CHECK ((credit >= (0)::numeric))"
+  },
+  {
+    "conname": "customer_ledger_debit_check",
+    "contype": "c",
+    "table_name": "customer_ledger",
+    "def": "CHECK ((debit >= (0)::numeric))"
+  },
+  {
+    "conname": "customer_ledger_entry_type_check",
+    "contype": "c",
+    "table_name": "customer_ledger",
+    "def": "CHECK ((entry_type = ANY (ARRAY['sale'::text, 'payment'::text, 'return'::text, 'adjustment'::text, 'credit'::text])))"
+  },
+  {
+    "conname": "customer_ledger_created_by_fkey",
+    "contype": "f",
+    "table_name": "customer_ledger",
+    "def": "FOREIGN KEY (created_by) REFERENCES auth.users(id) ON DELETE SET NULL"
+  },
+  {
+    "conname": "customer_ledger_customer_id_fkey",
+    "contype": "f",
+    "table_name": "customer_ledger",
+    "def": "FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE"
+  },
+  {
+    "conname": "customer_ledger_pkey",
+    "contype": "p",
+    "table_name": "customer_ledger",
+    "def": "PRIMARY KEY (id)"
+  },
+  {
+    "conname": "customer_ledger_source_key_key",
+    "contype": "u",
+    "table_name": "customer_ledger",
+    "def": "UNIQUE (source_key)"
+  },
+  {
+    "conname": "customer_payment_splits_amount_check",
+    "contype": "c",
+    "table_name": "customer_payment_splits",
+    "def": "CHECK ((amount > (0)::numeric))"
+  },
+  {
+    "conname": "customer_payment_splits_customer_id_fkey",
+    "contype": "f",
+    "table_name": "customer_payment_splits",
+    "def": "FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE"
+  },
+  {
+    "conname": "customer_payment_splits_invoice_id_fkey",
+    "contype": "f",
+    "table_name": "customer_payment_splits",
+    "def": "FOREIGN KEY (invoice_id) REFERENCES sales_invoices(id) ON DELETE CASCADE"
+  },
+  {
+    "conname": "customer_payment_splits_payment_id_fkey",
+    "contype": "f",
+    "table_name": "customer_payment_splits",
+    "def": "FOREIGN KEY (payment_id) REFERENCES customer_payments(id) ON DELETE CASCADE"
+  },
+  {
+    "conname": "customer_payment_splits_pkey",
+    "contype": "p",
+    "table_name": "customer_payment_splits",
+    "def": "PRIMARY KEY (id)"
+  },
+  {
+    "conname": "customer_payments_amount_check",
+    "contype": "c",
+    "table_name": "customer_payments",
+    "def": "CHECK ((amount > (0)::numeric))"
+  },
+  {
+    "conname": "customer_payments_created_by_fkey",
+    "contype": "f",
+    "table_name": "customer_payments",
+    "def": "FOREIGN KEY (created_by) REFERENCES auth.users(id) ON DELETE SET NULL"
+  },
+  {
+    "conname": "customer_payments_customer_id_fkey",
+    "contype": "f",
+    "table_name": "customer_payments",
+    "def": "FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE"
+  },
+  {
+    "conname": "customer_payments_invoice_id_fkey",
+    "contype": "f",
+    "table_name": "customer_payments",
+    "def": "FOREIGN KEY (invoice_id) REFERENCES sales_invoices(id) ON DELETE SET NULL"
+  },
+  {
+    "conname": "customer_payments_pkey",
+    "contype": "p",
+    "table_name": "customer_payments",
+    "def": "PRIMARY KEY (id)"
+  },
+  {
+    "conname": "customers_credit_limit_nonnegative",
+    "contype": "c",
+    "table_name": "customers",
+    "def": "CHECK ((credit_limit >= (0)::numeric))"
+  },
+  {
+    "conname": "customers_pkey",
+    "contype": "p",
+    "table_name": "customers",
+    "def": "PRIMARY KEY (id)"
+  },
+  {
+    "conname": "device_registrations_assigned_warehouse_id_fkey",
+    "contype": "f",
+    "table_name": "device_registrations",
+    "def": "FOREIGN KEY (assigned_warehouse_id) REFERENCES warehouses(id) ON DELETE SET NULL"
+  },
+  {
+    "conname": "device_registrations_pkey",
+    "contype": "p",
+    "table_name": "device_registrations",
+    "def": "PRIMARY KEY (id)"
+  },
+  {
+    "conname": "device_registrations_device_id_key",
+    "contype": "u",
+    "table_name": "device_registrations",
+    "def": "UNIQUE (device_id)"
+  },
+  {
+    "conname": "expense_approvals_action_known",
+    "contype": "c",
+    "table_name": "expense_approvals",
+    "def": "CHECK ((action = ANY (ARRAY['created'::text, 'updated'::text, 'submitted'::text, 'approved'::text, 'rejected'::text, 'posted'::text, 'payment'::text, 'cancelled'::text, 'reversed'::text, 'closed'::text, 'reopened'::text])))"
+  },
+  {
+    "conname": "expense_approvals_sequence_positive",
+    "contype": "c",
+    "table_name": "expense_approvals",
+    "def": "CHECK ((sequence > 0))"
+  },
+  {
+    "conname": "expense_approvals_actor_id_fkey",
+    "contype": "f",
+    "table_name": "expense_approvals",
+    "def": "FOREIGN KEY (actor_id) REFERENCES auth.users(id) ON DELETE SET NULL"
+  },
+  {
+    "conname": "expense_approvals_entry_id_fkey",
+    "contype": "f",
+    "table_name": "expense_approvals",
+    "def": "FOREIGN KEY (entry_id) REFERENCES expense_entries(id) ON DELETE CASCADE"
+  },
+  {
+    "conname": "expense_approvals_pkey",
+    "contype": "p",
+    "table_name": "expense_approvals",
+    "def": "PRIMARY KEY (id)"
+  },
+  {
+    "conname": "expense_attachments_size_positive",
+    "contype": "c",
+    "table_name": "expense_attachments",
+    "def": "CHECK (((file_size IS NULL) OR (file_size > 0)))"
+  },
+  {
+    "conname": "expense_attachments_entry_id_fkey",
+    "contype": "f",
+    "table_name": "expense_attachments",
+    "def": "FOREIGN KEY (entry_id) REFERENCES expense_entries(id) ON DELETE CASCADE"
+  },
+  {
+    "conname": "expense_attachments_line_id_fkey",
+    "contype": "f",
+    "table_name": "expense_attachments",
+    "def": "FOREIGN KEY (line_id) REFERENCES expense_lines(id) ON DELETE CASCADE"
+  },
+  {
+    "conname": "expense_attachments_uploaded_by_fkey",
+    "contype": "f",
+    "table_name": "expense_attachments",
+    "def": "FOREIGN KEY (uploaded_by) REFERENCES auth.users(id) ON DELETE SET NULL"
+  },
+  {
+    "conname": "expense_attachments_pkey",
+    "contype": "p",
+    "table_name": "expense_attachments",
+    "def": "PRIMARY KEY (id)"
+  },
+  {
+    "conname": "expense_categories_created_by_fkey",
+    "contype": "f",
+    "table_name": "expense_categories",
+    "def": "FOREIGN KEY (created_by) REFERENCES auth.users(id) ON DELETE SET NULL"
+  },
+  {
+    "conname": "expense_categories_pkey",
+    "contype": "p",
+    "table_name": "expense_categories",
+    "def": "PRIMARY KEY (id)"
+  },
+  {
+    "conname": "expense_categories_name_key",
+    "contype": "u",
+    "table_name": "expense_categories",
+    "def": "UNIQUE (name)"
+  },
+  {
+    "conname": "expense_cost_centers_name_not_blank",
+    "contype": "c",
+    "table_name": "expense_cost_centers",
+    "def": "CHECK ((btrim(name) <> ''::text))"
+  },
+  {
+    "conname": "expense_cost_centers_created_by_fkey",
+    "contype": "f",
+    "table_name": "expense_cost_centers",
+    "def": "FOREIGN KEY (created_by) REFERENCES auth.users(id) ON DELETE SET NULL"
+  },
+  {
+    "conname": "expense_cost_centers_pkey",
+    "contype": "p",
+    "table_name": "expense_cost_centers",
+    "def": "PRIMARY KEY (id)"
+  },
+  {
+    "conname": "expense_entries_dates_ordered",
+    "contype": "c",
+    "table_name": "expense_entries",
+    "def": "CHECK (((posting_date IS NULL) OR (posting_date >= (expense_date - 366))))"
+  },
+  {
+    "conname": "expense_entries_due_after_expense",
+    "contype": "c",
+    "table_name": "expense_entries",
+    "def": "CHECK (((due_date IS NULL) OR (due_date >= expense_date)))"
+  },
+  {
+    "conname": "expense_entries_paid_non_negative",
+    "contype": "c",
+    "table_name": "expense_entries",
+    "def": "CHECK ((paid_amount >= (0)::numeric))"
+  },
+  {
+    "conname": "expense_entries_paid_requires_post",
+    "contype": "c",
+    "table_name": "expense_entries",
+    "def": "CHECK (((paid_amount = (0)::numeric) OR (status = ANY (ARRAY['POSTED'::expense_status, 'PARTIALLY_PAID'::expense_status, 'PAID'::expense_status, 'CLOSED'::expense_status, 'REVERSED'::expense_status]))))"
+  },
+  {
+    "conname": "expense_entries_paid_within_total",
+    "contype": "c",
+    "table_name": "expense_entries",
+    "def": "CHECK ((paid_amount <= (total_amount + 0.005)))"
+  },
+  {
+    "conname": "expense_entries_payee_consistent",
+    "contype": "c",
+    "table_name": "expense_entries",
+    "def": "CHECK ((((payee_type = 'SUPPLIER'::expense_payee_type) AND (supplier_id IS NOT NULL) AND (employee_id IS NULL)) OR ((payee_type = 'EMPLOYEE'::expense_payee_type) AND (employee_id IS NOT NULL) AND (supplier_id IS NULL)) OR ((payee_type = ANY (ARRAY['NONE'::expense_payee_type, 'OTHER'::expense_payee_type])) AND (supplier_id IS NULL) AND (employee_id IS NULL))))"
+  },
+  {
+    "conname": "expense_entries_reference_not_blank",
+    "contype": "c",
+    "table_name": "expense_entries",
+    "def": "CHECK ((btrim(reference) <> ''::text))"
+  },
+  {
+    "conname": "expense_entries_total_non_negative",
+    "contype": "c",
+    "table_name": "expense_entries",
+    "def": "CHECK ((total_amount >= (0)::numeric))"
+  },
+  {
+    "conname": "expense_entries_approved_by_fkey",
+    "contype": "f",
+    "table_name": "expense_entries",
+    "def": "FOREIGN KEY (approved_by) REFERENCES auth.users(id) ON DELETE SET NULL"
+  },
+  {
+    "conname": "expense_entries_cancelled_by_fkey",
+    "contype": "f",
+    "table_name": "expense_entries",
+    "def": "FOREIGN KEY (cancelled_by) REFERENCES auth.users(id) ON DELETE SET NULL"
+  },
+  {
+    "conname": "expense_entries_cost_center_id_fkey",
+    "contype": "f",
+    "table_name": "expense_entries",
+    "def": "FOREIGN KEY (cost_center_id) REFERENCES expense_cost_centers(id) ON DELETE SET NULL"
+  },
+  {
+    "conname": "expense_entries_created_by_fkey",
+    "contype": "f",
+    "table_name": "expense_entries",
+    "def": "FOREIGN KEY (created_by) REFERENCES auth.users(id) ON DELETE SET NULL"
+  },
+  {
+    "conname": "expense_entries_employee_id_fkey",
+    "contype": "f",
+    "table_name": "expense_entries",
+    "def": "FOREIGN KEY (employee_id) REFERENCES auth.users(id) ON DELETE SET NULL"
+  },
+  {
+    "conname": "expense_entries_posted_by_fkey",
+    "contype": "f",
+    "table_name": "expense_entries",
+    "def": "FOREIGN KEY (posted_by) REFERENCES auth.users(id) ON DELETE SET NULL"
+  },
+  {
+    "conname": "expense_entries_project_id_fkey",
+    "contype": "f",
+    "table_name": "expense_entries",
+    "def": "FOREIGN KEY (project_id) REFERENCES expense_projects(id) ON DELETE SET NULL"
+  },
+  {
+    "conname": "expense_entries_rejected_by_fkey",
+    "contype": "f",
+    "table_name": "expense_entries",
+    "def": "FOREIGN KEY (rejected_by) REFERENCES auth.users(id) ON DELETE SET NULL"
+  },
+  {
+    "conname": "expense_entries_reversal_of_fkey",
+    "contype": "f",
+    "table_name": "expense_entries",
+    "def": "FOREIGN KEY (reversal_of) REFERENCES expense_entries(id) ON DELETE SET NULL"
+  },
+  {
+    "conname": "expense_entries_reversed_by_id_fkey",
+    "contype": "f",
+    "table_name": "expense_entries",
+    "def": "FOREIGN KEY (reversed_by_id) REFERENCES expense_entries(id) ON DELETE SET NULL"
+  },
+  {
+    "conname": "expense_entries_submitted_by_fkey",
+    "contype": "f",
+    "table_name": "expense_entries",
+    "def": "FOREIGN KEY (submitted_by) REFERENCES auth.users(id) ON DELETE SET NULL"
+  },
+  {
+    "conname": "expense_entries_supplier_id_fkey",
+    "contype": "f",
+    "table_name": "expense_entries",
+    "def": "FOREIGN KEY (supplier_id) REFERENCES suppliers(id) ON DELETE SET NULL"
+  },
+  {
+    "conname": "expense_entries_warehouse_id_fkey",
+    "contype": "f",
+    "table_name": "expense_entries",
+    "def": "FOREIGN KEY (warehouse_id) REFERENCES warehouses(id) ON DELETE SET NULL"
+  },
+  {
+    "conname": "expense_entries_pkey",
+    "contype": "p",
+    "table_name": "expense_entries",
+    "def": "PRIMARY KEY (id)"
+  },
+  {
+    "conname": "expense_lines_amounts_add_up",
+    "contype": "c",
+    "table_name": "expense_lines",
+    "def": "CHECK ((abs(((net_amount + tax_amount) - gross_amount)) <= 0.01))"
+  },
+  {
+    "conname": "expense_lines_amounts_non_negative",
+    "contype": "c",
+    "table_name": "expense_lines",
+    "def": "CHECK (((net_amount >= (0)::numeric) AND (tax_amount >= (0)::numeric) AND (gross_amount >= (0)::numeric)))"
+  },
+  {
+    "conname": "expense_lines_line_no_positive",
+    "contype": "c",
+    "table_name": "expense_lines",
+    "def": "CHECK ((line_no > 0))"
+  },
+  {
+    "conname": "expense_lines_quantity_positive",
+    "contype": "c",
+    "table_name": "expense_lines",
+    "def": "CHECK ((quantity > (0)::numeric))"
+  },
+  {
+    "conname": "expense_lines_tax_rate_range",
+    "contype": "c",
+    "table_name": "expense_lines",
+    "def": "CHECK (((tax_rate >= (0)::numeric) AND (tax_rate <= (100)::numeric)))"
+  },
+  {
+    "conname": "expense_lines_unit_price_non_negative",
+    "contype": "c",
+    "table_name": "expense_lines",
+    "def": "CHECK ((unit_price >= (0)::numeric))"
+  },
+  {
+    "conname": "expense_lines_category_id_fkey",
+    "contype": "f",
+    "table_name": "expense_lines",
+    "def": "FOREIGN KEY (category_id) REFERENCES expense_categories(id) ON DELETE SET NULL"
+  },
+  {
+    "conname": "expense_lines_cost_center_id_fkey",
+    "contype": "f",
+    "table_name": "expense_lines",
+    "def": "FOREIGN KEY (cost_center_id) REFERENCES expense_cost_centers(id) ON DELETE SET NULL"
+  },
+  {
+    "conname": "expense_lines_entry_id_fkey",
+    "contype": "f",
+    "table_name": "expense_lines",
+    "def": "FOREIGN KEY (entry_id) REFERENCES expense_entries(id) ON DELETE CASCADE"
+  },
+  {
+    "conname": "expense_lines_project_id_fkey",
+    "contype": "f",
+    "table_name": "expense_lines",
+    "def": "FOREIGN KEY (project_id) REFERENCES expense_projects(id) ON DELETE SET NULL"
+  },
+  {
+    "conname": "expense_lines_pkey",
+    "contype": "p",
+    "table_name": "expense_lines",
+    "def": "PRIMARY KEY (id)"
+  },
+  {
+    "conname": "expense_payments_amount_positive",
+    "contype": "c",
+    "table_name": "expense_payments",
+    "def": "CHECK ((amount > (0)::numeric))"
+  },
+  {
+    "conname": "expense_payments_account_id_fkey",
+    "contype": "f",
+    "table_name": "expense_payments",
+    "def": "FOREIGN KEY (account_id) REFERENCES accounts(id) ON DELETE SET NULL"
+  },
+  {
+    "conname": "expense_payments_created_by_fkey",
+    "contype": "f",
+    "table_name": "expense_payments",
+    "def": "FOREIGN KEY (created_by) REFERENCES auth.users(id) ON DELETE SET NULL"
+  },
+  {
+    "conname": "expense_payments_entry_id_fkey",
+    "contype": "f",
+    "table_name": "expense_payments",
+    "def": "FOREIGN KEY (entry_id) REFERENCES expense_entries(id) ON DELETE RESTRICT"
+  },
+  {
+    "conname": "expense_payments_reversal_of_fkey",
+    "contype": "f",
+    "table_name": "expense_payments",
+    "def": "FOREIGN KEY (reversal_of) REFERENCES expense_payments(id) ON DELETE SET NULL"
+  },
+  {
+    "conname": "expense_payments_reversed_by_fkey",
+    "contype": "f",
+    "table_name": "expense_payments",
+    "def": "FOREIGN KEY (reversed_by) REFERENCES expense_payments(id) ON DELETE SET NULL"
+  },
+  {
+    "conname": "expense_payments_pkey",
+    "contype": "p",
+    "table_name": "expense_payments",
+    "def": "PRIMARY KEY (id)"
+  },
+  {
+    "conname": "expense_projects_name_not_blank",
+    "contype": "c",
+    "table_name": "expense_projects",
+    "def": "CHECK ((btrim(name) <> ''::text))"
+  },
+  {
+    "conname": "expense_projects_window_valid",
+    "contype": "c",
+    "table_name": "expense_projects",
+    "def": "CHECK (((closed_on IS NULL) OR (started_on IS NULL) OR (closed_on >= started_on)))"
+  },
+  {
+    "conname": "expense_projects_created_by_fkey",
+    "contype": "f",
+    "table_name": "expense_projects",
+    "def": "FOREIGN KEY (created_by) REFERENCES auth.users(id) ON DELETE SET NULL"
+  },
+  {
+    "conname": "expense_projects_pkey",
+    "contype": "p",
+    "table_name": "expense_projects",
+    "def": "PRIMARY KEY (id)"
+  },
+  {
+    "conname": "expenses_amount_check",
+    "contype": "c",
+    "table_name": "expenses",
+    "def": "CHECK ((amount >= (0)::numeric))"
+  },
+  {
+    "conname": "expenses_category_id_fkey",
+    "contype": "f",
+    "table_name": "expenses",
+    "def": "FOREIGN KEY (category_id) REFERENCES expense_categories(id) ON DELETE SET NULL"
+  },
+  {
+    "conname": "expenses_created_by_fkey",
+    "contype": "f",
+    "table_name": "expenses",
+    "def": "FOREIGN KEY (created_by) REFERENCES auth.users(id) ON DELETE SET NULL"
+  },
+  {
+    "conname": "expenses_pkey",
+    "contype": "p",
+    "table_name": "expenses",
+    "def": "PRIMARY KEY (id)"
+  },
+  {
+    "conname": "inventory_product_id_fkey",
+    "contype": "f",
+    "table_name": "inventory",
+    "def": "FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE"
+  },
+  {
+    "conname": "inventory_warehouse_id_fkey",
+    "contype": "f",
+    "table_name": "inventory",
+    "def": "FOREIGN KEY (warehouse_id) REFERENCES warehouses(id) ON DELETE CASCADE"
+  },
+  {
+    "conname": "inventory_pkey",
+    "contype": "p",
+    "table_name": "inventory",
+    "def": "PRIMARY KEY (id)"
+  },
+  {
+    "conname": "inventory_product_id_warehouse_id_key",
+    "contype": "u",
+    "table_name": "inventory",
+    "def": "UNIQUE (product_id, warehouse_id)"
+  },
+  {
+    "conname": "item_cost_layers_qty_check",
+    "contype": "c",
+    "table_name": "item_cost_layers",
+    "def": "CHECK ((quantity >= (0)::numeric))"
+  },
+  {
+    "conname": "item_cost_layers_value_check",
+    "contype": "c",
+    "table_name": "item_cost_layers",
+    "def": "CHECK ((total_value >= (0)::numeric))"
+  },
+  {
+    "conname": "item_cost_layers_product_id_fkey",
+    "contype": "f",
+    "table_name": "item_cost_layers",
+    "def": "FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE"
+  },
+  {
+    "conname": "item_cost_layers_warehouse_id_fkey",
+    "contype": "f",
+    "table_name": "item_cost_layers",
+    "def": "FOREIGN KEY (warehouse_id) REFERENCES warehouses(id) ON DELETE CASCADE"
+  },
+  {
+    "conname": "item_cost_layers_pkey",
+    "contype": "p",
+    "table_name": "item_cost_layers",
+    "def": "PRIMARY KEY (id)"
+  },
+  {
+    "conname": "item_cost_transactions_direction_check",
+    "contype": "c",
+    "table_name": "item_cost_transactions",
+    "def": "CHECK ((direction = ANY (ARRAY['IN'::text, 'OUT'::text, 'REVALUE'::text])))"
+  },
+  {
+    "conname": "item_cost_transactions_product_id_fkey",
+    "contype": "f",
+    "table_name": "item_cost_transactions",
+    "def": "FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE"
+  },
+  {
+    "conname": "item_cost_transactions_warehouse_id_fkey",
+    "contype": "f",
+    "table_name": "item_cost_transactions",
+    "def": "FOREIGN KEY (warehouse_id) REFERENCES warehouses(id) ON DELETE CASCADE"
+  },
+  {
+    "conname": "item_cost_transactions_pkey",
+    "contype": "p",
+    "table_name": "item_cost_transactions",
+    "def": "PRIMARY KEY (id)"
+  },
+  {
+    "conname": "item_policy_review_queue_product_id_fkey",
+    "contype": "f",
+    "table_name": "item_policy_review_queue",
+    "def": "FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE"
+  },
+  {
+    "conname": "item_policy_review_queue_resolved_by_fkey",
+    "contype": "f",
+    "table_name": "item_policy_review_queue",
+    "def": "FOREIGN KEY (resolved_by) REFERENCES auth.users(id) ON DELETE SET NULL"
+  },
+  {
+    "conname": "item_policy_review_queue_pkey",
+    "contype": "p",
+    "table_name": "item_policy_review_queue",
+    "def": "PRIMARY KEY (id)"
+  },
+  {
+    "conname": "item_policy_review_queue_unique",
+    "contype": "u",
+    "table_name": "item_policy_review_queue",
+    "def": "UNIQUE (product_id, reason)"
+  },
+  {
+    "conname": "journal_entries_status_check",
+    "contype": "c",
+    "table_name": "journal_entries",
+    "def": "CHECK ((status = ANY (ARRAY['DRAFT'::text, 'POSTED'::text, 'REVERSED'::text])))"
+  },
+  {
+    "conname": "journal_no_self_reversal",
+    "contype": "c",
+    "table_name": "journal_entries",
+    "def": "CHECK ((reverses_id IS DISTINCT FROM id))"
+  },
+  {
+    "conname": "journal_posted_has_totals",
+    "contype": "c",
+    "table_name": "journal_entries",
+    "def": "CHECK (((status <> 'POSTED'::text) OR ((total_debit > (0)::numeric) AND (total_debit = total_credit))))"
+  },
+  {
+    "conname": "journal_entries_created_by_fkey",
+    "contype": "f",
+    "table_name": "journal_entries",
+    "def": "FOREIGN KEY (created_by) REFERENCES auth.users(id)"
+  },
+  {
+    "conname": "journal_entries_posted_by_fkey",
+    "contype": "f",
+    "table_name": "journal_entries",
+    "def": "FOREIGN KEY (posted_by) REFERENCES auth.users(id)"
+  },
+  {
+    "conname": "journal_entries_reverses_id_fkey",
+    "contype": "f",
+    "table_name": "journal_entries",
+    "def": "FOREIGN KEY (reverses_id) REFERENCES journal_entries(id) ON DELETE RESTRICT"
+  },
+  {
+    "conname": "journal_entries_pkey",
+    "contype": "p",
+    "table_name": "journal_entries",
+    "def": "PRIMARY KEY (id)"
+  },
+  {
+    "conname": "journal_entries_entry_number_key",
+    "contype": "u",
+    "table_name": "journal_entries",
+    "def": "UNIQUE (entry_number)"
+  },
+  {
+    "conname": "journal_lines_credit_check",
+    "contype": "c",
+    "table_name": "journal_lines",
+    "def": "CHECK ((credit >= (0)::numeric))"
+  },
+  {
+    "conname": "journal_lines_debit_check",
+    "contype": "c",
+    "table_name": "journal_lines",
+    "def": "CHECK ((debit >= (0)::numeric))"
+  },
+  {
+    "conname": "journal_lines_one_side",
+    "contype": "c",
+    "table_name": "journal_lines",
+    "def": "CHECK ((((debit > (0)::numeric) AND (credit = (0)::numeric)) OR ((credit > (0)::numeric) AND (debit = (0)::numeric))))"
+  },
+  {
+    "conname": "journal_lines_account_id_fkey",
+    "contype": "f",
+    "table_name": "journal_lines",
+    "def": "FOREIGN KEY (account_id) REFERENCES accounts(id) ON DELETE RESTRICT"
+  },
+  {
+    "conname": "journal_lines_entry_id_fkey",
+    "contype": "f",
+    "table_name": "journal_lines",
+    "def": "FOREIGN KEY (entry_id) REFERENCES journal_entries(id) ON DELETE CASCADE"
+  },
+  {
+    "conname": "journal_lines_pkey",
+    "contype": "p",
+    "table_name": "journal_lines",
+    "def": "PRIMARY KEY (id)"
+  },
+  {
+    "conname": "loyalty_transactions_kind_check",
+    "contype": "c",
+    "table_name": "loyalty_transactions",
+    "def": "CHECK ((kind = ANY (ARRAY['earn'::text, 'redeem'::text, 'adjust'::text])))"
+  },
+  {
+    "conname": "loyalty_transactions_created_by_fkey",
+    "contype": "f",
+    "table_name": "loyalty_transactions",
+    "def": "FOREIGN KEY (created_by) REFERENCES auth.users(id)"
+  },
+  {
+    "conname": "loyalty_transactions_customer_id_fkey",
+    "contype": "f",
+    "table_name": "loyalty_transactions",
+    "def": "FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE"
+  },
+  {
+    "conname": "loyalty_transactions_pkey",
+    "contype": "p",
+    "table_name": "loyalty_transactions",
+    "def": "PRIMARY KEY (id)"
+  },
+  {
+    "conname": "milling_delivery_items_delivered_bags_check",
+    "contype": "c",
+    "table_name": "milling_delivery_items",
+    "def": "CHECK ((delivered_bags > 0))"
+  },
+  {
+    "conname": "milling_delivery_items_delivered_weight_kg_check",
+    "contype": "c",
+    "table_name": "milling_delivery_items",
+    "def": "CHECK ((delivered_weight_kg > (0)::numeric))"
+  },
+  {
+    "conname": "milling_delivery_items_delivery_id_fkey",
+    "contype": "f",
+    "table_name": "milling_delivery_items",
+    "def": "FOREIGN KEY (delivery_id) REFERENCES milling_delivery_notes(id) ON DELETE CASCADE"
+  },
+  {
+    "conname": "milling_delivery_items_job_output_id_fkey",
+    "contype": "f",
+    "table_name": "milling_delivery_items",
+    "def": "FOREIGN KEY (job_output_id) REFERENCES milling_job_outputs(id) ON DELETE RESTRICT"
+  },
+  {
+    "conname": "milling_delivery_items_pkey",
+    "contype": "p",
+    "table_name": "milling_delivery_items",
+    "def": "PRIMARY KEY (id)"
+  },
+  {
+    "conname": "milling_delivery_notes_total_bags_check",
+    "contype": "c",
+    "table_name": "milling_delivery_notes",
+    "def": "CHECK ((total_bags >= 0))"
+  },
+  {
+    "conname": "milling_delivery_notes_total_weight_kg_check",
+    "contype": "c",
+    "table_name": "milling_delivery_notes",
+    "def": "CHECK ((total_weight_kg >= (0)::numeric))"
+  },
+  {
+    "conname": "milling_delivery_notes_customer_id_fkey",
+    "contype": "f",
+    "table_name": "milling_delivery_notes",
+    "def": "FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE RESTRICT"
+  },
+  {
+    "conname": "milling_delivery_notes_delivered_by_fkey",
+    "contype": "f",
+    "table_name": "milling_delivery_notes",
+    "def": "FOREIGN KEY (delivered_by) REFERENCES auth.users(id) ON DELETE SET NULL"
+  },
+  {
+    "conname": "milling_delivery_notes_job_id_fkey",
+    "contype": "f",
+    "table_name": "milling_delivery_notes",
+    "def": "FOREIGN KEY (job_id) REFERENCES milling_jobs(id) ON DELETE RESTRICT"
+  },
+  {
+    "conname": "milling_delivery_notes_store_id_fkey",
+    "contype": "f",
+    "table_name": "milling_delivery_notes",
+    "def": "FOREIGN KEY (store_id) REFERENCES warehouses(id) ON DELETE RESTRICT"
+  },
+  {
+    "conname": "milling_delivery_notes_pkey",
+    "contype": "p",
+    "table_name": "milling_delivery_notes",
+    "def": "PRIMARY KEY (id)"
+  },
+  {
+    "conname": "uq_milling_delivery_store_number",
+    "contype": "u",
+    "table_name": "milling_delivery_notes",
+    "def": "UNIQUE (store_id, delivery_number)"
+  },
+  {
+    "conname": "milling_grain_grades_default_bag_size_kg_check",
+    "contype": "c",
+    "table_name": "milling_grain_grades",
+    "def": "CHECK ((default_bag_size_kg > (0)::numeric))"
+  },
+  {
+    "conname": "milling_grain_grades_max_impurities_check",
+    "contype": "c",
+    "table_name": "milling_grain_grades",
+    "def": "CHECK (((max_impurities >= (0)::numeric) AND (max_impurities <= (100)::numeric)))"
+  },
+  {
+    "conname": "milling_grain_grades_max_moisture_check",
+    "contype": "c",
+    "table_name": "milling_grain_grades",
+    "def": "CHECK (((max_moisture > (0)::numeric) AND (max_moisture <= (100)::numeric)))"
+  },
+  {
+    "conname": "milling_grain_grades_product_id_fkey",
+    "contype": "f",
+    "table_name": "milling_grain_grades",
+    "def": "FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE RESTRICT"
+  },
+  {
+    "conname": "milling_grain_grades_pkey",
+    "contype": "p",
+    "table_name": "milling_grain_grades",
+    "def": "PRIMARY KEY (id)"
+  },
+  {
+    "conname": "milling_intake_receipts_bag_size_kg_check",
+    "contype": "c",
+    "table_name": "milling_intake_receipts",
+    "def": "CHECK ((bag_size_kg > (0)::numeric))"
+  },
+  {
+    "conname": "milling_intake_receipts_gross_weight_kg_check",
+    "contype": "c",
+    "table_name": "milling_intake_receipts",
+    "def": "CHECK ((gross_weight_kg >= (0)::numeric))"
+  },
+  {
+    "conname": "milling_intake_receipts_impurities_percentage_check",
+    "contype": "c",
+    "table_name": "milling_intake_receipts",
+    "def": "CHECK (((impurities_percentage >= (0)::numeric) AND (impurities_percentage <= (100)::numeric)))"
+  },
+  {
+    "conname": "milling_intake_receipts_intake_bag_count_check",
+    "contype": "c",
+    "table_name": "milling_intake_receipts",
+    "def": "CHECK ((intake_bag_count >= 0))"
+  },
+  {
+    "conname": "milling_intake_receipts_moisture_percentage_check",
+    "contype": "c",
+    "table_name": "milling_intake_receipts",
+    "def": "CHECK (((moisture_percentage >= (0)::numeric) AND (moisture_percentage <= (100)::numeric)))"
+  },
+  {
+    "conname": "milling_intake_receipts_net_weight_kg_check",
+    "contype": "c",
+    "table_name": "milling_intake_receipts",
+    "def": "CHECK ((net_weight_kg >= (0)::numeric))"
+  },
+  {
+    "conname": "milling_intake_receipts_tare_weight_kg_check",
+    "contype": "c",
+    "table_name": "milling_intake_receipts",
+    "def": "CHECK ((tare_weight_kg >= (0)::numeric))"
+  },
+  {
+    "conname": "milling_intake_receipts_customer_id_fkey",
+    "contype": "f",
+    "table_name": "milling_intake_receipts",
+    "def": "FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE RESTRICT"
+  },
+  {
+    "conname": "milling_intake_receipts_grain_grade_id_fkey",
+    "contype": "f",
+    "table_name": "milling_intake_receipts",
+    "def": "FOREIGN KEY (grain_grade_id) REFERENCES milling_grain_grades(id) ON DELETE SET NULL"
+  },
+  {
+    "conname": "milling_intake_receipts_grain_grade_ref_fkey",
+    "contype": "f",
+    "table_name": "milling_intake_receipts",
+    "def": "FOREIGN KEY (grain_grade_ref) REFERENCES milling_grain_grades(id) ON DELETE SET NULL"
+  },
+  {
+    "conname": "milling_intake_receipts_grain_product_id_fkey",
+    "contype": "f",
+    "table_name": "milling_intake_receipts",
+    "def": "FOREIGN KEY (grain_product_id) REFERENCES products(id) ON DELETE SET NULL"
+  },
+  {
+    "conname": "milling_intake_receipts_received_by_fkey",
+    "contype": "f",
+    "table_name": "milling_intake_receipts",
+    "def": "FOREIGN KEY (received_by) REFERENCES auth.users(id) ON DELETE SET NULL"
+  },
+  {
+    "conname": "milling_intake_receipts_store_id_fkey",
+    "contype": "f",
+    "table_name": "milling_intake_receipts",
+    "def": "FOREIGN KEY (store_id) REFERENCES warehouses(id) ON DELETE RESTRICT"
+  },
+  {
+    "conname": "milling_intake_receipts_pkey",
+    "contype": "p",
+    "table_name": "milling_intake_receipts",
+    "def": "PRIMARY KEY (id)"
+  },
+  {
+    "conname": "uq_milling_intake_store_receipt",
+    "contype": "u",
+    "table_name": "milling_intake_receipts",
+    "def": "UNIQUE (store_id, receipt_number)"
+  },
+  {
+    "conname": "ck_milling_output_delivery_bags",
+    "contype": "c",
+    "table_name": "milling_job_outputs",
+    "def": "CHECK ((delivered_bag_count <= produced_bag_count))"
+  },
+  {
+    "conname": "ck_milling_output_delivery_weight",
+    "contype": "c",
+    "table_name": "milling_job_outputs",
+    "def": "CHECK ((delivered_weight_kg <= (produced_weight_kg + 0.001)))"
+  },
+  {
+    "conname": "milling_job_outputs_bag_size_kg_check",
+    "contype": "c",
+    "table_name": "milling_job_outputs",
+    "def": "CHECK ((bag_size_kg > (0)::numeric))"
+  },
+  {
+    "conname": "milling_job_outputs_bags_source_check",
+    "contype": "c",
+    "table_name": "milling_job_outputs",
+    "def": "CHECK (((bags_source)::text = ANY ((ARRAY['CUSTOMER'::character varying, 'MILL'::character varying])::text[])))"
+  },
+  {
+    "conname": "milling_job_outputs_delivered_bag_count_check",
+    "contype": "c",
+    "table_name": "milling_job_outputs",
+    "def": "CHECK ((delivered_bag_count >= 0))"
+  },
+  {
+    "conname": "milling_job_outputs_delivered_weight_kg_check",
+    "contype": "c",
+    "table_name": "milling_job_outputs",
+    "def": "CHECK ((delivered_weight_kg >= (0)::numeric))"
+  },
+  {
+    "conname": "milling_job_outputs_mill_bags_used_check",
+    "contype": "c",
+    "table_name": "milling_job_outputs",
+    "def": "CHECK ((mill_bags_used >= 0))"
+  },
+  {
+    "conname": "milling_job_outputs_produced_bag_count_check",
+    "contype": "c",
+    "table_name": "milling_job_outputs",
+    "def": "CHECK ((produced_bag_count >= 0))"
+  },
+  {
+    "conname": "milling_job_outputs_produced_weight_kg_check",
+    "contype": "c",
+    "table_name": "milling_job_outputs",
+    "def": "CHECK ((produced_weight_kg >= (0)::numeric))"
+  },
+  {
+    "conname": "milling_job_outputs_job_id_fkey",
+    "contype": "f",
+    "table_name": "milling_job_outputs",
+    "def": "FOREIGN KEY (job_id) REFERENCES milling_jobs(id) ON DELETE CASCADE"
+  },
+  {
+    "conname": "milling_job_outputs_mill_bag_product_id_fkey",
+    "contype": "f",
+    "table_name": "milling_job_outputs",
+    "def": "FOREIGN KEY (mill_bag_product_id) REFERENCES products(id) ON DELETE SET NULL"
+  },
+  {
+    "conname": "milling_job_outputs_pkey",
+    "contype": "p",
+    "table_name": "milling_job_outputs",
+    "def": "PRIMARY KEY (id)"
+  },
+  {
+    "conname": "milling_job_outputs_job_type_key",
+    "contype": "u",
+    "table_name": "milling_job_outputs",
+    "def": "UNIQUE (job_id, output_type)"
+  },
+  {
+    "conname": "milling_jobs_allowed_loss_percentage_check",
+    "contype": "c",
+    "table_name": "milling_jobs",
+    "def": "CHECK (((allowed_loss_percentage >= (0)::numeric) AND (allowed_loss_percentage <= (100)::numeric)))"
+  },
+  {
+    "conname": "milling_jobs_expected_extraction_rate_check",
+    "contype": "c",
+    "table_name": "milling_jobs",
+    "def": "CHECK (((expected_extraction_rate > (0)::numeric) AND (expected_extraction_rate <= (100)::numeric)))"
+  },
+  {
+    "conname": "milling_jobs_input_bag_count_check",
+    "contype": "c",
+    "table_name": "milling_jobs",
+    "def": "CHECK ((input_bag_count >= 0))"
+  },
+  {
+    "conname": "milling_jobs_input_bag_size_kg_check",
+    "contype": "c",
+    "table_name": "milling_jobs",
+    "def": "CHECK ((input_bag_size_kg > (0)::numeric))"
+  },
+  {
+    "conname": "milling_jobs_input_weight_kg_check",
+    "contype": "c",
+    "table_name": "milling_jobs",
+    "def": "CHECK ((input_weight_kg > (0)::numeric))"
+  },
+  {
+    "conname": "milling_jobs_milling_fee_per_bag_check",
+    "contype": "c",
+    "table_name": "milling_jobs",
+    "def": "CHECK ((milling_fee_per_bag >= (0)::numeric))"
+  },
+  {
+    "conname": "milling_jobs_milling_fee_per_ton_check",
+    "contype": "c",
+    "table_name": "milling_jobs",
+    "def": "CHECK ((milling_fee_per_ton >= (0)::numeric))"
+  },
+  {
+    "conname": "milling_jobs_single_fee_basis",
+    "contype": "c",
+    "table_name": "milling_jobs",
+    "def": "CHECK ((num_nonnulls(NULLIF(milling_fee_per_bag, (0)::numeric), NULLIF(milling_fee_per_ton, (0)::numeric)) <= 1))"
+  },
+  {
+    "conname": "milling_jobs_agreement_id_fkey",
+    "contype": "f",
+    "table_name": "milling_jobs",
+    "def": "FOREIGN KEY (agreement_id) REFERENCES milling_service_agreements(id) ON DELETE SET NULL"
+  },
+  {
+    "conname": "milling_jobs_created_by_fkey",
+    "contype": "f",
+    "table_name": "milling_jobs",
+    "def": "FOREIGN KEY (created_by) REFERENCES auth.users(id) ON DELETE SET NULL"
+  },
+  {
+    "conname": "milling_jobs_customer_id_fkey",
+    "contype": "f",
+    "table_name": "milling_jobs",
+    "def": "FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE RESTRICT"
+  },
+  {
+    "conname": "milling_jobs_intake_receipt_id_fkey",
+    "contype": "f",
+    "table_name": "milling_jobs",
+    "def": "FOREIGN KEY (intake_receipt_id) REFERENCES milling_intake_receipts(id) ON DELETE RESTRICT"
+  },
+  {
+    "conname": "milling_jobs_service_product_id_fkey",
+    "contype": "f",
+    "table_name": "milling_jobs",
+    "def": "FOREIGN KEY (service_product_id) REFERENCES products(id) ON DELETE SET NULL"
+  },
+  {
+    "conname": "milling_jobs_store_id_fkey",
+    "contype": "f",
+    "table_name": "milling_jobs",
+    "def": "FOREIGN KEY (store_id) REFERENCES warehouses(id) ON DELETE RESTRICT"
+  },
+  {
+    "conname": "milling_jobs_pkey",
+    "contype": "p",
+    "table_name": "milling_jobs",
+    "def": "PRIMARY KEY (id)"
+  },
+  {
+    "conname": "uq_milling_job_store_number",
+    "contype": "u",
+    "table_name": "milling_jobs",
+    "def": "UNIQUE (store_id, job_number)"
+  },
+  {
+    "conname": "milling_service_agreements_agreed_price_check",
+    "contype": "c",
+    "table_name": "milling_service_agreements",
+    "def": "CHECK ((agreed_price > (0)::numeric))"
+  },
+  {
+    "conname": "milling_service_agreements_allowed_loss_percentage_check",
+    "contype": "c",
+    "table_name": "milling_service_agreements",
+    "def": "CHECK (((allowed_loss_percentage >= (0)::numeric) AND (allowed_loss_percentage <= (100)::numeric)))"
+  },
+  {
+    "conname": "milling_service_agreements_bags_source_check",
+    "contype": "c",
+    "table_name": "milling_service_agreements",
+    "def": "CHECK (((bags_source)::text = ANY ((ARRAY['CUSTOMER'::character varying, 'MILL'::character varying])::text[])))"
+  },
+  {
+    "conname": "milling_service_agreements_delivery_mode_check",
+    "contype": "c",
+    "table_name": "milling_service_agreements",
+    "def": "CHECK (((delivery_mode)::text = ANY ((ARRAY['FULL'::character varying, 'PARTIAL'::character varying])::text[])))"
+  },
+  {
+    "conname": "milling_service_agreements_expected_extraction_rate_check",
+    "contype": "c",
+    "table_name": "milling_service_agreements",
+    "def": "CHECK (((expected_extraction_rate > (0)::numeric) AND (expected_extraction_rate <= (100)::numeric)))"
+  },
+  {
+    "conname": "milling_service_agreements_output_bag_size_kg_check",
+    "contype": "c",
+    "table_name": "milling_service_agreements",
+    "def": "CHECK ((output_bag_size_kg > (0)::numeric))"
+  },
+  {
+    "conname": "milling_service_agreements_price_basis_check",
+    "contype": "c",
+    "table_name": "milling_service_agreements",
+    "def": "CHECK (((price_basis)::text = ANY ((ARRAY['BAG'::character varying, 'TON'::character varying])::text[])))"
+  },
+  {
+    "conname": "milling_service_agreements_status_check",
+    "contype": "c",
+    "table_name": "milling_service_agreements",
+    "def": "CHECK (((status)::text = ANY ((ARRAY['DRAFT'::character varying, 'AGREED'::character varying, 'CONSUMED'::character varying, 'CANCELLED'::character varying])::text[])))"
+  },
+  {
+    "conname": "milling_service_agreements_agreed_by_fkey",
+    "contype": "f",
+    "table_name": "milling_service_agreements",
+    "def": "FOREIGN KEY (agreed_by) REFERENCES auth.users(id) ON DELETE SET NULL"
+  },
+  {
+    "conname": "milling_service_agreements_customer_id_fkey",
+    "contype": "f",
+    "table_name": "milling_service_agreements",
+    "def": "FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE RESTRICT"
+  },
+  {
+    "conname": "milling_service_agreements_grain_grade_id_fkey",
+    "contype": "f",
+    "table_name": "milling_service_agreements",
+    "def": "FOREIGN KEY (grain_grade_id) REFERENCES milling_grain_grades(id) ON DELETE SET NULL"
+  },
+  {
+    "conname": "milling_service_agreements_intake_receipt_id_fkey",
+    "contype": "f",
+    "table_name": "milling_service_agreements",
+    "def": "FOREIGN KEY (intake_receipt_id) REFERENCES milling_intake_receipts(id) ON DELETE RESTRICT"
+  },
+  {
+    "conname": "milling_service_agreements_service_product_id_fkey",
+    "contype": "f",
+    "table_name": "milling_service_agreements",
+    "def": "FOREIGN KEY (service_product_id) REFERENCES products(id) ON DELETE SET NULL"
+  },
+  {
+    "conname": "milling_service_agreements_store_id_fkey",
+    "contype": "f",
+    "table_name": "milling_service_agreements",
+    "def": "FOREIGN KEY (store_id) REFERENCES warehouses(id) ON DELETE RESTRICT"
+  },
+  {
+    "conname": "milling_service_agreements_pkey",
+    "contype": "p",
+    "table_name": "milling_service_agreements",
+    "def": "PRIMARY KEY (id)"
+  },
+  {
+    "conname": "milling_unit_conversions_kg_per_unit_check",
+    "contype": "c",
+    "table_name": "milling_unit_conversions",
+    "def": "CHECK ((kg_per_unit > (0)::numeric))"
+  },
+  {
+    "conname": "milling_unit_conversions_unit_id_fkey",
+    "contype": "f",
+    "table_name": "milling_unit_conversions",
+    "def": "FOREIGN KEY (unit_id) REFERENCES units(id) ON DELETE CASCADE"
+  },
+  {
+    "conname": "milling_unit_conversions_pkey",
+    "contype": "p",
+    "table_name": "milling_unit_conversions",
+    "def": "PRIMARY KEY (unit_id)"
+  },
+  {
+    "conname": "opening_balance_documents_status_check",
+    "contype": "c",
+    "table_name": "opening_balance_documents",
+    "def": "CHECK ((status = ANY (ARRAY['DRAFT'::text, 'POSTED'::text, 'REVERSED'::text])))"
+  },
+  {
+    "conname": "opening_balance_posted_has_date",
+    "contype": "c",
+    "table_name": "opening_balance_documents",
+    "def": "CHECK (((status = 'DRAFT'::text) OR (posted_at IS NOT NULL)))"
+  },
+  {
+    "conname": "opening_balance_documents_created_by_fkey",
+    "contype": "f",
+    "table_name": "opening_balance_documents",
+    "def": "FOREIGN KEY (created_by) REFERENCES auth.users(id)"
+  },
+  {
+    "conname": "opening_balance_documents_posted_by_fkey",
+    "contype": "f",
+    "table_name": "opening_balance_documents",
+    "def": "FOREIGN KEY (posted_by) REFERENCES auth.users(id)"
+  },
+  {
+    "conname": "opening_balance_documents_reverses_document_id_fkey",
+    "contype": "f",
+    "table_name": "opening_balance_documents",
+    "def": "FOREIGN KEY (reverses_document_id) REFERENCES opening_balance_documents(id)"
+  },
+  {
+    "conname": "opening_balance_documents_pkey",
+    "contype": "p",
+    "table_name": "opening_balance_documents",
+    "def": "PRIMARY KEY (id)"
+  },
+  {
+    "conname": "opening_balance_documents_document_number_key",
+    "contype": "u",
+    "table_name": "opening_balance_documents",
+    "def": "UNIQUE (document_number)"
+  },
+  {
+    "conname": "opening_balance_lines_amount_check",
+    "contype": "c",
+    "table_name": "opening_balance_lines",
+    "def": "CHECK ((amount >= (0)::numeric))"
+  },
+  {
+    "conname": "opening_balance_lines_section_check",
+    "contype": "c",
+    "table_name": "opening_balance_lines",
+    "def": "CHECK ((section = ANY (ARRAY['STOCK'::text, 'RECEIVABLE'::text, 'PAYABLE'::text, 'CASH'::text, 'BANK'::text, 'ASSET'::text, 'LIABILITY'::text, 'CAPITAL'::text])))"
+  },
+  {
+    "conname": "opening_balance_lines_side_check",
+    "contype": "c",
+    "table_name": "opening_balance_lines",
+    "def": "CHECK ((side = ANY (ARRAY['DEBIT'::text, 'CREDIT'::text])))"
+  },
+  {
+    "conname": "opening_balance_lines_stock_shape",
+    "contype": "c",
+    "table_name": "opening_balance_lines",
+    "def": "CHECK (((section <> 'STOCK'::text) OR ((product_id IS NOT NULL) AND (warehouse_id IS NOT NULL) AND (quantity IS NOT NULL))))"
+  },
+  {
+    "conname": "opening_balance_lines_customer_id_fkey",
+    "contype": "f",
+    "table_name": "opening_balance_lines",
+    "def": "FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE RESTRICT"
+  },
+  {
+    "conname": "opening_balance_lines_document_id_fkey",
+    "contype": "f",
+    "table_name": "opening_balance_lines",
+    "def": "FOREIGN KEY (document_id) REFERENCES opening_balance_documents(id) ON DELETE CASCADE"
+  },
+  {
+    "conname": "opening_balance_lines_product_id_fkey",
+    "contype": "f",
+    "table_name": "opening_balance_lines",
+    "def": "FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE RESTRICT"
+  },
+  {
+    "conname": "opening_balance_lines_supplier_id_fkey",
+    "contype": "f",
+    "table_name": "opening_balance_lines",
+    "def": "FOREIGN KEY (supplier_id) REFERENCES suppliers(id) ON DELETE RESTRICT"
+  },
+  {
+    "conname": "opening_balance_lines_warehouse_id_fkey",
+    "contype": "f",
+    "table_name": "opening_balance_lines",
+    "def": "FOREIGN KEY (warehouse_id) REFERENCES warehouses(id) ON DELETE RESTRICT"
+  },
+  {
+    "conname": "opening_balance_lines_pkey",
+    "contype": "p",
+    "table_name": "opening_balance_lines",
+    "def": "PRIMARY KEY (id)"
+  },
+  {
+    "conname": "packaging_types_pkey",
+    "contype": "p",
+    "table_name": "packaging_types",
+    "def": "PRIMARY KEY (id)"
+  },
+  {
+    "conname": "packaging_types_code_key",
+    "contype": "u",
+    "table_name": "packaging_types",
+    "def": "UNIQUE (code)"
+  },
+  {
+    "conname": "platform_admins_role_check",
+    "contype": "c",
+    "table_name": "platform_admins",
+    "def": "CHECK ((role = ANY (ARRAY['superadmin'::text, 'support'::text])))"
+  },
+  {
+    "conname": "platform_admins_user_id_fkey",
+    "contype": "f",
+    "table_name": "platform_admins",
+    "def": "FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE"
+  },
+  {
+    "conname": "platform_admins_pkey",
+    "contype": "p",
+    "table_name": "platform_admins",
+    "def": "PRIMARY KEY (id)"
+  },
+  {
+    "conname": "uq_platform_admin_user",
+    "contype": "u",
+    "table_name": "platform_admins",
+    "def": "UNIQUE (user_id)"
+  },
+  {
+    "conname": "platform_audit_logs_admin_id_fkey",
+    "contype": "f",
+    "table_name": "platform_audit_logs",
+    "def": "FOREIGN KEY (admin_id) REFERENCES platform_admins(id) ON DELETE SET NULL"
+  },
+  {
+    "conname": "platform_audit_logs_user_id_fkey",
+    "contype": "f",
+    "table_name": "platform_audit_logs",
+    "def": "FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE SET NULL"
+  },
+  {
+    "conname": "platform_audit_logs_pkey",
+    "contype": "p",
+    "table_name": "platform_audit_logs",
+    "def": "PRIMARY KEY (id)"
+  },
+  {
+    "conname": "platform_modules_category_check",
+    "contype": "c",
+    "table_name": "platform_modules",
+    "def": "CHECK ((category = ANY (ARRAY['core'::text, 'module'::text, 'addon'::text, 'enterprise'::text])))"
+  },
+  {
+    "conname": "platform_modules_pkey",
+    "contype": "p",
+    "table_name": "platform_modules",
+    "def": "PRIMARY KEY (id)"
+  },
+  {
+    "conname": "platform_plans_pkey",
+    "contype": "p",
+    "table_name": "platform_plans",
+    "def": "PRIMARY KEY (id)"
+  },
+  {
+    "conname": "product_batches_created_by_fkey",
+    "contype": "f",
+    "table_name": "product_batches",
+    "def": "FOREIGN KEY (created_by) REFERENCES auth.users(id)"
+  },
+  {
+    "conname": "product_batches_product_id_fkey",
+    "contype": "f",
+    "table_name": "product_batches",
+    "def": "FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE"
+  },
+  {
+    "conname": "product_batches_warehouse_id_fkey",
+    "contype": "f",
+    "table_name": "product_batches",
+    "def": "FOREIGN KEY (warehouse_id) REFERENCES warehouses(id) ON DELETE CASCADE"
+  },
+  {
+    "conname": "product_batches_pkey",
+    "contype": "p",
+    "table_name": "product_batches",
+    "def": "PRIMARY KEY (id)"
+  },
+  {
+    "conname": "product_batches_product_id_warehouse_id_batch_number_key",
+    "contype": "u",
+    "table_name": "product_batches",
+    "def": "UNIQUE (product_id, warehouse_id, batch_number)"
+  },
+  {
+    "conname": "product_compatibilities_product_id_fkey",
+    "contype": "f",
+    "table_name": "product_compatibilities",
+    "def": "FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE"
+  },
+  {
+    "conname": "product_compatibilities_vehicle_model_id_fkey",
+    "contype": "f",
+    "table_name": "product_compatibilities",
+    "def": "FOREIGN KEY (vehicle_model_id) REFERENCES vehicle_models(id) ON DELETE CASCADE"
+  },
+  {
+    "conname": "product_compatibilities_pkey",
+    "contype": "p",
+    "table_name": "product_compatibilities",
+    "def": "PRIMARY KEY (product_id, vehicle_model_id)"
+  },
+  {
+    "conname": "production_bom_lines_line_role_check",
+    "contype": "c",
+    "table_name": "production_bom_lines",
+    "def": "CHECK ((line_role = ANY (ARRAY['INPUT'::text, 'OUTPUT'::text, 'BY_PRODUCT'::text, 'LOSS'::text])))"
+  },
+  {
+    "conname": "production_bom_lines_qty_check",
+    "contype": "c",
+    "table_name": "production_bom_lines",
+    "def": "CHECK ((qty > (0)::numeric))"
+  },
+  {
+    "conname": "production_bom_lines_bom_id_fkey",
+    "contype": "f",
+    "table_name": "production_bom_lines",
+    "def": "FOREIGN KEY (bom_id) REFERENCES production_boms(id) ON DELETE CASCADE"
+  },
+  {
+    "conname": "production_bom_lines_product_id_fkey",
+    "contype": "f",
+    "table_name": "production_bom_lines",
+    "def": "FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE RESTRICT"
+  },
+  {
+    "conname": "production_bom_lines_pkey",
+    "contype": "p",
+    "table_name": "production_bom_lines",
+    "def": "PRIMARY KEY (id)"
+  },
+  {
+    "conname": "production_bom_lines_bom_id_product_id_line_role_key",
+    "contype": "u",
+    "table_name": "production_bom_lines",
+    "def": "UNIQUE (bom_id, product_id, line_role)"
+  },
+  {
+    "conname": "production_boms_output_qty_check",
+    "contype": "c",
+    "table_name": "production_boms",
+    "def": "CHECK ((output_qty > (0)::numeric))"
+  },
+  {
+    "conname": "production_boms_created_by_fkey",
+    "contype": "f",
+    "table_name": "production_boms",
+    "def": "FOREIGN KEY (created_by) REFERENCES auth.users(id)"
+  },
+  {
+    "conname": "production_boms_product_id_fkey",
+    "contype": "f",
+    "table_name": "production_boms",
+    "def": "FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE"
+  },
+  {
+    "conname": "production_boms_pkey",
+    "contype": "p",
+    "table_name": "production_boms",
+    "def": "PRIMARY KEY (id)"
+  },
+  {
+    "conname": "production_boms_product_id_name_ar_key",
+    "contype": "u",
+    "table_name": "production_boms",
+    "def": "UNIQUE (product_id, name_ar)"
+  },
+  {
+    "conname": "production_order_losses_qty_check",
+    "contype": "c",
+    "table_name": "production_order_losses",
+    "def": "CHECK ((qty > (0)::numeric))"
+  },
+  {
+    "conname": "production_order_losses_created_by_fkey",
+    "contype": "f",
+    "table_name": "production_order_losses",
+    "def": "FOREIGN KEY (created_by) REFERENCES auth.users(id)"
+  },
+  {
+    "conname": "production_order_losses_order_id_fkey",
+    "contype": "f",
+    "table_name": "production_order_losses",
+    "def": "FOREIGN KEY (order_id) REFERENCES production_orders(id) ON DELETE CASCADE"
+  },
+  {
+    "conname": "production_order_losses_pkey",
+    "contype": "p",
+    "table_name": "production_order_losses",
+    "def": "PRIMARY KEY (id)"
+  },
+  {
+    "conname": "production_order_materials_order_id_fkey",
+    "contype": "f",
+    "table_name": "production_order_materials",
+    "def": "FOREIGN KEY (order_id) REFERENCES production_orders(id) ON DELETE CASCADE"
+  },
+  {
+    "conname": "production_order_materials_product_id_fkey",
+    "contype": "f",
+    "table_name": "production_order_materials",
+    "def": "FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE RESTRICT"
+  },
+  {
+    "conname": "production_order_materials_pkey",
+    "contype": "p",
+    "table_name": "production_order_materials",
+    "def": "PRIMARY KEY (id)"
+  },
+  {
+    "conname": "production_order_materials_order_id_product_id_key",
+    "contype": "u",
+    "table_name": "production_order_materials",
+    "def": "UNIQUE (order_id, product_id)"
+  },
+  {
+    "conname": "production_order_outputs_output_role_check",
+    "contype": "c",
+    "table_name": "production_order_outputs",
+    "def": "CHECK ((output_role = ANY (ARRAY['PRIMARY'::text, 'BY_PRODUCT'::text])))"
+  },
+  {
+    "conname": "production_order_outputs_order_id_fkey",
+    "contype": "f",
+    "table_name": "production_order_outputs",
+    "def": "FOREIGN KEY (order_id) REFERENCES production_orders(id) ON DELETE CASCADE"
+  },
+  {
+    "conname": "production_order_outputs_product_id_fkey",
+    "contype": "f",
+    "table_name": "production_order_outputs",
+    "def": "FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE RESTRICT"
+  },
+  {
+    "conname": "production_order_outputs_pkey",
+    "contype": "p",
+    "table_name": "production_order_outputs",
+    "def": "PRIMARY KEY (id)"
+  },
+  {
+    "conname": "production_order_outputs_order_id_product_id_output_role_key",
+    "contype": "u",
+    "table_name": "production_order_outputs",
+    "def": "UNIQUE (order_id, product_id, output_role)"
+  },
+  {
+    "conname": "production_orders_allocation_basis_check",
+    "contype": "c",
+    "table_name": "production_orders",
+    "def": "CHECK ((allocation_basis = ANY (ARRAY['REMAINDER_TO_PRIMARY'::text, 'NET_REALISABLE_VALUE'::text, 'RELATIVE_SALES_VALUE'::text])))"
+  },
+  {
+    "conname": "production_orders_completed_has_cost",
+    "contype": "c",
+    "table_name": "production_orders",
+    "def": "CHECK (((status <> 'COMPLETED'::text) OR (total_cost > (0)::numeric)))"
+  },
+  {
+    "conname": "production_orders_status_check",
+    "contype": "c",
+    "table_name": "production_orders",
+    "def": "CHECK ((status = ANY (ARRAY['PLANNED'::text, 'ISSUED'::text, 'COMPLETED'::text, 'CANCELLED'::text])))"
+  },
+  {
+    "conname": "production_orders_bom_id_fkey",
+    "contype": "f",
+    "table_name": "production_orders",
+    "def": "FOREIGN KEY (bom_id) REFERENCES production_boms(id) ON DELETE SET NULL"
+  },
+  {
+    "conname": "production_orders_completed_by_fkey",
+    "contype": "f",
+    "table_name": "production_orders",
+    "def": "FOREIGN KEY (completed_by) REFERENCES auth.users(id)"
+  },
+  {
+    "conname": "production_orders_created_by_fkey",
+    "contype": "f",
+    "table_name": "production_orders",
+    "def": "FOREIGN KEY (created_by) REFERENCES auth.users(id)"
+  },
+  {
+    "conname": "production_orders_warehouse_id_fkey",
+    "contype": "f",
+    "table_name": "production_orders",
+    "def": "FOREIGN KEY (warehouse_id) REFERENCES warehouses(id) ON DELETE RESTRICT"
+  },
+  {
+    "conname": "production_orders_pkey",
+    "contype": "p",
+    "table_name": "production_orders",
+    "def": "PRIMARY KEY (id)"
+  },
+  {
+    "conname": "production_orders_order_number_key",
+    "contype": "u",
+    "table_name": "production_orders",
+    "def": "UNIQUE (order_number)"
+  },
+  {
+    "conname": "products_none_costing_requires_untracked",
+    "contype": "c",
+    "table_name": "products",
+    "def": "CHECK (((costing_method <> 'NONE'::costing_method) OR (inventory_policy = 'UNTRACKED'::inventory_policy)))"
+  },
+  {
+    "conname": "products_service_cannot_be_tracked",
+    "contype": "c",
+    "table_name": "products",
+    "def": "CHECK (((item_nature <> 'SERVICE'::item_nature) OR (inventory_policy = 'UNTRACKED'::inventory_policy)))"
+  },
+  {
+    "conname": "products_untracked_has_no_tracking",
+    "contype": "c",
+    "table_name": "products",
+    "def": "CHECK (((inventory_policy <> 'UNTRACKED'::inventory_policy) OR (tracking = 'NONE'::item_tracking)))"
+  },
+  {
+    "conname": "products_base_uom_id_fkey",
+    "contype": "f",
+    "table_name": "products",
+    "def": "FOREIGN KEY (base_uom_id) REFERENCES units(id) ON DELETE SET NULL"
+  },
+  {
+    "conname": "products_brand_id_fkey",
+    "contype": "f",
+    "table_name": "products",
+    "def": "FOREIGN KEY (brand_id) REFERENCES brands(id) ON DELETE SET NULL"
+  },
+  {
+    "conname": "products_category_id_fkey",
+    "contype": "f",
+    "table_name": "products",
+    "def": "FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE SET NULL"
+  },
+  {
+    "conname": "products_origin_id_fkey",
+    "contype": "f",
+    "table_name": "products",
+    "def": "FOREIGN KEY (origin_id) REFERENCES countries_of_origin(id) ON DELETE SET NULL"
+  },
+  {
+    "conname": "products_package_type_id_fkey",
+    "contype": "f",
+    "table_name": "products",
+    "def": "FOREIGN KEY (package_type_id) REFERENCES packaging_types(id) ON DELETE SET NULL"
+  },
+  {
+    "conname": "products_purchase_uom_id_fkey",
+    "contype": "f",
+    "table_name": "products",
+    "def": "FOREIGN KEY (purchase_uom_id) REFERENCES units(id) ON DELETE SET NULL"
+  },
+  {
+    "conname": "products_quality_grade_id_fkey",
+    "contype": "f",
+    "table_name": "products",
+    "def": "FOREIGN KEY (quality_grade_id) REFERENCES quality_grades(id) ON DELETE SET NULL"
+  },
+  {
+    "conname": "products_sales_uom_id_fkey",
+    "contype": "f",
+    "table_name": "products",
+    "def": "FOREIGN KEY (sales_uom_id) REFERENCES units(id) ON DELETE SET NULL"
+  },
+  {
+    "conname": "products_unit_id_fkey",
+    "contype": "f",
+    "table_name": "products",
+    "def": "FOREIGN KEY (unit_id) REFERENCES units(id) ON DELETE SET NULL"
+  },
+  {
+    "conname": "products_pkey",
+    "contype": "p",
+    "table_name": "products",
+    "def": "PRIMARY KEY (id)"
+  },
+  {
+    "conname": "products_barcode_key",
+    "contype": "u",
+    "table_name": "products",
+    "def": "UNIQUE (barcode)"
+  },
+  {
+    "conname": "products_sku_key",
+    "contype": "u",
+    "table_name": "products",
+    "def": "UNIQUE (sku)"
+  },
+  {
+    "conname": "profiles_id_fkey",
+    "contype": "f",
+    "table_name": "profiles",
+    "def": "FOREIGN KEY (id) REFERENCES auth.users(id) ON DELETE CASCADE"
+  },
+  {
+    "conname": "profiles_pkey",
+    "contype": "p",
+    "table_name": "profiles",
+    "def": "PRIMARY KEY (id)"
+  },
+  {
+    "conname": "purchase_invoice_items_line_type_valid",
+    "contype": "c",
+    "table_name": "purchase_invoice_items",
+    "def": "CHECK (((line_type IS NULL) OR (line_type = ANY (ARRAY['STOCKED_GOOD'::text, 'UNTRACKED_GOOD'::text, 'SERVICE'::text, 'CUSTOMER_OWNED_GOOD'::text, 'AD_HOC_SERVICE'::text]))))"
+  },
+  {
+    "conname": "purchase_invoice_items_invoice_id_fkey",
+    "contype": "f",
+    "table_name": "purchase_invoice_items",
+    "def": "FOREIGN KEY (invoice_id) REFERENCES purchase_invoices(id) ON DELETE CASCADE"
+  },
+  {
+    "conname": "purchase_invoice_items_product_id_fkey",
+    "contype": "f",
+    "table_name": "purchase_invoice_items",
+    "def": "FOREIGN KEY (product_id) REFERENCES products(id)"
+  },
+  {
+    "conname": "purchase_invoice_items_pkey",
+    "contype": "p",
+    "table_name": "purchase_invoice_items",
+    "def": "PRIMARY KEY (id)"
+  },
+  {
+    "conname": "purchase_invoices_created_by_fkey",
+    "contype": "f",
+    "table_name": "purchase_invoices",
+    "def": "FOREIGN KEY (created_by) REFERENCES auth.users(id) ON DELETE SET NULL"
+  },
+  {
+    "conname": "purchase_invoices_supplier_id_fkey",
+    "contype": "f",
+    "table_name": "purchase_invoices",
+    "def": "FOREIGN KEY (supplier_id) REFERENCES suppliers(id) ON DELETE SET NULL"
+  },
+  {
+    "conname": "purchase_invoices_warehouse_id_fkey",
+    "contype": "f",
+    "table_name": "purchase_invoices",
+    "def": "FOREIGN KEY (warehouse_id) REFERENCES warehouses(id) ON DELETE SET NULL"
+  },
+  {
+    "conname": "purchase_invoices_pkey",
+    "contype": "p",
+    "table_name": "purchase_invoices",
+    "def": "PRIMARY KEY (id)"
+  },
+  {
+    "conname": "purchase_invoices_invoice_number_key",
+    "contype": "u",
+    "table_name": "purchase_invoices",
+    "def": "UNIQUE (invoice_number)"
+  },
+  {
+    "conname": "purchase_return_items_quantity_check",
+    "contype": "c",
+    "table_name": "purchase_return_items",
+    "def": "CHECK ((quantity > (0)::numeric))"
+  },
+  {
+    "conname": "purchase_return_items_product_id_fkey",
+    "contype": "f",
+    "table_name": "purchase_return_items",
+    "def": "FOREIGN KEY (product_id) REFERENCES products(id)"
+  },
+  {
+    "conname": "purchase_return_items_return_id_fkey",
+    "contype": "f",
+    "table_name": "purchase_return_items",
+    "def": "FOREIGN KEY (return_id) REFERENCES purchase_returns(id) ON DELETE CASCADE"
+  },
+  {
+    "conname": "purchase_return_items_pkey",
+    "contype": "p",
+    "table_name": "purchase_return_items",
+    "def": "PRIMARY KEY (id)"
+  },
+  {
+    "conname": "purchase_returns_created_by_fkey",
+    "contype": "f",
+    "table_name": "purchase_returns",
+    "def": "FOREIGN KEY (created_by) REFERENCES auth.users(id) ON DELETE SET NULL"
+  },
+  {
+    "conname": "purchase_returns_invoice_id_fkey",
+    "contype": "f",
+    "table_name": "purchase_returns",
+    "def": "FOREIGN KEY (invoice_id) REFERENCES purchase_invoices(id) ON DELETE SET NULL"
+  },
+  {
+    "conname": "purchase_returns_supplier_id_fkey",
+    "contype": "f",
+    "table_name": "purchase_returns",
+    "def": "FOREIGN KEY (supplier_id) REFERENCES suppliers(id) ON DELETE SET NULL"
+  },
+  {
+    "conname": "purchase_returns_warehouse_id_fkey",
+    "contype": "f",
+    "table_name": "purchase_returns",
+    "def": "FOREIGN KEY (warehouse_id) REFERENCES warehouses(id)"
+  },
+  {
+    "conname": "purchase_returns_pkey",
+    "contype": "p",
+    "table_name": "purchase_returns",
+    "def": "PRIMARY KEY (id)"
+  },
+  {
+    "conname": "purchase_returns_return_number_key",
+    "contype": "u",
+    "table_name": "purchase_returns",
+    "def": "UNIQUE (return_number)"
+  },
+  {
+    "conname": "quality_grades_pkey",
+    "contype": "p",
+    "table_name": "quality_grades",
+    "def": "PRIMARY KEY (id)"
+  },
+  {
+    "conname": "quality_grades_code_key",
+    "contype": "u",
+    "table_name": "quality_grades",
+    "def": "UNIQUE (code)"
+  },
+  {
+    "conname": "sales_invoice_items_line_type_valid",
+    "contype": "c",
+    "table_name": "sales_invoice_items",
+    "def": "CHECK (((line_type IS NULL) OR (line_type = ANY (ARRAY['STOCKED_GOOD'::text, 'UNTRACKED_GOOD'::text, 'SERVICE'::text, 'CUSTOMER_OWNED_GOOD'::text, 'AD_HOC_SERVICE'::text]))))"
+  },
+  {
+    "conname": "sales_invoice_items_stock_effect_valid",
+    "contype": "c",
+    "table_name": "sales_invoice_items",
+    "def": "CHECK (((stock_effect IS NULL) OR (stock_effect = ANY (ARRAY['STOCK_ISSUE'::text, 'STOCK_RECEIPT'::text, 'NONE'::text]))))"
+  },
+  {
+    "conname": "sales_invoice_items_invoice_id_fkey",
+    "contype": "f",
+    "table_name": "sales_invoice_items",
+    "def": "FOREIGN KEY (invoice_id) REFERENCES sales_invoices(id) ON DELETE CASCADE"
+  },
+  {
+    "conname": "sales_invoice_items_product_id_fkey",
+    "contype": "f",
+    "table_name": "sales_invoice_items",
+    "def": "FOREIGN KEY (product_id) REFERENCES products(id)"
+  },
+  {
+    "conname": "sales_invoice_items_uom_id_fkey",
+    "contype": "f",
+    "table_name": "sales_invoice_items",
+    "def": "FOREIGN KEY (uom_id) REFERENCES units(id) ON DELETE SET NULL"
+  },
+  {
+    "conname": "sales_invoice_items_pkey",
+    "contype": "p",
+    "table_name": "sales_invoice_items",
+    "def": "PRIMARY KEY (id)"
+  },
+  {
+    "conname": "sales_invoices_created_by_fkey",
+    "contype": "f",
+    "table_name": "sales_invoices",
+    "def": "FOREIGN KEY (created_by) REFERENCES auth.users(id) ON DELETE SET NULL"
+  },
+  {
+    "conname": "sales_invoices_customer_id_fkey",
+    "contype": "f",
+    "table_name": "sales_invoices",
+    "def": "FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE SET NULL"
+  },
+  {
+    "conname": "sales_invoices_milling_job_id_fkey",
+    "contype": "f",
+    "table_name": "sales_invoices",
+    "def": "FOREIGN KEY (milling_job_id) REFERENCES milling_jobs(id) ON DELETE SET NULL"
+  },
+  {
+    "conname": "sales_invoices_warehouse_id_fkey",
+    "contype": "f",
+    "table_name": "sales_invoices",
+    "def": "FOREIGN KEY (warehouse_id) REFERENCES warehouses(id) ON DELETE SET NULL"
+  },
+  {
+    "conname": "sales_invoices_pkey",
+    "contype": "p",
+    "table_name": "sales_invoices",
+    "def": "PRIMARY KEY (id)"
+  },
+  {
+    "conname": "sales_invoices_invoice_number_key",
+    "contype": "u",
+    "table_name": "sales_invoices",
+    "def": "UNIQUE (invoice_number)"
+  },
+  {
+    "conname": "sales_return_items_quantity_check",
+    "contype": "c",
+    "table_name": "sales_return_items",
+    "def": "CHECK ((quantity > (0)::numeric))"
+  },
+  {
+    "conname": "sales_return_items_product_id_fkey",
+    "contype": "f",
+    "table_name": "sales_return_items",
+    "def": "FOREIGN KEY (product_id) REFERENCES products(id)"
+  },
+  {
+    "conname": "sales_return_items_return_id_fkey",
+    "contype": "f",
+    "table_name": "sales_return_items",
+    "def": "FOREIGN KEY (return_id) REFERENCES sales_returns(id) ON DELETE CASCADE"
+  },
+  {
+    "conname": "sales_return_items_pkey",
+    "contype": "p",
+    "table_name": "sales_return_items",
+    "def": "PRIMARY KEY (id)"
+  },
+  {
+    "conname": "sales_returns_created_by_fkey",
+    "contype": "f",
+    "table_name": "sales_returns",
+    "def": "FOREIGN KEY (created_by) REFERENCES auth.users(id) ON DELETE SET NULL"
+  },
+  {
+    "conname": "sales_returns_customer_id_fkey",
+    "contype": "f",
+    "table_name": "sales_returns",
+    "def": "FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE SET NULL"
+  },
+  {
+    "conname": "sales_returns_invoice_id_fkey",
+    "contype": "f",
+    "table_name": "sales_returns",
+    "def": "FOREIGN KEY (invoice_id) REFERENCES sales_invoices(id) ON DELETE SET NULL"
+  },
+  {
+    "conname": "sales_returns_warehouse_id_fkey",
+    "contype": "f",
+    "table_name": "sales_returns",
+    "def": "FOREIGN KEY (warehouse_id) REFERENCES warehouses(id)"
+  },
+  {
+    "conname": "sales_returns_pkey",
+    "contype": "p",
+    "table_name": "sales_returns",
+    "def": "PRIMARY KEY (id)"
+  },
+  {
+    "conname": "sales_returns_return_number_key",
+    "contype": "u",
+    "table_name": "sales_returns",
+    "def": "UNIQUE (return_number)"
+  },
+  {
+    "conname": "stock_adjustment_items_quantity_check",
+    "contype": "c",
+    "table_name": "stock_adjustment_items",
+    "def": "CHECK ((quantity <> (0)::numeric))"
+  },
+  {
+    "conname": "stock_adjustment_items_unit_cost_check",
+    "contype": "c",
+    "table_name": "stock_adjustment_items",
+    "def": "CHECK ((unit_cost >= (0)::numeric))"
+  },
+  {
+    "conname": "stock_adjustment_items_adjustment_id_fkey",
+    "contype": "f",
+    "table_name": "stock_adjustment_items",
+    "def": "FOREIGN KEY (adjustment_id) REFERENCES stock_adjustments(id) ON DELETE CASCADE"
+  },
+  {
+    "conname": "stock_adjustment_items_product_id_fkey",
+    "contype": "f",
+    "table_name": "stock_adjustment_items",
+    "def": "FOREIGN KEY (product_id) REFERENCES products(id)"
+  },
+  {
+    "conname": "stock_adjustment_items_pkey",
+    "contype": "p",
+    "table_name": "stock_adjustment_items",
+    "def": "PRIMARY KEY (id)"
+  },
+  {
+    "conname": "stock_adjustments_created_by_fkey",
+    "contype": "f",
+    "table_name": "stock_adjustments",
+    "def": "FOREIGN KEY (created_by) REFERENCES auth.users(id) ON DELETE SET NULL"
+  },
+  {
+    "conname": "stock_adjustments_warehouse_id_fkey",
+    "contype": "f",
+    "table_name": "stock_adjustments",
+    "def": "FOREIGN KEY (warehouse_id) REFERENCES warehouses(id)"
+  },
+  {
+    "conname": "stock_adjustments_pkey",
+    "contype": "p",
+    "table_name": "stock_adjustments",
+    "def": "PRIMARY KEY (id)"
+  },
+  {
+    "conname": "stock_adjustments_document_number_key",
+    "contype": "u",
+    "table_name": "stock_adjustments",
+    "def": "UNIQUE (document_number)"
+  },
+  {
+    "conname": "stock_movements_adjustment_reason_required",
+    "contype": "c",
+    "table_name": "stock_movements",
+    "def": "CHECK (((movement_type <> 'adjustment'::movement_type) OR ((adjustment_reason IS NOT NULL) AND (btrim(adjustment_reason) <> ''::text)))) NOT VALID"
+  },
+  {
+    "conname": "stock_movements_created_by_fkey",
+    "contype": "f",
+    "table_name": "stock_movements",
+    "def": "FOREIGN KEY (created_by) REFERENCES auth.users(id) ON DELETE SET NULL"
+  },
+  {
+    "conname": "stock_movements_product_id_fkey",
+    "contype": "f",
+    "table_name": "stock_movements",
+    "def": "FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE"
+  },
+  {
+    "conname": "stock_movements_warehouse_id_fkey",
+    "contype": "f",
+    "table_name": "stock_movements",
+    "def": "FOREIGN KEY (warehouse_id) REFERENCES warehouses(id) ON DELETE CASCADE"
+  },
+  {
+    "conname": "stock_movements_pkey",
+    "contype": "p",
+    "table_name": "stock_movements",
+    "def": "PRIMARY KEY (id)"
+  },
+  {
+    "conname": "stock_opening_items_quantity_check",
+    "contype": "c",
+    "table_name": "stock_opening_items",
+    "def": "CHECK ((quantity > (0)::numeric))"
+  },
+  {
+    "conname": "stock_opening_items_unit_cost_check",
+    "contype": "c",
+    "table_name": "stock_opening_items",
+    "def": "CHECK ((unit_cost >= (0)::numeric))"
+  },
+  {
+    "conname": "stock_opening_items_opening_id_fkey",
+    "contype": "f",
+    "table_name": "stock_opening_items",
+    "def": "FOREIGN KEY (opening_id) REFERENCES stock_openings(id) ON DELETE CASCADE"
+  },
+  {
+    "conname": "stock_opening_items_product_id_fkey",
+    "contype": "f",
+    "table_name": "stock_opening_items",
+    "def": "FOREIGN KEY (product_id) REFERENCES products(id)"
+  },
+  {
+    "conname": "stock_opening_items_pkey",
+    "contype": "p",
+    "table_name": "stock_opening_items",
+    "def": "PRIMARY KEY (id)"
+  },
+  {
+    "conname": "stock_openings_created_by_fkey",
+    "contype": "f",
+    "table_name": "stock_openings",
+    "def": "FOREIGN KEY (created_by) REFERENCES auth.users(id) ON DELETE SET NULL"
+  },
+  {
+    "conname": "stock_openings_warehouse_id_fkey",
+    "contype": "f",
+    "table_name": "stock_openings",
+    "def": "FOREIGN KEY (warehouse_id) REFERENCES warehouses(id)"
+  },
+  {
+    "conname": "stock_openings_pkey",
+    "contype": "p",
+    "table_name": "stock_openings",
+    "def": "PRIMARY KEY (id)"
+  },
+  {
+    "conname": "stock_openings_document_number_key",
+    "contype": "u",
+    "table_name": "stock_openings",
+    "def": "UNIQUE (document_number)"
+  },
+  {
+    "conname": "stock_transfer_items_quantity_check",
+    "contype": "c",
+    "table_name": "stock_transfer_items",
+    "def": "CHECK ((quantity > (0)::numeric))"
+  },
+  {
+    "conname": "stock_transfer_items_product_id_fkey",
+    "contype": "f",
+    "table_name": "stock_transfer_items",
+    "def": "FOREIGN KEY (product_id) REFERENCES products(id)"
+  },
+  {
+    "conname": "stock_transfer_items_transfer_id_fkey",
+    "contype": "f",
+    "table_name": "stock_transfer_items",
+    "def": "FOREIGN KEY (transfer_id) REFERENCES stock_transfers(id) ON DELETE CASCADE"
+  },
+  {
+    "conname": "stock_transfer_items_pkey",
+    "contype": "p",
+    "table_name": "stock_transfer_items",
+    "def": "PRIMARY KEY (id)"
+  },
+  {
+    "conname": "stock_transfers_check",
+    "contype": "c",
+    "table_name": "stock_transfers",
+    "def": "CHECK ((from_warehouse_id <> to_warehouse_id))"
+  },
+  {
+    "conname": "stock_transfers_created_by_fkey",
+    "contype": "f",
+    "table_name": "stock_transfers",
+    "def": "FOREIGN KEY (created_by) REFERENCES auth.users(id) ON DELETE SET NULL"
+  },
+  {
+    "conname": "stock_transfers_from_warehouse_id_fkey",
+    "contype": "f",
+    "table_name": "stock_transfers",
+    "def": "FOREIGN KEY (from_warehouse_id) REFERENCES warehouses(id)"
+  },
+  {
+    "conname": "stock_transfers_to_warehouse_id_fkey",
+    "contype": "f",
+    "table_name": "stock_transfers",
+    "def": "FOREIGN KEY (to_warehouse_id) REFERENCES warehouses(id)"
+  },
+  {
+    "conname": "stock_transfers_pkey",
+    "contype": "p",
+    "table_name": "stock_transfers",
+    "def": "PRIMARY KEY (id)"
+  },
+  {
+    "conname": "stock_transfers_transfer_number_key",
+    "contype": "u",
+    "table_name": "stock_transfers",
+    "def": "UNIQUE (transfer_number)"
+  },
+  {
+    "conname": "suppliers_pkey",
+    "contype": "p",
+    "table_name": "suppliers",
+    "def": "PRIMARY KEY (id)"
+  },
+  {
+    "conname": "sync_idempotency_keys_pkey",
+    "contype": "p",
+    "table_name": "sync_idempotency_keys",
+    "def": "PRIMARY KEY (id)"
+  },
+  {
+    "conname": "sync_idempotency_keys_idempotency_key_key",
+    "contype": "u",
+    "table_name": "sync_idempotency_keys",
+    "def": "UNIQUE (idempotency_key)"
+  },
+  {
+    "conname": "tenant_subscriptions_status_check",
+    "contype": "c",
+    "table_name": "tenant_subscriptions",
+    "def": "CHECK ((status = ANY (ARRAY['active'::text, 'trialing'::text, 'past_due'::text, 'canceled'::text])))"
+  },
+  {
+    "conname": "tenant_subscriptions_plan_id_fkey",
+    "contype": "f",
+    "table_name": "tenant_subscriptions",
+    "def": "FOREIGN KEY (plan_id) REFERENCES platform_plans(id) ON UPDATE CASCADE"
+  },
+  {
+    "conname": "tenant_subscriptions_pkey",
+    "contype": "p",
+    "table_name": "tenant_subscriptions",
+    "def": "PRIMARY KEY (id)"
+  },
+  {
+    "conname": "uq_tenant_subscription",
+    "contype": "u",
+    "table_name": "tenant_subscriptions",
+    "def": "UNIQUE (tenant_id)"
+  },
+  {
+    "conname": "units_pkey",
+    "contype": "p",
+    "table_name": "units",
+    "def": "PRIMARY KEY (id)"
+  },
+  {
+    "conname": "units_name_key",
+    "contype": "u",
+    "table_name": "units",
+    "def": "UNIQUE (name)"
+  },
+  {
+    "conname": "user_roles_user_id_fkey",
+    "contype": "f",
+    "table_name": "user_roles",
+    "def": "FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE"
+  },
+  {
+    "conname": "user_roles_pkey",
+    "contype": "p",
+    "table_name": "user_roles",
+    "def": "PRIMARY KEY (id)"
+  },
+  {
+    "conname": "user_roles_user_id_role_key",
+    "contype": "u",
+    "table_name": "user_roles",
+    "def": "UNIQUE (user_id, role)"
+  },
+  {
+    "conname": "vehicle_makes_pkey",
+    "contype": "p",
+    "table_name": "vehicle_makes",
+    "def": "PRIMARY KEY (id)"
+  },
+  {
+    "conname": "vehicle_makes_name_key",
+    "contype": "u",
+    "table_name": "vehicle_makes",
+    "def": "UNIQUE (name)"
+  },
+  {
+    "conname": "vehicle_models_make_id_fkey",
+    "contype": "f",
+    "table_name": "vehicle_models",
+    "def": "FOREIGN KEY (make_id) REFERENCES vehicle_makes(id) ON DELETE CASCADE"
+  },
+  {
+    "conname": "vehicle_models_pkey",
+    "contype": "p",
+    "table_name": "vehicle_models",
+    "def": "PRIMARY KEY (id)"
+  },
+  {
+    "conname": "vehicle_models_make_id_name_key",
+    "contype": "u",
+    "table_name": "vehicle_models",
+    "def": "UNIQUE (make_id, name)"
+  },
+  {
+    "conname": "warehouses_pkey",
+    "contype": "p",
+    "table_name": "warehouses",
+    "def": "PRIMARY KEY (id)"
+  },
+  {
+    "conname": "warehouses_code_key",
+    "contype": "u",
+    "table_name": "warehouses",
+    "def": "UNIQUE (code)"
+  }
+]
