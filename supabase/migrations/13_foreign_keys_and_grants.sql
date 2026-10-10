@@ -1232,7 +1232,6 @@ GRANT EXECUTE ON FUNCTION public.approve_item_policy_change(_item_id uuid, _new_
 GRANT EXECUTE ON FUNCTION public.approve_item_policy_change(_item_id uuid, _new_nature item_nature, _new_policy inventory_policy, _new_costing costing_method, _new_tracking item_tracking, _reason text) TO service_role;
 GRANT EXECUTE ON FUNCTION public.audit_item_policy_snapshot(p_item_id uuid, p_action text, p_before jsonb, p_after jsonb, p_source text) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.audit_item_policy_snapshot(p_item_id uuid, p_action text, p_before jsonb, p_after jsonb, p_source text) TO service_role;
-GRANT EXECUTE ON FUNCTION public.bootstrap_first_owner() TO service_role;
 GRANT EXECUTE ON FUNCTION public.can_operate_milling() TO authenticated;
 GRANT EXECUTE ON FUNCTION public.can_operate_milling() TO service_role;
 GRANT EXECUTE ON FUNCTION public.can_read_expense_entry(p_entry_id uuid, p_user uuid) TO authenticated;

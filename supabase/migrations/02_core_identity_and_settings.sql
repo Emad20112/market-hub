@@ -169,11 +169,16 @@ CREATE OR REPLACE FUNCTION public.is_platform_superadmin(p_user_id uuid)
  STABLE SECURITY DEFINER
  SET search_path TO ''
 AS $function$
+  -- 'superadmin' only — not 'admin'. The table's CHECK constraint allows
+  -- exactly two roles, superadmin and support, so a predicate accepting
+  -- 'admin' could never be satisfied by a stored row: it was dead code that
+  -- read as if a third role existed. 'support' is deliberately excluded —
+  -- it is read-only and must not satisfy superadmin-only policies.
   SELECT EXISTS (
     SELECT 1
     FROM public.platform_admins
     WHERE user_id = p_user_id
-      AND role IN ('superadmin', 'admin')
+      AND role = 'superadmin'
       AND is_active = true
   );
 $function$;
@@ -235,8 +240,17 @@ $function$;
 
 -- ── IDENTITY TRIGGERS ─────────────────────────────────────────────────
 -- tg_set_updated_at is attached to nearly every table by later migrations;
--- handle_new_user and bootstrap_first_owner are auth triggers that write to
--- public.profiles and public.user_roles, which exist above.
+-- handle_new_user is the auth trigger that writes to public.profiles, which
+-- exists above.
+--
+-- There is deliberately NO "first user becomes owner" trigger here. It was
+-- removed: it granted a tenant role on a race rather than on a decision, so
+-- whoever happened to sign up first — a customer, a typo, an abandoned test
+-- account — silently became the owner of the deployment, and the grant could
+-- not be withdrawn afterwards because the rule lived in the trigger, not in
+-- the data. Roles are now assigned explicitly by someone who already holds
+-- authority to assign them. See supabase/seeds/01_system/06_platform_admins.sql
+-- for how the initial platform administrators are provisioned instead.
 CREATE OR REPLACE FUNCTION public.tg_set_updated_at()
  RETURNS trigger
  LANGUAGE plpgsql
@@ -262,22 +276,6 @@ BEGIN
   ON CONFLICT (id) DO UPDATE
     SET full_name = COALESCE(EXCLUDED.full_name, public.profiles.full_name);
 
-  RETURN NEW;
-END;
-$function$;
-
-CREATE OR REPLACE FUNCTION public.bootstrap_first_owner()
- RETURNS trigger
- LANGUAGE plpgsql
- SECURITY DEFINER
- SET search_path TO 'public'
-AS $function$
-BEGIN
-  IF NOT EXISTS (SELECT 1 FROM public.user_roles) THEN
-    INSERT INTO public.user_roles (user_id, role)
-    VALUES (NEW.id, 'owner')
-    ON CONFLICT (user_id, role) DO NOTHING;
-  END IF;
   RETURN NEW;
 END;
 $function$;

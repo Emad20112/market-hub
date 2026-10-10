@@ -62,6 +62,36 @@ function resolveCandidates(input: string, countryCode: string): string[] {
   return candidates;
 }
 
+/**
+ * صيغ رقم الهاتف التي قد يكون الحساب مخزَّنًا بها، مرتّبةً بالأرجح.
+ *
+ * تُغذّي signInWithPassword({ phone })، وGoTrue يقارنها بعمود
+ * auth.users.phone الذي نخزّنه **بلا علامة +** (مثل 967772217218). لذلك
+ * الصيغة الأولى بلا +، وتُجرَّب بقيّة الصيغ احتياطًا لأن المستخدم قد يكتب
+ * الرقم بإحدى صوره المتعارفة.
+ */
+function resolvePhoneCandidates(input: string, countryCode: string): string[] {
+  const digits = input.replace(/\D/g, "");
+  const out: string[] = [];
+  const push = (value: string) => {
+    const normalized = value.replace(/^\+/, "");
+    if (normalized && !out.includes(normalized)) out.push(normalized);
+  };
+
+  const dialDigits = countryCode.replace(/\D/g, "");
+
+  // الرقم مكتوب بصيغة دولية كاملة: 967772217218
+  if (digits.startsWith(dialDigits) && digits.length > dialDigits.length) {
+    push(digits);
+    return out;
+  }
+
+  // الرقم محلي: 0772217218 أو 772217218 → نضيف بادئة الدولة
+  push(`${dialDigits}${digits.replace(/^0+/, "")}`);
+  push(digits);
+  return out;
+}
+
 const loginSchema = (t: (key: string) => string, isRtl: boolean) =>
   z.object({
     identifier: z
@@ -142,26 +172,61 @@ function AuthPage() {
       return;
     }
 
-    const candidates = resolveCandidates(identifier, country.dialCode);
     setLoading(true);
 
     try {
       let lastError: any = null;
       let sessionEstablished = false;
 
-      for (const email of candidates) {
-        const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
-          email,
-          password,
-        });
+      /*
+       * الدخول بالهاتف مساران، ويجب تجربتهما بالترتيب الصحيح:
+       *
+       *   1. الهاتف الحقيقي — signInWithPassword({ phone }) — وهو المسار
+       *      الصحيح لأي حساب أُنشئ برقم هاتف، لأن GoTrue يبحث في عمود
+       *      auth.users.phone.
+       *
+       *   2. البريد الوهمي (@vortex.local) — للتوافق مع الحسابات القديمة التي
+       *      أُنشئت قبل تفعيل الهاتف، حين كان الحساب الوحيد المتاح بريدًا
+       *      صناعيًا مشتقًا من الرقم.
+       *
+       * كان الترتيب معكوسًا سابقًا: يُجرَّب البريد الصناعي وحده، فحساب زُرع
+       * برقم هاتف حقيقي لا يُوجد أبدًا ويفشل الدخول رغم صحة كل شيء — وهو ما
+       * حدث فعلًا في سجلّ المصادقة: محاولات متتابعة بلا نهاية ناجحة.
+       */
+      const trimmedIdentifier = identifier.trim();
+      const looksLikeEmail = trimmedIdentifier.includes("@");
 
-        if (!signInError && signInData?.session) {
-          sessionEstablished = true;
-          break;
+      if (!looksLikeEmail) {
+        // 1) الهاتف الحقيقي، بجميع صيغه المحتملة.
+        const phoneCandidates = resolvePhoneCandidates(trimmedIdentifier, country.dialCode);
+        for (const phone of phoneCandidates) {
+          const { data: phoneData, error: phoneError } = await supabase.auth.signInWithPassword({
+            phone,
+            password,
+          });
+          if (!phoneError && phoneData?.session) {
+            sessionEstablished = true;
+            break;
+          }
+          if (phoneError) lastError = phoneError;
         }
+      }
 
-        if (signInError) {
-          lastError = signInError;
+      // 2) احتياط أخير: البريد (الحقيقي إن أدخله المستخدم، أو الصناعي القديم).
+      if (!sessionEstablished) {
+        const emailCandidates = looksLikeEmail
+          ? [trimmedIdentifier.toLowerCase()]
+          : resolveCandidates(trimmedIdentifier, country.dialCode);
+        for (const email of emailCandidates) {
+          const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+            email,
+            password,
+          });
+          if (!signInError && signInData?.session) {
+            sessionEstablished = true;
+            break;
+          }
+          if (signInError) lastError = signInError;
         }
       }
 

@@ -232,8 +232,7 @@ REJECTED  CANCELLED  REVERSED
 | `can_read_finance(uuid)` | صلاحية قراءة المالية |
 | `can_read_expense_entry(uuid, uuid)` | صلاحية قراءة مستند مصروف |
 | `can_operate_milling(uuid)` / `can_view_milling(uuid)` | صلاحيات الطحن |
-| `is_platform_admin(uuid)` / `is_platform_superadmin(uuid)` | مسؤول المنصة |
-| `bootstrap_first_owner()` | **ترقية المالك الأول** — تنجح فقط ما دام لا يوجد مالك |
+| `is_platform_admin(uuid)` / `is_platform_superadmin(uuid)` | مسؤول المنصة — الثانية تقبل `superadmin` فقط، لا `support` |
 | `handle_new_user()` | مُشغّل إنشاء الملف عند تسجيل مستخدم |
 | `tg_set_updated_at()` | تحديث `updated_at` تلقائيًا |
 

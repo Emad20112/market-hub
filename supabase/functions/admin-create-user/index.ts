@@ -190,10 +190,9 @@ Deno.serve(async (req: Request): Promise<Response> => {
   }
 
   // ---- 2) Re-derive the caller's authorisation from the database ----
-  // IMPORTANT: `is_platform_superadmin()` returns true for ANY store `owner`
-  // (see migration 20260917200000), so it must never be the sole gate here.
-  // We require either an explicit store `owner` role or an explicit, active
-  // row in platform_admins with a privileged tier.
+  // `support` is deliberately not privileged: it is a read-only platform
+  // role and must not be able to create accounts. Only an explicit store
+  // `owner` role or an active `superadmin` row passes.
   const [ownerRoleRes, platformAdminRes] = await Promise.all([
     admin.from("user_roles").select("id").eq("user_id", callerId).eq("role", "owner").maybeSingle(),
     admin
@@ -206,7 +205,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
 
   const isStoreOwner = Boolean(ownerRoleRes.data);
   const platformRole = (platformAdminRes.data?.role as string | undefined) ?? "";
-  const isPlatformPrivileged = platformRole === "superadmin" || platformRole === "admin";
+  const isPlatformPrivileged = platformRole === "superadmin";
 
   if (!isStoreOwner && !isPlatformPrivileged) {
     return fail("forbidden", "لا تملك صلاحية إضافة مستخدمين إلى هذا المتجر.", 403);
@@ -254,9 +253,9 @@ Deno.serve(async (req: Request): Promise<Response> => {
   }
   const role = rawRole as StoreRole;
 
-  // Refuse to provision while the tenant has no roles at all: the
-  // `bootstrap_first_owner` trigger would silently make the new account an
-  // owner, which would then collide with the role we are about to insert.
+  // Refuse to provision while the tenant has no roles at all: a store with no
+  // owner has nobody who may decide who joins, and the caller's entitlement to
+  // create users cannot be established from within that store.
   const { count: roleCount, error: roleCountError } = await admin
     .from("user_roles")
     .select("id", { count: "exact", head: true });

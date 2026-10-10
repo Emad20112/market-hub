@@ -47,7 +47,7 @@ psql "$DATABASE_URL" -f acme-trading-2026.sql
 
 ### 3. كلمات المرور
 لا كلمات مرور ولا مفاتيح. إنشاء المستخدمين عبر التطبيق أو دالة
-`admin-create-user`، وترقية المالك الأول عبر `bootstrap_first_owner()`.
+`admin-create-user`، ثم يُمنح المالك الأول دور `owner` صراحةً.
 
 ---
 
