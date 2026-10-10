@@ -1361,7 +1361,10 @@ GRANT EXECUTE ON FUNCTION public.milling_kg_per_unit(_unit_id uuid) TO authentic
 GRANT EXECUTE ON FUNCTION public.milling_kg_per_unit(_unit_id uuid) TO service_role;
 GRANT EXECUTE ON FUNCTION public.milling_match_grain_grade(_grade_id uuid, _moisture numeric, _impurities numeric) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.milling_match_grain_grade(_grade_id uuid, _moisture numeric, _impurities numeric) TO service_role;
-GRANT EXECUTE ON FUNCTION public.next_expense_reference() TO anon;
+-- ⚠️ لا يُمنح لـ anon: دالة SECURITY DEFINER تُخصّص من تسلسل حقيقي، ومنحها
+-- لزائر غير مسجَّل يسمح له بإحراق أرقام المستندات بلا مصادقة. وكانت هي الوحيدة
+-- بين كل دوال next_* الممنوحة لـ anon — بقية الدوال تقتصر على authenticated
+-- و service_role، وهذا الشكل الصحيح.
 GRANT EXECUTE ON FUNCTION public.next_expense_reference() TO authenticated;
 GRANT EXECUTE ON FUNCTION public.next_expense_reference() TO service_role;
 GRANT EXECUTE ON FUNCTION public.next_invoice_number() TO authenticated;

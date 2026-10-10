@@ -1426,28 +1426,27 @@ BEGIN
   RETURN QUERY SELECT v_processed, v_created, v_skipped, v_failed;
 END $function$;
 
+-- ── مرجع المصروف ──────────────────────────────────────────────────────
+-- تُنفَّذ فوق محرّك الترقيم المركزي (الترحيل 14).
+--
+-- كانت تقرأ بادئة المصروف من عمود `company_settings.expense_prefix`.
+-- **وذلك العمود غير موجود في الجدول** (الموجود: invoice_prefix و
+-- purchase_invoice_prefix فقط)، فكانت الدالة تفشل دائمًا بـ
+-- «column expense_prefix does not exist» عند أول مصروف في أي قاعدة جديدة.
+--
+-- ولم يكشفه شيء قبل الآن لأن أحدًا لم ينشئ مصروفًا على قاعدة مبنيّة من الصفر.
+--
+-- والعلاج ليس إضافة العمود: البادئة صارت خاصية إعداد لكل نوع مستند في
+-- document_numbering، في مكان واحد لكل الأنواع بدل عمود لكل نوع في
+-- company_settings. وهذا هو الاتجاه الصحيح بعد دمج المحرّك.
 CREATE OR REPLACE FUNCTION public.next_expense_reference()
  RETURNS text
  LANGUAGE plpgsql
- STABLE SECURITY DEFINER
+ SECURITY DEFINER
  SET search_path TO 'public'
 AS $function$
-DECLARE
-  v_prefix text;
-  v_number bigint;
 BEGIN
-  SELECT coalesce(nullif(btrim(expense_prefix), ''), 'EXP')
-    INTO v_prefix
-  FROM public.company_settings
-  ORDER BY id
-  LIMIT 1;
-
-  IF v_prefix IS NULL THEN
-    v_prefix := 'EXP';
-  END IF;
-
-  v_number := nextval('public.expense_reference_seq');
-  RETURN v_prefix || '-' || to_char(now(), 'YYYYMM') || '-' || lpad(v_number::text, 5, '0');
+  RETURN public.fn_next_document_number('expense');
 END $function$;
 
 CREATE OR REPLACE FUNCTION public.post_expense(p_entry_id uuid, p_expected_version integer DEFAULT NULL::integer, p_pay_now boolean DEFAULT false, p_payment_method payment_method DEFAULT 'cash'::payment_method, p_account_label text DEFAULT NULL::text, p_payment_date date DEFAULT NULL::date, p_idempotency_key text DEFAULT NULL::text)
