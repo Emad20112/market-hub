@@ -126,9 +126,7 @@ export function CartLine({
             </span>
           )}
           {line.unit && (
-            <span className="text-[10px] text-muted-foreground/75 font-medium">
-              {line.unit}
-            </span>
+            <span className="text-[10px] text-muted-foreground/75 font-medium">{line.unit}</span>
           )}
         </div>
       </div>

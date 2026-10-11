@@ -88,10 +88,7 @@ import {
   getReportPreferences,
   saveReportPreferences,
 } from "@/lib/statements/local-storage";
-import {
-  reportTypeForEntity,
-  type ReportType,
-} from "@/lib/statements/report-registry";
+import { reportTypeForEntity, type ReportType } from "@/lib/statements/report-registry";
 import { ReportsHubTab, type ReportCategory } from "@/components/statements/reports-hub-tab";
 import { SearchInput } from "@/components/ui/search-input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -151,9 +148,7 @@ export function AccountStatementPage() {
   const savedPreferences = useMemo(() => getReportPreferences(), []);
 
   // ── التبويب الرئيسي: [الكشوفات | التقارير] ──
-  const [mainTab, setMainTab] = useState<MainTab>(
-    searchParams.tab ?? "statements",
-  );
+  const [mainTab, setMainTab] = useState<MainTab>(searchParams.tab ?? "statements");
 
   // ── كشوفات الحسابات الأساسية فقط في تبويب الكشوفات ──
   const [partyType, setPartyType] = useState<StatementEntityType>(
@@ -446,7 +441,9 @@ export function AccountStatementPage() {
           <span className="text-xs font-semibold">{kindLabel(row.kind, partyType, lang)}</span>
         );
       case "reference":
-        return <Ltr className="font-mono text-xs text-primary font-medium">{row.reference ?? "—"}</Ltr>;
+        return (
+          <Ltr className="font-mono text-xs text-primary font-medium">{row.reference ?? "—"}</Ltr>
+        );
       case "description":
         return <span className="text-xs text-muted-foreground">{row.description ?? "—"}</span>;
       case "debit":
@@ -454,9 +451,13 @@ export function AccountStatementPage() {
       case "credit":
         return <Ltr className="font-mono text-emerald-500 font-bold">{fmtOrDash(row.credit)}</Ltr>;
       case "balance":
-        return <Ltr className="font-mono font-bold text-foreground">{fmtAmount(row.runningBalance)}</Ltr>;
+        return (
+          <Ltr className="font-mono font-bold text-foreground">{fmtAmount(row.runningBalance)}</Ltr>
+        );
       case "paymentMethod": {
-        const rawPm = String(row.meta?.paymentMethod ?? "").trim().toLowerCase();
+        const rawPm = String(row.meta?.paymentMethod ?? "")
+          .trim()
+          .toLowerCase();
         const breakdown = String(row.meta?.paymentBreakdown ?? "").trim();
         const pmLabel = paymentMethodLabelFromCatalog(rawPm, ar ? "ar" : "en");
         return (
@@ -555,9 +556,7 @@ export function AccountStatementPage() {
           >
             <BarChart3 className="h-4 w-4" />
             <span>{ar ? "التقارير" : "Reports"}</span>
-            <span className="rounded-full bg-primary/10 px-1.5 text-[10px] text-primary">
-              12
-            </span>
+            <span className="rounded-full bg-primary/10 px-1.5 text-[10px] text-primary">12</span>
           </button>
         </div>
       </div>
@@ -708,7 +707,9 @@ export function AccountStatementPage() {
               <Popover open={sortMenuOpen} onOpenChange={setSortMenuOpen}>
                 <PopoverTrigger asChild>
                   <Button
-                    variant={sortField !== "date" || sortDirection !== "desc" ? "default" : "outline"}
+                    variant={
+                      sortField !== "date" || sortDirection !== "desc" ? "default" : "outline"
+                    }
                     size="sm"
                     className={cn(
                       "h-8 gap-1.5 px-2.5 text-xs rounded-xl",
@@ -733,7 +734,9 @@ export function AccountStatementPage() {
                       }}
                       className={cn(
                         "flex w-full items-center justify-between rounded-md px-2 py-1.5 transition hover:bg-surface-2",
-                        sortField === "date" && sortDirection === "desc" && "font-semibold text-primary",
+                        sortField === "date" &&
+                          sortDirection === "desc" &&
+                          "font-semibold text-primary",
                       )}
                     >
                       <span>{ar ? "التاريخ: الأحدث أولاً" : "Date: Newest"}</span>
@@ -749,7 +752,9 @@ export function AccountStatementPage() {
                       }}
                       className={cn(
                         "flex w-full items-center justify-between rounded-md px-2 py-1.5 transition hover:bg-surface-2",
-                        sortField === "date" && sortDirection === "asc" && "font-semibold text-primary",
+                        sortField === "date" &&
+                          sortDirection === "asc" &&
+                          "font-semibold text-primary",
                       )}
                     >
                       <span>{ar ? "التاريخ: الأقدم أولاً" : "Date: Oldest"}</span>
@@ -765,7 +770,9 @@ export function AccountStatementPage() {
                       }}
                       className={cn(
                         "flex w-full items-center justify-between rounded-md px-2 py-1.5 transition hover:bg-surface-2",
-                        sortField === "debit" && sortDirection === "desc" && "font-semibold text-primary",
+                        sortField === "debit" &&
+                          sortDirection === "desc" &&
+                          "font-semibold text-primary",
                       )}
                     >
                       <span>{ar ? "المدين: الأكبر أولاً" : "Debit: Highest"}</span>
@@ -781,7 +788,9 @@ export function AccountStatementPage() {
                       }}
                       className={cn(
                         "flex w-full items-center justify-between rounded-md px-2 py-1.5 transition hover:bg-surface-2",
-                        sortField === "credit" && sortDirection === "desc" && "font-semibold text-primary",
+                        sortField === "credit" &&
+                          sortDirection === "desc" &&
+                          "font-semibold text-primary",
                       )}
                     >
                       <span>{ar ? "الدائن: الأكبر أولاً" : "Credit: Highest"}</span>
@@ -797,7 +806,9 @@ export function AccountStatementPage() {
                       }}
                       className={cn(
                         "flex w-full items-center justify-between rounded-md px-2 py-1.5 transition hover:bg-surface-2",
-                        sortField === "balance" && sortDirection === "desc" && "font-semibold text-primary",
+                        sortField === "balance" &&
+                          sortDirection === "desc" &&
+                          "font-semibold text-primary",
                       )}
                     >
                       <span>{ar ? "الرصيد: الأكبر أولاً" : "Balance: Highest"}</span>
@@ -870,7 +881,9 @@ export function AccountStatementPage() {
                 <TableHeader className="bg-surface-2/60">
                   <TableRow>
                     {columns.map((col) => {
-                      const isSortableCol = ["date", "debit", "credit", "balance"].includes(col.key);
+                      const isSortableCol = ["date", "debit", "credit", "balance"].includes(
+                        col.key,
+                      );
                       const isActiveSort = sortField === col.key;
 
                       return (
@@ -890,13 +903,15 @@ export function AccountStatementPage() {
                           )}
                           style={col.width ? { width: col.width } : undefined}
                         >
-                          <div className={cn(
-                            "inline-flex items-center gap-1.5",
-                            col.align === "end" && "justify-end w-full",
-                          )}>
+                          <div
+                            className={cn(
+                              "inline-flex items-center gap-1.5",
+                              col.align === "end" && "justify-end w-full",
+                            )}
+                          >
                             <span>{col.label}</span>
-                            {isSortableCol && (
-                              isActiveSort ? (
+                            {isSortableCol &&
+                              (isActiveSort ? (
                                 sortDirection === "asc" ? (
                                   <ArrowUp className="h-3 w-3 text-primary" />
                                 ) : (
@@ -904,8 +919,7 @@ export function AccountStatementPage() {
                                 )
                               ) : (
                                 <ChevronsUpDown className="h-3 w-3 opacity-40" />
-                              )
-                            )}
+                              ))}
                           </div>
                         </TableHead>
                       );
@@ -953,7 +967,9 @@ export function AccountStatementPage() {
                           {columns.map((col) => {
                             let content: React.ReactNode = "—";
                             if (col.key === "index")
-                              content = <span className="font-mono text-xs text-muted-foreground">—</span>;
+                              content = (
+                                <span className="font-mono text-xs text-muted-foreground">—</span>
+                              );
                             else if (col.key === "kind")
                               content = (
                                 <span className="text-xs font-medium italic text-muted-foreground">
@@ -1009,7 +1025,9 @@ export function AccountStatementPage() {
                       {columns.map((col) => {
                         let content: React.ReactNode = "";
                         if (col.key === "kind")
-                          content = <span className="text-xs">{ar ? "الإجمالي الكلي:" : "Total:"}</span>;
+                          content = (
+                            <span className="text-xs">{ar ? "الإجمالي الكلي:" : "Total:"}</span>
+                          );
                         else if (col.key === "debit")
                           content = (
                             <span className="font-mono text-rose-500 font-bold">

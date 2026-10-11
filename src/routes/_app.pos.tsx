@@ -1067,10 +1067,15 @@ function POSPage() {
       : total
     : Math.max(0, Number(paid));
   const effectivePaid = isSplitPayment ? splitPaidTotal : singlePaidNum;
-  const isCashChange = !isSplitPayment && paymentMethod === "cash" && !isPaidEmpty && Number(paid) > total;
+  const isCashChange =
+    !isSplitPayment && paymentMethod === "cash" && !isPaidEmpty && Number(paid) > total;
   const changeDue = isCashChange ? Math.round((Number(paid) - total) * 100) / 100 : 0;
-  const isOverpaid = isSplitPayment ? splitPaidTotal > total : !isCashChange && !isPaidEmpty && Number(paid) > total;
-  const remainingDebt = isCashChange ? 0 : Math.max(0, Math.round((total - effectivePaid) * 100) / 100);
+  const isOverpaid = isSplitPayment
+    ? splitPaidTotal > total
+    : !isCashChange && !isPaidEmpty && Number(paid) > total;
+  const remainingDebt = isCashChange
+    ? 0
+    : Math.max(0, Math.round((total - effectivePaid) * 100) / 100);
 
   // وسيلة الدفع يختارها الكاشير وتتبدل ذكياً حسب المبلغ:
   function syncMethodWithPaid(num: number) {
@@ -1565,7 +1570,6 @@ function POSPage() {
     <>
       {/* ─── Compact Executive POS Workspace Shell ─── */}
       <div className="grid min-h-0 flex-1 grid-rows-[auto_minmax(0,1fr)] gap-2 overflow-hidden bg-[radial-gradient(ellipse_at_top,_color-mix(in_oklab,var(--primary)_8%,transparent),transparent_48%)] p-1.5 sm:p-2.5 lg:grid-cols-[minmax(0,1fr)_minmax(390px,450px)] lg:grid-rows-[auto_minmax(0,1fr)]">
-        
         {/* ─── Top Executive Command Deck ─── */}
         <header className="flex shrink-0 flex-wrap items-center justify-between gap-2 rounded-2xl border border-border/80 bg-surface/95 px-3 py-2 shadow-xs backdrop-blur-md sm:px-4 lg:col-start-1 lg:row-start-1">
           {/* Identity & Status */}
@@ -1624,24 +1628,29 @@ function POSPage() {
             </div>
 
             {/* Customer Balance Indicator (if customer has balance or limit) */}
-            {selectedCustomer && (Number(selectedCustomer.balance) !== 0 || Number(selectedCustomer.credit_limit) > 0) && (
-              <div className="hidden xl:flex items-center gap-1.5 rounded-xl border border-border/80 bg-muted/40 px-2.5 py-1 text-[11px] font-mono">
-                {Number(selectedCustomer.balance) > 0 ? (
-                  <span className="text-amber-600 dark:text-amber-400 font-bold">
-                    {lang === "ar" ? "عليه دين:" : "Debt:"} {money(Number(selectedCustomer.balance || 0))}
-                  </span>
-                ) : Number(selectedCustomer.balance) < 0 ? (
-                  <span className="text-emerald-600 dark:text-emerald-400 font-bold">
-                    {lang === "ar" ? "له رصيد:" : "Credit:"} {money(Math.abs(Number(selectedCustomer.balance || 0)))}
-                  </span>
-                ) : null}
-                {Number(selectedCustomer.credit_limit) > 0 && (
-                  <span className="text-muted-foreground border-s border-border/60 ps-1.5">
-                    {lang === "ar" ? "الحد:" : "Limit:"} {money(Number(selectedCustomer.credit_limit || 0))}
-                  </span>
-                )}
-              </div>
-            )}
+            {selectedCustomer &&
+              (Number(selectedCustomer.balance) !== 0 ||
+                Number(selectedCustomer.credit_limit) > 0) && (
+                <div className="hidden xl:flex items-center gap-1.5 rounded-xl border border-border/80 bg-muted/40 px-2.5 py-1 text-[11px] font-mono">
+                  {Number(selectedCustomer.balance) > 0 ? (
+                    <span className="text-amber-600 dark:text-amber-400 font-bold">
+                      {lang === "ar" ? "عليه دين:" : "Debt:"}{" "}
+                      {money(Number(selectedCustomer.balance || 0))}
+                    </span>
+                  ) : Number(selectedCustomer.balance) < 0 ? (
+                    <span className="text-emerald-600 dark:text-emerald-400 font-bold">
+                      {lang === "ar" ? "له رصيد:" : "Credit:"}{" "}
+                      {money(Math.abs(Number(selectedCustomer.balance || 0)))}
+                    </span>
+                  ) : null}
+                  {Number(selectedCustomer.credit_limit) > 0 && (
+                    <span className="text-muted-foreground border-s border-border/60 ps-1.5">
+                      {lang === "ar" ? "الحد:" : "Limit:"}{" "}
+                      {money(Number(selectedCustomer.credit_limit || 0))}
+                    </span>
+                  )}
+                </div>
+              )}
 
             {/* Warehouse Selector (if multi_warehouse) */}
             {isModuleEnabled("multi_warehouse") && warehouses.length > 1 && (
@@ -1693,11 +1702,9 @@ function POSPage() {
 
         {/* ─── Main Content Split: Products Catalog (Desktop) & Cart (All) ─── */}
         <div className="grid min-h-0 grid-cols-1 items-stretch gap-2 lg:contents">
-          
           {/* ─── Products Panel (Desktop & Tablet) ─── */}
           {isDesktop && (
             <div className="flex min-h-0 flex-col overflow-hidden rounded-3xl border border-border/80 bg-surface/95 p-3 shadow-sm ring-1 ring-background/40 lg:col-start-1 lg:row-start-2">
-              
               {/* Catalog Toolbar: Search, View Mode Switcher, Filter, Barcode Scanner */}
               <div className="mb-2.5 flex flex-wrap items-center gap-2">
                 {/* Search Input with F2 shortcut */}
@@ -1795,7 +1802,9 @@ function POSPage() {
                     type="button"
                     onClick={() => setScannerOpen(true)}
                     className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-primary/30 bg-primary/10 text-primary transition hover:bg-primary/20 active:scale-95 shadow-2xs"
-                    title={lang === "ar" ? "قراءة الباركود بالكاميرا (F4)" : "Scan with camera (F4)"}
+                    title={
+                      lang === "ar" ? "قراءة الباركود بالكاميرا (F4)" : "Scan with camera (F4)"
+                    }
                   >
                     <ScanBarcode className="h-4 w-4" />
                   </button>
@@ -1872,7 +1881,9 @@ function POSPage() {
                         onChange={(e) => setSelectedCategory(e.target.value)}
                         className="h-8 w-full rounded-lg border border-border/80 bg-surface px-2 text-xs text-foreground outline-none focus:border-primary"
                       >
-                        <option value="">{lang === "ar" ? "كل التصنيفات" : "All categories"}</option>
+                        <option value="">
+                          {lang === "ar" ? "كل التصنيفات" : "All categories"}
+                        </option>
                         {categories.map((c) => (
                           <option key={c.id} value={c.id}>
                             {lang === "ar" ? c.name_ar || c.name : c.name || c.name_ar}
@@ -2116,11 +2127,15 @@ function POSPage() {
                               {catalogConfig.enableMakesAndModels && compats.length > 0 && (
                                 <span
                                   className="inline-flex items-center gap-0.5 rounded border border-sky-500/25 bg-sky-500/10 px-1.5 py-0.5 text-sky-700 dark:text-sky-300 font-semibold truncate max-w-[120px]"
-                                  title={compats.map((c) => `${c.makeName} - ${c.modelName}`).join(" | ")}
+                                  title={compats
+                                    .map((c) => `${c.makeName} - ${c.modelName}`)
+                                    .join(" | ")}
                                 >
                                   <span>
                                     🏍️ {uniqueMakes[0] || compats[0].makeName}{" "}
-                                    {compats.length > 1 ? `(+${compats.length - 1})` : compats[0].modelName}
+                                    {compats.length > 1
+                                      ? `(+${compats.length - 1})`
+                                      : compats[0].modelName}
                                   </span>
                                 </span>
                               )}
@@ -2142,8 +2157,8 @@ function POSPage() {
                                 low
                                   ? "bg-destructive/15 text-destructive font-bold"
                                   : stock <= 5
-                                  ? "bg-amber-500/15 text-amber-700 dark:text-amber-300"
-                                  : "bg-muted text-muted-foreground"
+                                    ? "bg-amber-500/15 text-amber-700 dark:text-amber-300"
+                                    : "bg-muted text-muted-foreground"
                               }`}
                             >
                               {low
@@ -2186,7 +2201,9 @@ function POSPage() {
                               {lang === "ar" && p.name_ar ? p.name_ar : p.name}
                             </div>
                             <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
-                              {catLabel && <span className="truncate max-w-[120px]">{catLabel}</span>}
+                              {catLabel && (
+                                <span className="truncate max-w-[120px]">{catLabel}</span>
+                              )}
                               {p.brand && (
                                 <span className="text-primary font-medium truncate max-w-[100px]">
                                   {lang === "ar" ? p.brand.name_ar || p.brand.name : p.brand.name}
@@ -2202,8 +2219,8 @@ function POSPage() {
                                 low
                                   ? "bg-destructive/15 text-destructive"
                                   : stock <= 5
-                                  ? "bg-amber-500/15 text-amber-700 dark:text-amber-300"
-                                  : "bg-muted/70 text-muted-foreground"
+                                    ? "bg-amber-500/15 text-amber-700 dark:text-amber-300"
+                                    : "bg-muted/70 text-muted-foreground"
                               }`}
                             >
                               {low ? (lang === "ar" ? "نفد" : "0") : `${stock}`}
@@ -2235,12 +2252,24 @@ function POSPage() {
                     <table className="w-full text-start text-xs">
                       <thead>
                         <tr className="border-b border-border/80 bg-muted/50 text-[11px] font-bold text-muted-foreground">
-                          <th className="py-2 px-3 text-start">{lang === "ar" ? "الباركود / الرمز" : "Barcode / SKU"}</th>
-                          <th className="py-2 px-3 text-start">{lang === "ar" ? "اسم المنتج" : "Product Name"}</th>
-                          <th className="py-2 px-3 text-start">{lang === "ar" ? "التصنيف والماركة" : "Category & Brand"}</th>
-                          <th className="py-2 px-3 text-center">{lang === "ar" ? "المتوفر" : "Stock"}</th>
-                          <th className="py-2 px-3 text-end">{lang === "ar" ? "سعر البيع" : "Price"}</th>
-                          <th className="py-2 px-3 text-center">{lang === "ar" ? "إجراء" : "Action"}</th>
+                          <th className="py-2 px-3 text-start">
+                            {lang === "ar" ? "الباركود / الرمز" : "Barcode / SKU"}
+                          </th>
+                          <th className="py-2 px-3 text-start">
+                            {lang === "ar" ? "اسم المنتج" : "Product Name"}
+                          </th>
+                          <th className="py-2 px-3 text-start">
+                            {lang === "ar" ? "التصنيف والماركة" : "Category & Brand"}
+                          </th>
+                          <th className="py-2 px-3 text-center">
+                            {lang === "ar" ? "المتوفر" : "Stock"}
+                          </th>
+                          <th className="py-2 px-3 text-end">
+                            {lang === "ar" ? "سعر البيع" : "Price"}
+                          </th>
+                          <th className="py-2 px-3 text-center">
+                            {lang === "ar" ? "إجراء" : "Action"}
+                          </th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-border/50">
@@ -2268,7 +2297,8 @@ function POSPage() {
                               </td>
                               <td className="py-2 px-3 text-muted-foreground">
                                 {catLabel || "—"}
-                                {p.brand && ` · ${lang === "ar" ? p.brand.name_ar || p.brand.name : p.brand.name}`}
+                                {p.brand &&
+                                  ` · ${lang === "ar" ? p.brand.name_ar || p.brand.name : p.brand.name}`}
                               </td>
                               <td className="py-2 px-3 text-center font-mono font-semibold">
                                 <span
@@ -2276,8 +2306,8 @@ function POSPage() {
                                     low
                                       ? "bg-destructive/15 text-destructive"
                                       : stock <= 5
-                                      ? "bg-amber-500/15 text-amber-700 dark:text-amber-300"
-                                      : "bg-muted/70 text-foreground"
+                                        ? "bg-amber-500/15 text-amber-700 dark:text-amber-300"
+                                        : "bg-muted/70 text-foreground"
                                   }`}
                                 >
                                   {low ? (lang === "ar" ? "نفد" : "0") : stock}
@@ -2312,7 +2342,6 @@ function POSPage() {
 
           {/* ─── Cart Panel (Primary Workspace on All Devices) ─── */}
           <div className="flex min-h-0 flex-col overflow-hidden rounded-3xl border border-primary/20 bg-surface/95 p-2.5 sm:p-3 shadow-xl ring-1 ring-border/50 backdrop-blur-md lg:col-start-2 lg:row-span-2 lg:row-start-1">
-            
             {/* Cart Header */}
             <div className="mb-2 flex shrink-0 items-center justify-between border-b border-border/60 px-1 pb-2">
               <div className="flex items-center gap-2">
@@ -2453,7 +2482,6 @@ function POSPage() {
 
               {/* ─── Payment & Summary Section ─── */}
               <div className="mt-3 space-y-2.5 border-t border-border/70 bg-surface/95 pt-2.5 pr-0.5">
-                
                 {/* Payment Method Switcher Tabs */}
                 <div>
                   <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block mb-1">
@@ -2505,7 +2533,8 @@ function POSPage() {
                         setPaid("");
                       }}
                       className={`flex flex-col items-center justify-center gap-0.5 rounded-lg py-1.5 text-[11px] font-bold transition ${
-                        !isSplitPayment && (paymentMethod === "mobile_money" || paymentMethod === "bank_transfer")
+                        !isSplitPayment &&
+                        (paymentMethod === "mobile_money" || paymentMethod === "bank_transfer")
                           ? "bg-background text-primary shadow-xs ring-1 ring-primary/25"
                           : "text-muted-foreground hover:text-foreground hover:bg-background/50"
                       }`}
@@ -2634,7 +2663,9 @@ function POSPage() {
                     {remainingDebt > 0 && (
                       <div className="flex items-center justify-between rounded-xl bg-amber-500/10 border border-amber-500/30 px-2.5 py-1 text-xs font-mono text-amber-700 dark:text-amber-300">
                         <span>{lang === "ar" ? "المتبقي كدين آجل:" : "Remaining Debt:"}</span>
-                        <span className="font-bold [unicode-bidi:isolate]">{money(remainingDebt)}</span>
+                        <span className="font-bold [unicode-bidi:isolate]">
+                          {money(remainingDebt)}
+                        </span>
                       </div>
                     )}
                   </div>
@@ -2762,7 +2793,9 @@ function POSPage() {
                     {paymentMethod === "credit" || remainingDebt > 0 ? (
                       <div className="flex items-center justify-between rounded-xl bg-amber-500/15 border border-amber-500/30 px-3 py-1 text-xs font-mono text-amber-700 dark:text-amber-300">
                         <span>{lang === "ar" ? "يسجل كدين على العميل:" : "Recorded as Debt:"}</span>
-                        <span className="font-bold [unicode-bidi:isolate]">{money(remainingDebt)}</span>
+                        <span className="font-bold [unicode-bidi:isolate]">
+                          {money(remainingDebt)}
+                        </span>
                       </div>
                     ) : null}
                   </div>
@@ -2815,7 +2848,8 @@ function POSPage() {
                       <span className="text-xs font-black text-foreground">{t("pos.total")}</span>
                       {cart.length > 0 && (
                         <span className="block text-[10px] text-muted-foreground">
-                          {cart.reduce((s, i) => s + i.quantity, 0)} {lang === "ar" ? "قطعة" : "items"}
+                          {cart.reduce((s, i) => s + i.quantity, 0)}{" "}
+                          {lang === "ar" ? "قطعة" : "items"}
                         </span>
                       )}
                     </div>
@@ -2889,7 +2923,6 @@ function POSPage() {
           </div>
         </div>
       </div>
-
 
       {/* Barcode Scanner Dialog */}
       <BarcodeScanner
