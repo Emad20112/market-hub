@@ -32,6 +32,9 @@ export const PAYMENT_ICONS: Record<string, string> = {
   kuraimi: "kuraimi.svg",
   bank: "bank.svg",
   "mobile-money": "mobile-money.svg",
+  // الشعار الرسمي لمحفظة جيب (شركة الأهدل المالية) — ملف traced vector،
+  // مفتاحه `jaib` ويُطابق `payment_methods.icon_key` للصف `jaib`.
+  jaib: "jaib.svg",
   wallet: "wallet.svg",
   card: "card.svg",
   split: "split.svg",
