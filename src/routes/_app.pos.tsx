@@ -18,6 +18,11 @@ import {
   AlertCircle,
   RotateCcw,
   CheckCircle2,
+  LayoutGrid,
+  List,
+  Table2,
+  Layers,
+  Smartphone,
   CreditCard,
   Banknote,
   Clock,
@@ -53,6 +58,7 @@ import { BarcodeScanner } from "@/components/barcode-scanner";
 import { useKeyboardWedge } from "@/hooks/use-keyboard-wedge";
 import { useCatalogModules } from "@/lib/catalog-modules";
 import { useIsDesktop } from "@/hooks/use-media-query";
+import { useStoredViewMode } from "@/lib/view-mode-storage";
 import { CartLine as CartLineRow } from "@/components/commerce/cart-line";
 import { MobileProductPicker } from "@/components/commerce/mobile-product-picker";
 import { CustomerFormDialog } from "@/components/contacts/customer-form-dialog";
@@ -296,6 +302,15 @@ function POSPage() {
   const [customerId, setCustomerId] = useState<string>("");
   const [search, setSearch] = useState("");
   const [filterOpen, setFilterOpen] = useState(false);
+  const [viewMode, setViewMode] = useStoredViewMode<"grid" | "compact" | "table">(
+    "pos_catalog",
+    "grid",
+    ["grid", "compact", "table"],
+  );
+  const selectedCustomer = useMemo(
+    () => customers.find((c) => c.id === customerId) || null,
+    [customers, customerId],
+  );
 
   // Filter States
   const [selectedCategory, setSelectedCategory] = useState("");
@@ -1052,8 +1067,10 @@ function POSPage() {
       : total
     : Math.max(0, Number(paid));
   const effectivePaid = isSplitPayment ? splitPaidTotal : singlePaidNum;
-  const isOverpaid = isSplitPayment ? splitPaidTotal > total : !isPaidEmpty && Number(paid) > total;
-  const remainingDebt = Math.max(0, Math.round((total - effectivePaid) * 100) / 100);
+  const isCashChange = !isSplitPayment && paymentMethod === "cash" && !isPaidEmpty && Number(paid) > total;
+  const changeDue = isCashChange ? Math.round((Number(paid) - total) * 100) / 100 : 0;
+  const isOverpaid = isSplitPayment ? splitPaidTotal > total : !isCashChange && !isPaidEmpty && Number(paid) > total;
+  const remainingDebt = isCashChange ? 0 : Math.max(0, Math.round((total - effectivePaid) * 100) / 100);
 
   // وسيلة الدفع يختارها الكاشير وتتبدل ذكياً حسب المبلغ:
   function syncMethodWithPaid(num: number) {
@@ -1546,22 +1563,27 @@ function POSPage() {
 
   return (
     <>
-      {/* Compact workspace shell: replaces the tall PageHeader so the whole
-          viewport is usable. The page guide stays reachable via its button. */}
-      <div className="grid min-h-0 flex-1 grid-rows-[auto_minmax(0,1fr)] gap-2 overflow-hidden bg-[radial-gradient(ellipse_at_top,_color-mix(in_oklab,var(--primary)_10%,transparent),transparent_48%)] p-1.5 sm:p-2 lg:grid-cols-[minmax(0,1fr)_minmax(400px,460px)] lg:grid-rows-[auto_minmax(0,1fr)]">
-        {/* Slim title bar: identity + page guide, without the tall hero header. */}
-        <div className="flex shrink-0 flex-col items-stretch gap-2 rounded-2xl border border-border/80 bg-surface/95 px-3 py-2 shadow-sm backdrop-blur-md sm:px-4 lg:col-start-1 lg:row-start-1">
-          <div className="flex min-w-0 items-center gap-3">
-            <div className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl border border-primary/25 bg-primary text-primary-foreground shadow-sm">
+      {/* ─── Compact Executive POS Workspace Shell ─── */}
+      <div className="grid min-h-0 flex-1 grid-rows-[auto_minmax(0,1fr)] gap-2 overflow-hidden bg-[radial-gradient(ellipse_at_top,_color-mix(in_oklab,var(--primary)_8%,transparent),transparent_48%)] p-1.5 sm:p-2.5 lg:grid-cols-[minmax(0,1fr)_minmax(390px,450px)] lg:grid-rows-[auto_minmax(0,1fr)]">
+        
+        {/* ─── Top Executive Command Deck ─── */}
+        <header className="flex shrink-0 flex-wrap items-center justify-between gap-2 rounded-2xl border border-border/80 bg-surface/95 px-3 py-2 shadow-xs backdrop-blur-md sm:px-4 lg:col-start-1 lg:row-start-1">
+          {/* Identity & Status */}
+          <div className="flex min-w-0 items-center gap-2.5 sm:gap-3">
+            <div className="relative grid h-10 w-10 shrink-0 place-items-center rounded-2xl border border-primary/25 bg-gradient-to-br from-primary via-primary to-primary/85 text-primary-foreground shadow-sm">
               <ShoppingBag className="h-5 w-5" />
+              <span className="absolute -top-1 -right-1 flex h-3 w-3">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+                <span className="relative inline-flex h-3 w-3 rounded-full border-2 border-background bg-emerald-500" />
+              </span>
             </div>
             <div className="min-w-0">
               <div className="flex items-center gap-2">
-                <h1 className="truncate text-sm font-extrabold tracking-tight text-foreground">
+                <h1 className="truncate text-sm font-black tracking-tight text-foreground">
                   {t("pos.title")}
                 </h1>
-                <span className="hidden rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-bold text-primary sm:inline">
-                  {lang === "ar" ? "مساحة الكاشير" : "Cashier workspace"}
+                <span className="hidden rounded-full border border-primary/25 bg-primary/10 px-2 py-0.5 text-[10px] font-bold text-primary sm:inline">
+                  {lang === "ar" ? "كاشير ذكي" : "Smart POS"}
                 </span>
               </div>
               <p className="hidden truncate text-[11px] text-muted-foreground sm:block">
@@ -1569,67 +1591,117 @@ function POSPage() {
               </p>
             </div>
           </div>
-          <div className="flex w-full shrink-0 flex-wrap items-center justify-between gap-1.5 border-t border-border/60 pt-2">
-            <div className="hidden min-w-0 flex-1 flex-wrap items-center gap-1.5 md:flex">
-              <select
-                aria-label={lang === "ar" ? "العميل" : "Customer"}
-                value={customerId}
-                onChange={(e) => setCustomerId(e.target.value)}
-                className="h-9 w-72 max-w-[48vw] rounded-xl border border-border/80 bg-surface px-3 text-sm font-medium text-foreground outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
-              >
-                <option value="">{t("pos.walkin")}</option>
-                {customers.map((customer) => (
-                  <option key={customer.id} value={customer.id}>
-                    {customer.name}
-                  </option>
-                ))}
-              </select>
+
+          {/* Quick Command Controls: Customer, Balance, Date, Warehouse, Service */}
+          <div className="flex min-w-0 flex-1 flex-wrap items-center justify-end gap-1.5 sm:gap-2">
+            {/* Customer Selector with VIP Badge */}
+            <div className="flex items-center gap-1 min-w-0">
+              <div className="relative min-w-[130px] sm:min-w-[170px] max-w-[220px]">
+                <select
+                  aria-label={lang === "ar" ? "العميل" : "Customer"}
+                  value={customerId}
+                  onChange={(e) => setCustomerId(e.target.value)}
+                  className="h-9 w-full appearance-none rounded-xl border border-border/80 bg-surface pl-7 pr-3 text-xs font-semibold text-foreground outline-none transition hover:border-primary/50 focus:border-primary focus:ring-2 focus:ring-primary/20 rtl:pl-3 rtl:pr-7"
+                >
+                  <option value="">{t("pos.walkin")}</option>
+                  {customers.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown className="pointer-events-none absolute end-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+              </div>
+
               <button
                 type="button"
                 onClick={() => setNewCustomerOpen(true)}
-                className="grid h-9 w-9 place-items-center rounded-full border border-primary/30 bg-primary/10 text-primary transition hover:bg-primary/20"
-                title={lang === "ar" ? "إضافة عميل" : "Add customer"}
+                className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-primary/30 bg-primary/10 text-primary transition hover:bg-primary/20 active:scale-95 shadow-2xs"
+                title={lang === "ar" ? "إضافة عميل جديد" : "Add customer"}
               >
                 <UserPlus className="h-4 w-4" />
               </button>
-              <label className="flex h-9 items-center gap-1 rounded-xl border border-border/80 bg-surface px-2 text-xs text-muted-foreground">
-                <CalendarDays className="h-3.5 w-3.5 text-primary" />
-                <input
-                  type="date"
-                  value={saleDate}
-                  onChange={(e) => setSaleDate(e.target.value)}
-                  className="w-24 bg-transparent text-[11px] text-foreground outline-none"
-                />
-              </label>
-              {enableServiceFeeSetting && (
-                <button
-                  type="button"
-                  onClick={() => setServiceOpen(true)}
-                  className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-violet-500/30 bg-violet-500/10 px-3 text-xs font-semibold text-violet-700 transition hover:bg-violet-500/20 dark:text-violet-300"
-                  title={
-                    lang === "ar" ? "خدمة أو أجرة تركيب بسعر متفق عليه" : "Service or custom labor"
-                  }
-                >
-                  <Wrench className="h-3.5 w-3.5" />
-                  <span className="hidden xl:inline">
-                    {lang === "ar" ? "إضافة خدمة" : "Add service"}
-                  </span>
-                </button>
-              )}
             </div>
+
+            {/* Customer Balance Indicator (if customer has balance or limit) */}
+            {selectedCustomer && (Number(selectedCustomer.balance) !== 0 || Number(selectedCustomer.credit_limit) > 0) && (
+              <div className="hidden xl:flex items-center gap-1.5 rounded-xl border border-border/80 bg-muted/40 px-2.5 py-1 text-[11px] font-mono">
+                {Number(selectedCustomer.balance) > 0 ? (
+                  <span className="text-amber-600 dark:text-amber-400 font-bold">
+                    {lang === "ar" ? "عليه دين:" : "Debt:"} {money(Number(selectedCustomer.balance || 0))}
+                  </span>
+                ) : Number(selectedCustomer.balance) < 0 ? (
+                  <span className="text-emerald-600 dark:text-emerald-400 font-bold">
+                    {lang === "ar" ? "له رصيد:" : "Credit:"} {money(Math.abs(Number(selectedCustomer.balance || 0)))}
+                  </span>
+                ) : null}
+                {Number(selectedCustomer.credit_limit) > 0 && (
+                  <span className="text-muted-foreground border-s border-border/60 ps-1.5">
+                    {lang === "ar" ? "الحد:" : "Limit:"} {money(Number(selectedCustomer.credit_limit || 0))}
+                  </span>
+                )}
+              </div>
+            )}
+
+            {/* Warehouse Selector (if multi_warehouse) */}
+            {isModuleEnabled("multi_warehouse") && warehouses.length > 1 && (
+              <div className="relative shrink-0">
+                <select
+                  aria-label={lang === "ar" ? "المستودع" : "Warehouse"}
+                  value={warehouseId}
+                  onChange={(e) => setWarehouseId(e.target.value)}
+                  className="h-9 appearance-none rounded-xl border border-amber-500/30 bg-amber-500/10 pl-6 pr-6 text-xs font-semibold text-amber-700 dark:text-amber-300 outline-none hover:bg-amber-500/20 rtl:pl-6 rtl:pr-6 cursor-pointer transition"
+                >
+                  {warehouses.map((w) => (
+                    <option key={w.id} value={w.id}>
+                      {lang === "ar" ? w.name_ar || w.name : w.name || w.name_ar}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown className="pointer-events-none absolute end-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-amber-700 dark:text-amber-300" />
+              </div>
+            )}
+
+            {/* Invoice Date */}
+            <label className="hidden sm:flex h-9 items-center gap-1.5 rounded-xl border border-border/80 bg-surface px-2.5 text-xs text-muted-foreground shadow-2xs hover:border-primary/40 transition">
+              <CalendarDays className="h-3.5 w-3.5 text-primary shrink-0" />
+              <input
+                type="date"
+                value={saleDate}
+                onChange={(e) => setSaleDate(e.target.value)}
+                className="w-24 bg-transparent text-[11px] font-mono text-foreground outline-none cursor-pointer"
+              />
+            </label>
+
+            {/* Custom Service Fee button */}
+            {enableServiceFeeSetting && (
+              <button
+                type="button"
+                onClick={() => setServiceOpen(true)}
+                className="hidden md:inline-flex h-9 items-center gap-1.5 rounded-xl border border-violet-500/30 bg-violet-500/10 px-2.5 text-xs font-semibold text-violet-700 transition hover:bg-violet-500/20 dark:text-violet-300"
+                title={lang === "ar" ? "إضافة خدمة أو أجرة تركيب" : "Add custom labor/service"}
+              >
+                <Wrench className="h-3.5 w-3.5" />
+                <span className="hidden xl:inline">{lang === "ar" ? "إضافة خدمة" : "Service"}</span>
+              </button>
+            )}
+
+            {/* Page Guide */}
             <PageGuideButton config={posGuideConfig} className="!h-9 !w-9 shrink-0" />
           </div>
-        </div>
+        </header>
 
+        {/* ─── Main Content Split: Products Catalog (Desktop) & Cart (All) ─── */}
         <div className="grid min-h-0 grid-cols-1 items-stretch gap-2 lg:contents">
-          {/* Products Panel — desktop only. On phones the catalogue is NOT
-            mounted; the cart-first flow opens a product picker instead. */}
+          
+          {/* ─── Products Panel (Desktop & Tablet) ─── */}
           {isDesktop && (
-            <div className="flex min-h-0 flex-col overflow-hidden rounded-3xl border border-border/80 bg-surface/95 p-2.5 shadow-sm ring-1 ring-background/40 lg:col-start-1 lg:row-start-2">
-              {/* Top Action Bar */}
-              <div className="mb-4 flex flex-wrap items-center gap-2">
-                {/* Search Input */}
-                <div className="flex min-w-0 flex-1 items-center gap-2 rounded-full border border-input/80 bg-surface px-3.5 h-10 shadow-2xs transition-all focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20">
+            <div className="flex min-h-0 flex-col overflow-hidden rounded-3xl border border-border/80 bg-surface/95 p-3 shadow-sm ring-1 ring-background/40 lg:col-start-1 lg:row-start-2">
+              
+              {/* Catalog Toolbar: Search, View Mode Switcher, Filter, Barcode Scanner */}
+              <div className="mb-2.5 flex flex-wrap items-center gap-2">
+                {/* Search Input with F2 shortcut */}
+                <div className="flex min-w-0 flex-1 items-center gap-2 rounded-xl border border-input/80 bg-surface px-3.5 h-10 shadow-2xs transition-all focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20">
                   <Search className="h-4 w-4 shrink-0 text-muted-foreground" />
                   <input
                     ref={searchRef}
@@ -1654,89 +1726,124 @@ function POSPage() {
                   </kbd>
                 </div>
 
-                {/* Smart Responsive Filter Button */}
+                {/* View Mode Switcher (Grid, Compact List, Table) */}
+                <div className="flex items-center rounded-xl border border-border/80 bg-muted/40 p-0.5 shadow-2xs">
+                  <button
+                    type="button"
+                    onClick={() => setViewMode("grid")}
+                    title={lang === "ar" ? "عرض بطاقات شبكية" : "Grid Cards view"}
+                    className={`flex h-8 items-center gap-1 rounded-lg px-2 text-xs font-semibold transition ${
+                      viewMode === "grid"
+                        ? "bg-background text-primary shadow-xs ring-1 ring-border/50"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    <LayoutGrid className="h-3.5 w-3.5" />
+                    <span className="hidden xl:inline">{lang === "ar" ? "بطاقات" : "Grid"}</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setViewMode("compact")}
+                    title={lang === "ar" ? "عرض قائمة سريعة للكاشير" : "Compact Cashier List"}
+                    className={`flex h-8 items-center gap-1 rounded-lg px-2 text-xs font-semibold transition ${
+                      viewMode === "compact"
+                        ? "bg-background text-primary shadow-xs ring-1 ring-border/50"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    <List className="h-3.5 w-3.5" />
+                    <span className="hidden xl:inline">{lang === "ar" ? "قائمة" : "List"}</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setViewMode("table")}
+                    title={lang === "ar" ? "عرض جدول كلاسيكي عالي الكثافة" : "Classic Table view"}
+                    className={`flex h-8 items-center gap-1 rounded-lg px-2 text-xs font-semibold transition ${
+                      viewMode === "table"
+                        ? "bg-background text-primary shadow-xs ring-1 ring-border/50"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    <Table2 className="h-3.5 w-3.5" />
+                    <span className="hidden xl:inline">{lang === "ar" ? "جدول" : "Table"}</span>
+                  </button>
+                </div>
+
+                {/* Filter Toggle Button */}
                 <button
                   type="button"
                   onClick={() => setFilterOpen((v) => !v)}
-                  className={`inline-flex h-10 shrink-0 items-center justify-center gap-1.5 rounded-full border px-3.5 text-sm font-medium transition-all duration-200 ${
+                  className={`inline-flex h-10 shrink-0 items-center justify-center gap-1.5 rounded-xl border px-3 text-xs font-medium transition-all ${
                     filterOpen || activeFiltersCount > 0
-                      ? "border-primary bg-primary/10 text-primary shadow-xs shadow-primary/10 ring-1 ring-primary/20"
-                      : "border-border bg-surface text-muted-foreground hover:border-ring hover:text-foreground"
+                      ? "border-primary bg-primary/10 text-primary shadow-xs ring-1 ring-primary/20"
+                      : "border-border/80 bg-surface text-muted-foreground hover:border-primary/40 hover:text-foreground"
                   }`}
-                  title={lang === "ar" ? "تصفية المنتجات" : "Filter products"}
+                  title={lang === "ar" ? "تصفية الفهرس" : "Filter products"}
                 >
-                  <Filter className="h-4 w-4 shrink-0" />
+                  <Filter className="h-3.5 w-3.5 shrink-0" />
                   <span className="hidden sm:inline">{t("common.filter")}</span>
                   {activeFiltersCount > 0 && (
-                    <span className="grid h-5 w-5 place-items-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground leading-none">
+                    <span className="grid h-4 w-4 place-items-center rounded-full bg-primary text-[9px] font-bold text-primary-foreground leading-none">
                       {activeFiltersCount}
                     </span>
                   )}
                 </button>
 
-                {/* Barcode Camera Scanner — يظهر فقط عند تفعيل الباركود فعلياً */}
+                {/* Barcode Camera Scanner */}
                 {isModuleEnabled("barcode") && catalogConfig.enableBarcode && (
                   <button
                     type="button"
                     onClick={() => setScannerOpen(true)}
-                    className="grid lg:hidden h-10 w-10 shrink-0 place-items-center rounded-full border border-primary/30 bg-primary/10 text-primary transition hover:bg-primary/20 active:scale-95 shadow-2xs"
-                    title={
-                      lang === "ar" ? "قراءة الباركود بالكاميرا (F4)" : "Scan with camera (F4)"
-                    }
+                    className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-primary/30 bg-primary/10 text-primary transition hover:bg-primary/20 active:scale-95 shadow-2xs"
+                    title={lang === "ar" ? "قراءة الباركود بالكاميرا (F4)" : "Scan with camera (F4)"}
                   >
                     <ScanBarcode className="h-4 w-4" />
                   </button>
                 )}
-
-                {/* Warehouse Select (Only shown if multi_warehouse is enabled & more than 1 exists) */}
-                {isModuleEnabled("multi_warehouse") && warehouses.length > 1 && (
-                  <div className="relative shrink-0">
-                    <select
-                      value={warehouseId}
-                      onChange={(e) => setWarehouseId(e.target.value)}
-                      className="h-10 appearance-none rounded-full border border-amber-500/30 bg-amber-500/10 pl-9 pr-8 text-xs font-semibold text-amber-600 dark:text-amber-300 outline-none hover:bg-amber-500/20 rtl:pl-8 rtl:pr-9 cursor-pointer transition"
-                    >
-                      {warehouses.map((w) => (
-                        <option key={w.id} value={w.id}>
-                          {lang === "ar" ? w.name_ar || w.name : w.name || w.name_ar}
-                        </option>
-                      ))}
-                    </select>
-                    <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-amber-700 dark:text-amber-300" />
-                  </div>
-                )}
               </div>
 
-              {/* Scan mode indicator — honest about what is actually known.
-              Never claims a scanner is "connected". */}
-              <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-border/70 bg-surface-2/50 px-3 py-2 text-[11px] text-muted-foreground">
-                <span className="flex items-center gap-1.5">
-                  <ScanBarcode className="h-3.5 w-3.5 text-primary" />
-                  <span className="hidden md:inline">{t("scan.ready")}</span>
-                  <span className="md:hidden">{t("scan.use_device_camera")}</span>
-                </span>
-                {isModuleEnabled("barcode") && catalogConfig.enableBarcode && (
+              {/* Quick Category Chips Bar */}
+              {categories.length > 0 && (
+                <div className="mb-2.5 flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5">
                   <button
                     type="button"
-                    onClick={() => setScannerOpen(true)}
-                    className="inline-flex items-center gap-1.5 rounded-full border-primary/30 bg-primary/10 px-2.5 py-1 font-medium text-primary transition hover:bg-primary/20"
+                    onClick={() => setSelectedCategory("")}
+                    className={`h-7 shrink-0 rounded-lg px-2.5 text-xs font-medium transition ${
+                      selectedCategory === ""
+                        ? "bg-primary text-primary-foreground font-semibold shadow-2xs"
+                        : "bg-surface border border-border/80 text-muted-foreground hover:border-primary/40 hover:text-foreground"
+                    }`}
                   >
-                    <ScanBarcode className="h-3 w-3" />
-                    <span>{t("scan.use_camera")}</span>
+                    {lang === "ar" ? "الكل" : "All"} ({products.length})
                   </button>
-                )}
-              </div>
+                  {categories.map((c) => (
+                    <button
+                      key={c.id}
+                      type="button"
+                      onClick={() => setSelectedCategory((prev) => (prev === c.id ? "" : c.id))}
+                      className={`h-7 shrink-0 rounded-lg px-2.5 text-xs font-medium transition ${
+                        selectedCategory === c.id
+                          ? "bg-primary text-primary-foreground font-semibold shadow-2xs"
+                          : "bg-surface border border-border/80 text-muted-foreground hover:border-primary/40 hover:text-foreground"
+                      }`}
+                    >
+                      {lang === "ar" ? c.name_ar || c.name : c.name || c.name_ar}
+                    </button>
+                  ))}
+                </div>
+              )}
 
+              {/* Expanded Filter Panel */}
               {filterOpen && (
-                <div className="mb-4 rounded-3xl border border-border/80 bg-surface/95 p-4 shadow-lg backdrop-blur-md transition-all duration-200">
-                  <div className="mb-3 flex items-center justify-between gap-2 border-b border-border/60 pb-2.5">
+                <div className="mb-3 rounded-2xl border border-border/80 bg-surface/95 p-3.5 shadow-md backdrop-blur-md transition-all">
+                  <div className="mb-3 flex items-center justify-between gap-2 border-b border-border/60 pb-2">
                     <div className="flex items-center gap-2">
                       <Filter className="h-4 w-4 text-primary" />
-                      <span className="text-sm font-bold text-foreground">
-                        {lang === "ar" ? "تصفية الفهرس الشامل" : "Catalog Filters"}
+                      <span className="text-xs font-bold text-foreground">
+                        {lang === "ar" ? "خيارات الفرز والتصفية المتقدمة" : "Advanced Filters"}
                       </span>
                       {activeFiltersCount > 0 && (
-                        <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-semibold text-primary font-mono">
+                        <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary font-mono">
                           {activeFiltersCount} {lang === "ar" ? "نشط" : "active"}
                         </span>
                       )}
@@ -1745,351 +1852,490 @@ function POSPage() {
                       <button
                         type="button"
                         onClick={resetFilters}
-                        className="inline-flex items-center gap-1 rounded-full border border-border/80 bg-surface px-2.5 py-1 text-xs text-muted-foreground transition hover:border-destructive/40 hover:bg-destructive/10 hover:text-destructive active:scale-95"
+                        className="inline-flex items-center gap-1 rounded-lg border border-border/80 bg-surface px-2 py-0.5 text-[11px] text-muted-foreground transition hover:border-destructive/40 hover:bg-destructive/10 hover:text-destructive active:scale-95"
                       >
                         <RotateCcw className="h-3 w-3" />
-                        <span>{t("common.reset")}</span>
+                        <span>{t("common.reset_filters")}</span>
                       </button>
                     )}
                   </div>
 
-                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                    {/* 1. Categories */}
-                    <label className="grid gap-1 text-xs text-muted-foreground">
-                      <span className="font-medium text-foreground/80">
-                        {t("common.categories")}
-                      </span>
-                      <div className="relative">
+                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4">
+                    {/* Category */}
+                    <div>
+                      <label className="text-[10px] font-medium text-muted-foreground block mb-1">
+                        {t("products.category")}
+                      </label>
+                      <select
+                        aria-label={t("products.category")}
+                        value={selectedCategory}
+                        onChange={(e) => setSelectedCategory(e.target.value)}
+                        className="h-8 w-full rounded-lg border border-border/80 bg-surface px-2 text-xs text-foreground outline-none focus:border-primary"
+                      >
+                        <option value="">{lang === "ar" ? "كل التصنيفات" : "All categories"}</option>
+                        {categories.map((c) => (
+                          <option key={c.id} value={c.id}>
+                            {lang === "ar" ? c.name_ar || c.name : c.name || c.name_ar}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Brand */}
+                    {catalogConfig.enableBrands && (
+                      <div>
+                        <label className="text-[10px] font-medium text-muted-foreground block mb-1">
+                          {t("products.brand")}
+                        </label>
                         <select
-                          value={selectedCategory}
-                          onChange={(e) => setSelectedCategory(e.target.value)}
-                          className={selectClassName}
+                          aria-label={t("products.brand")}
+                          value={selectedBrand}
+                          onChange={(e) => setSelectedBrand(e.target.value)}
+                          className="h-8 w-full rounded-lg border border-border/80 bg-surface px-2 text-xs text-foreground outline-none focus:border-primary"
                         >
-                          <option value="">{t("common.all")}</option>
-                          {categories.map((c) => (
-                            <option key={c.id} value={c.id}>
-                              {lang === "ar" ? c.name_ar || c.name : c.name || c.name_ar || ""}
+                          <option value="">{lang === "ar" ? "كل الماركات" : "All brands"}</option>
+                          {brands.map((b) => (
+                            <option key={b.id} value={b.id}>
+                              {lang === "ar" ? b.name_ar || b.name : b.name || b.name_ar}
                             </option>
                           ))}
                         </select>
-                        <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
                       </div>
-                    </label>
-
-                    {/* 2. Brands */}
-                    {catalogConfig.enableBrands && (
-                      <label className="grid gap-1 text-xs text-muted-foreground">
-                        <span className="font-medium text-foreground/80">{t("common.brands")}</span>
-                        <div className="relative">
-                          <select
-                            value={selectedBrand}
-                            onChange={(e) => setSelectedBrand(e.target.value)}
-                            className={selectClassName}
-                          >
-                            <option value="">{t("common.all")}</option>
-                            {brands.map((b) => (
-                              <option key={b.id} value={b.id}>
-                                {lang === "ar" ? b.name_ar || b.name : b.name || b.name_ar || ""}
-                              </option>
-                            ))}
-                          </select>
-                          <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-                        </div>
-                      </label>
                     )}
 
-                    {/* 3. Units */}
+                    {/* Unit */}
                     {catalogConfig.enableUnits && (
-                      <label className="grid gap-1 text-xs text-muted-foreground">
-                        <span className="font-medium text-foreground/80">{t("common.units")}</span>
-                        <div className="relative">
-                          <select
-                            value={selectedUnit}
-                            onChange={(e) => setSelectedUnit(e.target.value)}
-                            className={selectClassName}
-                          >
-                            <option value="">{t("common.all")}</option>
-                            {units.map((u) => (
-                              <option key={u.id} value={u.id}>
-                                {lang === "ar"
-                                  ? u.name_ar || u.short_name || u.name
-                                  : u.short_name || u.name || u.name_ar || ""}
-                              </option>
-                            ))}
-                          </select>
-                          <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-                        </div>
-                      </label>
+                      <div>
+                        <label className="text-[10px] font-medium text-muted-foreground block mb-1">
+                          {t("products.unit")}
+                        </label>
+                        <select
+                          aria-label={t("products.unit")}
+                          value={selectedUnit}
+                          onChange={(e) => setSelectedUnit(e.target.value)}
+                          className="h-8 w-full rounded-lg border border-border/80 bg-surface px-2 text-xs text-foreground outline-none focus:border-primary"
+                        >
+                          <option value="">{lang === "ar" ? "كل الوحدات" : "All units"}</option>
+                          {units.map((u) => (
+                            <option key={u.id} value={u.id}>
+                              {lang === "ar" ? u.name_ar || u.name : u.name || u.name_ar}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
                     )}
 
-                    {/* 4. Countries of Origin */}
+                    {/* Origin */}
                     {catalogConfig.enableOrigins && (
-                      <label className="grid gap-1 text-xs text-muted-foreground">
-                        <span className="font-medium text-foreground/80">
-                          {lang === "ar" ? "بلدان المنشأ" : "Country of Origin"}
-                        </span>
-                        <div className="relative">
-                          <select
-                            value={selectedOrigin}
-                            onChange={(e) => setSelectedOrigin(e.target.value)}
-                            className={selectClassName}
-                          >
-                            <option value="">{t("common.all")}</option>
-                            {origins.map((o) => (
-                              <option key={o.id} value={o.id}>
-                                {lang === "ar" ? o.name_ar || o.name : o.name || o.name_ar || ""}
-                                {o.code ? ` (${o.code})` : ""}
-                              </option>
-                            ))}
-                          </select>
-                          <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-                        </div>
-                      </label>
+                      <div>
+                        <label className="text-[10px] font-medium text-muted-foreground block mb-1">
+                          {t("products.origin")}
+                        </label>
+                        <select
+                          aria-label={t("products.origin")}
+                          value={selectedOrigin}
+                          onChange={(e) => setSelectedOrigin(e.target.value)}
+                          className="h-8 w-full rounded-lg border border-border/80 bg-surface px-2 text-xs text-foreground outline-none focus:border-primary"
+                        >
+                          <option value="">{lang === "ar" ? "بلد المنشأ" : "All origins"}</option>
+                          {origins.map((o) => (
+                            <option key={o.id} value={o.id}>
+                              {lang === "ar" ? o.name_ar || o.name : o.name || o.name_ar}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
                     )}
 
-                    {/* 5. Quality Grades */}
+                    {/* Quality */}
                     {catalogConfig.enableQualityGrades && (
-                      <label className="grid gap-1 text-xs text-muted-foreground">
-                        <span className="font-medium text-foreground/80">
-                          {lang === "ar" ? "درجات الجودة" : "Quality Grade"}
-                        </span>
-                        <div className="relative">
-                          <select
-                            value={selectedQuality}
-                            onChange={(e) => setSelectedQuality(e.target.value)}
-                            className={selectClassName}
-                          >
-                            <option value="">{t("common.all")}</option>
-                            {qualities.map((q) => (
-                              <option key={q.id} value={q.id}>
-                                {lang === "ar" ? q.name_ar || q.name : q.name || q.name_ar || ""}
-                              </option>
-                            ))}
-                          </select>
-                          <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-                        </div>
-                      </label>
+                      <div>
+                        <label className="text-[10px] font-medium text-muted-foreground block mb-1">
+                          {t("products.quality_grade")}
+                        </label>
+                        <select
+                          aria-label={t("products.quality_grade")}
+                          value={selectedQuality}
+                          onChange={(e) => setSelectedQuality(e.target.value)}
+                          className="h-8 w-full rounded-lg border border-border/80 bg-surface px-2 text-xs text-foreground outline-none focus:border-primary"
+                        >
+                          <option value="">{lang === "ar" ? "درجة الجودة" : "All grades"}</option>
+                          {qualities.map((q) => (
+                            <option key={q.id} value={q.id}>
+                              {lang === "ar" ? q.name_ar || q.name : q.name || q.name_ar}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
                     )}
 
-                    {/* 6. Vehicle Makes */}
+                    {/* Vehicle Make */}
                     {catalogConfig.enableMakesAndModels && (
-                      <label className="grid gap-1 text-xs text-muted-foreground">
-                        <span className="font-medium text-foreground/80">
-                          {lang === "ar" ? "ماركات المركبات" : "Vehicle Make"}
-                        </span>
-                        <div className="relative">
-                          <select
-                            value={selectedMake}
-                            onChange={(e) => handleMakeChange(e.target.value)}
-                            className={selectClassName}
-                          >
-                            <option value="">{t("common.all")}</option>
-                            {makes.map((m) => (
-                              <option key={m.id} value={m.id}>
-                                {lang === "ar" ? m.name_ar || m.name : m.name || m.name_ar || ""}
-                              </option>
-                            ))}
-                          </select>
-                          <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-                        </div>
-                      </label>
+                      <div>
+                        <label className="text-[10px] font-medium text-muted-foreground block mb-1">
+                          {t("products.vehicle_make")}
+                        </label>
+                        <select
+                          aria-label={t("products.vehicle_make")}
+                          value={selectedMake}
+                          onChange={(e) => handleMakeChange(e.target.value)}
+                          className="h-8 w-full rounded-lg border border-border/80 bg-surface px-2 text-xs text-foreground outline-none focus:border-primary"
+                        >
+                          <option value="">{lang === "ar" ? "كل الشركات" : "All makes"}</option>
+                          {makes.map((m) => (
+                            <option key={m.id} value={m.id}>
+                              {lang === "ar" ? m.name_ar || m.name : m.name || m.name_ar}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
                     )}
 
-                    {/* 7. Vehicle Models */}
+                    {/* Vehicle Model */}
                     {catalogConfig.enableMakesAndModels && (
-                      <label className="grid gap-1 text-xs text-muted-foreground">
-                        <span className="font-medium text-foreground/80">
-                          {lang === "ar" ? "موديلات المركبات" : "Vehicle Model"}
-                        </span>
-                        <div className="relative">
-                          <select
-                            value={selectedModel}
-                            onChange={(e) => setSelectedModel(e.target.value)}
-                            className={selectClassName}
-                          >
-                            <option value="">{t("common.all")}</option>
-                            {availableModels.map((m) => (
-                              <option key={m.id} value={m.id}>
-                                {lang === "ar" ? m.name_ar || m.name : m.name || m.name_ar || ""}
-                              </option>
-                            ))}
-                          </select>
-                          <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-                        </div>
-                      </label>
+                      <div>
+                        <label className="text-[10px] font-medium text-muted-foreground block mb-1">
+                          {t("products.vehicle_model")}
+                        </label>
+                        <select
+                          aria-label={t("products.vehicle_model")}
+                          value={selectedModel}
+                          onChange={(e) => setSelectedModel(e.target.value)}
+                          disabled={!selectedMake && models.length > 20}
+                          className="h-8 w-full rounded-lg border border-border/80 bg-surface px-2 text-xs text-foreground outline-none focus:border-primary disabled:opacity-50"
+                        >
+                          <option value="">{lang === "ar" ? "كل الموديلات" : "All models"}</option>
+                          {availableModels.map((m) => (
+                            <option key={m.id} value={m.id}>
+                              {lang === "ar" ? m.name_ar || m.name : m.name || m.name_ar}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
                     )}
                   </div>
                 </div>
               )}
 
-              {/* Product Grid Area — fills the remaining height and scrolls internally. */}
-              <div className="grid min-h-0 flex-1 grid-cols-2 content-start gap-2.5 overflow-y-auto pr-1 sm:grid-cols-3 xl:grid-cols-4">
-                {filtered.map((p) => {
-                  const stock = stockMap[p.id] ?? 0;
-                  const low = stock <= 0;
-                  const catLabel =
-                    lang === "ar"
-                      ? p.category?.name_ar || p.category?.name
-                      : p.category?.name || p.category?.name_ar;
-                  // العرض العربي يجب أن يفضّل التسمية العربية دائماً. كان الرمز
-                  // الإنجليزي (short_name) يُعرض كبديل عن name_ar الغائب، فيظهر
-                  // "kg" وسط واجهة عربية — وهذا ما يُفسد قراءة الشاشة للقبّان.
-                  const unitLabel =
-                    lang === "ar"
-                      ? p.unit?.name_ar || p.unit?.name || p.unit?.short_name || ""
-                      : p.unit?.short_name || p.unit?.name || p.unit?.name_ar || "";
-                  const originLabel =
-                    lang === "ar"
-                      ? p.origin?.name_ar || p.origin?.name
-                      : p.origin?.name || p.origin?.name_ar;
-                  const qualityLabel =
-                    lang === "ar"
-                      ? p.quality?.name_ar || p.quality?.name
-                      : p.quality?.name || p.quality?.name_ar;
-                  const compats = productCompatMap.get(p.id) || [];
-                  const uniqueMakes = Array.from(
-                    new Set(compats.map((c) => c.makeName).filter(Boolean)),
-                  );
-
-                  return (
-                    <button
-                      key={p.id}
-                      onClick={() => addToCart(p)}
-                      disabled={low}
-                      className="group relative flex flex-col items-start justify-between gap-1.5 rounded-2xl border border-border/80 bg-surface/90 p-2.5 text-start transition-all hover:border-primary/50 hover:bg-surface-2 hover:shadow-sm disabled:opacity-40"
-                    >
-                      <div className="w-full">
-                        {/* Catalog Index Info Strip ABOVE the product name */}
-                        <div className="mb-1.5 flex flex-wrap items-center gap-1 text-[10px] leading-none">
-                          {/* Quality Grade */}
-                          {catalogConfig.enableQualityGrades && qualityLabel && (
-                            <span
-                              className={`inline-flex items-center gap-0.5 rounded px-1.5 py-0.5 font-bold border ${
-                                qualityLabel.includes("أصلي") ||
-                                qualityLabel.toLowerCase().includes("genuine") ||
-                                qualityLabel.toLowerCase().includes("oem")
-                                  ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30"
-                                  : "bg-surface-2 text-foreground/80 border-border/70"
-                              }`}
-                            >
-                              <span>{qualityLabel}</span>
-                            </span>
-                          )}
-
-                          {/* Origin */}
-                          {catalogConfig.enableOrigins && originLabel && (
-                            <span className="inline-flex items-center gap-0.5 rounded border border-border/60 bg-surface px-1 py-0.5 text-muted-foreground font-medium">
-                              <span>{originLabel}</span>
-                              {p.origin?.code && (
-                                <span className="text-[9px] font-mono opacity-70">
-                                  ({p.origin.code})
-                                </span>
-                              )}
-                            </span>
-                          )}
-
-                          {/* Brand or Category */}
-                          {catalogConfig.enableBrands && p.brand ? (
-                            <span className="inline-flex items-center rounded border border-primary/20 bg-primary/10 px-1.5 py-0.5 text-primary font-semibold truncate max-w-[85px]">
-                              {lang === "ar"
-                                ? p.brand.name_ar || p.brand.name
-                                : p.brand.name || p.brand.name_ar}
-                            </span>
-                          ) : catLabel ? (
-                            <span className="inline-flex items-center rounded bg-surface-2 px-1.5 py-0.5 text-muted-foreground truncate max-w-[85px]">
-                              {catLabel}
-                            </span>
-                          ) : null}
-
-                          {/* Vehicle Fitment / Models */}
-                          {catalogConfig.enableMakesAndModels && compats.length > 0 && (
-                            <span
-                              className="inline-flex items-center gap-0.5 rounded border border-sky-500/25 bg-sky-500/10 px-1.5 py-0.5 text-sky-700 dark:text-sky-300 font-semibold truncate max-w-[120px]"
-                              title={compats
-                                .map((c) => `${c.makeName} - ${c.modelName}`)
-                                .join(" | ")}
-                            >
-                              <span>
-                                🏍️ {uniqueMakes[0] || compats[0].makeName}{" "}
-                                {compats.length > 1
-                                  ? `(+${compats.length - 1})`
-                                  : compats[0].modelName}
-                              </span>
-                            </span>
-                          )}
-                        </div>
-
-                        {/* Product Name */}
-                        <div className="line-clamp-2 text-xs sm:text-sm font-semibold text-foreground group-hover:text-primary transition-colors leading-snug">
-                          {lang === "ar" && p.name_ar ? p.name_ar : p.name}
-                        </div>
-                      </div>
-
-                      {/* Price & Stock */}
-                      <div className="mt-2 flex w-full items-center justify-between border-t border-border/40 pt-1.5">
-                        <span className="text-xs sm:text-sm font-bold text-primary font-mono">
-                          {money(Number(p.sale_price))}
-                        </span>
-                        <span
-                          className={`text-[10px] font-mono px-1.5 py-0.5 rounded-full ${
-                            low
-                              ? "bg-destructive/10 text-destructive font-semibold"
-                              : "bg-muted text-muted-foreground"
-                          }`}
-                        >
-                          {low
-                            ? lang === "ar"
-                              ? "نفد"
-                              : "0"
-                            : `${stock} ${unitLabel ? `· ${unitLabel}` : ""}`}
-                        </span>
-                      </div>
-                    </button>
-                  );
-                })}
-                {filtered.length === 0 && (
-                  <div className="col-span-full grid place-items-center py-16 text-sm text-muted-foreground">
-                    <div className="grid h-12 w-12 place-items-center rounded-2xl border border-border bg-surface mb-3">
-                      <ScanBarcode className="h-6 w-6 opacity-60 text-primary" />
+              {/* ─── Product Catalog Body: Three Distinct View Modes ─── */}
+              <div className="min-h-0 flex-1 overflow-y-auto pr-1 pb-2">
+                {filtered.length === 0 ? (
+                  <div className="grid place-items-center py-20 text-center text-sm text-muted-foreground">
+                    <div className="grid h-14 w-14 place-items-center rounded-2xl border border-border bg-surface mb-3 shadow-xs">
+                      <ScanBarcode className="h-7 w-7 opacity-60 text-primary" />
                     </div>
-                    <div className="font-semibold text-foreground">{t("pos.no_products")}</div>
+                    <div className="font-bold text-foreground">{t("pos.no_products")}</div>
+                    <p className="text-xs text-muted-foreground mt-1 max-w-xs">
+                      {lang === "ar"
+                        ? "لم يتم العثور على أي منتج يطابق معايير البحث أو التصفية الحالية"
+                        : "No products matched your current search or filter criteria"}
+                    </p>
                     {activeFiltersCount > 0 && (
                       <button
                         onClick={resetFilters}
-                        className="mt-2 text-xs text-primary underline underline-offset-4 hover:opacity-80"
+                        className="mt-3 inline-flex items-center gap-1.5 text-xs font-semibold text-primary underline underline-offset-4 hover:opacity-80"
                       >
+                        <RotateCcw className="h-3 w-3" />
                         {lang === "ar" ? "إلغاء التصفية وإظهار الكل" : "Clear filters and show all"}
                       </button>
                     )}
+                  </div>
+                ) : viewMode === "grid" ? (
+                  /* ─── Mode 1: Luxury Grid Cards ─── */
+                  <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-2.5">
+                    {filtered.map((p) => {
+                      const stock = stockMap[p.id] ?? 0;
+                      const low = p.is_service !== true && stock <= 0;
+                      const catLabel =
+                        lang === "ar"
+                          ? p.category?.name_ar || p.category?.name
+                          : p.category?.name || p.category?.name_ar;
+                      const unitLabel =
+                        lang === "ar"
+                          ? p.unit?.name_ar || p.unit?.name || p.unit?.short_name || ""
+                          : p.unit?.short_name || p.unit?.name || p.unit?.name_ar || "";
+                      const originLabel =
+                        lang === "ar"
+                          ? p.origin?.name_ar || p.origin?.name
+                          : p.origin?.name || p.origin?.name_ar;
+                      const qualityLabel =
+                        lang === "ar"
+                          ? p.quality?.name_ar || p.quality?.name
+                          : p.quality?.name || p.quality?.name_ar;
+                      const compats = productCompatMap.get(p.id) || [];
+                      const uniqueMakes = Array.from(
+                        new Set(compats.map((c) => c.makeName).filter(Boolean)),
+                      );
+
+                      return (
+                        <button
+                          key={p.id}
+                          onClick={() => addToCart(p)}
+                          disabled={low}
+                          className="group relative flex flex-col items-start justify-between gap-2 rounded-2xl border border-border/80 bg-card/80 p-2.5 text-start transition-all duration-150 hover:border-primary/50 hover:bg-card hover:shadow-md active:scale-[0.98] disabled:opacity-40"
+                        >
+                          <div className="w-full">
+                            {/* Tags Strip */}
+                            <div className="mb-1.5 flex flex-wrap items-center gap-1 text-[10px] leading-none">
+                              {/* Quality */}
+                              {catalogConfig.enableQualityGrades && qualityLabel && (
+                                <span
+                                  className={`inline-flex items-center gap-0.5 rounded px-1.5 py-0.5 font-bold border ${
+                                    qualityLabel.includes("أصلي") ||
+                                    qualityLabel.toLowerCase().includes("genuine") ||
+                                    qualityLabel.toLowerCase().includes("oem")
+                                      ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30"
+                                      : "bg-surface-2 text-foreground/80 border-border/70"
+                                  }`}
+                                >
+                                  <span>{qualityLabel}</span>
+                                </span>
+                              )}
+
+                              {/* Origin */}
+                              {catalogConfig.enableOrigins && originLabel && (
+                                <span className="inline-flex items-center gap-0.5 rounded border border-border/60 bg-surface px-1 py-0.5 text-muted-foreground font-medium">
+                                  <span>{originLabel}</span>
+                                </span>
+                              )}
+
+                              {/* Brand / Category */}
+                              {catalogConfig.enableBrands && p.brand ? (
+                                <span className="inline-flex items-center rounded border border-primary/20 bg-primary/10 px-1.5 py-0.5 text-primary font-semibold truncate max-w-[85px]">
+                                  {lang === "ar"
+                                    ? p.brand.name_ar || p.brand.name
+                                    : p.brand.name || p.brand.name_ar}
+                                </span>
+                              ) : catLabel ? (
+                                <span className="inline-flex items-center rounded bg-surface-2 px-1.5 py-0.5 text-muted-foreground truncate max-w-[85px]">
+                                  {catLabel}
+                                </span>
+                              ) : null}
+
+                              {/* Vehicle Fitment */}
+                              {catalogConfig.enableMakesAndModels && compats.length > 0 && (
+                                <span
+                                  className="inline-flex items-center gap-0.5 rounded border border-sky-500/25 bg-sky-500/10 px-1.5 py-0.5 text-sky-700 dark:text-sky-300 font-semibold truncate max-w-[120px]"
+                                  title={compats.map((c) => `${c.makeName} - ${c.modelName}`).join(" | ")}
+                                >
+                                  <span>
+                                    🏍️ {uniqueMakes[0] || compats[0].makeName}{" "}
+                                    {compats.length > 1 ? `(+${compats.length - 1})` : compats[0].modelName}
+                                  </span>
+                                </span>
+                              )}
+                            </div>
+
+                            {/* Product Name */}
+                            <div className="line-clamp-2 text-xs sm:text-sm font-bold text-foreground group-hover:text-primary transition-colors leading-snug">
+                              {lang === "ar" && p.name_ar ? p.name_ar : p.name}
+                            </div>
+                          </div>
+
+                          {/* Price & Stock */}
+                          <div className="mt-2 flex w-full items-center justify-between border-t border-border/40 pt-1.5">
+                            <span className="text-xs sm:text-sm font-black text-primary font-mono [unicode-bidi:isolate]">
+                              {money(Number(p.sale_price))}
+                            </span>
+                            <span
+                              className={`text-[10px] font-mono px-2 py-0.5 rounded-full font-semibold ${
+                                low
+                                  ? "bg-destructive/15 text-destructive font-bold"
+                                  : stock <= 5
+                                  ? "bg-amber-500/15 text-amber-700 dark:text-amber-300"
+                                  : "bg-muted text-muted-foreground"
+                              }`}
+                            >
+                              {low
+                                ? lang === "ar"
+                                  ? "نفد"
+                                  : "0"
+                                : `${stock} ${unitLabel ? `· ${unitLabel}` : ""}`}
+                            </span>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                ) : viewMode === "compact" ? (
+                  /* ─── Mode 2: Compact Cashier List ─── */
+                  <div className="space-y-1.5">
+                    {filtered.map((p) => {
+                      const stock = stockMap[p.id] ?? 0;
+                      const low = p.is_service !== true && stock <= 0;
+                      const catLabel =
+                        lang === "ar"
+                          ? p.category?.name_ar || p.category?.name
+                          : p.category?.name || p.category?.name_ar;
+
+                      return (
+                        <div
+                          key={p.id}
+                          className="group flex items-center justify-between gap-2.5 rounded-xl border border-border/70 bg-card/75 p-2 transition-all hover:border-primary/50 hover:bg-card hover:shadow-xs"
+                        >
+                          {/* Code / Barcode */}
+                          {(p.barcode || p.sku) && (
+                            <span className="hidden sm:inline-block rounded-md bg-muted/60 px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground shrink-0">
+                              {p.barcode || p.sku}
+                            </span>
+                          )}
+
+                          {/* Name & Category */}
+                          <div className="min-w-0 flex-1">
+                            <div className="truncate text-xs font-semibold text-foreground group-hover:text-primary transition-colors">
+                              {lang === "ar" && p.name_ar ? p.name_ar : p.name}
+                            </div>
+                            <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+                              {catLabel && <span className="truncate max-w-[120px]">{catLabel}</span>}
+                              {p.brand && (
+                                <span className="text-primary font-medium truncate max-w-[100px]">
+                                  {lang === "ar" ? p.brand.name_ar || p.brand.name : p.brand.name}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Stock */}
+                          <div className="shrink-0 text-end">
+                            <span
+                              className={`rounded-full px-2 py-0.5 font-mono text-[10px] font-semibold ${
+                                low
+                                  ? "bg-destructive/15 text-destructive"
+                                  : stock <= 5
+                                  ? "bg-amber-500/15 text-amber-700 dark:text-amber-300"
+                                  : "bg-muted/70 text-muted-foreground"
+                              }`}
+                            >
+                              {low ? (lang === "ar" ? "نفد" : "0") : `${stock}`}
+                            </span>
+                          </div>
+
+                          {/* Price */}
+                          <div className="shrink-0 text-end font-mono text-xs sm:text-sm font-extrabold text-primary min-w-[4.5rem] [unicode-bidi:isolate]">
+                            {money(Number(p.sale_price))}
+                          </div>
+
+                          {/* Quick Add Button */}
+                          <button
+                            type="button"
+                            disabled={low}
+                            onClick={() => addToCart(p)}
+                            className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary transition hover:bg-primary hover:text-primary-foreground active:scale-90 disabled:opacity-30"
+                            title={t("pos.add_to_cart")}
+                          >
+                            <Plus className="h-4 w-4" />
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  /* ─── Mode 3: High Density Classic Table ─── */
+                  <div className="overflow-hidden rounded-2xl border border-border/80 bg-card shadow-xs">
+                    <table className="w-full text-start text-xs">
+                      <thead>
+                        <tr className="border-b border-border/80 bg-muted/50 text-[11px] font-bold text-muted-foreground">
+                          <th className="py-2 px-3 text-start">{lang === "ar" ? "الباركود / الرمز" : "Barcode / SKU"}</th>
+                          <th className="py-2 px-3 text-start">{lang === "ar" ? "اسم المنتج" : "Product Name"}</th>
+                          <th className="py-2 px-3 text-start">{lang === "ar" ? "التصنيف والماركة" : "Category & Brand"}</th>
+                          <th className="py-2 px-3 text-center">{lang === "ar" ? "المتوفر" : "Stock"}</th>
+                          <th className="py-2 px-3 text-end">{lang === "ar" ? "سعر البيع" : "Price"}</th>
+                          <th className="py-2 px-3 text-center">{lang === "ar" ? "إجراء" : "Action"}</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-border/50">
+                        {filtered.map((p) => {
+                          const stock = stockMap[p.id] ?? 0;
+                          const low = p.is_service !== true && stock <= 0;
+                          const catLabel =
+                            lang === "ar"
+                              ? p.category?.name_ar || p.category?.name
+                              : p.category?.name || p.category?.name_ar;
+
+                          return (
+                            <tr
+                              key={p.id}
+                              onClick={() => !low && addToCart(p)}
+                              className={`cursor-pointer transition hover:bg-primary/[0.04] ${
+                                low ? "opacity-40 cursor-not-allowed" : ""
+                              }`}
+                            >
+                              <td className="py-2 px-3 font-mono text-[11px] text-muted-foreground">
+                                {p.barcode || p.sku || "—"}
+                              </td>
+                              <td className="py-2 px-3 font-semibold text-foreground">
+                                {lang === "ar" && p.name_ar ? p.name_ar : p.name}
+                              </td>
+                              <td className="py-2 px-3 text-muted-foreground">
+                                {catLabel || "—"}
+                                {p.brand && ` · ${lang === "ar" ? p.brand.name_ar || p.brand.name : p.brand.name}`}
+                              </td>
+                              <td className="py-2 px-3 text-center font-mono font-semibold">
+                                <span
+                                  className={`rounded-md px-1.5 py-0.5 text-[10px] ${
+                                    low
+                                      ? "bg-destructive/15 text-destructive"
+                                      : stock <= 5
+                                      ? "bg-amber-500/15 text-amber-700 dark:text-amber-300"
+                                      : "bg-muted/70 text-foreground"
+                                  }`}
+                                >
+                                  {low ? (lang === "ar" ? "نفد" : "0") : stock}
+                                </span>
+                              </td>
+                              <td className="py-2 px-3 text-end font-mono font-bold text-primary [unicode-bidi:isolate]">
+                                {money(Number(p.sale_price))}
+                              </td>
+                              <td className="py-2 px-3 text-center">
+                                <button
+                                  type="button"
+                                  disabled={low}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    addToCart(p);
+                                  }}
+                                  className="inline-grid h-6 w-6 place-items-center rounded-md bg-primary/10 text-primary hover:bg-primary hover:text-primary-foreground active:scale-90 transition disabled:opacity-30"
+                                >
+                                  <Plus className="h-3.5 w-3.5" />
+                                </button>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
                   </div>
                 )}
               </div>
             </div>
           )}
 
-          {/* Cart Panel — the primary workspace on all sizes. On mobile it is the
-            only panel; on desktop it is the fixed-width right column. */}
-          <div className="flex min-h-0 flex-col overflow-hidden rounded-3xl border border-primary/15 bg-surface/95 p-2.5 shadow-xl ring-1 ring-border/50 backdrop-blur-md sm:p-3 lg:col-start-2 lg:row-span-2 lg:row-start-1">
+          {/* ─── Cart Panel (Primary Workspace on All Devices) ─── */}
+          <div className="flex min-h-0 flex-col overflow-hidden rounded-3xl border border-primary/20 bg-surface/95 p-2.5 sm:p-3 shadow-xl ring-1 ring-border/50 backdrop-blur-md lg:col-start-2 lg:row-span-2 lg:row-start-1">
+            
             {/* Cart Header */}
             <div className="mb-2 flex shrink-0 items-center justify-between border-b border-border/60 px-1 pb-2">
               <div className="flex items-center gap-2">
-                <div>
-                  <h2 className="flex items-center gap-2 text-xs font-bold text-foreground">
-                    <span>{t("pos.cart")}</span>
-                    <span className="rounded-full bg-primary/15 px-1.5 py-0.5 text-[10px] font-mono font-bold text-primary">
-                      {cart.length}
-                    </span>
-                  </h2>
+                <div className="grid h-7 w-7 place-items-center rounded-lg bg-primary/10 text-primary">
+                  <ShoppingCart className="h-4 w-4" />
                 </div>
+                <h2 className="flex items-center gap-2 text-xs sm:text-sm font-bold text-foreground">
+                  <span>{t("pos.cart")}</span>
+                  <span className="rounded-full bg-primary/15 px-2 py-0.5 text-[10px] font-mono font-extrabold text-primary">
+                    {cart.length} {lang === "ar" ? "أصناف" : "items"}
+                  </span>
+                </h2>
               </div>
+
               {isDesktop ? (
                 cart.length > 0 && (
                   <button
                     type="button"
                     onClick={() => setCart([])}
-                    className="inline-flex items-center gap-1 rounded-full border border-border/80 bg-surface/80 px-2.5 py-1 text-xs text-muted-foreground transition hover:border-destructive/40 hover:bg-destructive/10 hover:text-destructive active:scale-95"
+                    className="inline-flex items-center gap-1 rounded-xl border border-border/80 bg-surface/80 px-2.5 py-1 text-xs text-muted-foreground transition hover:border-destructive/40 hover:bg-destructive/10 hover:text-destructive active:scale-95"
+                    title={lang === "ar" ? "تفريغ سلة المبيعات" : "Clear Cart"}
                   >
-                    <Trash2 className="h-3 w-3" />
+                    <Trash2 className="h-3.5 w-3.5" />
                     <span>{t("pos.clear")}</span>
                   </button>
                 )
@@ -2097,7 +2343,7 @@ function POSPage() {
                 <button
                   type="button"
                   onClick={() => setMobilePickerOpen(true)}
-                  className="inline-flex items-center gap-1.5 rounded-full bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground shadow-sm active:scale-95"
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground shadow-sm active:scale-95"
                 >
                   <Plus className="h-3.5 w-3.5" />
                   <span>{t("pos.add_product")}</span>
@@ -2105,15 +2351,14 @@ function POSPage() {
               )}
             </div>
 
-            {/* Customer controls stay in the workspace header on desktop; the
-                compact cart variant remains available on touch widths. */}
-            <div className="mb-2 flex shrink-0 items-center gap-2 md:hidden">
+            {/* Mobile Header: Customer & Date controls */}
+            <div className="mb-2 flex shrink-0 items-center gap-1.5 md:hidden">
               <div className="relative min-w-0 flex-1">
                 <select
                   aria-label={lang === "ar" ? "العميل" : "Customer"}
                   value={customerId}
                   onChange={(e) => setCustomerId(e.target.value)}
-                  className="h-9 w-full appearance-none rounded-full border border-border/80 bg-surface/90 px-3.5 pl-8 pr-8 text-xs font-medium outline-none transition hover:border-primary/40 focus:border-primary focus:ring-2 focus:ring-primary/20 rtl:pl-8 rtl:pr-3.5"
+                  className="h-9 w-full appearance-none rounded-xl border border-border/80 bg-surface px-3 text-xs font-medium outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
                 >
                   <option value="">{t("pos.walkin")}</option>
                   {customers.map((c) => (
@@ -2122,90 +2367,53 @@ function POSPage() {
                     </option>
                   ))}
                 </select>
-                <ChevronDown className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground rtl:left-3 rtl:right-auto" />
+                <ChevronDown className="pointer-events-none absolute end-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
               </div>
 
               <button
                 type="button"
                 onClick={() => setNewCustomerOpen(true)}
                 title={lang === "ar" ? "إضافة عميل جديد" : "Add new customer"}
-                className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-primary/30 bg-primary/10 text-primary transition hover:bg-primary/20 hover:scale-105 active:scale-95 shadow-xs shadow-primary/10"
+                className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-primary/30 bg-primary/10 text-primary transition hover:bg-primary/20 active:scale-95 shadow-2xs"
               >
-                <UserPlus className="h-3.5 w-3.5" />
+                <UserPlus className="h-4 w-4" />
               </button>
 
-              {/* Date input cleanly integrated in customer header */}
-              <label
-                className="flex h-9 items-center gap-1.5 rounded-full border border-border/80 bg-surface/90 px-2.5 text-xs text-muted-foreground shadow-2xs hover:border-primary/40 transition shrink-0"
-                title={lang === "ar" ? "تاريخ الفاتورة" : "Sale Date"}
-              >
-                <CalendarDays className="h-3.5 w-3.5 shrink-0 text-primary" />
+              <label className="flex h-9 items-center gap-1 rounded-xl border border-border/80 bg-surface px-2 text-xs text-muted-foreground shrink-0">
+                <CalendarDays className="h-3.5 w-3.5 text-primary shrink-0" />
                 <input
                   type="date"
                   value={saleDate}
                   onChange={(e) => setSaleDate(e.target.value)}
-                  className="w-24 bg-transparent text-[11px] text-foreground outline-none font-mono cursor-pointer"
+                  className="w-24 bg-transparent text-[11px] font-mono text-foreground outline-none"
                 />
               </label>
             </div>
 
-            {/* Selected Customer Balance & Credit Info */}
-            {customerId &&
-              (() => {
-                const cust = customers.find((c) => c.id === customerId);
-                if (!cust) return null;
-                const bal = Number(cust.balance || 0);
-                const limit = Number(cust.credit_limit || 0);
-                const remainingCredit = limit > 0 ? limit - bal : null;
-                return (
-                  <div className="shrink-0 mb-2 flex items-center justify-between rounded-xl bg-surface-2/60 border border-border/60 px-3 py-1 text-[11px]">
-                    <div className="flex items-center gap-1.5 text-muted-foreground">
-                      <span>{lang === "ar" ? "رصيد العميل:" : "Customer Balance:"}</span>
-                      <span
-                        className={`font-mono font-bold ${bal > 0 ? "text-amber-500" : "text-emerald-500"}`}
-                      >
-                        {money(bal)}
-                      </span>
-                    </div>
-                    {limit > 0 && (
-                      <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
-                        <span>{lang === "ar" ? "حد الائتمان:" : "Credit Limit:"}</span>
-                        <span className="font-mono">{money(limit)}</span>
-                        {remainingCredit !== null && (
-                          <span
-                            className={`font-mono font-semibold ${remainingCredit < remainingDebt ? "text-rose-500" : "text-emerald-500"}`}
-                          >
-                            ({lang === "ar" ? "المتاح:" : "Avail:"} {money(remainingCredit)})
-                          </span>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                );
-              })()}
-
-            {/* Cart items — internal scroll, shared row component for POS parity. */}
-            <div className="my-1 min-h-0 flex-1 space-y-2 overflow-y-auto pr-1 custom-scrollbar">
+            {/* Cart Items List & Payment Scrollable Section */}
+            <div className="min-h-0 flex-1 space-y-1.5 overflow-y-auto px-0.5 pb-2">
               {cart.length === 0 ? (
-                <div className="grid place-items-center py-14 text-center text-sm text-muted-foreground">
-                  <div className="mb-3 grid h-12 w-12 place-items-center rounded-2xl border border-dashed border-border bg-surface-2/40">
-                    <ShoppingBag className="h-6 w-6 text-muted-foreground opacity-40" />
+                <div className="grid place-items-center py-12 text-center text-muted-foreground">
+                  <div className="grid h-12 w-12 place-items-center rounded-2xl border border-border bg-muted/40 mb-2">
+                    <ShoppingCart className="h-6 w-6 opacity-40 text-primary" />
                   </div>
-                  <div className="font-medium">{t("pos.empty_cart")}</div>
-                  <p className="mt-1 text-xs text-muted-foreground/80">
+                  <div className="text-xs font-bold text-foreground">
+                    {lang === "ar" ? "سلة المبيعات فارغة" : "Cart is empty"}
+                  </div>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">
                     {isDesktop
                       ? lang === "ar"
-                        ? "انقر على أي منتج أو امسح الباركود لإضافته"
-                        : "Click any product or scan to add"
+                        ? "اختر من الفهرس أو امسح الباركود لإضافة الأصناف"
+                        : "Click products from catalogue or scan barcode"
                       : lang === "ar"
-                        ? "اضغط لإضافة منتج وابحث عنه"
-                        : "Tap to add a product and search"}
+                        ? "اضغط على زر إضافة منتج للبحث والإضافة"
+                        : "Tap add product to search"}
                   </p>
                   {!isDesktop && (
                     <button
                       type="button"
                       onClick={() => setMobilePickerOpen(true)}
-                      className="mt-4 inline-flex items-center gap-1.5 rounded-full bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground shadow-sm active:scale-95"
+                      className="mt-3 inline-flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground shadow-sm active:scale-95"
                     >
                       <Plus className="h-4 w-4" />
                       <span>{t("pos.add_product")}</span>
@@ -2243,365 +2451,437 @@ function POSPage() {
                 ))
               )}
 
-              {/* Payment and totals share this same cart scroll area. */}
-              <div className="mt-3 space-y-2 border-t border-border/70 bg-surface/95 pt-2.5 pr-1">
-                {/* Payment Method Switcher: Cash | Card | Bank | Credit | Split */}
-                <div className="space-y-1.5">
-                  <div className="grid grid-cols-[minmax(0,1fr)_7rem] gap-2">
-                    <label className="relative min-w-0">
-                      <span className="sr-only">
-                        {lang === "ar" ? "طريقة الدفع" : "Payment method"}
+              {/* ─── Payment & Summary Section ─── */}
+              <div className="mt-3 space-y-2.5 border-t border-border/70 bg-surface/95 pt-2.5 pr-0.5">
+                
+                {/* Payment Method Switcher Tabs */}
+                <div>
+                  <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block mb-1">
+                    {lang === "ar" ? "طريقة الدفع:" : "Payment Method:"}
+                  </label>
+                  <div className="grid grid-cols-5 gap-1 p-1 rounded-xl bg-muted/50 border border-border/80 shadow-2xs">
+                    {/* Cash */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsSplitPayment(false);
+                        setPaymentMethod("cash");
+                        setPaid("");
+                      }}
+                      className={`flex flex-col items-center justify-center gap-0.5 rounded-lg py-1.5 text-[11px] font-bold transition ${
+                        !isSplitPayment && paymentMethod === "cash"
+                          ? "bg-background text-primary shadow-xs ring-1 ring-primary/25"
+                          : "text-muted-foreground hover:text-foreground hover:bg-background/50"
+                      }`}
+                    >
+                      <Banknote className="h-4 w-4" />
+                      <span>{t("pos.pm.cash")}</span>
+                    </button>
+
+                    {/* Card */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsSplitPayment(false);
+                        setPaymentMethod("card");
+                        setPaid("");
+                      }}
+                      className={`flex flex-col items-center justify-center gap-0.5 rounded-lg py-1.5 text-[11px] font-bold transition ${
+                        !isSplitPayment && paymentMethod === "card"
+                          ? "bg-background text-primary shadow-xs ring-1 ring-primary/25"
+                          : "text-muted-foreground hover:text-foreground hover:bg-background/50"
+                      }`}
+                    >
+                      <CreditCard className="h-4 w-4" />
+                      <span>{lang === "ar" ? "شبكة" : "Card"}</span>
+                    </button>
+
+                    {/* Mobile / Bank */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsSplitPayment(false);
+                        setPaymentMethod("mobile_money");
+                        setPaid("");
+                      }}
+                      className={`flex flex-col items-center justify-center gap-0.5 rounded-lg py-1.5 text-[11px] font-bold transition ${
+                        !isSplitPayment && (paymentMethod === "mobile_money" || paymentMethod === "bank_transfer")
+                          ? "bg-background text-primary shadow-xs ring-1 ring-primary/25"
+                          : "text-muted-foreground hover:text-foreground hover:bg-background/50"
+                      }`}
+                    >
+                      <Smartphone className="h-4 w-4" />
+                      <span>{lang === "ar" ? "محفظة/بنك" : "Mobile"}</span>
+                    </button>
+
+                    {/* Credit (Debt) */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsSplitPayment(false);
+                        setPaymentMethod("credit");
+                        setPaid("0");
+                      }}
+                      className={`flex flex-col items-center justify-center gap-0.5 rounded-lg py-1.5 text-[11px] font-bold transition ${
+                        !isSplitPayment && paymentMethod === "credit"
+                          ? "bg-background text-amber-600 dark:text-amber-400 shadow-xs ring-1 ring-amber-500/30"
+                          : "text-muted-foreground hover:text-foreground hover:bg-background/50"
+                      }`}
+                    >
+                      <Clock className="h-4 w-4" />
+                      <span>{t("pos.pm.credit")}</span>
+                    </button>
+
+                    {/* Split Payment */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsSplitPayment(true);
+                        setSplitCash(String(total));
+                        setSplitCard("");
+                      }}
+                      className={`flex flex-col items-center justify-center gap-0.5 rounded-lg py-1.5 text-[11px] font-bold transition ${
+                        isSplitPayment
+                          ? "bg-background text-violet-600 dark:text-violet-400 shadow-xs ring-1 ring-violet-500/30"
+                          : "text-muted-foreground hover:text-foreground hover:bg-background/50"
+                      }`}
+                    >
+                      <Layers className="h-4 w-4" />
+                      <span>{t("pos.pm.split")}</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Transfer reference input */}
+                {!isSplitPayment &&
+                  (paymentMethod === "bank_transfer" || paymentMethod === "mobile_money") && (
+                    <input
+                      value={transferRef}
+                      onChange={(e) => setTransferRef(e.target.value)}
+                      placeholder={
+                        paymentMethod === "mobile_money"
+                          ? lang === "ar"
+                            ? "رقم عملية المحفظة / المرجع الإلكتروني"
+                            : "Wallet transaction / reference number"
+                          : t("pos.pm.transfer_ref")
+                      }
+                      aria-label={lang === "ar" ? "مرجع الحوالة" : "Transfer reference"}
+                      className="h-9 w-full rounded-xl border border-input/80 bg-background px-3 text-xs outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
+                    />
+                  )}
+
+                {/* Split Payment Details */}
+                {isSplitPayment ? (
+                  <div className="rounded-2xl border border-violet-500/30 bg-violet-500/5 p-2.5 space-y-2 animate-in fade-in duration-200">
+                    <div className="flex items-center justify-between text-xs font-semibold text-violet-700 dark:text-violet-300">
+                      <span>
+                        {lang === "ar" ? "توزيع الدفعات (نقد / شبكة / آجل):" : "Split Allocation:"}
                       </span>
-                      <select
-                        value={isSplitPayment ? "split" : paymentMethod}
-                        onChange={(e) => {
-                          if (e.target.value === "split") {
-                            setIsSplitPayment(true);
-                          } else {
-                            const method = e.target.value as typeof paymentMethod;
-                            setIsSplitPayment(false);
-                            setPaymentMethod(method);
-                            setPaid(method === "credit" ? "0" : "");
-                          }
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSplitCash(String(total));
+                          setSplitCard("");
                         }}
-                        className="h-10 w-full appearance-none rounded-xl border border-border/80 bg-surface px-3 text-xs font-semibold text-foreground outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
+                        className="text-[10px] text-violet-600 dark:text-violet-400 font-semibold underline"
                       >
-                        <option value="cash">{t("pos.pm.cash")}</option>
-                        <option value="mobile_money">{t("pos.pm.mobile_money")}</option>
-                        <option value="bank_transfer">{t("pos.pm.bank_transfer")}</option>
-                        <option value="credit">{t("pos.pm.credit")}</option>
-                        <option value="split">{t("pos.pm.split")}</option>
-                      </select>
-                      <ChevronDown className="pointer-events-none absolute end-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                    </label>
+                        {lang === "ar" ? "كامل نقد" : "All Cash"}
+                      </button>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="text-[10px] text-muted-foreground block mb-0.5">
+                          {lang === "ar" ? "نقدًا:" : "Cash:"}
+                        </label>
+                        <input
+                          type="number"
+                          min="0"
+                          dir="ltr"
+                          value={splitCash}
+                          onChange={(e) => setSplitCash(e.target.value)}
+                          placeholder="0"
+                          aria-label={lang === "ar" ? "نقدًا" : "Cash"}
+                          className="h-8 w-full rounded-xl border border-border bg-background px-2 text-xs font-mono font-bold outline-none focus:border-violet-500 [unicode-bidi:plaintext]"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] text-muted-foreground block mb-0.5">
+                          {lang === "ar" ? "شبكة/حوالة:" : "Card/Bank:"}
+                        </label>
+                        <input
+                          type="number"
+                          min="0"
+                          dir="ltr"
+                          value={splitCard}
+                          onChange={(e) => setSplitCard(e.target.value)}
+                          placeholder="0"
+                          aria-label={lang === "ar" ? "شبكة/حوالة" : "Card/Bank"}
+                          className="h-8 w-full rounded-xl border border-border bg-background px-2 text-xs font-mono font-bold outline-none focus:border-violet-500 [unicode-bidi:plaintext]"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="pt-1 border-t border-violet-500/20 flex items-center justify-between text-xs">
+                      <span className="text-muted-foreground font-medium">
+                        {lang === "ar" ? "إجمالي المدفوع:" : "Total Paid:"}
+                      </span>
+                      <span className="font-mono font-bold text-foreground [unicode-bidi:isolate]">
+                        {money(splitPaidTotal)}
+                      </span>
+                    </div>
+
+                    {remainingDebt > 0 && (
+                      <div className="flex items-center justify-between rounded-xl bg-amber-500/10 border border-amber-500/30 px-2.5 py-1 text-xs font-mono text-amber-700 dark:text-amber-300">
+                        <span>{lang === "ar" ? "المتبقي كدين آجل:" : "Remaining Debt:"}</span>
+                        <span className="font-bold [unicode-bidi:isolate]">{money(remainingDebt)}</span>
+                      </div>
+                    )}
+                  </div>
+                ) : paymentMethod === "cash" ? (
+                  /* ─── Cash Tender & Change Due Section ─── */
+                  <div className="space-y-1.5 rounded-2xl border border-border/80 bg-surface/80 p-2.5 shadow-2xs">
+                    <div className="flex items-center justify-between text-xs font-semibold text-foreground">
+                      <span className="flex items-center gap-1.5">
+                        <Banknote className="h-3.5 w-3.5 text-primary" />
+                        {lang === "ar" ? "المبلغ المستلم من العميل:" : "Cash Tendered:"}
+                      </span>
+                      <span className="text-[11px] text-muted-foreground">
+                        {isPaidEmpty ? (
+                          <span className="text-emerald-600 dark:text-emerald-400 font-semibold">
+                            {lang === "ar" ? "مسدد بالكامل" : "Exact Amount"}
+                          </span>
+                        ) : (
+                          <span className="font-mono font-bold [unicode-bidi:isolate]">
+                            {money(Number(paid))}
+                          </span>
+                        )}
+                      </span>
+                    </div>
+
+                    <div className="relative">
+                      <input
+                        type="number"
+                        min="0"
+                        dir="ltr"
+                        value={paid}
+                        onChange={(e) => handlePaidChange(e.target.value)}
+                        placeholder={total > 0 ? String(total) : "0"}
+                        aria-label={lang === "ar" ? "المبلغ المستلم من العميل" : "Cash tendered"}
+                        className="h-9 w-full rounded-xl border border-input/90 bg-background px-3 font-mono text-xs font-bold text-foreground outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20 [unicode-bidi:plaintext]"
+                      />
+                    </div>
+
+                    {/* Quick Banknote Denomination Shortcuts */}
+                    <div className="flex flex-wrap items-center gap-1 pt-0.5 text-[10px]">
+                      <button
+                        type="button"
+                        onClick={() => setPaid("")}
+                        className={`rounded-lg px-2 py-0.5 font-mono font-semibold transition ${
+                          isPaidEmpty
+                            ? "bg-primary text-primary-foreground shadow-2xs"
+                            : "bg-muted/70 text-muted-foreground hover:bg-muted hover:text-foreground"
+                        }`}
+                      >
+                        {lang === "ar" ? "المبلغ تماماً" : "Exact"}
+                      </button>
+                      {[500, 1000, 2000, 5000, 10000].map((denom) => (
+                        <button
+                          key={denom}
+                          type="button"
+                          onClick={() => {
+                            setPaid(String(denom));
+                            syncMethodWithPaid(denom);
+                          }}
+                          className="rounded-lg bg-muted/70 px-2 py-0.5 font-mono font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition active:scale-95"
+                        >
+                          {denom.toLocaleString("en-US")}
+                        </button>
+                      ))}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const half = Math.round((total / 2) * 100) / 100;
+                          setPaid(String(half));
+                          syncMethodWithPaid(half);
+                        }}
+                        className="rounded-lg bg-muted/70 px-2 py-0.5 text-muted-foreground hover:bg-muted hover:text-foreground transition"
+                      >
+                        {lang === "ar" ? "النصف" : "Half"}
+                      </button>
+                    </div>
+
+                    {/* Dynamic Change Due or Debt Status */}
+                    {isCashChange ? (
+                      <div className="flex items-center justify-between rounded-xl bg-emerald-500/15 border border-emerald-500/30 px-3 py-1.5 text-xs font-semibold text-emerald-700 dark:text-emerald-300 animate-in fade-in">
+                        <span className="flex items-center gap-1.5">
+                          <CheckCircle2 className="h-3.5 w-3.5" />
+                          {lang === "ar" ? "الباقي للعميل (الصرف):" : "Change Due:"}
+                        </span>
+                        <span className="font-mono text-sm font-black [unicode-bidi:isolate]">
+                          {money(changeDue)}
+                        </span>
+                      </div>
+                    ) : remainingDebt > 0 ? (
+                      <div className="flex items-center justify-between rounded-xl bg-amber-500/15 border border-amber-500/30 px-3 py-1.5 text-xs font-semibold text-amber-700 dark:text-amber-300 animate-in fade-in">
+                        <span className="flex items-center gap-1.5">
+                          <AlertCircle className="h-3.5 w-3.5" />
+                          {lang === "ar" ? "المتبقي كدين آجل:" : "Remaining Debt:"}
+                        </span>
+                        <span className="font-mono text-xs font-bold [unicode-bidi:isolate]">
+                          {money(remainingDebt)}
+                        </span>
+                      </div>
+                    ) : null}
+                  </div>
+                ) : (
+                  /* ─── Credit / Non-Cash Paid Input ─── */
+                  <div className="space-y-1.5 rounded-2xl border border-border/80 bg-surface/80 p-2.5 shadow-2xs">
+                    <div className="flex items-center justify-between text-xs font-semibold text-foreground">
+                      <span>{lang === "ar" ? "المبلغ المدفوع:" : "Amount Paid:"}</span>
+                      <span className="font-mono font-bold text-primary [unicode-bidi:isolate]">
+                        {money(effectivePaid)}
+                      </span>
+                    </div>
+
                     <input
                       type="number"
                       min="0"
-                      value={discount}
-                      onChange={(e) => setDiscount(e.target.value)}
-                      placeholder={t("pos.discount")}
-                      aria-label={t("pos.discount")}
-                      className="h-10 w-full rounded-xl border border-border/80 bg-surface px-2 text-end font-mono text-xs outline-none focus:border-primary"
+                      dir="ltr"
+                      value={paid}
+                      onChange={(e) => handlePaidChange(e.target.value)}
+                      placeholder={paymentMethod === "credit" ? "0" : String(total)}
+                      aria-label={lang === "ar" ? "المبلغ المدفوع" : "Amount paid"}
+                      className={`h-9 w-full rounded-xl border px-3 text-xs font-mono font-bold outline-none transition ${
+                        isOverpaid
+                          ? "border-destructive bg-destructive/10 text-destructive focus:ring-2 focus:ring-destructive/30"
+                          : "border-input/90 bg-background text-foreground focus:border-primary focus:ring-2 focus:ring-primary/20"
+                      } [unicode-bidi:plaintext]`}
                     />
+
+                    {paymentMethod === "credit" || remainingDebt > 0 ? (
+                      <div className="flex items-center justify-between rounded-xl bg-amber-500/15 border border-amber-500/30 px-3 py-1 text-xs font-mono text-amber-700 dark:text-amber-300">
+                        <span>{lang === "ar" ? "يسجل كدين على العميل:" : "Recorded as Debt:"}</span>
+                        <span className="font-bold [unicode-bidi:isolate]">{money(remainingDebt)}</span>
+                      </div>
+                    ) : null}
                   </div>
+                )}
 
-                  {/* Transfer reference — only meaningful for bank transfers. */}
-                  {!isSplitPayment &&
-                    (paymentMethod === "bank_transfer" || paymentMethod === "mobile_money") && (
-                      <input
-                        value={transferRef}
-                        onChange={(e) => setTransferRef(e.target.value)}
-                        placeholder={
-                          paymentMethod === "mobile_money"
-                            ? lang === "ar"
-                              ? "رقم عملية المحفظة / المرجع"
-                              : "Wallet transaction / reference number"
-                            : t("pos.pm.transfer_ref")
-                        }
-                        aria-label={
-                          paymentMethod === "mobile_money"
-                            ? lang === "ar"
-                              ? "مرجع المحفظة"
-                              : "Wallet reference"
-                            : t("pos.pm.transfer_ref")
-                        }
-                        className="h-9 w-full rounded-2xl border border-input/80 bg-surface/90 px-3 text-xs outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
-                      />
-                    )}
-
-                  {/* Split Payment inputs if enabled */}
-                  {isSplitPayment ? (
-                    <div className="rounded-2xl border border-violet-500/30 bg-violet-500/5 p-2.5 space-y-2 animate-in fade-in duration-200">
-                      <div className="flex items-center justify-between text-xs font-semibold text-violet-700 dark:text-violet-300">
-                        <span>
-                          {lang === "ar"
-                            ? "توزيع الدفعات (نقد / بطاقة أو حوالة / آجل):"
-                            : "Split Allocation:"}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setSplitCash(String(total));
-                            setSplitCard("");
-                          }}
-                          className="text-[10px] text-violet-600 underline"
-                        >
-                          {lang === "ar" ? "نقد كامل" : "All Cash"}
-                        </button>
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-2">
-                        <div>
-                          <label className="text-[10px] text-muted-foreground block mb-0.5">
-                            {lang === "ar" ? "نقدًا:" : "Cash:"}
-                          </label>
-                          <input
-                            type="number"
-                            min="0"
-                            dir="ltr"
-                            value={splitCash}
-                            onChange={(e) => setSplitCash(e.target.value)}
-                            placeholder="0"
-                            className="h-8 w-full rounded-xl border border-border bg-surface px-2 text-xs font-mono outline-none focus:border-violet-500 [unicode-bidi:plaintext]"
-                          />
-                          {splitCash && Number(splitCash) > 0 && (
-                            <span className="text-[9px] text-muted-foreground font-mono block text-end">
-                              <span dir="ltr" className="[unicode-bidi:isolate]">
-                                {formatWithCommas(splitCash)}
-                              </span>
-                            </span>
-                          )}
-                        </div>
-                        <div>
-                          <label className="text-[10px] text-muted-foreground block mb-0.5">
-                            {lang === "ar" ? "بطاقة/حوالة:" : "Card/Transfer:"}
-                          </label>
-                          <input
-                            type="number"
-                            min="0"
-                            dir="ltr"
-                            value={splitCard}
-                            onChange={(e) => setSplitCard(e.target.value)}
-                            placeholder="0"
-                            className="h-8 w-full rounded-xl border border-border bg-surface px-2 text-xs font-mono outline-none focus:border-violet-500 [unicode-bidi:plaintext]"
-                          />
-                          {splitCard && Number(splitCard) > 0 && (
-                            <span className="text-[9px] text-muted-foreground font-mono block text-end">
-                              <span dir="ltr" className="[unicode-bidi:isolate]">
-                                {formatWithCommas(splitCard)}
-                              </span>
-                            </span>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Split Summary Footer */}
-                      <div className="pt-1.5 border-t border-violet-500/20 flex items-center justify-between text-xs">
-                        <span className="text-muted-foreground font-medium">
-                          {lang === "ar" ? "إجمالي المدفوع الآن:" : "Total Paid Now:"}
-                        </span>
-                        <span className="font-mono font-bold text-foreground">
-                          <span dir="ltr" className="[unicode-bidi:isolate]">
-                            {money(splitPaidTotal)}
-                          </span>
-                        </span>
-                      </div>
-
-                      {remainingDebt > 0 && (
-                        <div className="flex items-center justify-between rounded-xl bg-amber-500/10 border border-amber-500/30 px-2.5 py-1 text-xs font-mono text-amber-600 dark:text-amber-300">
-                          <span>
-                            {lang === "ar" ? "المتبقي كدين آجل على العميل:" : "Remaining Debt:"}
-                          </span>
-                          <span className="font-bold">
-                            <span dir="ltr" className="[unicode-bidi:isolate]">
-                              {money(remainingDebt)}
-                            </span>
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                  ) : paymentMethod !== "cash" ? (
-                    /* Single Payment Paid Input & Live Comma Preview */
-                    <div className="space-y-1.5">
-                      <div className="space-y-1">
-                        <div className="flex items-center justify-between px-1 text-[11px] font-semibold text-muted-foreground">
-                          <span>{lang === "ar" ? "المبلغ المدفوع" : "Amount paid"}</span>
-                          <span className="font-mono text-primary">{money(total)}</span>
-                        </div>
-                        <div className="relative">
-                          <input
-                            type="number"
-                            min="0"
-                            dir="ltr"
-                            value={paid}
-                            onChange={(e) => handlePaidChange(e.target.value)}
-                            placeholder={
-                              isPaidEmpty
-                                ? paymentMethod === "credit"
-                                  ? `${lang === "ar" ? "آجل بالكامل" : "Full credit"} (${money(0)})`
-                                  : `${lang === "ar" ? "مدفوع بالكامل" : "Full paid"} (${money(total)})`
-                                : `${t("pos.paid")}`
-                            }
-                            className={`h-9 w-full rounded-2xl border px-3 text-xs font-mono outline-none transition ${
-                              isOverpaid
-                                ? "border-destructive bg-destructive/10 text-destructive focus:ring-2 focus:ring-destructive/30"
-                                : "border-input/80 bg-surface/90 text-foreground focus:border-primary focus:ring-2 focus:ring-primary/20"
-                            } [unicode-bidi:plaintext]`}
-                          />
-                          {paid.trim() !== "" && !isNaN(Number(paid)) && (
-                            <span className="absolute end-3 top-1/2 -translate-y-1/2 text-[11px] font-mono text-muted-foreground pointer-events-none">
-                              <span dir="ltr" className="[unicode-bidi:isolate]">
-                                = {money(Number(paid))}
-                              </span>
-                            </span>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Quick Shortcuts */}
-                      <div className="flex items-center gap-1.5 text-[10px]">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setIsSplitPayment(false);
-                            setPaymentMethod("cash");
-                            setPaid("");
-                          }}
-                          className="rounded-full bg-surface-2 px-2.5 py-0.5 text-muted-foreground hover:text-foreground hover:bg-surface-3 transition"
-                        >
-                          {lang === "ar" ? "الكامل" : "Full"}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setIsSplitPayment(false);
-                            const half = Math.round((total / 2) * 100) / 100;
-                            setPaid(String(half));
-                            if (half < total) setPaymentMethod("credit");
-                          }}
-                          className="rounded-full bg-surface-2 px-2.5 py-0.5 text-muted-foreground hover:text-foreground hover:bg-surface-3 transition"
-                        >
-                          {lang === "ar" ? "نصف المبلغ" : "Half"}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setIsSplitPayment(false);
-                            setPaymentMethod("credit");
-                            setPaid("0");
-                          }}
-                          className="rounded-full bg-surface-2 px-2.5 py-0.5 text-muted-foreground hover:text-foreground hover:bg-surface-3 transition"
-                        >
-                          {lang === "ar" ? "آجل (0)" : "0 (Debt)"}
-                        </button>
-                      </div>
-
-                      {/* Status Badges */}
-                      {isOverpaid ? (
-                        <div className="rounded-xl border border-destructive/40 bg-destructive/10 px-3 py-1.5 text-xs font-semibold text-destructive flex items-center gap-1.5 animate-in fade-in duration-200">
-                          <AlertCircle className="h-3.5 w-3.5 shrink-0" />
-                          <span className="truncate">
-                            {lang === "ar"
-                              ? `المبلغ المدفوع (${money(effectivePaid)}) أكبر من الإجمالي المطلوب (${money(total)})`
-                              : `Paid amount (${money(effectivePaid)}) exceeds total (${money(total)})`}
-                          </span>
-                        </div>
-                      ) : paymentMethod === "credit" || remainingDebt > 0 ? (
-                        <div className="flex items-center justify-between rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-1 text-xs font-mono text-amber-600 dark:text-amber-300">
-                          <span>
-                            {lang === "ar" ? "المتبقي كدين آجل على العميل:" : "Remaining debt:"}
-                          </span>
-                          <span className="font-bold">
-                            <span dir="ltr" className="[unicode-bidi:isolate]">
-                              {money(remainingDebt)}
-                            </span>
-                          </span>
-                        </div>
-                      ) : isPaidEmpty ? (
-                        <div className="flex items-center justify-between text-[11px] text-emerald-600 dark:text-emerald-400 font-medium px-2">
-                          <span className="flex items-center gap-1">
-                            <CheckCircle2 className="h-3 w-3" />
-                            {lang === "ar"
-                              ? "المدفوع تلقائيًا: كامل الإجمالي"
-                              : "Auto paid: Full invoice"}
-                          </span>
-                          <span className="font-mono font-semibold">
-                            <span dir="ltr" className="[unicode-bidi:isolate]">
-                              {money(total)}
-                            </span>
-                          </span>
-                        </div>
-                      ) : null}
-                    </div>
-                  ) : null}
-                </div>
-
-                {/* Notes — kept in the payment area so the operator never hunts for it. */}
-                <input
-                  value={note}
-                  onChange={(e) => setNote(e.target.value)}
-                  placeholder={t("pos.notes_placeholder")}
-                  className="h-9 w-full shrink-0 rounded-2xl border border-input/80 bg-surface/90 px-3 text-xs outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
-                />
-
-                <div className="space-y-1.5 rounded-2xl border border-primary/20 bg-primary/5 p-3">
+                {/* ─── Royal Totals Summary Card ─── */}
+                <div className="space-y-2 rounded-2xl border border-primary/25 bg-gradient-to-br from-card via-card to-primary/[0.04] p-3.5 shadow-sm">
+                  {/* Subtotal */}
                   <div className="flex items-center justify-between text-xs text-muted-foreground">
                     <span>{t("pos.subtotal")}</span>
-                    <span className="font-mono font-semibold text-foreground">
+                    <span className="font-mono font-semibold text-foreground [unicode-bidi:isolate]">
                       {money(subtotal)}
                     </span>
                   </div>
 
-                  {discountN > 0 && (
-                    <div className="flex items-center justify-between text-xs text-emerald-600 dark:text-emerald-400">
-                      <span className="font-medium">{t("pos.discount")}</span>
-                      <span className="font-mono font-bold [unicode-bidi:isolate]">
-                        −{money(discountN)}
-                      </span>
+                  {/* Discount inline input */}
+                  <div className="flex items-center justify-between gap-2 text-xs">
+                    <span className="text-muted-foreground">{t("pos.discount")}:</span>
+                    <div className="flex items-center gap-1.5">
+                      <input
+                        type="number"
+                        min="0"
+                        value={discount}
+                        onChange={(e) => setDiscount(e.target.value)}
+                        placeholder="0"
+                        aria-label={t("pos.discount")}
+                        className="h-7 w-20 rounded-lg border border-border/80 bg-background/80 px-2 text-center font-mono text-xs font-semibold text-foreground outline-none focus:border-primary focus:ring-1 focus:ring-primary/25"
+                      />
+                      {discountN > 0 && (
+                        <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400 [unicode-bidi:isolate]">
+                          −{money(discountN)}
+                        </span>
+                      )}
                     </div>
-                  )}
+                  </div>
 
+                  {/* Tax */}
                   {taxTotal > 0 && (
                     <div className="flex items-center justify-between text-xs text-muted-foreground">
                       <span>{t("pos.tax")}</span>
-                      <span className="font-mono font-semibold text-foreground">
+                      <span className="font-mono font-semibold text-foreground [unicode-bidi:isolate]">
                         {money(taxTotal)}
                       </span>
                     </div>
                   )}
 
-                  <div className="flex items-center justify-between border-t border-primary/20 pt-2">
-                    <span className="text-xs font-bold text-foreground">{t("pos.total")}</span>
-                    <span className="font-mono text-base font-extrabold tracking-tight text-primary">
-                      <span dir="ltr" className="[unicode-bidi:isolate]">
-                        {money(total)}
-                      </span>
+                  {/* Grand Total */}
+                  <div className="flex items-center justify-between border-t border-primary/20 pt-2.5">
+                    <div>
+                      <span className="text-xs font-black text-foreground">{t("pos.total")}</span>
+                      {cart.length > 0 && (
+                        <span className="block text-[10px] text-muted-foreground">
+                          {cart.reduce((s, i) => s + i.quantity, 0)} {lang === "ar" ? "قطعة" : "items"}
+                        </span>
+                      )}
+                    </div>
+                    <span className="font-mono text-lg font-black tracking-tight text-primary [unicode-bidi:isolate]">
+                      {money(total)}
                     </span>
                   </div>
                 </div>
+
+                {/* Notes Input */}
+                <input
+                  value={note}
+                  onChange={(e) => setNote(e.target.value)}
+                  placeholder={t("pos.notes_placeholder")}
+                  aria-label={t("pos.notes_placeholder")}
+                  className="h-8 w-full rounded-xl border border-input/80 bg-background px-3 text-xs outline-none transition focus:border-primary focus:ring-1 focus:ring-primary/20"
+                />
               </div>
             </div>
 
-            {/* Action row stays outside the only scroll region. */}
+            {/* ─── Sticky Action Row ─── */}
             <div className="mt-2 shrink-0 border-t border-border/70 bg-surface/95 pb-1 pt-2">
               {isOverpaid ? (
                 <button
                   type="button"
                   disabled
-                  className="flex h-11 w-full cursor-not-allowed items-center justify-center gap-2 rounded-2xl border border-destructive/60 bg-destructive text-sm font-bold text-destructive-foreground opacity-90 shadow-lg shadow-destructive/20 ring-2 ring-destructive/30"
+                  className="flex h-11 w-full cursor-not-allowed items-center justify-center gap-2 rounded-2xl border border-destructive/60 bg-destructive text-sm font-bold text-destructive-foreground opacity-90 shadow-lg shadow-destructive/20"
                 >
                   <AlertCircle className="h-4 w-4" />
                   <span>
                     {lang === "ar"
-                      ? "المبلغ المدفوع أكبر من الإجمالي!"
+                      ? "المبلغ المدفوع أكبر من الإجمالي المطلوب!"
                       : "Paid amount exceeds total!"}
                   </span>
                 </button>
               ) : (
                 <div className="flex gap-2">
-                  {/* Secondary: quotation preview (never persists). */}
+                  {/* Secondary: Quotation */}
                   <button
                     type="button"
                     onClick={openQuotation}
                     disabled={cart.length === 0}
                     title={t("pos.quote_only_hint")}
-                    className="flex h-11 shrink-0 items-center justify-center gap-2 rounded-2xl border border-transparent bg-foreground px-4 text-sm font-semibold text-background transition hover:opacity-90 active:scale-[0.99] disabled:opacity-50"
+                    className="flex h-11 shrink-0 items-center justify-center gap-2 rounded-2xl border border-border/80 bg-surface px-4 text-xs font-bold text-foreground transition hover:bg-surface-2 active:scale-95 disabled:opacity-40"
                   >
                     <FileText className="h-4 w-4" />
                     <span className="hidden sm:inline">{t("pos.quote")}</span>
                   </button>
 
-                  {/* Primary: issue the invoice. */}
+                  {/* Primary: Checkout */}
                   <button
                     type="button"
                     onClick={checkout}
                     disabled={loading || cart.length === 0}
-                    className="flex h-11 flex-1 items-center justify-center rounded-2xl bg-gradient-to-r from-primary to-primary/90 px-4 text-sm font-semibold text-primary-foreground shadow-lg shadow-primary/25 transition hover:shadow-primary/35 active:scale-[0.99] disabled:pointer-events-none disabled:opacity-50"
+                    className="flex h-11 flex-1 items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-primary via-primary to-primary/90 px-4 text-sm font-bold text-primary-foreground shadow-lg shadow-primary/25 transition hover:shadow-primary/35 hover:brightness-105 active:scale-[0.99] disabled:pointer-events-none disabled:opacity-50"
                   >
-                    <div className="flex items-center gap-2">
-                      {loading && <Loader2 className="h-4 w-4 animate-spin" />}
-                      <span>{t("pos.checkout")}</span>
-                    </div>
+                    {loading ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <CheckCircle2 className="h-4 w-4" />
+                    )}
+                    <span>
+                      {isCashChange
+                        ? `${t("pos.checkout")} (${lang === "ar" ? "الباقي:" : "Change:"} ${money(changeDue)})`
+                        : `${t("pos.checkout")} (F9)`}
+                    </span>
                   </button>
                 </div>
               )}
@@ -2609,6 +2889,7 @@ function POSPage() {
           </div>
         </div>
       </div>
+
 
       {/* Barcode Scanner Dialog */}
       <BarcodeScanner
