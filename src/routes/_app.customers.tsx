@@ -45,9 +45,7 @@ import { StatementIntegrityBadge } from "@/components/statements/statement-integ
 import {
   VortexCollectionSheet,
   VortexMetricCard,
-  type PaymentMethod,
 } from "@/components/vortex-ui";
-import { toLegacyPaymentValue } from "@/lib/payments/payment-methods";
 import { toast } from "sonner";
 import { WhatsAppIcon } from "@/components/whatsapp-icon";
 import { Ltr } from "@/components/ltr-value";
@@ -60,6 +58,7 @@ import {
   type FilterValues,
   type SortOption,
 } from "@/components/ui/table-toolbar";
+import { RecordsViewToggle } from "@/components/ui/records-view-toggle";
 import { DataTable, type DataTableColumn, type DataTableSort } from "@/components/ui/data-table";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { IconButton } from "@/components/ui/icon-button";
@@ -637,35 +636,6 @@ function CustomersPage() {
     setCollectionOpen(true);
   }, []);
 
-  const handleSaveCollection = async (data: {
-    customerId: string;
-    amount: number;
-    method: PaymentMethod;
-    notes?: string;
-  }) => {
-    //
-    // The map that used to sit here collapsed card and mobile_money onto
-    // bank_transfer, so a wallet collection was recorded as a bank transfer and
-    // the ledger credited the wrong account. The catalogue now answers directly.
-    //
-    const dbMethod = toLegacyPaymentValue(data.method);
-    const receiptNumber = String(Date.now()).slice(-6);
-
-    // Call official security-definer RPC record_customer_payment
-    const { data: rpcRes, error: pError } = await (supabase as any).rpc("record_customer_payment", {
-      _customer_id: data.customerId,
-      _invoice_id: null,
-      _amount: data.amount,
-      _method: dbMethod,
-      _payment_date: new Date().toISOString().slice(0, 10),
-      _note: data.notes || null,
-    });
-    if (pError) throw pError;
-
-    toast.success(lang === "ar" ? "تم تسجيل سند التحصيل بنجاح" : "Payment recorded successfully");
-    await load();
-    return { receiptNumber };
-  };
   const goDebts = useCallback(
     (c: Customer) => {
       navigate({ to: "/debts", search: { customerId: c.id } as any });
@@ -910,38 +880,7 @@ function CustomersPage() {
           },
           label: lang === "ar" ? "ترتيب" : "Sort",
         }}
-        viewToggle={
-          <ToolbarAction
-            label={
-              viewMode === "cards"
-                ? lang === "ar"
-                  ? "بطاقات"
-                  : "Cards"
-                : viewMode === "list"
-                  ? lang === "ar"
-                    ? "قائمة"
-                    : "List"
-                  : lang === "ar"
-                    ? "جدول"
-                    : "Table"
-            }
-            icon={
-              viewMode === "cards" ? (
-                <LayoutGrid />
-              ) : viewMode === "list" ? (
-                <List />
-              ) : (
-                <TableProperties />
-              )
-            }
-            onClick={() =>
-              setViewMode((prev) =>
-                prev === "cards" ? "list" : prev === "list" ? "table" : "cards",
-              )
-            }
-            tone="ghost"
-          />
-        }
+        viewToggle={<RecordsViewToggle value={viewMode} onChange={(mode) => setViewMode(mode)} />}
         action={
           <ToolbarAction
             label={lang === "ar" ? "عميل جديد" : "New Customer"}
@@ -1574,7 +1513,6 @@ function CustomersPage() {
         open={collectionOpen}
         onOpenChange={setCollectionOpen}
         customer={collectionCustomer}
-        onSavePayment={handleSaveCollection}
         onSuccess={() => void load()}
       />
     </div>

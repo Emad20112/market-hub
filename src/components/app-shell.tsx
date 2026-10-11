@@ -2,52 +2,16 @@ import { useCompanyCurrency } from "@/hooks/use-company-currency";
 import { Link, useRouterState, useNavigate } from "@tanstack/react-router";
 import { memo, useEffect, useMemo, useState } from "react";
 import {
-  LayoutDashboard,
-  ScanBarcode,
-  ShoppingBag,
-  Package,
-  Warehouse,
-  Receipt,
-  Truck,
-  Users,
-  Building2,
-  Wallet,
-  BarChart3,
-  ShieldCheck,
   Bell,
-  Settings,
-  Search,
-  Command as CommandIcon,
+  ChevronDown,
   LogOut,
-  Moon,
-  Sun,
-  Sparkles,
-  RotateCcw,
-  RotateCw,
-  ArrowRightLeft,
-  CalendarClock,
-  Barcode,
-  Gift,
-  History,
-  Layers,
-  Boxes,
   Menu,
-  PanelLeftOpen,
+  Moon,
   PanelLeftClose,
-  AlertTriangle,
-  LineChart,
-  FileText,
-  BookOpen,
-  Scale,
-  Landmark,
-  PieChart,
-  Crown,
-  ClipboardList,
-  Cog,
-  PackagePlus,
-  Zap,
-  ChartColumn,
-  ReceiptText,
+  PanelLeftOpen,
+  RotateCw,
+  Sparkles,
+  Sun,
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { canAccessRoute, getRouteRule } from "@/lib/route-access";
@@ -57,6 +21,8 @@ import { CommandPalette } from "@/components/command-palette";
 import { VortexHeaderOmnisearch } from "@/components/vortex-header-omnisearch";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { ConnectionBanner } from "@/components/ui/connection";
+import { Hint } from "@/components/ui/hint";
+import { useSidebarSections } from "@/lib/navigation/sidebar-sections";
 import { cn } from "@/lib/utils";
 import { InamaSoftFooter } from "@/components/inama-soft-footer";
 import { supabase } from "@/integrations/supabase/client";
@@ -178,6 +144,11 @@ const SidebarContents = memo(function SidebarContents({
     select: (s) => s.location.pathname,
   });
 
+  /** `?section=` of the settings route, used to highlight the right link. */
+  const currentSection = useRouterState({
+    select: (s) => new URLSearchParams(s.location.searchStr ?? "").get("section"),
+  });
+
   // Navigation belongs to the application itself, not to an individual tenant.
   // The company logo remains available in invoices and printable documents.
   const logoUrl = "/vortex-erp-mark.png";
@@ -192,6 +163,33 @@ const SidebarContents = memo(function SidebarContents({
         canAccessRoute(entry.path.split("?")[0], { roles, isPlatformAdmin, isPlatformSuperadmin }),
     });
   }, [isModuleEnabled, isPlatformAdmin, isPlatformSuperadmin, roles, millingMode]);
+
+  /*
+   * Collapsible sections (§4.1).
+   *
+   * `key` is the route category, not the array index, so reordering the sidebar
+   * cannot apply a saved choice to the wrong section. The section that holds
+   * the current screen is force-opened: navigating into a page must never leave
+   * its own link hidden inside a collapsed group.
+   */
+  const activeCategory = useMemo(() => {
+    return (
+      filteredSections.find((sec) =>
+        sec.entries.some(
+          (entry) =>
+            pathname === entry.path ||
+            (entry.path !== "/dashboard" && pathname.startsWith(`${entry.path.split("?")[0]}/`)),
+        ),
+      )?.category ?? null
+    );
+  }, [filteredSections, pathname]);
+
+  const { isOpen: isSectionOpen, toggle: toggleSection } = useSidebarSections({
+    userId: user?.id,
+    forceOpenKeys: activeCategory ? [activeCategory] : [],
+    // First run: only the section you are standing in is expanded.
+    defaultOpen: (key) => key === activeCategory,
+  });
 
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden bg-sidebar text-sidebar-foreground">
@@ -233,37 +231,98 @@ const SidebarContents = memo(function SidebarContents({
       <nav
         className={cn(
           "flex-1 min-h-0 overflow-y-auto overflow-x-hidden overscroll-contain custom-scrollbar",
-          collapsed ? "px-2 py-3 space-y-2" : "px-3 py-3.5 space-y-4",
+          collapsed ? "px-2 py-3 space-y-2" : "px-3 py-3.5 space-y-2.5",
         )}
       >
-        {filteredSections.map((sec, secIdx) => (
-          <div key={sec.titleKey}>
-            {!collapsed ? (
-              <div className="px-3 pb-1.5 text-[11px] font-bold uppercase tracking-[0.14em] text-muted-foreground/80 truncate">
-                {t(sec.titleKey)}
-              </div>
-            ) : (
-              secIdx > 0 && <div className="my-2 h-px w-7 mx-auto bg-sidebar-border/60" />
-            )}
+        {filteredSections.map((sec, secIdx) => {
+          const sectionKey = sec.category;
+          const sectionOpen = collapsed ? true : isSectionOpen(sectionKey);
+          const activeInSection = activeCategory === sectionKey;
 
-            <ul className={cn(collapsed ? "space-y-1.5" : "space-y-1")}>
-              {sec.entries.map((it) => {
-                const active =
-                  pathname === it.path ||
-                  (it.path !== "/dashboard" && pathname.startsWith(`${it.path}/`));
-                const Icon = routeIcon(it.id);
-                const title = it.i18nKey ? t(it.i18nKey) : isAr ? it.titleAr : it.titleEn;
+          return (
+            <div key={sec.titleKey}>
+              {!collapsed ? (
+                <>
+                  {/* One open/close control per main section, operable by touch
+                   *  and keyboard, with `aria-expanded` + `aria-controls`. */}
+                  <button
+                    type="button"
+                    onClick={() => toggleSection(sectionKey)}
+                    aria-expanded={sectionOpen}
+                    aria-controls={`sidebar-section-${sectionKey}`}
+                    className={cn(
+                      "flex w-full items-center gap-1.5 rounded-lg px-3 py-1.5 text-[11px] font-bold uppercase tracking-[0.14em]",
+                      "transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50",
+                      activeInSection
+                        ? "text-foreground"
+                        : "text-muted-foreground/80 hover:bg-sidebar-accent/60 hover:text-foreground",
+                    )}
+                  >
+                    <span className="min-w-0 flex-1 truncate text-start">{t(sec.titleKey)}</span>
+                    <span
+                      className={cn(
+                        "grid size-5 shrink-0 place-items-center rounded-md text-muted-foreground/70 transition-transform duration-200",
+                        sectionOpen ? "rotate-0" : dir === "rtl" ? "rotate-90" : "-rotate-90",
+                      )}
+                      aria-hidden
+                    >
+                      <ChevronDown className="size-3.5" />
+                    </span>
+                  </button>
+                </>
+              ) : (
+                secIdx > 0 && <div className="my-2 h-px w-7 mx-auto bg-sidebar-border/60" />
+              )}
 
-                return (
-                  <li key={it.id} className="relative">
-                    {(() => {
-                      const catStyle =
-                        CATEGORY_STYLES[sec.category] || CATEGORY_STYLES.command_center;
-                      return (
+              <ul
+                id={`sidebar-section-${sectionKey}`}
+                hidden={!sectionOpen}
+                className={cn(collapsed ? "space-y-1.5" : "space-y-1 mt-0.5")}
+              >
+                {sec.entries.map((it) => {
+                  /*
+                   * Active-link matching.
+                   *
+                   * Entries that differ only by `?section=` share one pathname,
+                   * so comparing paths alone lit up every settings link at once.
+                   * A sectioned entry is active only when its own section is the
+                   * selected one; the unsectioned `/settings` entry ("/settings")
+                   * stays active for the hub itself.
+                   */
+                  const [entryPath, entryQuery] = it.path.split("?");
+                  const entrySection = new URLSearchParams(entryQuery ?? "").get("section");
+
+                  const active = entrySection
+                    ? pathname === entryPath && currentSection === entrySection
+                    : entryPath === "/settings"
+                      ? // The hub itself: active only when no section is chosen,
+                        // otherwise the sectioned link below it takes the mark.
+                        pathname === "/settings" && !currentSection
+                      : pathname === entryPath ||
+                        (entryPath !== "/dashboard" && pathname.startsWith(`${entryPath}/`));
+                  const Icon = routeIcon(it.id);
+                  const title = it.i18nKey ? t(it.i18nKey) : isAr ? it.titleAr : it.titleEn;
+                  const catStyle = CATEGORY_STYLES[sec.category] || CATEGORY_STYLES.command_center;
+
+                  return (
+                    <li key={it.id} className="relative">
+                      {/* In the collapsed rail the label must appear on hover —
+                       *  a unified tooltip, never a bare `title`. */}
+                      <Hint
+                        label={collapsed ? title : undefined}
+                        side={dir === "rtl" ? "left" : "right"}
+                      >
                         <Link
-                          to={it.path}
+                          /*
+                           * `to` is the path only; a sectioned settings entry
+                           * carries its section as `search`. Passing the full
+                           * "/settings?section=x" as `to` would make the router
+                           * treat the query as part of the pathname and fail to
+                           * match the route.
+                           */
+                          to={entryPath}
+                          search={entrySection ? { section: entrySection } : undefined}
                           onClick={onNavigate}
-                          title={collapsed ? title : undefined}
                           className={cn(
                             "group relative flex items-center transition-all duration-200 outline-none focus-visible:ring-2 focus-visible:ring-primary/50",
                             collapsed
@@ -322,43 +381,15 @@ const SidebarContents = memo(function SidebarContents({
                             </span>
                           )}
                         </Link>
-                      );
-                    })()}
-                  </li>
-                );
-              })}
-            </ul>
-          </div>
-        ))}
+                      </Hint>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          );
+        })}
       </nav>
-
-      {/* Settings Navigation Shortcut */}
-      <div className={cn("px-2.5 pb-1", collapsed && "flex justify-center p-2 pb-1")}>
-        <Link
-          to="/settings"
-          onClick={onNavigate}
-          className={cn(
-            "group relative flex items-center rounded-xl text-xs font-semibold transition-all duration-200 border",
-            pathname.startsWith("/settings")
-              ? "bg-primary text-primary-foreground border-primary shadow-sm"
-              : "text-muted-foreground hover:bg-sidebar-accent hover:text-foreground border-transparent",
-            collapsed ? "h-9 w-9 justify-center p-0" : "w-full gap-2.5 px-3 py-2",
-          )}
-          title={isAr ? "إعدادات النظام والطباعة" : "System & Printing Settings"}
-        >
-          <div
-            className={cn(
-              "grid h-6 w-6 shrink-0 place-items-center rounded-lg transition-transform",
-              pathname.startsWith("/settings")
-                ? "bg-white/20 text-white"
-                : "bg-primary/10 text-primary group-hover:scale-110",
-            )}
-          >
-            <Settings className="size-3.5" />
-          </div>
-          {!collapsed && <span className="truncate">{isAr ? "الإعدادات" : "Settings"}</span>}
-        </Link>
-      </div>
 
       {/* ERP Tour trigger button */}
       <div className={cn("px-2.5 pb-1", collapsed && "flex justify-center p-2 pb-1")}>
@@ -373,6 +404,7 @@ const SidebarContents = memo(function SidebarContents({
             collapsed ? "h-9 w-9 justify-center p-0" : "w-full gap-2.5 px-3 py-2",
           )}
           title={isAr ? "جولة في النظام والتعريف بالواجهات" : "ERP Guided Tour"}
+          aria-label={isAr ? "جولة في النظام" : "ERP Guided Tour"}
         >
           <div className="grid h-6 w-6 shrink-0 place-items-center rounded-lg bg-primary/15 text-primary">
             <Sparkles className="size-3.5 group-hover:scale-110 transition-transform" />
@@ -508,9 +540,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+      // اختصار لوحة الأوامر الشاملة (Command Palette): Ctrl+Shift+P أو Cmd+Shift+P
+      if ((e.metaKey || e.ctrlKey) && (e.shiftKey && e.key.toLowerCase() === "p")) {
         e.preventDefault();
-
         setPaletteOpen((x) => !x);
       }
     };
@@ -579,14 +611,26 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <Menu className="h-4.5 w-4.5" />
           </button>
 
-          {/* Desktop Sidebar Collapse / Expand Toggle - circular button with PanelLeftOpen/Close */}
+          {/*
+           * Desktop sidebar collapse / expand — the plan's control (§4.2).
+           *
+           * One icon language, always: a square control with a neutral surface
+           * and rounded corners, showing `PanelLeftClose` when the rail is open
+           * (pressing it closes) and `PanelLeftOpen` when it is closed. The
+           * previous version swapped in a `Menu` glyph on the settings route,
+           * so the same button meant two different things on two screens.
+           *
+           * In RTL the whole control mirrors with the layout, and the icon is
+           * flipped so "close" always points at the edge the panel leaves.
+           */}
           <button
             type="button"
             onClick={() =>
               isSettingsRoute ? setSettingsSidebarOpen((open) => !open) : toggleCollapsed()
             }
             className={cn(
-              "hidden md:grid h-10 w-10 shrink-0 place-items-center rounded-full border border-border/60 bg-surface text-muted-foreground transition-all duration-300 hover:border-ring/40 hover:bg-surface-2 hover:text-foreground active:scale-95",
+              "hidden md:grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-border/60 bg-surface-2/70 text-muted-foreground transition-all duration-300 hover:border-ring/40 hover:bg-surface-3 hover:text-foreground active:scale-95",
+              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50",
               searchFocused && "md:hidden lg:grid",
             )}
             title={
@@ -607,21 +651,33 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                     : "Collapse sidebar"
             }
             aria-label={
-              isSettingsRoute && settingsSidebarOpen
-                ? dir === "rtl"
-                  ? "إغلاق القائمة الجانبية"
-                  : "Close sidebar"
-                : dir === "rtl"
-                  ? "القائمة الجانبية"
-                  : "Sidebar menu"
+              isSettingsRoute
+                ? settingsSidebarOpen
+                  ? dir === "rtl"
+                    ? "إغلاق القائمة الجانبية"
+                    : "Close sidebar"
+                  : dir === "rtl"
+                    ? "فتح القائمة الجانبية"
+                    : "Open sidebar"
+                : collapsed
+                  ? dir === "rtl"
+                    ? "توسيع القائمة الجانبية"
+                    : "Expand sidebar"
+                  : dir === "rtl"
+                    ? "طي القائمة (أيقونات فقط)"
+                    : "Collapse sidebar"
             }
           >
             {isSettingsRoute ? (
-              <Menu className="h-4.5 w-4.5" />
+              settingsSidebarOpen ? (
+                <PanelLeftClose className="h-4.5 w-4.5 rtl:-scale-x-100" />
+              ) : (
+                <PanelLeftOpen className="h-4.5 w-4.5 rtl:-scale-x-100" />
+              )
             ) : collapsed ? (
-              <PanelLeftOpen className="h-4.5 w-4.5" />
+              <PanelLeftOpen className="h-4.5 w-4.5 rtl:-scale-x-100" />
             ) : (
-              <PanelLeftClose className="h-4.5 w-4.5" />
+              <PanelLeftClose className="h-4.5 w-4.5 rtl:-scale-x-100" />
             )}
           </button>
 

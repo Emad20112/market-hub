@@ -37,7 +37,7 @@ const en: Dict = {
   "nav.debts": "Customer Debts",
   "nav.sales_returns": "Sales Returns",
   "nav.purchase_returns": "Purchase Returns",
-  "nav.account_statement": "Reports Center",
+  "nav.account_statement": "Statements & Reports Center",
   "nav.daily_journal": "Daily Journal",
   "nav.trial_balance": "Trial Balance",
   "nav.income_statement": "Income Statement (P&L)",
@@ -64,6 +64,60 @@ const en: Dict = {
   "nav.section.finance": "Accounting & Finance",
   "nav.section.settings": "System & Settings",
   "nav.milling": "Milling & Custody",
+  "nav.settings_general": "General Settings",
+  "nav.settings_company": "Business Profile",
+  "nav.settings_billing": "Invoices & Currency",
+  "nav.settings_printing": "Printing & Invoice Templates",
+  "nav.settings_payment_methods": "Payment Methods",
+  "nav.settings_activity": "Business Profile",
+  "nav.settings_stock": "Stock & Codes",
+  "nav.settings_numbers": "Numbering System",
+  "nav.settings_appearance": "Appearance & Language",
+  "nav.settings_backup": "Backup & Security",
+  "nav.settings_plan": "Plan & Subscription",
+  "nav.settings_milling": "Milling Mode",
+
+  // Records view — the three presentations and their chrome
+  "records.view.cards": "Cards",
+  "records.view.list": "List",
+  "records.view.table": "Table",
+  "records.view.group": "View mode",
+  "records.view.switch_hint": "Choose how records are shown (saved for your device)",
+  "records.columns": "Visible columns",
+  "records.columns.title": "Visible columns",
+  "records.columns.hint": "Choose the fields shown on this screen",
+  "records.columns.reset": "Restore defaults",
+  "records.columns.locked": "Essential — cannot be hidden",
+  "records.columns.saved": "Your column choices were saved",
+  "records.filters.active": "{count} filter(s) applied",
+  "records.filters.clear_all": "Clear filters",
+  "records.apply": "Apply",
+  "records.sort": "Sort results",
+  "records.filter": "Filter results",
+  "common.sort": "Sort",
+  "common.yes": "Yes",
+  "common.no": "No",
+  "records.load_more": "Load more",
+  "records.loading_more": "Loading more…",
+  "records.all_loaded": "All records are shown ({count})",
+  "records.showing": "Showing {shown} of {total}",
+  "records.refreshing": "Refreshing…",
+
+  // Settings — explicit save
+  "settings.save_changes": "Save changes",
+  "settings.saving": "Saving…",
+  "settings.save_failed": "Could not save — tap to retry",
+  "settings.unsaved_changes": "You have unsaved changes",
+  "settings.unsaved_hint": "These changes are not saved yet. Leaving now discards them.",
+  "settings.save_now": "Save now",
+  "settings.discard": "Discard changes",
+  "settings.stay": "Stay on this page",
+  "settings.revert": "Undo",
+  "settings.search": "Search settings…",
+  "settings.no_results": "No matching settings",
+  "settings.pick_section": "Choose a section",
+  "settings.pick_section_hint": "Pick a category from the list, or use the search above.",
+  "settings.back": "Back to settings",
 
   // Common
   "common.search": "Search anything...",
@@ -1114,7 +1168,7 @@ const ar: Dict = {
   "nav.debts": "ديون العملاء",
   "nav.sales_returns": "مرتجعات المبيعات",
   "nav.purchase_returns": "مرتجعات المشتريات",
-  "nav.account_statement": "مركز الكشوفات",
+  "nav.account_statement": "مركز الكشوفات والتقارير",
   "nav.daily_journal": "دفتر اليومية العامة",
   "nav.trial_balance": "ميزان المراجعة",
   "nav.income_statement": "قائمة الدخل والأرباح",
@@ -1147,6 +1201,61 @@ const ar: Dict = {
   "nav.section.finance": "المحاسبة والمالية",
   "nav.section.milling": "المطحنة والأمانات",
   "nav.section.settings": "النظام والإعدادات",
+  "nav.settings_general": "الإعدادات العامة",
+  "nav.settings_company": "بيانات المنشأة",
+  "nav.settings_billing": "الفواتير والعملة",
+  "nav.settings_printing": "الطباعة وقوالب الفواتير",
+  "nav.settings_payment_methods": "طرق الدفع",
+  "nav.settings_activity": "تخصيص النشاط",
+  "nav.settings_stock": "المخزون والرموز",
+  "nav.settings_numbers": "نظام الأرقام",
+  "nav.settings_appearance": "المظهر واللغة",
+  "nav.settings_backup": "النسخ الاحتياطي والأمان",
+  "nav.settings_plan": "الباقة والاشتراك",
+  "nav.settings_milling": "نمط تشغيل المطحنة",
+
+  // عرض السجلات — الأوضاع الثلاثة وأدواتها
+  "records.view.cards": "بطاقات",
+  "records.view.list": "قائمة",
+  "records.view.table": "جدول",
+  "records.view.group": "وضع العرض",
+  "records.view.switch_hint": "اختر طريقة عرض السجلات (تُحفظ لجهازك)",
+  "records.columns": "الأعمدة الظاهرة",
+  "records.columns.title": "الأعمدة الظاهرة",
+  "records.columns.hint": "اختر الحقول التي تظهر في هذه الشاشة",
+  "records.columns.reset": "استعادة الافتراضي",
+  "records.columns.locked": "أساسي — لا يمكن إخفاؤه",
+  "records.columns.saved": "تم حفظ اختيارك للأعمدة",
+  "records.filters.active": "{count} فلتر مُطبّق",
+  "records.filters.clear_all": "مسح الفلاتر",
+  "records.apply": "تطبيق",
+  "records.sort": "ترتيب النتائج",
+  "records.filter": "تصفية النتائج",
+  "common.sort": "ترتيب",
+  "common.yes": "نعم",
+  "common.no": "لا",
+  "records.load_more": "تحميل المزيد",
+  "records.loading_more": "جارٍ تحميل المزيد…",
+  "records.all_loaded": "تم عرض جميع السجلات ({count})",
+  "records.showing": "عرض {shown} من {total}",
+  "records.refreshing": "جارٍ التحديث…",
+
+  // الإعدادات — حفظ صريح
+  "settings.save_changes": "حفظ التغييرات",
+  "settings.saving": "جارٍ الحفظ…",
+  "settings.save_failed": "تعذّر الحفظ — اضغط لإعادة المحاولة",
+  "settings.unsaved_changes": "لديك تغييرات غير محفوظة",
+  "settings.unsaved_hint": "هذه التغييرات لم تُحفظ بعد. إذا غادرت الآن ستُفقد.",
+  "settings.save_now": "حفظ الآن",
+  "settings.discard": "تجاهل التغييرات",
+  "settings.stay": "البقاء في الصفحة",
+  "settings.revert": "تراجع",
+  "settings.search": "بحث في الإعدادات…",
+  "settings.no_results": "لا توجد نتائج مطابقة",
+  "settings.pick_section": "اختر قسماً من القائمة",
+  "settings.pick_section_hint":
+    "اختر إحدى التصنيفات من القائمة الجانبية لعرض إعداداتها، أو ابحث أعلى الصفحة.",
+  "settings.back": "رجوع إلى الإعدادات",
 
   // عام
   "common.search": "ابحث عن أي شيء...",
@@ -2160,6 +2269,17 @@ const ar: Dict = {
 };
 
 const dicts: Record<Lang, Dict> = { en, ar };
+
+/**
+ * مفاتيح الترجمة المتاحة لكل لغة — تُقرأ في الاختبارات.
+ *
+ * الغرض منها منع «مفتاح صامت»: أي مفتاح يُستخدم في الواجهة ولا يوجد في
+ * القاموس يُعرض للمستخدم كما هو (`nav.settings_stock` بدل «المخزون والرموز»)،
+ * وهو خطأ لا يظهر إلا بصرياً. تصدير القاموس يجعل ذلك قابلاً للفحص.
+ */
+export function translatedKeys(lang: Lang): Set<string> {
+  return new Set(Object.keys(dicts[lang]));
+}
 
 interface I18nCtx {
   lang: Lang;

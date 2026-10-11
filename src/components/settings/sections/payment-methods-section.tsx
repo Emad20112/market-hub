@@ -27,7 +27,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
-import { Button } from "@/components/ui/button";
+import { ActionButton } from "@/components/ui/action-button";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import {
@@ -40,6 +40,7 @@ import {
   List,
   LoaderCircle,
   RotateCcw,
+  Save,
   TableProperties,
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
@@ -459,7 +460,7 @@ export function PaymentMethodsSection() {
             <div
               className={cn(
                 viewMode === "grid"
-                  ? "grid grid-cols-2 gap-2.5 md:grid-cols-3 lg:grid-cols-4"
+                  ? "grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3"
                   : viewMode === "list"
                     ? "grid grid-cols-1 gap-2.5"
                     : "overflow-x-auto rounded-xl border-border/60",
@@ -484,7 +485,7 @@ export function PaymentMethodsSection() {
                     )}
                   >
                     {/* ── Row 1: identity, order, master switch ── */}
-                    <div className="flex items-center gap-3">
+                    <div className="flex min-w-0 items-start gap-3">
                       <PaymentMethodIcon
                         iconKey={method.iconKey}
                         methodId={method.id}
@@ -533,17 +534,24 @@ export function PaymentMethodsSection() {
                             </Badge>
                           ) : null}
                         </div>
-                        <div className="mt-0.5 flex-wrap items-center gap-x-2 gap-y-0.5 text-[10px] text-muted-foreground">
-                          <span className="font-mono">{method.id}</span>
-                          <span>{method.ledgerKind}</span>
-                          {method.defaultAccountCode && (
-                            <span dir="ltr">{method.defaultAccountCode}</span>
-                          )}
-                          {method.enabled && (
+                        <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[10px] text-muted-foreground">
+                          <span>
+                            {row.enabled
+                              ? isAr
+                                ? "مفعّلة"
+                                : "Enabled"
+                              : isAr
+                                ? "متوقفة"
+                                : "Disabled"}
+                          </span>
+                          {row.enabled ? (
                             <span>
-                              {row.contexts.length} {isAr ? "سياقات" : "contexts"}
+                              {row.contexts.length} {isAr ? "أماكن ظهور" : "places"}
                             </span>
-                          )}
+                          ) : null}
+                          {method.defaultAccountCode ? (
+                            <span>{isAr ? "حساب مرتبط" : "Linked account"}</span>
+                          ) : null}
                         </div>
                       </div>
 
@@ -643,33 +651,22 @@ export function PaymentMethodsSection() {
 
       {/* ── Sticky action bar, matching the rest of Settings ── */}
       {(isDirty || isSaving) && (
-        <div className="sticky bottom-4 z-30 flex items-center gap-2 rounded-2xl border border-border/70 bg-card/95 p-2.5 shadow-lg backdrop-blur-md">
-          <span className="flex-1 ps-1 text-[11px] font-medium text-muted-foreground">
+        <div className="fixed bottom-[max(1rem,env(safe-area-inset-bottom))] right-4 z-40 flex max-w-[calc(100vw-2rem)] flex-wrap items-center justify-end gap-2 rounded-2xl border border-border/70 bg-card/95 p-2 shadow-xl backdrop-blur-md">
+          <span className="px-1 text-[11px] font-medium text-muted-foreground">
             {isAr ? "لديك تغييرات غير محفوظة" : "You have unsaved changes"}
           </span>
-          <Button
-            variant="ghost"
+          <ActionButton
+            tone="ghost"
             size="sm"
+            icon={<RotateCcw />}
             onClick={reset}
             disabled={isSaving}
-            className="h-8 gap-1.5 text-xs"
           >
-            <RotateCcw className="h-3.5 w-3.5" />
             {isAr ? "تراجع" : "Revert"}
-          </Button>
-          <Button
-            size="sm"
-            onClick={handleSave}
-            disabled={isSaving}
-            className="h-8 gap-1.5 text-xs"
-          >
-            {isSaving ? (
-              <LoaderCircle className="h-3.5 w-3.5 animate-spin" />
-            ) : (
-              <Check className="h-3.5 w-3.5" />
-            )}
-            {isAr ? "حفظ" : "Save"}
-          </Button>
+          </ActionButton>
+          <ActionButton size="sm" icon={<Save />} onClick={handleSave} loading={isSaving}>
+            {isAr ? "حفظ التغييرات" : "Save changes"}
+          </ActionButton>
         </div>
       )}
     </div>

@@ -47,6 +47,7 @@ import {
   type FilterValues,
   type SortOption,
 } from "@/components/ui/table-toolbar";
+import { RecordsViewToggle } from "@/components/ui/records-view-toggle";
 import { DataTable, type DataTableColumn, type DataTableSort } from "@/components/ui/data-table";
 import { IconButton } from "@/components/ui/icon-button";
 import { useBreakpoint } from "@/design/breakpoints";
@@ -803,38 +804,7 @@ function PurchasesPage() {
           },
           label: isRtl ? "ترتيب" : "Sort",
         }}
-        viewToggle={
-          <ToolbarAction
-            label={
-              viewMode === "cards"
-                ? isRtl
-                  ? "بطاقات"
-                  : "Cards"
-                : viewMode === "list"
-                  ? isRtl
-                    ? "قائمة"
-                    : "List"
-                  : isRtl
-                    ? "كلاسيكي"
-                    : "Classic"
-            }
-            icon={
-              viewMode === "cards" ? (
-                <LayoutGrid />
-              ) : viewMode === "list" ? (
-                <List />
-              ) : (
-                <TableProperties />
-              )
-            }
-            onClick={() =>
-              setViewMode((prev) =>
-                prev === "cards" ? "list" : prev === "list" ? "table" : "cards",
-              )
-            }
-            tone="ghost"
-          />
-        }
+        viewToggle={<RecordsViewToggle value={viewMode} onChange={setViewMode} />}
         action={
           <ToolbarAction
             label={isRtl ? "فاتورة شراء جديدة" : "New Purchase"}

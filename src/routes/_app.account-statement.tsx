@@ -1,18 +1,15 @@
 /**
- * /account-statement — كشف حساب تفصيلي (عميل / مورد)
+ * /account-statement — مركز الكشوفات والتقارير
  *
- * ⚠️ شاشة واحدة فقط — بنفس التصميم السابق:
- *   شريط الاختيار (نوع الحساب + الحساب + المجاميع) ثم جدول الحركات.
- *
- * أُضيف شريط خيارات مضغوط فوق الجدول (الفترة · القالب · إظهار المسددة)
- * بدل إنشاء شاشة منشئ كشف منفصلة.
- *
- * كل الأرقام تأتي من Statement Engine — لا منطق حسابي هنا.
- * عند تغيير أي خيار، يُعاد الحساب في مكانه بلا انتقال لأي شاشة أخرى.
+ * شاشة موحدة تجمع:
+ *   1. تبويب الكشوفات: كشوف الحسابات الأساسية (العملاء، الموردون، الصندوق والبنك).
+ *   2. تبويب التقارير: جميع التقارير التشغيلية والتحليلية الموحدة بتصميم جدول موحد:
+ *      (الأكثر مبيعاً، المبيعات، طرق الدفع، مخزون منخفض، المشتريات، الديون والمستحقات،
+ *       فواتير العملاء، الأرباح والمبيعات، حركة المخزون، المرتجعات، المصروفات، كشف الصنف).
  */
 
 import { ModuleGuard } from "@/lib/modules";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { z } from "zod";
 import {
@@ -22,9 +19,14 @@ import {
   UserCheck,
   Building2,
   Wallet,
-  ClipboardList,
   Eye,
   Share2,
+  FileText,
+  BarChart3,
+  ArrowDownUp,
+  ArrowUp,
+  ArrowDown,
+  ChevronsUpDown,
 } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { useI18n } from "@/lib/i18n";
@@ -79,33 +81,32 @@ import { StatementEntryDetails } from "@/components/statements/entry-details";
 import { money } from "@/lib/format";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { ReportPickerDialog } from "@/components/statements/report-picker-dialog";
 import { DocumentShareDialog } from "@/components/communication";
 import { statementToContext } from "@/lib/communication";
-import { PurchasesReport } from "@/components/statements/purchases-report";
-import { OperationalReports } from "@/components/statements/operational-reports";
-import { DebtsReport } from "@/components/statements/debts-report";
-import { ProfitSalesReport } from "@/components/statements/profit-sales-report";
 import {
   DEFAULT_REPORT_PREFERENCES,
   getReportPreferences,
   saveReportPreferences,
 } from "@/lib/statements/local-storage";
 import {
-  reportDefinition,
   reportTypeForEntity,
   type ReportType,
 } from "@/lib/statements/report-registry";
+import { ReportsHubTab, type ReportCategory } from "@/components/statements/reports-hub-tab";
+import { SearchInput } from "@/components/ui/search-input";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 const accountStatementSearchSchema = z.object({
   customerId: z.string().optional(),
   entityType: z.string().optional(),
   entityId: z.string().optional(),
+  tab: z.enum(["statements", "reports"]).optional(),
+  reportSection: z.string().optional(),
 });
 
 export const Route = createFileRoute("/_app/account-statement")({
   validateSearch: (search: Record<string, unknown>) => accountStatementSearchSchema.parse(search),
-  head: () => ({ meta: [{ title: "كشف حساب — Market Hub" }] }),
+  head: () => ({ meta: [{ title: "مركز الكشوفات والتقارير — Market Hub" }] }),
   component: () => (
     <ModuleGuard moduleId="payments">
       <AccountStatementPage />
@@ -120,7 +121,6 @@ interface PartyOption {
   balance?: number;
 }
 
-/** نطاقات جاهزة للفترة — تُبنى محليًا بلا استعلام */
 function periodPresets() {
   const today = new Date();
   const iso = (d: Date) => d.toISOString().slice(0, 10);
@@ -140,18 +140,22 @@ function periodPresets() {
   ];
 }
 
-function AccountStatementPage() {
+type MainTab = "statements" | "reports";
+
+export function AccountStatementPage() {
   const { t, lang } = useI18n();
   const ar = lang === "ar";
   const searchParams = Route.useSearch();
+  const navigate = useNavigate();
   const { settings } = useStatementSettings();
   const savedPreferences = useMemo(() => getReportPreferences(), []);
 
-  // ── نوع الكشف والحساب والجهة ──
-  const [reportType, setReportType] = useState<ReportType>(
-    savedPreferences.reportType ?? DEFAULT_REPORT_PREFERENCES.reportType,
+  // ── التبويب الرئيسي: [الكشوفات | التقارير] ──
+  const [mainTab, setMainTab] = useState<MainTab>(
+    searchParams.tab ?? "statements",
   );
-  const [reportPickerOpen, setReportPickerOpen] = useState(false);
+
+  // ── كشوفات الحسابات الأساسية فقط في تبويب الكشوفات ──
   const [partyType, setPartyType] = useState<StatementEntityType>(
     (searchParams.entityType as StatementEntityType) || savedPreferences.entityType || "customer",
   );
@@ -160,12 +164,16 @@ function AccountStatementPage() {
   );
   const [partyList, setPartyList] = useState<PartyOption[]>([]);
   const [loadingParties, setLoadingParties] = useState(false);
-  /** الحركة المفتوحة في لوحة «تفاصيل القيد» */
   const [detailEntry, setDetailEntry] = useState<StatementTransaction | null>(null);
-  /** نافذة مشاركة كشف الحساب (PDF / Excel / واتساب) */
   const [shareOpen, setShareOpen] = useState(false);
 
-  // ── الخيارات (مضغوطة داخل نفس الشاشة) ──
+  // ── البحث والفرز في جدول كشف الحساب ──
+  const [tableSearch, setTableSearch] = useState("");
+  const [sortField, setSortField] = useState<"date" | "debit" | "credit" | "balance">("date");
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
+  const [sortMenuOpen, setSortMenuOpen] = useState(false);
+
+  // ── خيارات الفلترة والفترة ──
   const [from, setFrom] = useState(savedPreferences.from);
   const [to, setTo] = useState(savedPreferences.to);
   const [activePreset, setActivePreset] = useState(savedPreferences.preset);
@@ -185,10 +193,9 @@ function AccountStatementPage() {
     ...savedPreferences.visibleColumns,
   });
 
-  // حفظ الاختيارات محليًا: هذه تفضيلات واجهة فقط، وليست مصدرًا للبيانات المالية.
   useEffect(() => {
     saveReportPreferences({
-      reportType,
+      reportType: reportTypeForEntity(partyType),
       entityType: partyType,
       entityId: partyId,
       from,
@@ -197,9 +204,17 @@ function AccountStatementPage() {
       includeZeroRows: includeZero,
       visibleColumns,
     });
-  }, [reportType, partyType, partyId, from, to, activePreset, includeZero, visibleColumns]);
+  }, [partyType, partyId, from, to, activePreset, includeZero, visibleColumns]);
 
-  // ── جلب الجهات حسب النوع ──
+  const handleTabChange = (tab: MainTab) => {
+    setMainTab(tab);
+    void navigate({
+      search: (prev: Record<string, unknown>) => ({ ...prev, tab }),
+      replace: true,
+    });
+  };
+
+  // جلب أطراف الحسابات
   useEffect(() => {
     let cancelled = false;
 
@@ -238,17 +253,16 @@ function AccountStatementPage() {
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [partyType]);
 
-  // ── المحرّك: كل الأرقام من هنا ──
+  // استدعاء محرك كشف الحساب
   const { result, layout, company, isLoading, hasSourceData, derived, refetch } = useStatement({
     entityType: partyType,
     entityId: partyId,
     from: from || null,
     to: to || null,
     includeZeroRows: includeZero,
-    enabled: Boolean(partyId),
+    enabled: Boolean(partyId) && mainTab === "statements",
   });
 
   const currencySymbol = useMemo(
@@ -260,11 +274,70 @@ function AccountStatementPage() {
     [settings.currencySymbolOverride, company?.currencySymbol],
   );
 
-  // مجاميع العرض — من النتيجة، لا حساب هنا
   const totalDebit = result?.totalDebit ?? 0;
   const totalCredit = result?.totalCredit ?? 0;
   const closingBalance = result?.closingBalance ?? 0;
-  const statementRows = result?.transactions ?? [];
+  const rawRows = result?.transactions ?? [];
+
+  // تصفية وفرز الحركات
+  const statementRows = useMemo(() => {
+    let rows = [...rawRows];
+
+    if (tableSearch.trim()) {
+      const q = tableSearch.toLowerCase().trim();
+      rows = rows.filter((r) => {
+        const ref = (r.reference || "").toLowerCase();
+        const desc = (r.description || "").toLowerCase();
+        const kind = kindLabel(r.kind, partyType, lang).toLowerCase();
+        const pm = String(r.meta?.paymentMethod ?? "").toLowerCase();
+        const deb = String(r.debit ?? "");
+        const cred = String(r.credit ?? "");
+        return (
+          ref.includes(q) ||
+          desc.includes(q) ||
+          kind.includes(q) ||
+          pm.includes(q) ||
+          deb.includes(q) ||
+          cred.includes(q)
+        );
+      });
+    }
+
+    rows.sort((a, b) => {
+      if (sortField === "date") {
+        const t1 = new Date(a.occurredAt).getTime();
+        const t2 = new Date(b.occurredAt).getTime();
+        return sortDirection === "asc" ? t1 - t2 : t2 - t1;
+      }
+      if (sortField === "debit") {
+        const v1 = a.debit ?? 0;
+        const v2 = b.debit ?? 0;
+        return sortDirection === "asc" ? v1 - v2 : v2 - v1;
+      }
+      if (sortField === "credit") {
+        const v1 = a.credit ?? 0;
+        const v2 = b.credit ?? 0;
+        return sortDirection === "asc" ? v1 - v2 : v2 - v1;
+      }
+      if (sortField === "balance") {
+        return sortDirection === "asc"
+          ? a.runningBalance - b.runningBalance
+          : b.runningBalance - a.runningBalance;
+      }
+      return 0;
+    });
+
+    return rows;
+  }, [rawRows, tableSearch, sortField, sortDirection, partyType, lang]);
+
+  const toggleSort = (field: "date" | "debit" | "credit" | "balance") => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === "asc" ? "desc" : "asc");
+    } else {
+      setSortField(field);
+      setSortDirection("desc");
+    }
+  };
 
   const filterPresets: ReportFilterPreset[] = periodPresets().map((preset) => ({
     key: preset.key,
@@ -318,7 +391,6 @@ function AccountStatementPage() {
     toast.success(ar ? "تم تصدير الملف (CSV)" : "File exported (CSV)");
   }
 
-  // جهة الكشف الحالية (عميل / مورد) — تُستخدم لمشاركة الملخص عبر واتساب
   const activeParty = useMemo(
     () => partyList.find((p) => p.id === partyId) ?? null,
     [partyList, partyId],
@@ -350,30 +422,6 @@ function AccountStatementPage() {
     setShareOpen(true);
   }
 
-  function handleReportSelect(nextType: ReportType) {
-    const definition = reportDefinition(nextType);
-    if (!definition.implemented || !definition.entityType) {
-      setReportType(nextType);
-      saveReportPreferences({ reportType: nextType });
-      toast.info(
-        ar
-          ? "تم حفظ اختيار الكشف، وسيتم تنفيذ مصدر بياناته في المرحلة التالية."
-          : "The report choice was saved and its data source will be implemented in the next phase.",
-      );
-      return;
-    }
-    setReportType(nextType);
-    setPartyType(definition.entityType);
-    setDetailEntry(null);
-    saveReportPreferences({ reportType: nextType, entityType: definition.entityType });
-  }
-
-  const partyTabs: { type: StatementEntityType; label: string; icon: typeof UserCheck }[] = [
-    { type: "customer", label: ar ? "حسابات العملاء" : "Customers", icon: UserCheck },
-    { type: "supplier", label: ar ? "حسابات الموردين" : "Suppliers", icon: Building2 },
-    { type: "cash", label: ar ? "الصندوق والبنك" : "Treasury", icon: Wallet },
-  ];
-
   const alignClass = (align: "start" | "center" | "end") =>
     align === "end" ? "text-end" : align === "center" ? "text-center" : "text-start";
 
@@ -383,10 +431,6 @@ function AccountStatementPage() {
     label: column.label,
   }));
 
-  /**
-   * محتوى خلية واحدة — نفس المنطق يُستخدم في الجدول وفي بطاقة الهاتف،
-   * حتى لا تتباعد الواجهتان. لا حساب مالي هنا: كل الأرقام تأتي من الـ Engine.
-   */
   const renderCell = (row: StatementTransaction, key: StatementFieldKey): React.ReactNode => {
     switch (key) {
       case "index":
@@ -402,23 +446,18 @@ function AccountStatementPage() {
           <span className="text-xs font-semibold">{kindLabel(row.kind, partyType, lang)}</span>
         );
       case "reference":
-        return <Ltr className="font-mono text-xs text-primary">{row.reference ?? "—"}</Ltr>;
+        return <Ltr className="font-mono text-xs text-primary font-medium">{row.reference ?? "—"}</Ltr>;
       case "description":
         return <span className="text-xs text-muted-foreground">{row.description ?? "—"}</span>;
       case "debit":
-        return <Ltr className="font-mono text-rose-500">{fmtOrDash(row.debit)}</Ltr>;
+        return <Ltr className="font-mono text-rose-500 font-bold">{fmtOrDash(row.debit)}</Ltr>;
       case "credit":
-        return <Ltr className="font-mono text-emerald-500">{fmtOrDash(row.credit)}</Ltr>;
+        return <Ltr className="font-mono text-emerald-500 font-bold">{fmtOrDash(row.credit)}</Ltr>;
       case "balance":
-        return <Ltr className="font-mono font-bold">{fmtAmount(row.runningBalance)}</Ltr>;
+        return <Ltr className="font-mono font-bold text-foreground">{fmtAmount(row.runningBalance)}</Ltr>;
       case "paymentMethod": {
-        const rawPm = String(row.meta?.paymentMethod ?? "")
-          .trim()
-          .toLowerCase();
+        const rawPm = String(row.meta?.paymentMethod ?? "").trim().toLowerCase();
         const breakdown = String(row.meta?.paymentBreakdown ?? "").trim();
-        // The catalogue, not a local map. This map knew seven values and would
-        // have rendered anything else — including every method a business
-        // creates — as its raw English key.
         const pmLabel = paymentMethodLabelFromCatalog(rawPm, ar ? "ar" : "en");
         return (
           <span
@@ -442,45 +481,43 @@ function AccountStatementPage() {
   return (
     <>
       <PageHeader
-        title={ar ? "مركز الكشوفات" : "Reports center"}
+        title={ar ? "مركز الكشوفات والتقارير" : "Statements & Reports Center"}
         subtitle={
           ar
-            ? "اختر نوع الكشف واعرض بياناته من الجداول التشغيلية المناسبة"
-            : "Choose a report and view data from its operational source"
+            ? "منظومة موحدة لاستعراض كشوفات الحسابات التفصيلية، تقارير الأداء، المبيعات والمخزون"
+            : "Unified center for financial statements, performance analytics, sales and stock reports"
         }
         actions={
           <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setReportPickerOpen(true)}
-              className="gap-1.5"
-            >
-              <ClipboardList className="h-4 w-4" />
-              {ar ? "فتح كشف آخر" : "Open another report"}
-            </Button>
-            {["customer-account", "supplier-account", "cash-account"].includes(reportType) && (
+            {mainTab === "statements" && (
               <>
                 <Button
                   onClick={handleShareStatement}
                   variant="outline"
+                  size="sm"
                   disabled={!result || partyType === "cash"}
-                  className="gap-2 text-primary border-primary/30 hover:bg-primary/10"
+                  className="h-8 gap-1.5 text-xs text-primary border-primary/30 hover:bg-primary/10 rounded-xl"
                 >
-                  <Share2 className="h-4 w-4" />
-                  {ar ? "مشاركة الكشف" : "Share statement"}
+                  <Share2 className="h-3.5 w-3.5" />
+                  {ar ? "مشاركة الكشف" : "Share"}
                 </Button>
                 <Button
                   onClick={handleExportCsv}
                   variant="outline"
+                  size="sm"
                   disabled={!result}
-                  className="gap-2 text-emerald-500 border-emerald-500/30 hover:bg-emerald-500/10"
+                  className="h-8 gap-1.5 text-xs text-emerald-500 border-emerald-500/30 hover:bg-emerald-500/10 rounded-xl"
                 >
-                  <FileSpreadsheet className="h-4 w-4" />
-                  {ar ? "تصدير CSV" : "Export CSV"}
+                  <FileSpreadsheet className="h-3.5 w-3.5" />
+                  {ar ? "تصدير CSV" : "CSV"}
                 </Button>
-                <Button onClick={handlePrintPDF} disabled={!result} className="gap-2 bg-primary">
-                  <Printer className="h-4 w-4" />
+                <Button
+                  onClick={handlePrintPDF}
+                  size="sm"
+                  disabled={!result}
+                  className="h-8 gap-1.5 text-xs bg-primary rounded-xl"
+                >
+                  <Printer className="h-3.5 w-3.5" />
                   {ar ? "طباعة PDF فاخر" : "Print PDF"}
                 </Button>
               </>
@@ -489,85 +526,97 @@ function AccountStatementPage() {
         }
       />
 
-      <div className="mb-3 flex items-center gap-2 text-xs text-muted-foreground">
-        <span className="rounded-full border-primary/20 bg-primary/5 px-2.5 py-1 text-primary">
-          {ar ? reportDefinition(reportType).title.ar : reportDefinition(reportType).title.en}
-        </span>
-        {!reportDefinition(reportType).implemented && (
-          <span>{ar ? "مصدر البيانات قيد التنفيذ" : "Data source is planned"}</span>
-        )}
+      {/* ═══ الشريط العلوي الموحد للتنقل بين [الكشوفات | التقارير] ═══ */}
+      <div className="mb-4 flex items-center justify-between border-b border-border/70 pb-3">
+        <div className="flex items-center gap-2 p-1 rounded-2xl bg-surface-2 border border-border/80 shadow-inner">
+          <button
+            type="button"
+            onClick={() => handleTabChange("statements")}
+            className={cn(
+              "flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all duration-200",
+              mainTab === "statements"
+                ? "bg-surface text-primary shadow-md shadow-primary/5 ring-1 ring-border/80"
+                : "text-muted-foreground hover:text-foreground hover:bg-surface/60",
+            )}
+          >
+            <FileText className="h-4 w-4" />
+            <span>{ar ? "الكشوفات" : "Statements"}</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => handleTabChange("reports")}
+            className={cn(
+              "flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all duration-200",
+              mainTab === "reports"
+                ? "bg-surface text-primary shadow-md shadow-primary/5 ring-1 ring-border/80"
+                : "text-muted-foreground hover:text-foreground hover:bg-surface/60",
+            )}
+          >
+            <BarChart3 className="h-4 w-4" />
+            <span>{ar ? "التقارير" : "Reports"}</span>
+            <span className="rounded-full bg-primary/10 px-1.5 text-[10px] text-primary">
+              12
+            </span>
+          </button>
+        </div>
       </div>
 
-      {reportType === "purchases" ? (
-        <PurchasesReport
-          from={from}
-          to={to}
+      {/* ═══════════════════════════════════════════════════════════════
+          تبويب التقارير الموحد: يضم جميع التقارير الـ 12 بتصميم جدول موحد
+         ═══════════════════════════════════════════════════════════════ */}
+      {mainTab === "reports" && (
+        <ReportsHubTab
           ar={ar}
-          onBack={() => handleReportSelect("customer-account")}
-          filterValues={filterValues}
-          filterPresets={filterPresets}
-          onFilterChange={updateFilterValues}
-          onFilterReset={resetOptions}
+          initialReport={(searchParams.reportSection as ReportCategory) ?? "top"}
         />
-      ) : reportType === "debts" ? (
-        <DebtsReport ar={ar} onBack={() => handleReportSelect("customer-account")} />
-      ) : reportType === "profit-sales" ? (
-        <ProfitSalesReport
-          from={from}
-          to={to}
-          ar={ar}
-          onBack={() => handleReportSelect("customer-account")}
-          filterValues={filterValues}
-          filterPresets={filterPresets}
-          onFilterChange={updateFilterValues}
-          onFilterReset={resetOptions}
-        />
-      ) : ["sales-invoices", "returns", "expenses", "inventory-movements", "product"].includes(
-          reportType,
-        ) ? (
-        <OperationalReports
-          type={
-            reportType as
-              "sales-invoices" | "returns" | "expenses" | "inventory-movements" | "product"
-          }
-          from={from}
-          to={to}
-          ar={ar}
-          onBack={() => handleReportSelect("customer-account")}
-          filterValues={filterValues}
-          filterPresets={filterPresets}
-          onFilterChange={updateFilterValues}
-          onFilterReset={resetOptions}
-        />
-      ) : (
-        <div className="space-y-4">
-          {/* ═══ شريط الاختيار (كما كان) ═══ */}
-          <div className="panel-elevated p-4 flex flex-wrap items-center justify-between gap-4">
-            <div className="flex flex-wrap items-center gap-4">
-              <div className="flex items-center gap-2 border border-border p-1 rounded-lg bg-surface-2">
-                {partyTabs.map((tab) => {
-                  const Icon = tab.icon;
-                  return (
-                    <Button
-                      key={tab.type}
-                      variant={partyType === tab.type ? "default" : "ghost"}
-                      size="sm"
-                      onClick={() => {
-                        setPartyType(tab.type);
-                        setReportType(reportTypeForEntity(tab.type));
-                      }}
-                      className="gap-2 text-xs"
-                    >
-                      <Icon className="h-4 w-4" />
-                      {tab.label}
-                    </Button>
-                  );
-                })}
-              </div>
+      )}
 
+      {/* ═══════════════════════════════════════════════════════════════
+          تبويب الكشوفات: مخصص حصرياً لكشوفات الحسابات الأساسية النظيفة
+         ═══════════════════════════════════════════════════════════════ */}
+      {mainTab === "statements" && (
+        <div className="space-y-4">
+          {/* بطاقة اختيار الحساب النظيفة والمرتبة بقوائم منسدلة */}
+          <div className="panel-elevated p-3.5 sm:p-4 flex flex-wrap items-center justify-between gap-3">
+            <div className="flex flex-wrap items-center gap-2.5">
+              {/* قائمة منسدلة لنوع الحساب */}
+              <Select
+                value={partyType}
+                onValueChange={(val) => {
+                  const nextType = val as StatementEntityType;
+                  setPartyType(nextType);
+                }}
+              >
+                <SelectTrigger className="h-9 w-40 sm:w-44 text-xs font-semibold bg-surface rounded-xl border-border/80 shadow-sm">
+                  <SelectValue placeholder={ar ? "نوع الحساب" : "Account type"} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="customer">
+                    <div className="flex items-center gap-2">
+                      <UserCheck className="h-3.5 w-3.5 text-primary" />
+                      <span>{ar ? "كشف حساب عميل" : "Customer account"}</span>
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="supplier">
+                    <div className="flex items-center gap-2">
+                      <Building2 className="h-3.5 w-3.5 text-blue-500" />
+                      <span>{ar ? "كشف حساب مورد" : "Supplier account"}</span>
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="cash">
+                    <div className="flex items-center gap-2">
+                      <Wallet className="h-3.5 w-3.5 text-emerald-500" />
+                      <span>{ar ? "الصندوق والبنك" : "Treasury / Bank"}</span>
+                    </div>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+
+              {/* قائمة منسدلة لاختيار الطرف */}
               {partyType !== "cash" && (
                 <Select value={partyId} onValueChange={setPartyId}>
-                  <SelectTrigger className="w-64">
+                  <SelectTrigger className="h-9 w-48 sm:w-64 text-xs font-medium bg-surface rounded-xl border-border/80 shadow-sm">
                     <SelectValue
                       placeholder={
                         loadingParties
@@ -578,10 +627,17 @@ function AccountStatementPage() {
                       }
                     />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="max-h-[300px]">
                     {partyList.map((p) => (
                       <SelectItem key={p.id} value={p.id}>
-                        {p.name}
+                        <div className="flex items-center justify-between gap-4 w-full text-xs">
+                          <span className="font-medium truncate">{p.name}</span>
+                          {p.balance !== undefined && (
+                            <span className="font-mono text-[11px] text-muted-foreground">
+                              {money(Number(p.balance))}
+                            </span>
+                          )}
+                        </div>
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -589,30 +645,36 @@ function AccountStatementPage() {
               )}
             </div>
 
-            {/* المجاميع — عمود واحد على الهاتف حتى لا تُضغط الأرقام */}
+            {/* المجاميع المالية المدمجة */}
             {result && (
-              <div className="grid w-full grid-cols-1 gap-2 sm:flex sm:w-auto sm:items-center sm:gap-6">
-                <div className="flex items-center justify-between gap-3 sm:block sm:text-end">
-                  <span className="text-xs text-muted-foreground">
-                    {ar ? "إجمالي المدين (له):" : "Total Debit:"}{" "}
+              <div className="flex flex-wrap items-center gap-4 sm:gap-6 bg-surface-2/60 px-3.5 py-1.5 rounded-xl border border-border/60">
+                <div className="text-end">
+                  <span className="text-[10px] text-muted-foreground block">
+                    {ar ? "إجمالي المدين (له)" : "Total Debit"}
                   </span>
-                  <span className="font-bold font-mono text-rose-500 text-sm block">
+                  <span className="font-bold font-mono text-rose-500 text-xs sm:text-sm">
                     <Ltr>{money(totalDebit)}</Ltr>
                   </span>
                 </div>
-                <div className="flex items-center justify-between gap-3 border-t border-border/60 pt-2 sm:border-0 sm:pt-0 sm:block sm:text-end">
-                  <span className="text-xs text-muted-foreground">
-                    {ar ? "إجمالي الدائن (عليه):" : "Total Credit:"}{" "}
+
+                <div className="h-6 w-px bg-border/60 hidden sm:block" />
+
+                <div className="text-end">
+                  <span className="text-[10px] text-muted-foreground block">
+                    {ar ? "إجمالي الدائن (عليه)" : "Total Credit"}
                   </span>
-                  <span className="font-bold font-mono text-emerald-500 text-sm block">
+                  <span className="font-bold font-mono text-emerald-500 text-xs sm:text-sm">
                     <Ltr>{money(totalCredit)}</Ltr>
                   </span>
                 </div>
-                <div className="flex items-center justify-between gap-3 border-t border-border/60 pt-2 sm:border-0 sm:pt-0 sm:block sm:text-end sm:border-r sm:pr-6">
-                  <span className="text-xs text-muted-foreground">
-                    {ar ? "الرصيد المتبقي الحالي:" : "Net Balance:"}{" "}
+
+                <div className="h-6 w-px bg-border/60 hidden sm:block" />
+
+                <div className="text-end">
+                  <span className="text-[10px] text-muted-foreground block">
+                    {ar ? "الرصيد المتبقي" : "Net Balance"}
                   </span>
-                  <span className="font-bold font-mono text-primary text-base block">
+                  <span className="font-bold font-mono text-primary text-sm sm:text-base">
                     <Ltr>{money(closingBalance)}</Ltr>
                   </span>
                 </div>
@@ -620,37 +682,162 @@ function AccountStatementPage() {
             )}
           </div>
 
-          <div className="flex flex-wrap items-center justify-end gap-2">
-            <ReportFilterMenu
-              values={filterValues}
-              presets={filterPresets}
-              onChange={updateFilterValues}
-              onReset={resetOptions}
-              labels={{
-                trigger: ar ? "تصفية الكشف" : "Filter statement",
-                title: ar ? "تصفية الكشف" : "Statement filters",
-                date: ar ? "التاريخ والفترة" : "Date and period",
-                period: ar ? "الفترة" : "Period",
-                options: ar ? "خيارات إضافية" : "More options",
-                includeZeroRows: ar ? "إظهار الفواتير المسددة" : "Include settled",
-                reset: ar ? "إعادة ضبط الفلاتر" : "Reset filters",
-                back: ar ? "رجوع" : "Back",
-                from: ar ? "من" : "From",
-                to: ar ? "إلى" : "To",
-              }}
-            />
-            <ColumnVisibilityMenu
-              columns={columnOptions}
-              visible={visibleColumns}
-              onChange={(key, value) =>
-                setVisibleColumns((current) => ({ ...current, [key]: value }))
-              }
-              label={ar ? "الأعمدة" : "Columns"}
-              title={ar ? "إظهار أعمدة الكشف" : "Visible columns"}
-            />
+          {/* شريط الأدوات الموحد: البحث + الفرز + الفلاتر + الأعمدة */}
+          <div className="flex flex-wrap items-center justify-between gap-2.5">
+            <div className="flex-1 min-w-[220px] max-w-md">
+              <SearchInput
+                value={tableSearch}
+                onValueChange={setTableSearch}
+                placeholder={
+                  ar
+                    ? "ابحث في حركات الكشف (رقم الفاتورة، السند، البيان...) (/)"
+                    : "Search statement records... (/)"
+                }
+                resultCountText={
+                  statementRows.length !== rawRows.length
+                    ? `${statementRows.length}/${rawRows.length}`
+                    : String(statementRows.length)
+                }
+                enableSlashShortcut
+                containerClassName="w-full"
+              />
+            </div>
+
+            <div className="flex items-center gap-2">
+              {/* قائمة الفرز المنسدلة */}
+              <Popover open={sortMenuOpen} onOpenChange={setSortMenuOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant={sortField !== "date" || sortDirection !== "desc" ? "default" : "outline"}
+                    size="sm"
+                    className={cn(
+                      "h-8 gap-1.5 px-2.5 text-xs rounded-xl",
+                      sortField !== "date" && "bg-primary text-primary-foreground",
+                    )}
+                  >
+                    <ArrowDownUp className="h-3.5 w-3.5" />
+                    <span>{ar ? "ترتيب" : "Sort"}</span>
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent align="end" className="w-[200px] p-1.5">
+                  <div className="border-b border-border/60 px-2 py-1.5 text-xs font-semibold">
+                    {ar ? "خيارات الترتيب" : "Sort options"}
+                  </div>
+                  <div className="space-y-0.5 pt-1 text-xs">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSortField("date");
+                        setSortDirection("desc");
+                        setSortMenuOpen(false);
+                      }}
+                      className={cn(
+                        "flex w-full items-center justify-between rounded-md px-2 py-1.5 transition hover:bg-surface-2",
+                        sortField === "date" && sortDirection === "desc" && "font-semibold text-primary",
+                      )}
+                    >
+                      <span>{ar ? "التاريخ: الأحدث أولاً" : "Date: Newest"}</span>
+                      {sortField === "date" && sortDirection === "desc" && "✓"}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSortField("date");
+                        setSortDirection("asc");
+                        setSortMenuOpen(false);
+                      }}
+                      className={cn(
+                        "flex w-full items-center justify-between rounded-md px-2 py-1.5 transition hover:bg-surface-2",
+                        sortField === "date" && sortDirection === "asc" && "font-semibold text-primary",
+                      )}
+                    >
+                      <span>{ar ? "التاريخ: الأقدم أولاً" : "Date: Oldest"}</span>
+                      {sortField === "date" && sortDirection === "asc" && "✓"}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSortField("debit");
+                        setSortDirection("desc");
+                        setSortMenuOpen(false);
+                      }}
+                      className={cn(
+                        "flex w-full items-center justify-between rounded-md px-2 py-1.5 transition hover:bg-surface-2",
+                        sortField === "debit" && sortDirection === "desc" && "font-semibold text-primary",
+                      )}
+                    >
+                      <span>{ar ? "المدين: الأكبر أولاً" : "Debit: Highest"}</span>
+                      {sortField === "debit" && sortDirection === "desc" && "✓"}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSortField("credit");
+                        setSortDirection("desc");
+                        setSortMenuOpen(false);
+                      }}
+                      className={cn(
+                        "flex w-full items-center justify-between rounded-md px-2 py-1.5 transition hover:bg-surface-2",
+                        sortField === "credit" && sortDirection === "desc" && "font-semibold text-primary",
+                      )}
+                    >
+                      <span>{ar ? "الدائن: الأكبر أولاً" : "Credit: Highest"}</span>
+                      {sortField === "credit" && sortDirection === "desc" && "✓"}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSortField("balance");
+                        setSortDirection("desc");
+                        setSortMenuOpen(false);
+                      }}
+                      className={cn(
+                        "flex w-full items-center justify-between rounded-md px-2 py-1.5 transition hover:bg-surface-2",
+                        sortField === "balance" && sortDirection === "desc" && "font-semibold text-primary",
+                      )}
+                    >
+                      <span>{ar ? "الرصيد: الأكبر أولاً" : "Balance: Highest"}</span>
+                      {sortField === "balance" && sortDirection === "desc" && "✓"}
+                    </button>
+                  </div>
+                </PopoverContent>
+              </Popover>
+
+              <ReportFilterMenu
+                values={filterValues}
+                presets={filterPresets}
+                onChange={updateFilterValues}
+                onReset={resetOptions}
+                labels={{
+                  trigger: ar ? "تصفية الكشف" : "Filter statement",
+                  title: ar ? "تصفية الكشف" : "Statement filters",
+                  date: ar ? "التاريخ والفترة" : "Date and period",
+                  period: ar ? "الفترة" : "Period",
+                  options: ar ? "خيارات إضافية" : "More options",
+                  includeZeroRows: ar ? "إظهار الفواتير المسددة" : "Include settled",
+                  reset: ar ? "إعادة ضبط الفلاتر" : "Reset filters",
+                  back: ar ? "رجوع" : "Back",
+                  from: ar ? "من" : "From",
+                  to: ar ? "إلى" : "To",
+                }}
+              />
+
+              <ColumnVisibilityMenu
+                columns={columnOptions}
+                visible={visibleColumns}
+                onChange={(key, value) =>
+                  setVisibleColumns((current) => ({ ...current, [key]: value }))
+                }
+                label={ar ? "الأعمدة" : "Columns"}
+                title={ar ? "إظهار أعمدة الكشف" : "Visible columns"}
+              />
+            </div>
           </div>
 
-          {/* ═══ تنبيهات ═══ */}
           {result?.integrity.hasGap && (
             <StatementIntegrityBadge integrity={result.integrity} variant="panel" />
           )}
@@ -662,14 +849,14 @@ function AccountStatementPage() {
             </div>
           )}
 
-          {/* ═══ جدول الكشف (نفس التصميم السابق) ═══ */}
-          <div className="panel-elevated p-4">
-            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          {/* ═══ الجدول الموحد لكشف الحساب ═══ */}
+          <div className="panel-elevated p-0 overflow-hidden rounded-2xl border border-border/70 shadow-sm">
+            <div className="p-3.5 flex flex-wrap items-center justify-between gap-2 border-b border-border/60">
               <div className="flex items-center gap-2">
                 <SourceBadge derived={derived} hasSourceData={hasSourceData} />
                 {result && (
-                  <span className="text-[11px] text-muted-foreground">
-                    {result.countedRows} {ar ? "حركة" : "entries"}
+                  <span className="text-[11px] text-muted-foreground font-medium">
+                    {statementRows.length} {ar ? "حركة معروضة" : "entries shown"}
                   </span>
                 )}
               </div>
@@ -678,378 +865,191 @@ function AccountStatementPage() {
               </span>
             </div>
 
-            <div className="mb-2 text-[11px] text-muted-foreground">
-              {result ? `${ar ? "الفترة" : "Period"}: ${result.period.label}` : ""}
-            </div>
-            {/* ═══ الجدول والبطاقات — ترتيب مختلف حسب المقاس ═══
-                على الهاتف تظهر البطاقات أولًا (order-1) والجدول مخفي،
-                وعلى سطح المكتب يظهر الجدول أولًا والبطاقات مخفية. */}
-            <div className="flex flex-col">
-              {/* ═══ الجدول — Desktop ≥ 768px فقط ═══ */}
-              <div className="order-2 hidden overflow-x-auto md:block">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      {columns.map((col) => (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader className="bg-surface-2/60">
+                  <TableRow>
+                    {columns.map((col) => {
+                      const isSortableCol = ["date", "debit", "credit", "balance"].includes(col.key);
+                      const isActiveSort = sortField === col.key;
+
+                      return (
                         <TableHead
                           key={col.key}
+                          onClick={() => {
+                            if (isSortableCol) {
+                              toggleSort(col.key as "date" | "debit" | "credit" | "balance");
+                            }
+                          }}
                           className={cn(
                             col.key === "debit" && "text-end text-rose-500 font-semibold",
                             col.key === "credit" && "text-end text-emerald-500 font-semibold",
                             col.key === "balance" && "text-end font-semibold",
+                            isSortableCol && "cursor-pointer hover:bg-surface-3 transition-colors",
                             alignClass(col.align),
                           )}
                           style={col.width ? { width: col.width } : undefined}
                         >
-                          {col.label}
-                        </TableHead>
-                      ))}
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {isLoading ? (
-                      <TableRow>
-                        <TableCell
-                          colSpan={Math.max(columns.length, 1)}
-                          className="py-8 text-center"
-                        >
-                          <Loader2 className="mx-auto h-5 w-5 animate-spin text-muted-foreground" />
-                        </TableCell>
-                      </TableRow>
-                    ) : !partyId ? (
-                      <TableRow>
-                        <TableCell
-                          colSpan={Math.max(columns.length, 1)}
-                          className="py-12 text-center text-muted-foreground"
-                        >
-                          {ar
-                            ? "اختر حسابًا لعرض الكشف"
-                            : "Select an account to view the statement"}
-                        </TableCell>
-                      </TableRow>
-                    ) : statementRows.length === 0 ? (
-                      <TableRow>
-                        <TableCell
-                          colSpan={Math.max(columns.length, 1)}
-                          className="py-12 text-center text-muted-foreground"
-                        >
-                          {ar
-                            ? "لا توجد حركات حسابية مسجلة لهذه الفترة"
-                            : "No statement records for this period"}
-                          {result && Math.abs(result.openingBalance) > 0.005 && (
-                            <div className="mt-1 text-[11px]">
-                              {ar
-                                ? `يوجد رصيد سابق بمقدار ${fmtAmount(result.openingBalance)}`
-                                : `Opening balance carried: ${fmtAmount(result.openingBalance)}`}
-                            </div>
-                          )}
-                        </TableCell>
-                      </TableRow>
-                    ) : (
-                      <>
-                        {/* سطر الرصيد الافتتاحي */}
-                        {layout?.showOpeningRow && (
-                          <TableRow className="bg-surface/70 hover:bg-surface/70">
-                            {columns.map((col) => {
-                              let content: React.ReactNode = "—";
-                              if (col.key === "index")
-                                content = (
-                                  <span className="font-mono text-xs text-muted-foreground">—</span>
-                                );
-                              else if (col.key === "kind")
-                                content = (
-                                  <span className="text-xs font-medium italic text-muted-foreground">
-                                    {kindLabel("opening", partyType, lang)}
-                                  </span>
-                                );
-                              else if (col.key === "description")
-                                content = (
-                                  <span className="text-xs italic text-muted-foreground">
-                                    {ar
-                                      ? "رصيد ما قبل بداية الفترة"
-                                      : "Balance before period start"}
-                                  </span>
-                                );
-                              else if (col.key === "date")
-                                content = (
-                                  <span className="font-mono text-xs text-muted-foreground">
-                                    <Ltr>{result?.period.from ?? "—"}</Ltr>
-                                  </span>
-                                );
-                              else if (col.key === "balance")
-                                content = (
-                                  <span className="font-mono text-xs font-bold">
-                                    <Ltr>{fmtAmount(result?.openingBalance ?? 0)}</Ltr>
-                                  </span>
-                                );
-                              return (
-                                <TableCell key={col.key} className={alignClass(col.align)}>
-                                  {content}
-                                </TableCell>
-                              );
-                            })}
-                          </TableRow>
-                        )}
-
-                        {statementRows.map((row) => (
-                          <TableRow
-                            key={row.id}
-                            className="cursor-pointer hover:bg-surface-2/60"
-                            onClick={() => setDetailEntry(row)}
-                            title={ar ? "عرض تفاصيل القيد" : "View entry details"}
-                          >
-                            {columns.map((col) => (
-                              <TableCell key={col.key} className={alignClass(col.align)}>
-                                {renderCell(row, col.key)}
-                              </TableCell>
-                            ))}
-                          </TableRow>
-                        ))}
-                      </>
-                    )}
-
-                    {/* سطر الإجماليات — كما كان */}
-                    {statementRows.length > 0 && (
-                      <TableRow className="border-t-2 border-border font-bold bg-surface-2/50">
-                        {columns.map((col) => {
-                          let content: React.ReactNode = "";
-                          if (col.key === "kind")
-                            content = (
-                              <span className="text-sm">{ar ? "الإجمالي الكلي:" : "Total:"}</span>
-                            );
-                          else if (col.key === "debit")
-                            content = (
-                              <span className="font-mono text-rose-500">
-                                <Ltr>{money(totalDebit)}</Ltr>
-                              </span>
-                            );
-                          else if (col.key === "credit")
-                            content = (
-                              <span className="font-mono text-emerald-500">
-                                <Ltr>{fmtOrDash(totalCredit)}</Ltr>
-                              </span>
-                            );
-                          else if (col.key === "balance")
-                            content = (
-                              <span className="font-mono text-primary text-base">
-                                <Ltr>{money(closingBalance)}</Ltr>
-                              </span>
-                            );
-                          return (
-                            <TableCell
-                              key={col.key}
-                              className={cn(alignClass(col.align), "text-sm")}
-                            >
-                              {content}
-                            </TableCell>
-                          );
-                        })}
-                      </TableRow>
-                    )}
-                  </TableBody>
-                </Table>
-              </div>
-
-              {/* ═══ Mobile Statement Cards — < 768px فقط ═══
-                نفس الحقول ونفس الأرقام، مع احترام Column Visibility.
-                النقر على البطاقة يفتح نفس لوحة تفاصيل القيد. */}
-              <div className="order-1 space-y-2.5 md:hidden">
-                {isLoading ? (
-                  <div className="grid place-items-center rounded-xl border border-border/70 py-10">
-                    <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-                  </div>
-                ) : !partyId ? (
-                  <div className="rounded-xl border border-border/70 py-10 text-center text-xs text-muted-foreground">
-                    {ar ? "اختر حسابًا لعرض الكشف" : "Select an account to view the statement"}
-                  </div>
-                ) : statementRows.length === 0 ? (
-                  <div className="rounded-xl border border-border/70 py-10 text-center text-xs text-muted-foreground">
-                    <div>
-                      {ar
-                        ? "لا توجد حركات حسابية مسجلة لهذه الفترة"
-                        : "No statement records for this period"}
-                    </div>
-                    {result && Math.abs(result.openingBalance) > 0.005 && (
-                      <div className="mt-1 text-[11px]">
-                        {ar
-                          ? `يوجد رصيد سابق بمقدار ${fmtAmount(result.openingBalance)}`
-                          : `Opening balance carried: ${fmtAmount(result.openingBalance)}`}
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <>
-                    {/* الرصيد الافتتاحي — لا يختفي على الهاتف */}
-                    {layout?.showOpeningRow && (
-                      <div className="rounded-xl border border-primary/25 bg-primary/5 p-3.5">
-                        <div className="flex items-center justify-between gap-3">
-                          <div className="min-w-0">
-                            <div className="text-xs font-semibold text-foreground">
-                              {ar ? "الرصيد الافتتاحي" : "Opening balance"}
-                            </div>
-                            <div className="mt-0.5 text-[11px] italic text-muted-foreground">
-                              {ar ? "رصيد ما قبل بداية الفترة" : "Balance before period start"}
-                              {result?.period.from ? ` · ${result.period.from}` : ""}
-                            </div>
-                          </div>
-                          <span className="shrink-0 font-mono text-sm font-bold text-primary">
-                            <Ltr>{fmtAmount(result?.openingBalance ?? 0)}</Ltr>
-                          </span>
-                        </div>
-                      </div>
-                    )}
-
-                    {statementRows.map((row) => {
-                      const paymentMethod =
-                        visibleColumns.paymentMethod &&
-                        String(row.meta?.paymentMethod ?? "").trim();
-                      return (
-                        <button
-                          key={row.id}
-                          type="button"
-                          data-qa="statement-card"
-                          onClick={() => setDetailEntry(row)}
-                          className="w-full rounded-xl border border-border/80 bg-surface p-3.5 text-start transition active:bg-surface-2/60"
-                        >
-                          {/* رأس البطاقة: نوع الحركة + التاريخ + المرجع */}
-                          <div className="flex items-start justify-between gap-2">
-                            <div className="min-w-0">
-                              <div className="flex items-center gap-1.5">
-                                {visibleColumns.index && (
-                                  <span className="font-mono text-[10px] text-muted-foreground">
-                                    <Ltr>#{row.index}</Ltr>
-                                  </span>
-                                )}
-                                <span className="truncate text-xs font-semibold text-foreground">
-                                  {kindLabel(row.kind, partyType, lang)}
-                                </span>
-                              </div>
-                              {visibleColumns.date && (
-                                <div className="mt-0.5 text-[11px] text-muted-foreground">
-                                  <Ltr>
-                                    {new Date(row.occurredAt).toLocaleString(
-                                      ar ? "ar-YE" : "en-GB",
-                                    )}
-                                  </Ltr>
-                                </div>
-                              )}
-                            </div>
-                            {visibleColumns.reference && row.reference && (
-                              <span className="shrink-0 font-mono text-xs text-primary">
-                                <Ltr>{row.reference}</Ltr>
-                              </span>
+                          <div className={cn(
+                            "inline-flex items-center gap-1.5",
+                            col.align === "end" && "justify-end w-full",
+                          )}>
+                            <span>{col.label}</span>
+                            {isSortableCol && (
+                              isActiveSort ? (
+                                sortDirection === "asc" ? (
+                                  <ArrowUp className="h-3 w-3 text-primary" />
+                                ) : (
+                                  <ArrowDown className="h-3 w-3 text-primary" />
+                                )
+                              ) : (
+                                <ChevronsUpDown className="h-3 w-3 opacity-40" />
+                              )
                             )}
                           </div>
-
-                          {/* البيان / الوصف */}
-                          {visibleColumns.description && row.description && (
-                            <div className="mt-2 line-clamp-2 text-[11px] text-muted-foreground">
-                              {row.description}
-                            </div>
-                          )}
-
-                          {/* مدين / دائن — شبكة بدل صف أفقي ضيق */}
-                          {(visibleColumns.debit || visibleColumns.credit) && (
-                            <div className="mt-2.5 grid grid-cols-2 gap-2 border-t border-border/60 pt-2.5">
-                              {visibleColumns.debit && (
-                                <div>
-                                  <div className="text-[10px] text-muted-foreground">
-                                    {ar ? "مدين" : "Debit"}
-                                  </div>
-                                  <div className="font-mono text-xs font-semibold text-rose-500">
-                                    <Ltr>{fmtOrDash(row.debit)}</Ltr>
-                                  </div>
-                                </div>
-                              )}
-                              {visibleColumns.credit && (
-                                <div>
-                                  <div className="text-[10px] text-muted-foreground">
-                                    {ar ? "دائن" : "Credit"}
-                                  </div>
-                                  <div className="font-mono text-xs font-semibold text-emerald-500">
-                                    <Ltr>{fmtOrDash(row.credit)}</Ltr>
-                                  </div>
-                                </div>
-                              )}
-                            </div>
-                          )}
-
-                          {/* الرصيد الجاري */}
-                          {visibleColumns.balance && (
-                            <div className="mt-2 flex items-center justify-between gap-2 rounded-lg bg-surface-2/50 px-2.5 py-1.5">
-                              <span className="text-[11px] text-muted-foreground">
-                                {ar ? "الرصيد الجاري" : "Running balance"}
-                              </span>
-                              <span className="font-mono text-xs font-bold text-foreground">
-                                <Ltr>{fmtAmount(row.runningBalance)}</Ltr>
-                              </span>
-                            </div>
-                          )}
-
-                          {/* طريقة الدفع + زر التفاصيل */}
-                          <div className="mt-2.5 flex items-center justify-between gap-2 border-t border-border/60 pt-2.5">
-                            <span className="truncate text-[11px] text-muted-foreground">
-                              {paymentMethod
-                                ? `${ar ? "طريقة الدفع" : "Payment"}: ${renderCell(row, "paymentMethod")}`
-                                : ""}
-                            </span>
-                            <span className="inline-flex shrink-0 items-center gap-1 text-[11px] font-medium text-primary">
-                              <Eye className="h-3.5 w-3.5" />
-                              {ar ? "عرض التفاصيل" : "View details"}
-                            </span>
-                          </div>
-                        </button>
+                        </TableHead>
                       );
                     })}
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {isLoading ? (
+                    <TableRow>
+                      <TableCell
+                        colSpan={Math.max(columns.length, 1)}
+                        className="py-12 text-center"
+                      >
+                        <Loader2 className="mx-auto h-5 w-5 animate-spin text-muted-foreground" />
+                      </TableCell>
+                    </TableRow>
+                  ) : !partyId ? (
+                    <TableRow>
+                      <TableCell
+                        colSpan={Math.max(columns.length, 1)}
+                        className="py-12 text-center text-muted-foreground text-xs"
+                      >
+                        {ar ? "اختر حسابًا لعرض الكشف" : "Select an account to view the statement"}
+                      </TableCell>
+                    </TableRow>
+                  ) : statementRows.length === 0 ? (
+                    <TableRow>
+                      <TableCell
+                        colSpan={Math.max(columns.length, 1)}
+                        className="py-12 text-center text-muted-foreground text-xs"
+                      >
+                        {tableSearch
+                          ? ar
+                            ? "لا توجد نتائج مطابقة لبحثك في هذا الكشف"
+                            : "No matching records found"
+                          : ar
+                            ? "لا توجد حركات حسابية مسجلة لهذه الفترة"
+                            : "No statement records for this period"}
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    <>
+                      {layout?.showOpeningRow && !tableSearch && (
+                        <TableRow className="bg-surface/70 hover:bg-surface/70">
+                          {columns.map((col) => {
+                            let content: React.ReactNode = "—";
+                            if (col.key === "index")
+                              content = <span className="font-mono text-xs text-muted-foreground">—</span>;
+                            else if (col.key === "kind")
+                              content = (
+                                <span className="text-xs font-medium italic text-muted-foreground">
+                                  {kindLabel("opening", partyType, lang)}
+                                </span>
+                              );
+                            else if (col.key === "description")
+                              content = (
+                                <span className="text-xs italic text-muted-foreground">
+                                  {ar ? "رصيد ما قبل بداية الفترة" : "Balance before period start"}
+                                </span>
+                              );
+                            else if (col.key === "date")
+                              content = (
+                                <span className="font-mono text-xs text-muted-foreground">
+                                  <Ltr>{result?.period.from ?? "—"}</Ltr>
+                                </span>
+                              );
+                            else if (col.key === "balance")
+                              content = (
+                                <span className="font-mono text-xs font-bold">
+                                  <Ltr>{fmtAmount(result?.openingBalance ?? 0)}</Ltr>
+                                </span>
+                              );
+                            return (
+                              <TableCell key={col.key} className={alignClass(col.align)}>
+                                {content}
+                              </TableCell>
+                            );
+                          })}
+                        </TableRow>
+                      )}
 
-                    {/* الإجماليات — عمودان على الهاتف */}
-                    <div className="rounded-xl border border-border/80 bg-surface-2/50 p-3.5">
-                      <div className="mb-2 text-xs font-bold text-foreground">
-                        {ar ? "الإجمالي الكلي" : "Total"}
-                      </div>
-                      <div className="grid grid-cols-2 gap-2.5">
-                        <div>
-                          <div className="text-[10px] text-muted-foreground">
-                            {ar ? "إجمالي المدين" : "Total debit"}
-                          </div>
-                          <div className="font-mono text-sm font-semibold text-rose-500">
-                            <Ltr>{money(totalDebit)}</Ltr>
-                          </div>
-                        </div>
-                        <div>
-                          <div className="text-[10px] text-muted-foreground">
-                            {ar ? "إجمالي الدائن" : "Total credit"}
-                          </div>
-                          <div className="font-mono text-sm font-semibold text-emerald-500">
-                            <Ltr>{fmtOrDash(totalCredit)}</Ltr>
-                          </div>
-                        </div>
-                        <div className="col-span-2 border-t border-border/60 pt-2">
-                          <div className="text-[10px] text-muted-foreground">
-                            {ar ? "الرصيد الحالي" : "Closing balance"}
-                          </div>
-                          <div className="font-mono text-base font-bold text-primary">
-                            <Ltr>{money(closingBalance)}</Ltr>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </>
-                )}
-              </div>
+                      {statementRows.map((row) => (
+                        <TableRow
+                          key={row.id}
+                          className="cursor-pointer hover:bg-surface-2/60 transition-colors"
+                          onClick={() => setDetailEntry(row)}
+                          title={ar ? "عرض تفاصيل القيد" : "View entry details"}
+                        >
+                          {columns.map((col) => (
+                            <TableCell key={col.key} className={alignClass(col.align)}>
+                              {renderCell(row, col.key)}
+                            </TableCell>
+                          ))}
+                        </TableRow>
+                      ))}
+                    </>
+                  )}
+
+                  {statementRows.length > 0 && (
+                    <TableRow className="border-t-2 border-border font-bold bg-surface-2/50">
+                      {columns.map((col) => {
+                        let content: React.ReactNode = "";
+                        if (col.key === "kind")
+                          content = <span className="text-xs">{ar ? "الإجمالي الكلي:" : "Total:"}</span>;
+                        else if (col.key === "debit")
+                          content = (
+                            <span className="font-mono text-rose-500 font-bold">
+                              <Ltr>{money(totalDebit)}</Ltr>
+                            </span>
+                          );
+                        else if (col.key === "credit")
+                          content = (
+                            <span className="font-mono text-emerald-500 font-bold">
+                              <Ltr>{fmtOrDash(totalCredit)}</Ltr>
+                            </span>
+                          );
+                        else if (col.key === "balance")
+                          content = (
+                            <span className="font-mono text-primary text-sm font-bold">
+                              <Ltr>{money(closingBalance)}</Ltr>
+                            </span>
+                          );
+                        return (
+                          <TableCell key={col.key} className={cn(alignClass(col.align), "text-xs")}>
+                            {content}
+                          </TableCell>
+                        );
+                      })}
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
             </div>
 
-            {/* تذييل الجدول */}
             {statementRows.length > 0 && (
-              <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-border/60 pt-3 text-[11px] text-muted-foreground">
+              <div className="p-3.5 flex flex-wrap items-center justify-between gap-2 border-t border-border/60 text-[11px] text-muted-foreground">
                 <span>
                   {ar ? "الرصيد الختامي" : "Closing balance"}:{" "}
-                  <b className="font-mono text-foreground">
+                  <b className="font-mono text-foreground font-bold">
                     {money(closingBalance)} {currencySymbol}
                   </b>
                 </span>
                 <button type="button" onClick={refetch} className="text-primary hover:underline">
-                  {ar ? "تحديث" : "Refresh"}
+                  {ar ? "تحديث الحساب" : "Refresh"}
                 </button>
               </div>
             )}
@@ -1057,21 +1057,14 @@ function AccountStatementPage() {
         </div>
       )}
 
-      {/* تفاصيل القيد — تُفتح بالنقر على أي حركة */}
+      {/* تفاصيل القيد المنبثقة */}
       <StatementEntryDetails
         entry={detailEntry}
         entityType={partyType}
         onClose={() => setDetailEntry(null)}
       />
-      <ReportPickerDialog
-        open={reportPickerOpen}
-        selected={reportType}
-        onOpenChange={setReportPickerOpen}
-        onSelect={handleReportSelect}
-        ar={ar}
-      />
 
-      {/* مشاركة كشف الحساب (واتساب / PDF / Excel) */}
+      {/* نافذة مشاركة الكشف */}
       {shareContext && activeParty && (
         <DocumentShareDialog
           open={shareOpen}

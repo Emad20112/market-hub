@@ -37,12 +37,7 @@ export const Route = createFileRoute("/_app/catalog")({
   component: CatalogPage,
 });
 
-/**
- * أبعاد الفهرس المعروضة أربعة فقط. أبعاد قطع الغيار (ماركات المركبات، الموديلات)
- * وبقالة (بلدان المنشأ، درجات الجودة، الماركات) موجودة في النوع لأن شاشات
- * أخرى ما زالت تحكم عليها، لكنها لا تُدرج فيallTabs إطلاقاً: بيانات هذه
- * المنشأة لا تحتويها أصلاً، وزر يعرض بُعداً بلا بيانات واجهة كاذبة.
- */
+/** كل أبعاد الفهرس قابلة للعرض من خلال إعداد النشاط. */
 type Tab =
   | "categories"
   | "grain_grades"
@@ -95,12 +90,17 @@ function CatalogPage() {
         label: lang === "ar" ? "أكياس ومستلزمات التعبئة" : "Packaging Bags",
         icon: PackagePlus,
       },
+      { key: "brands", label: lang === "ar" ? "العلامات التجارية" : "Brands", icon: Tag },
       { key: "units", label: t("catalog.units") || "وحدات القياس", icon: Scale },
+      { key: "origins", label: lang === "ar" ? "بلدان المنشأ" : "Origins", icon: Globe },
+      { key: "qualities", label: lang === "ar" ? "درجات الجودة" : "Quality grades", icon: Award },
+      { key: "makes", label: lang === "ar" ? "ماركات المركبات" : "Vehicle makes", icon: Car },
+      { key: "models", label: lang === "ar" ? "موديلات المركبات" : "Vehicle models", icon: Boxes },
     ],
     [lang, t],
   );
 
-  // Only show tabs that are enabled by the current business profile
+  // Show dimensions enabled independently in the catalogue settings.
   const availableTabs = useMemo(() => {
     return allTabs.filter((tab) => isTabEnabled(tab.key));
   }, [allTabs, isTabEnabled]);
@@ -133,16 +133,14 @@ function CatalogPage() {
     },
   });
 
-  const catalogueScope = lang === "ar" ? "مطحنة وحبوب" : "Mill & Grain";
-
   return (
     <div className="space-y-6 pb-12">
       <PageHeader
         title={lang === "ar" ? "فهرس المنتجات والأبعاد" : t("catalog.title")}
         subtitle={
           lang === "ar"
-            ? "إدارة التصنيفات ودرجات الحبوب ومستلزمات التعبئة ووحدات القياس"
-            : "Manage categories, grain grades, packaging supplies and units"
+            ? "إدارة التصنيفات وأبعاد المنتجات بحسب نشاط منشأتك"
+            : "Manage product categories and dimensions for your business"
         }
         actions={
           <button
@@ -152,9 +150,6 @@ function CatalogPage() {
           >
             <SlidersHorizontal className="h-3.5 w-3.5" />
             <span>{lang === "ar" ? "تخصيص نشاط الفهرسة" : "Customize Catalog"}</span>
-            <span className="rounded-lg bg-primary/25 px-2 py-0.5 text-[10px] font-bold">
-              {catalogueScope}
-            </span>
           </button>
         }
       />
@@ -191,7 +186,7 @@ function CatalogPage() {
           currency=""
           icon={PackagePlus}
           tone="warning"
-          subtitle={lang === "ar" ? `نشاط: ${catalogueScope}` : `Scope: ${catalogueScope}`}
+          subtitle={lang === "ar" ? "أبعاد الفهرسة المُفعّلة" : "Enabled catalogue dimensions"}
         />
       </div>
 
@@ -250,16 +245,36 @@ function CatalogTable({ tab }: { tab: Tab }) {
   const [q, setQ] = useState("");
   const [editing, setEditing] = useState<Item | null>(null);
   const [open, setOpen] = useState(false);
+  const [filterMakeId, setFilterMakeId] = useState("");
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
-  const table = tab === "categories" ? "categories" : tab === "units" ? "units" : "quality_grades";
+  const table =
+    tab === "categories"
+      ? "categories"
+      : tab === "brands"
+        ? "brands"
+        : tab === "units"
+          ? "units"
+          : tab === "origins"
+            ? "countries_of_origin"
+            : tab === "qualities"
+              ? "quality_grades"
+              : tab === "makes"
+                ? "vehicle_makes"
+                : tab === "models"
+                  ? "vehicle_models"
+                  : "quality_grades";
 
   const cols =
     tab === "units"
       ? "id, name, name_ar, short_name"
-      : tab === "grain_grades"
+      : tab === "grain_grades" || tab === "qualities"
         ? "id, name, name_ar, code, sort_order"
-        : "id, name, name_ar";
+        : tab === "origins"
+          ? "id, name, name_ar, code"
+          : tab === "models"
+            ? "id, name, name_ar, make_id, vehicle_makes(id, name, name_ar)"
+            : "id, name, name_ar";
 
   const { data, isLoading } = useQuery({
     queryKey: ["catalog", tab],
@@ -267,20 +282,40 @@ function CatalogTable({ tab }: { tab: Tab }) {
       const { data, error } = await (supabase as any)
         .from(table)
         .select(cols)
-        .order(tab === "grain_grades" ? "sort_order" : "name");
+        .order(tab === "grain_grades" || tab === "qualities" ? "sort_order" : "name");
       if (error) throw error;
       return (data ?? []) as unknown as Item[];
     },
   });
 
+  const { data: makesList = [] } = useQuery({
+    queryKey: ["vehicle-makes-filter"],
+    enabled: tab === "models",
+    queryFn: async () => {
+      const { data } = await (supabase as any)
+        .from("vehicle_makes")
+        .select("id, name, name_ar")
+        .order("name");
+      return (data ?? []) as { id: string; name: string; name_ar: string | null }[];
+    },
+  });
+
   const filtered = useMemo(() => {
-    const list = data ?? [];
+    let list = data ?? [];
+    if (tab === "models" && filterMakeId) list = list.filter((r) => r.make_id === filterMakeId);
     const s = q.trim().toLowerCase();
     if (!s) return list;
     return list.filter((r) =>
-      [r.name, r.name_ar, r.short_name, r.code].some((x) => (x ?? "").toLowerCase().includes(s)),
+      [
+        r.name,
+        r.name_ar,
+        r.short_name,
+        r.code,
+        r.vehicle_makes?.name,
+        r.vehicle_makes?.name_ar,
+      ].some((x) => (x ?? "").toLowerCase().includes(s)),
     );
-  }, [data, q]);
+  }, [data, q, tab, filterMakeId]);
 
   const remove = useMutation({
     mutationFn: async (id: string) => {
@@ -302,11 +337,29 @@ function CatalogTable({ tab }: { tab: Tab }) {
   const newLabel =
     tab === "categories"
       ? t("catalog.new_category") || "إضافة تصنيف"
-      : tab === "units"
-        ? t("catalog.new_unit") || "إضافة وحدة قياس"
-        : lang === "ar"
-          ? "إضافة درجة حبوب"
-          : "Add Grain Grade";
+      : tab === "brands"
+        ? t("catalog.new_brand") || "إضافة علامة تجارية"
+        : tab === "units"
+          ? t("catalog.new_unit") || "إضافة وحدة قياس"
+          : tab === "origins"
+            ? lang === "ar"
+              ? "إضافة دولة منشأ"
+              : "Add Origin"
+            : tab === "qualities"
+              ? lang === "ar"
+                ? "إضافة درجة جودة"
+                : "Add Quality Grade"
+              : tab === "makes"
+                ? lang === "ar"
+                  ? "إضافة ماركة مركبة"
+                  : "Add Vehicle Make"
+                : tab === "models"
+                  ? lang === "ar"
+                    ? "إضافة موديل مركبة"
+                    : "Add Vehicle Model"
+                  : lang === "ar"
+                    ? "إضافة درجة حبوب"
+                    : "Add Grain Grade";
 
   const tabTitle =
     tab === "categories"
@@ -317,9 +370,29 @@ function CatalogTable({ tab }: { tab: Tab }) {
         ? lang === "ar"
           ? "وحدات القياس"
           : "Measurement Units"
-        : lang === "ar"
-          ? "درجات وأنواع الحبوب"
-          : "Grain Grades";
+        : tab === "brands"
+          ? lang === "ar"
+            ? "العلامات التجارية"
+            : "Brands"
+          : tab === "origins"
+            ? lang === "ar"
+              ? "بلدان المنشأ"
+              : "Origins"
+            : tab === "qualities"
+              ? lang === "ar"
+                ? "درجات الجودة"
+                : "Quality grades"
+              : tab === "makes"
+                ? lang === "ar"
+                  ? "ماركات المركبات"
+                  : "Vehicle makes"
+                : tab === "models"
+                  ? lang === "ar"
+                    ? "موديلات المركبات"
+                    : "Vehicle models"
+                  : lang === "ar"
+                    ? "درجات وأنواع الحبوب"
+                    : "Grain Grades";
 
   // Export current list to CSV
   const handleExportCsv = () => {
@@ -374,6 +447,24 @@ function CatalogTable({ tab }: { tab: Tab }) {
             />
           </div>
 
+          {tab === "models" && makesList.length > 0 && (
+            <div className="relative shrink-0">
+              <select
+                value={filterMakeId}
+                onChange={(e) => setFilterMakeId(e.target.value)}
+                className="h-10 appearance-none rounded-xl border border-border/80 bg-card px-4 pe-9 text-xs font-medium text-foreground outline-none transition hover:border-primary/50 focus:border-primary focus:ring-2 focus:ring-primary/20"
+              >
+                <option value="">{lang === "ar" ? "جميع الماركات" : "All makes"}</option>
+                {makesList.map((make) => (
+                  <option key={make.id} value={make.id}>
+                    {lang === "ar" ? make.name_ar || make.name : make.name}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown className="pointer-events-none absolute end-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+            </div>
+          )}
+
           <span className="rounded-xl border border-border/60 bg-muted/40 px-3 py-1.5 text-xs font-semibold text-muted-foreground tabular-nums">
             {lang === "ar" ? `${filtered.length} عنصر` : `${filtered.length} items`}
           </span>
@@ -422,10 +513,15 @@ function CatalogTable({ tab }: { tab: Tab }) {
                     {lang === "ar" ? "الرمز المختصر" : t("catalog.short_name")}
                   </th>
                 )}
-                {tab === "grain_grades" && (
+                {tab === "models" && (
+                  <th className="px-4 py-3 text-start">
+                    {lang === "ar" ? "الماركة التابعة" : "Make"}
+                  </th>
+                )}
+                {(tab === "grain_grades" || tab === "origins" || tab === "qualities") && (
                   <th className="px-4 py-3 text-start">{lang === "ar" ? "الكود" : "Code"}</th>
                 )}
-                {tab === "grain_grades" && (
+                {(tab === "grain_grades" || tab === "qualities") && (
                   <th className="px-4 py-3 text-start">
                     {lang === "ar" ? "الترتيب" : "Sort Order"}
                   </th>
@@ -498,8 +594,18 @@ function CatalogTable({ tab }: { tab: Tab }) {
                       </td>
                     )}
 
-                    {/* Grain grade code */}
-                    {tab === "grain_grades" && (
+                    {tab === "models" && (
+                      <td className="px-4 py-3">
+                        <span className="inline-flex items-center gap-1.5 rounded-xl border border-primary/20 bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary">
+                          <Car className="h-3 w-3" />
+                          {lang === "ar"
+                            ? r.vehicle_makes?.name_ar || r.vehicle_makes?.name || "—"
+                            : r.vehicle_makes?.name || r.vehicle_makes?.name_ar || "—"}
+                        </span>
+                      </td>
+                    )}
+
+                    {(tab === "grain_grades" || tab === "origins" || tab === "qualities") && (
                       <td className="px-4 py-3">
                         <span className="inline-flex rounded-lg border border-border/80 bg-muted/50 px-2.5 py-0.5 font-mono text-xs font-bold text-primary">
                           {r.code || "—"}
@@ -507,8 +613,7 @@ function CatalogTable({ tab }: { tab: Tab }) {
                       </td>
                     )}
 
-                    {/* Grain grade sort order */}
-                    {tab === "grain_grades" && (
+                    {(tab === "grain_grades" || tab === "qualities") && (
                       <td className="px-4 py-3">
                         <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-muted text-xs font-bold text-foreground">
                           {r.sort_order ?? 0}
@@ -611,6 +716,15 @@ function CatalogSheetDialog({
     short_name: initial?.short_name ?? "",
     code: initial?.code ?? "",
     sort_order: initial?.sort_order?.toString() ?? "0",
+    make_id: initial?.make_id ?? "",
+  });
+
+  const { data: makes = [] } = useQuery({
+    queryKey: ["vehicle-makes-dialog"],
+    enabled: tab === "models",
+    queryFn: async () =>
+      (await (supabase as any).from("vehicle_makes").select("id,name,name_ar").order("name"))
+        .data ?? [],
   });
 
   const [saving, setSaving] = useState(false);
@@ -620,17 +734,37 @@ function CatalogSheetDialog({
       ? initial
         ? t("catalog.edit_category") || "تعديل التصنيف"
         : t("catalog.new_category") || "إضافة تصنيف جديد"
-      : tab === "units"
+      : tab === "brands"
         ? initial
-          ? t("catalog.edit_unit") || "تعديل وحدة القياس"
-          : t("catalog.new_unit") || "إضافة وحدة قياس"
-        : initial
-          ? lang === "ar"
-            ? "تعديل درجة الحبوب"
-            : "Edit Grain Grade"
-          : lang === "ar"
-            ? "إضافة درجة حبوب"
-            : "New Grain Grade";
+          ? "تعديل العلامة التجارية"
+          : "إضافة علامة تجارية"
+        : tab === "units"
+          ? initial
+            ? t("catalog.edit_unit") || "تعديل وحدة القياس"
+            : t("catalog.new_unit") || "إضافة وحدة قياس"
+          : tab === "origins"
+            ? initial
+              ? "تعديل دولة المنشأ"
+              : "إضافة دولة منشأ"
+            : tab === "qualities"
+              ? initial
+                ? "تعديل درجة الجودة"
+                : "إضافة درجة جودة"
+              : tab === "makes"
+                ? initial
+                  ? "تعديل ماركة المركبة"
+                  : "إضافة ماركة مركبة"
+                : tab === "models"
+                  ? initial
+                    ? "تعديل موديل المركبة"
+                    : "إضافة موديل مركبة"
+                  : initial
+                    ? lang === "ar"
+                      ? "تعديل درجة الحبوب"
+                      : "Edit Grain Grade"
+                    : lang === "ar"
+                      ? "إضافة درجة حبوب"
+                      : "New Grain Grade";
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -638,9 +772,25 @@ function CatalogSheetDialog({
       toast.error(lang === "ar" ? "الاسم مطلوب" : t("catalog.name_required"));
       return;
     }
+    if (tab === "models" && !form.make_id) {
+      toast.error(lang === "ar" ? "اختر ماركة المركبة أولاً" : "Select a vehicle make first");
+      return;
+    }
     setSaving(true);
     const table =
-      tab === "categories" ? "categories" : tab === "units" ? "units" : "quality_grades";
+      tab === "categories"
+        ? "categories"
+        : tab === "brands"
+          ? "brands"
+          : tab === "units"
+            ? "units"
+            : tab === "origins"
+              ? "countries_of_origin"
+              : tab === "qualities" || tab === "grain_grades"
+                ? "quality_grades"
+                : tab === "makes"
+                  ? "vehicle_makes"
+                  : "vehicle_models";
 
     const base = {
       name: form.name.trim() || form.name_ar.trim(),
@@ -651,15 +801,19 @@ function CatalogSheetDialog({
       form.name
         .trim()
         .replace(/[^A-Za-z0-9]/g, "")
-        .slice(0, 20)
+        .slice(0, tab === "origins" ? 2 : 20)
         .toUpperCase();
 
     const payload =
       tab === "units"
         ? { ...base, short_name: form.short_name.trim() || form.name.trim().slice(0, 4) || "unit" }
-        : tab === "grain_grades"
+        : tab === "grain_grades" || tab === "qualities"
           ? { ...base, code: baseCode, sort_order: Number(form.sort_order) || 0 }
-          : base;
+          : tab === "origins"
+            ? { ...base, code: baseCode }
+            : tab === "models"
+              ? { ...base, make_id: form.make_id }
+              : base;
 
     const q: any = supabase.from(table as "categories");
     const { error } = initial
@@ -775,7 +929,29 @@ function CatalogSheetDialog({
           </div>
         )}
 
-        {tab === "grain_grades" && (
+        {tab === "models" && (
+          <div>
+            <label className="mb-1.5 block text-xs font-bold text-foreground">
+              {lang === "ar" ? "ماركة المركبة" : "Vehicle Make"}{" "}
+              <span className="text-destructive">*</span>
+            </label>
+            <select
+              value={form.make_id}
+              onChange={(e) => setForm({ ...form, make_id: e.target.value })}
+              className="h-11 w-full rounded-xl border border-border/80 bg-background px-3.5 text-sm text-foreground outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
+              required
+            >
+              <option value="">{lang === "ar" ? "اختر الماركة" : "Select a make"}</option>
+              {makes.map((make: { id: string; name: string; name_ar: string | null }) => (
+                <option key={make.id} value={make.id}>
+                  {lang === "ar" ? make.name_ar || make.name : make.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+
+        {(tab === "grain_grades" || tab === "origins" || tab === "qualities") && (
           <div>
             <label className="mb-1.5 block text-xs font-bold text-foreground">
               {lang === "ar" ? "الكود التعريفي المختصر" : "Short Code"}
@@ -784,12 +960,12 @@ function CatalogSheetDialog({
               value={form.code}
               onChange={(e) => setForm({ ...form, code: e.target.value })}
               className="h-11 w-full rounded-xl border border-border/80 bg-background px-3.5 font-mono text-sm uppercase text-foreground outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
-              placeholder="G1, G2, G3"
+              placeholder={tab === "origins" ? "SA, YE, TR" : "G1, G2, G3"}
             />
           </div>
         )}
 
-        {tab === "grain_grades" && (
+        {(tab === "grain_grades" || tab === "qualities") && (
           <div>
             <label className="mb-1.5 block text-xs font-bold text-foreground">
               {lang === "ar" ? "ترتيب الأهمية" : "Sort Order"}

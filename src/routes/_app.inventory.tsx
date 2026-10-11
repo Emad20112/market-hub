@@ -35,6 +35,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { ActionButton } from "@/components/ui/action-button";
 import { IconButton } from "@/components/ui/icon-button";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { Modal } from "@/components/ui/modal";
@@ -47,6 +48,7 @@ import {
   type FilterValues,
   type SortOption,
 } from "@/components/ui/table-toolbar";
+import { RecordsViewToggle } from "@/components/ui/records-view-toggle";
 import { buildSearchIndex, fuzzySearch } from "@/design/fuzzy";
 import { moneyCell, qtyCell } from "@/lib/format";
 import { useBreakpoint } from "@/design/breakpoints";
@@ -689,7 +691,25 @@ function InventoryPage() {
 
   return (
     <div className="space-y-4 pb-12">
-      <PageHeader title={t("inventory.title")} subtitle={t("inventory.subtitle")} />
+      <PageHeader
+        title={t("inventory.title")}
+        subtitle={t("inventory.subtitle")}
+        actions={
+          <>
+            <ActionButton icon={<PackagePlus />} onClick={() => setDirectIn({})}>
+              {lang === "ar" ? "إدخال مخزون مباشر" : "Direct stock-in"}
+            </ActionButton>
+            <ActionButton
+              tone="outline"
+              icon={<Boxes />}
+              onClick={() => setOpeningOpen(true)}
+              disabled={!warehouseId}
+            >
+              {lang === "ar" ? "رصيد أول مدة" : "Opening balance"}
+            </ActionButton>
+          </>
+        }
+      />
 
       {/* ─── KPI cards: stock health at a glance ─── */}
       <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
@@ -800,83 +820,48 @@ function InventoryPage() {
             label: lang === "ar" ? "ترتيب" : "Sort",
           }}
           viewToggle={
-            <div className="flex items-center gap-1.5">
-              <ToolbarAction
-                label={lang === "ar" ? "إدخال مخزني مباشر" : "Direct Stock In"}
-                icon={<PackagePlus />}
-                onClick={() => setDirectIn({})}
-                tone="primary"
-              />
-              <ToolbarAction
-                label={lang === "ar" ? "رصيد أول المدة" : "Opening stock"}
-                icon={<Sparkles />}
-                onClick={() => setOpeningOpen(true)}
-              />
-              <ToolbarAction
-                label={
-                  viewMode === "grid"
-                    ? t("inventory.view_grid")
-                    : viewMode === "list"
-                      ? t("inventory.view_list")
-                      : t("inventory.view_classic")
-                }
-                icon={
-                  viewMode === "grid" ? (
-                    <LayoutGrid />
-                  ) : viewMode === "list" ? (
-                    <List />
-                  ) : (
-                    <TableProperties />
-                  )
-                }
-                onClick={() =>
-                  setViewMode((prev) =>
-                    prev === "grid" ? "list" : prev === "list" ? "table" : "grid",
-                  )
-                }
-                tone="ghost"
-              />
-            </div>
+            <RecordsViewToggle
+              value={viewMode === "grid" ? "cards" : viewMode}
+              onChange={(mode) => setViewMode(mode === "cards" ? "grid" : mode)}
+            />
           }
         >
-          {viewMode !== "table" && (
-            <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5">
-              {(
-                [
-                  { id: "all", label: t("inventory.quick.all"), count: totalCount ?? rows.length },
-                  { id: "low", label: t("inventory.quick.low"), count: kpi.low },
-                  { id: "out", label: t("inventory.quick.out"), count: kpi.out },
-                  {
-                    id: "healthy",
-                    label: t("inventory.quick.healthy"),
-                    count: Math.max(0, rows.length - kpi.low - kpi.out),
-                  },
-                ] as const
-              ).map((f) => (
-                <button
-                  key={f.id}
-                  type="button"
-                  onClick={() => setQuickFilter(f.id)}
-                  className={`flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-bold transition ${
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5">
+            {(
+              [
+                { id: "all", label: t("inventory.quick.all"), count: totalCount ?? rows.length },
+                { id: "low", label: t("inventory.quick.low"), count: kpi.low },
+                { id: "out", label: t("inventory.quick.out"), count: kpi.out },
+                {
+                  id: "healthy",
+                  label: t("inventory.quick.healthy"),
+                  count: Math.max(0, rows.length - kpi.low - kpi.out),
+                },
+              ] as const
+            ).map((f) => (
+              <button
+                key={f.id}
+                type="button"
+                onClick={() => setQuickFilter(f.id)}
+                className={`flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-bold transition ${
+                  quickFilter === f.id
+                    ? "border-primary bg-primary text-primary-foreground shadow-xs shadow-primary/20"
+                    : "border-border/70 bg-surface/70 text-muted-foreground hover:bg-surface-2 hover:text-foreground"
+                }`}
+              >
+                <span>{f.label}</span>
+                <span
+                  className={`rounded-full px-1.5 text-[10px] font-mono ${
                     quickFilter === f.id
-                      ? "border-primary bg-primary text-primary-foreground shadow-xs shadow-primary/20"
-                      : "border-border/70 bg-surface/70 text-muted-foreground hover:bg-surface-2 hover:text-foreground"
+                      ? "bg-white/20 text-white"
+                      : "bg-muted text-muted-foreground"
                   }`}
                 >
-                  <span>{f.label}</span>
-                  <span
-                    className={`rounded-full px-1.5 text-[10px] font-mono ${
-                      quickFilter === f.id
-                        ? "bg-white/20 text-white"
-                        : "bg-muted text-muted-foreground"
-                    }`}
-                  >
-                    {f.count}
-                  </span>
-                </button>
-              ))}
-            </div>
-          )}
+                  {f.count}
+                </span>
+              </button>
+            ))}
+          </div>
         </TableToolbar>
       </div>
 

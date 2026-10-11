@@ -321,7 +321,10 @@ export function renderDocumentHTML(
     paperProfileId,
   );
   const renderer = getTemplateRenderer(profile.templateId, doc.docType);
-  const html = renderer(doc, mergedLabels, rtl, mergedOptions);
+  const html = renderer(doc, mergedLabels, rtl, {
+    ...mergedOptions,
+    paperProfileId: profile.paperProfileId,
+  } as any);
   return html
     .replace(
       "</head>",

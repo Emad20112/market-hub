@@ -28,7 +28,7 @@ const DEFAULT_PROFILE: CompanyProfile = {
   contacts: [...SUPPORT_CONTACTS],
   footerText: "",
   footerContact: SUPPORT_CONTACT_LINE,
-  logoUrl: "/inama-soft-logo.ico",
+  logoUrl: "/vortex-erp-mark.png",
 };
 
 function fromRow(row: Record<string, unknown> | null | undefined): CompanyProfile {
