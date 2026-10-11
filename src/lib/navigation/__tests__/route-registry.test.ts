@@ -170,10 +170,33 @@ check(
   getVisibleRoutes().some((e) => e.id === "settings"),
 );
 
-/** المداخل الفرعية للإعدادات لا تتكرر داخل القائمة (زر التذييل يكفي). */
+/*
+ * شاشات الإعدادات تظهر داخل قسم «النظام والإعدادات» في القائمة.
+ *
+ * كان الاختبار السابق يشترط العكس (أن تبقى خارج القائمة)، وهو قرار قديم
+ * عكسَته الخطة في §4.1 بند 3: يجب أن يتوسّع القسم ويعرض شاشاته مباشرةً
+ * بدل أن يُطوى على رابط عام واحد.
+ */
+const settingsSection = sidebarSections.find((section) => section.category === "settings");
+
 check(
-  "settings sub-sections stay out of the sidebar",
-  !sidebarSections.some((section) => section.entries.some((e) => e.path.startsWith("/settings?"))),
+  "settings section reveals its screens in the sidebar",
+  Boolean(
+    settingsSection && settingsSection.entries.some((e) => e.path.startsWith("/settings?section=")),
+  ),
+);
+
+check(
+  "every sectioned settings link targets a real query string",
+  (settingsSection?.entries ?? [])
+    .filter((e) => e.path.startsWith("/settings?"))
+    .every((e) => new URLSearchParams(e.path.split("?")[1]).get("section") !== null),
+);
+
+/** رابط الإعدادات الجامع يبقى موجوداً لفتح الشاشة الرئيسية للقسم. */
+check(
+  "the settings hub entry is still present",
+  Boolean(settingsSection?.entries.some((e) => e.path === "/settings")),
 );
 
 if (failures.length > 0) {

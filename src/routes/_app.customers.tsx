@@ -60,6 +60,7 @@ import {
   type FilterValues,
   type SortOption,
 } from "@/components/ui/table-toolbar";
+import { RecordsViewToggle } from "@/components/ui/records-view-toggle";
 import { DataTable, type DataTableColumn, type DataTableSort } from "@/components/ui/data-table";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { IconButton } from "@/components/ui/icon-button";
@@ -910,38 +911,7 @@ function CustomersPage() {
           },
           label: lang === "ar" ? "ترتيب" : "Sort",
         }}
-        viewToggle={
-          <ToolbarAction
-            label={
-              viewMode === "cards"
-                ? lang === "ar"
-                  ? "بطاقات"
-                  : "Cards"
-                : viewMode === "list"
-                  ? lang === "ar"
-                    ? "قائمة"
-                    : "List"
-                  : lang === "ar"
-                    ? "جدول"
-                    : "Table"
-            }
-            icon={
-              viewMode === "cards" ? (
-                <LayoutGrid />
-              ) : viewMode === "list" ? (
-                <List />
-              ) : (
-                <TableProperties />
-              )
-            }
-            onClick={() =>
-              setViewMode((prev) =>
-                prev === "cards" ? "list" : prev === "list" ? "table" : "cards",
-              )
-            }
-            tone="ghost"
-          />
-        }
+        viewToggle={<RecordsViewToggle value={viewMode} onChange={(mode) => setViewMode(mode)} />}
         action={
           <ToolbarAction
             label={lang === "ar" ? "عميل جديد" : "New Customer"}

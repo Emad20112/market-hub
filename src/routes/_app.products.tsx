@@ -70,17 +70,22 @@ import { FormActions, FormGrid, FormSection } from "@/components/ui/form-layout"
 import { Modal, ConfirmDialog } from "@/components/ui/modal";
 import { DataTable, type DataTableColumn, type DataTableSort } from "@/components/ui/data-table";
 import {
-  TableToolbar,
-  ToolbarAction,
   applyFilters,
   type FilterDefinition,
   type FilterValues,
   type SortOption,
 } from "@/components/ui/table-toolbar";
+import { RecordsToolbar } from "@/components/ui/records-toolbar";
+import { RecordsViewToggle } from "@/components/ui/records-view-toggle";
+import { RecordsFilterPanel, RecordsSortPanel } from "@/components/ui/records-panels";
+import { quietChipClass } from "@/components/ui/action-button";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { ItemRoleBadge, resolveItemClass } from "@/components/item-role-badge";
 import { ProductFieldSettings } from "@/components/products/product-field-settings";
 import { useProductFieldVisibility } from "@/hooks/use-product-field-visibility";
+import { usePersistedViewMode } from "@/hooks/use-persisted-view-mode";
+import { useColumnVisibility } from "@/hooks/use-column-visibility";
+import { PRODUCTS_COLUMNS } from "@/lib/records/registries";
 import type { ProductFieldKey } from "@/lib/product-field-visibility";
 import { useBreakpoint } from "@/design/breakpoints";
 import { useRealtimeTable } from "@/lib/realtime";
@@ -228,7 +233,14 @@ function ProductsPage() {
   const [open, setOpen] = useState(false);
   const [prefillBarcode, setPrefillBarcode] = useState<string | undefined>(undefined);
   const [quickFilter, setQuickFilter] = useState<QuickFilter>("all");
-  const [viewMode, setViewMode] = useState<"grid" | "list" | "table">("grid");
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [sortOpen, setSortOpen] = useState(false);
+  /*
+   * View mode is persisted per screen (§2: "the choice is remembered for the
+   * user"). It used to be a plain `useState`, so leaving Products and coming
+   * back silently reset the operator's choice back to the grid.
+   */
+  const [viewMode, setViewMode] = usePersistedViewMode("products", "cards");
   const [selectedProductDetail, setSelectedProductDetail] = useState<ProductRow | null>(null);
   const [copiedBarcode, setCopiedBarcode] = useState<string | null>(null);
   const {
@@ -237,6 +249,15 @@ function ProductsPage() {
     toggle: toggleField,
     reset: resetFields,
   } = useProductFieldVisibility();
+
+  /*
+   * The "visible columns" registry (§9.1). `useProductFieldVisibility` above
+   * governs the *card/detail/form* markup, which is a different question from
+   * which table columns are drawn — a field can be worth showing on a card and
+   * not in the table. This hook owns the table, and is shared with every other
+   * records screen.
+   */
+  const productColumns = useColumnVisibility("products", PRODUCTS_COLUMNS);
   /** حقل واحد يُسأل عنه كثيراً؛ اختصار يمنع تكرار السطر الطويل في القوالب. */
   const show = (key: ProductFieldKey) => isFieldVisible("view", key);
   /** نفس الاختصار لسطح التفاصيل. */
@@ -705,6 +726,37 @@ function ProductsPage() {
     return text ? text : null;
   };
 
+  /** نفس قاعدة التصنيف للماركة: عربي أولًا حسب اللغة، و«—» عند الفراغ. */
+  const brandLabel = (brand?: { name: string; name_ar: string | null } | null) => {
+    const raw = lang === "ar" ? brand?.name_ar || brand?.name : brand?.name || brand?.name_ar;
+    const text = raw?.trim();
+    return text ? text : null;
+  };
+
+  /** الوحدة تُعرض حسب اللغة، ويرجع للاختصار عند غياب الاسم. */
+  const unitLabel = (
+    unit?: { name?: string; short_name?: string; name_ar: string | null } | null,
+  ) => {
+    const raw =
+      lang === "ar"
+        ? unit?.name_ar || unit?.name || unit?.short_name
+        : unit?.name || unit?.short_name || unit?.name_ar;
+    const text = raw?.trim();
+    return text ? text : null;
+  };
+
+  /*
+   * Active filters: a count for the filter button and removable chips for the
+   * row under the search box. Removing one criterion at a time is the honest
+   * remedy — "clear everything" throws away filters the operator still wants.
+   */
+  const countActiveFilters = (values: FilterValues) =>
+    Object.values(values).filter((value) => {
+      if (value == null) return false;
+      if (typeof value === "string") return value !== "";
+      return Boolean(value.from || value.to);
+    }).length;
+
   const productLoadError = (
     <div className="card-mullak flex flex-col items-center justify-center space-y-3 p-12 text-center">
       <div className="grid size-14 place-items-center rounded-2xl bg-destructive/10 text-destructive">
@@ -725,6 +777,21 @@ function ProductsPage() {
   );
 
   /* ---------------- columns ---------------- */
+  /*
+   * Column set driven by the shared registry (§9.1/§9.2).
+   *
+   * Two independent gates decide whether a column is drawn:
+   *   1. Permission — `canViewCost` for cost price. No column picker may
+   *      override this: a user who cannot see cost must not be able to reveal
+   *      it from a menu.
+   *   2. Choice — the registry map, which is what the "visible columns"
+   *      control edits and what is remembered per screen.
+   *
+   * The Arabic name is essential and always present, so the list can never be
+   * rendered without the field that identifies a row.
+   */
+  const col = productColumns.visibility;
+
   const columns = useMemo<DataTableColumn<ProductRow>[]>(() => {
     const cols: DataTableColumn<ProductRow>[] = [
       {
@@ -737,9 +804,7 @@ function ProductsPage() {
           const primary = lang === "ar" ? p.name_ar || p.name : p.name || p.name_ar || "—";
           const other = lang === "ar" ? p.name : p.name_ar;
           const secondary =
-            show("nameEn") && other && other.trim() && other.trim() !== primary.trim()
-              ? other
-              : null;
+            col.name_en && other && other.trim() && other.trim() !== primary.trim() ? other : null;
           return (
             <div className="flex flex-col py-0.5">
               <span
@@ -762,7 +827,7 @@ function ProductsPage() {
       },
     ];
 
-    if (show("category")) {
+    if (col.category) {
       cols.push({
         key: "category",
         header: t("products.category"),
@@ -777,7 +842,7 @@ function ProductsPage() {
       });
     }
 
-    if (show("role")) {
+    if (col.role) {
       cols.push({
         /*
          * The role column is what turns a list of products into something an
@@ -802,7 +867,7 @@ function ProductsPage() {
       });
     }
 
-    if (show("shelf")) {
+    if (col.shelf_location) {
       cols.push({
         key: "shelf_location",
         header: lang === "ar" ? "الرف" : "Shelf",
@@ -813,7 +878,7 @@ function ProductsPage() {
       });
     }
 
-    if (canViewCost && show("cost")) {
+    if (canViewCost && col.cost_price) {
       cols.push({
         key: "cost_price",
         header: t("common.cost"),
@@ -829,8 +894,64 @@ function ProductsPage() {
       });
     }
 
-    cols.push(
-      {
+    /*
+     * Brand, unit, SKU and barcode were previously drawn unconditionally or not
+     * at all. They are now real columns gated by the registry, so an operator
+     * can trim a wide table down to what they actually read — which is the
+     * point of the picker, and what makes the table usable at 320px.
+     */
+    if (col.brand) {
+      cols.push({
+        key: "brand",
+        header: t("products.brand"),
+        width: "w-[130px]",
+        sortValue: (p) => brandLabel(p.brand) ?? "",
+        cell: (p) => (
+          <span className="text-xs text-muted-foreground truncate block">
+            {brandLabel(p.brand) ?? "—"}
+          </span>
+        ),
+      });
+    }
+
+    if (col.unit) {
+      cols.push({
+        key: "unit",
+        header: t("products.unit"),
+        width: "w-[92px]",
+        sortValue: (p) => unitLabel(p.unit) ?? "",
+        cell: (p) => (
+          <span className="text-xs text-muted-foreground truncate block">
+            {unitLabel(p.unit) ?? "—"}
+          </span>
+        ),
+      });
+    }
+
+    if (col.sku) {
+      cols.push({
+        key: "sku",
+        header: t("products.sku"),
+        width: "w-[124px]",
+        cell: (p) => (
+          <span className="font-mono text-xs text-muted-foreground">{p.sku ?? "—"}</span>
+        ),
+      });
+    }
+
+    if (col.barcode) {
+      cols.push({
+        key: "barcode",
+        header: t("products.barcode"),
+        width: "w-[136px]",
+        cell: (p) => (
+          <span className="font-mono text-xs text-muted-foreground">{p.barcode ?? "—"}</span>
+        ),
+      });
+    }
+
+    if (col.sale_price) {
+      cols.push({
         key: "sale_price",
         header: t("common.price"),
         align: "end",
@@ -842,8 +963,11 @@ function ProductsPage() {
             {moneyCell(p.sale_price)}
           </span>
         ),
-      },
-      {
+      });
+    }
+
+    if (col.min_stock) {
+      cols.push({
         key: "min_stock",
         header: t("products.min"),
         align: "end",
@@ -855,10 +979,10 @@ function ProductsPage() {
             {qtyCell(p.min_stock)}
           </span>
         ),
-      },
-    );
+      });
+    }
 
-    if (show("status")) {
+    if (col.is_active) {
       cols.push({
         key: "is_active",
         header: t("common.status"),
@@ -909,8 +1033,14 @@ function ProductsPage() {
     });
 
     return cols;
+    /*
+     * `col` is `productColumns.visibility`; it is listed explicitly rather than
+     * as the enclosing object so one column's visibility rebuilds the columns
+     * without rebuilding on unrelated renders. The label helpers read `lang`
+     * only and are recreated per render, which is why they are not listed.
+     */
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [config, canViewCost, lang, t, visibility]);
+  }, [config, canViewCost, lang, t, visibility, productColumns.visibility]);
 
   /*
    * The single entry point for creating a product.
@@ -954,23 +1084,21 @@ function ProductsPage() {
         subtitle={t("products.subtitle")}
         actions={
           <div className="flex items-center gap-2">
+            {/*
+             * §9.2: the duplicate "Quick Add" entry point was removed.
+             *
+             * It opened exactly the same form as the primary button (both
+             * called `openNew`), so the screen offered two identical actions
+             * with different labels and no way to tell what "quick" added.
+             * Scanning still reaches the same form — via the barcode deep-link
+             * and the scan field — so nothing was lost.
+             */}
             <ProductFieldSettings
               isVisible={isFieldVisible}
               toggle={toggleField}
               reset={resetFields}
               isRtl={lang === "ar"}
             />
-            <Button
-              variant="outline"
-              size="sm"
-              icon={<ScanBarcode className="size-4" />}
-              onClick={() => openNew()}
-              className="rounded-xl border-border/80 shadow-xs"
-            >
-              <span className="hidden sm:inline">
-                {lang === "ar" ? "إضافة سريعة" : "Quick Add"}
-              </span>
-            </Button>
             <Button
               variant="primary"
               size="sm"
@@ -1043,122 +1171,116 @@ function ProductsPage() {
         />
       </div>
 
-      {/* ─── Original shared toolbar: search + filters + sort + view mode ─── */}
+      {/* ─── Unified records toolbar: search + filters + sort + view + columns ─── */}
       <div className="pt-2 sm:pt-3.5">
-        <TableToolbar
-          sticky
-          search={{
-            value: query,
-            onValueChange: setQuery,
-            placeholder: lang === "ar" ? "ابحث في المنتجات" : "Search products",
-            // The number beside search must be the MATCH count, not the
-            // server-side catalogue total — those are different numbers and
-            // showing the total made an empty search look like it had results.
-            resultCount: sortedRows.length,
-            loading: isFetching && !isLoading,
-          }}
-          filters={{
-            definitions: productFilterDefinitions,
-            values: filters,
-            onValueChange: setFilters,
-          }}
-          sort={{
-            options: productSortOptions,
-            value: sort?.key ?? "",
-            onValueChange: (value) =>
-              setSort(value ? { key: value, direction: sort?.direction ?? "asc" } : null),
-            label: lang === "ar" ? "ترتيب" : "Sort",
-          }}
-          viewToggle={
-            <ToolbarAction
-              label={
-                viewMode === "grid"
-                  ? lang === "ar"
-                    ? "شبكة"
-                    : "Grid"
-                  : viewMode === "list"
-                    ? lang === "ar"
-                      ? "قائمة"
-                      : "List"
-                    : lang === "ar"
-                      ? "كلاسيكي"
-                      : "Classic"
-              }
-              icon={
-                viewMode === "grid" ? (
-                  <LayoutGrid />
-                ) : viewMode === "list" ? (
-                  <List />
-                ) : (
-                  <TableProperties />
-                )
-              }
-              onClick={() =>
-                setViewMode((previous) =>
-                  previous === "grid" ? "list" : previous === "list" ? "table" : "grid",
-                )
-              }
-              tone="ghost"
-            />
-          }
+        <RecordsToolbar
+          searchValue={query}
+          onSearchChange={setQuery}
+          searchPlaceholder={lang === "ar" ? "ابحث في المنتجات" : "Search products"}
+          // The number beside search must be the MATCH count, not the
+          // server-side catalogue total — showing the total made an empty
+          // search look like it had results.
+          resultCount={sortedRows.length}
+          searchLoading={isFetching && !isLoading}
+          filterLabel={lang === "ar" ? "فلترة" : "Filter"}
+          activeFilterCount={countActiveFilters(filters)}
+          onFilterOpen={() => setFiltersOpen(true)}
+          onClearFilters={() => setFilters({})}
+          sortActive={Boolean(sort)}
+          sortLabel={lang === "ar" ? "ترتيب" : "Sort"}
+          onSortOpen={() => setSortOpen(true)}
+          viewMode={viewMode}
+          onViewModeChange={setViewMode}
+          columns={productColumns.available}
+          columnVisibility={productColumns.visibility}
+          onToggleColumn={productColumns.toggle}
+          onResetColumns={productColumns.reset}
           action={
-            <ToolbarAction
-              label={t("common.new")}
-              icon={<Plus />}
-              tone="primary"
+            <Button
+              variant="primary"
+              size="sm"
+              icon={<Plus className="size-4" />}
               onClick={() => openNew()}
-            />
+              className="rounded-full font-bold shadow-xs shadow-primary/20"
+            >
+              <span className="hidden sm:inline">{t("common.new")}</span>
+            </Button>
           }
         >
-          {viewMode === "grid" && (
-            <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 scrollbar-x-none">
-              {[
-                {
-                  id: "all",
-                  label: lang === "ar" ? "الكل" : "All",
-                  count: productCount ?? products.length,
-                },
-                { id: "active", label: lang === "ar" ? "النشطة" : "Active", count: activeCount },
-                {
-                  id: "inactive",
-                  label: lang === "ar" ? "غير النشطة" : "Inactive",
-                  count: inactiveCount,
-                },
-                {
-                  id: "has_min_stock",
-                  label: lang === "ar" ? "له حد أدنى" : "Has threshold",
-                  count: hasMinStockCount,
-                },
-              ].map((filter) => (
-                <button
-                  key={filter.id}
-                  type="button"
-                  onClick={() => setQuickFilter(filter.id as typeof quickFilter)}
-                  className={`flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-bold transition ${
+          {/*
+           * Quick segments render OUTSIDE any view-mode condition. They used to
+           * be wrapped in `viewMode === "grid" && ...`, so switching to list or
+           * table silently dropped the status filter row — the plan requires
+           * the filter bar to appear equally in all three modes (§9.3).
+           */}
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 scrollbar-x-none">
+            {[
+              {
+                id: "all",
+                label: lang === "ar" ? "الكل" : "All",
+                count: productCount ?? products.length,
+              },
+              { id: "active", label: lang === "ar" ? "النشطة" : "Active", count: activeCount },
+              {
+                id: "inactive",
+                label: lang === "ar" ? "غير النشطة" : "Inactive",
+                count: inactiveCount,
+              },
+              {
+                id: "has_min_stock",
+                label: lang === "ar" ? "له حد أدنى" : "Has threshold",
+                count: hasMinStockCount,
+              },
+            ].map((filter) => (
+              <button
+                key={filter.id}
+                type="button"
+                onClick={() => setQuickFilter(filter.id as typeof quickFilter)}
+                aria-pressed={quickFilter === filter.id}
+                className={quietChipClass(quickFilter === filter.id, "font-semibold")}
+              >
+                <span>{filter.label}</span>
+                <span
+                  className={`rounded-full px-1.5 py-0.5 text-[10px] font-mono ${
                     quickFilter === filter.id
-                      ? "border-primary bg-primary text-primary-foreground shadow-xs shadow-primary/20"
-                      : "border-border/70 bg-surface/70 text-muted-foreground hover:bg-surface-2 hover:text-foreground"
+                      ? "bg-primary/18 text-primary"
+                      : "bg-muted text-muted-foreground"
                   }`}
                 >
-                  <span>{filter.label}</span>
-                  <span
-                    className={`rounded-full px-1.5 py-0.2 text-[10px] font-mono ${
-                      quickFilter === filter.id
-                        ? "bg-white/20 text-white"
-                        : "bg-muted text-muted-foreground"
-                    }`}
-                  >
-                    {filter.count}
-                  </span>
-                </button>
-              ))}
-            </div>
-          )}
-        </TableToolbar>
+                  {filter.count}
+                </span>
+              </button>
+            ))}
+          </div>
+        </RecordsToolbar>
+
+        {/* Shared panels: bottom sheet on phones, small anchored panel on
+         *  desktop. Committing only on "Apply" means choosing five filters
+         *  costs one refetch, not five. */}
+        <RecordsFilterPanel
+          open={filtersOpen}
+          onClose={() => setFiltersOpen(false)}
+          definitions={productFilterDefinitions}
+          values={filters}
+          onSubmit={(next) => {
+            setFilters(next);
+            setFiltersOpen(false);
+          }}
+        />
+        <RecordsSortPanel
+          open={sortOpen}
+          onClose={() => setSortOpen(false)}
+          options={productSortOptions}
+          value={sort?.key ?? ""}
+          onSubmit={(value) => {
+            setSort(value ? { key: value, direction: sort?.direction ?? "asc" } : null);
+            setSortOpen(false);
+          }}
+        />
       </div>
 
-      {/* ─── Main Records View: Grid (2 cols mobile!) vs List vs Classic Table ─── */}
-      {viewMode === "grid" ? (
+      {/* ─── Main Records View: cards / list / table ─── */}
+      {viewMode === "cards" ? (
         <div className="space-y-4">
           {isLoading ? (
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5 sm:gap-4">

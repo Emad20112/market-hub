@@ -125,9 +125,7 @@ export function CompanySection({ form, setForm, canEdit, lang }: CompanySectionP
         </div>
 
         <div className="grid gap-1.5">
-          <Label className="text-xs font-semibold">
-            {isAr ? "نص الفوتر" : "Footer note"}
-          </Label>
+          <Label className="text-xs font-semibold">{isAr ? "نص الفوتر" : "Footer note"}</Label>
           <Input
             value={form.footer_text ?? ""}
             onChange={(e) => setForm({ ...form, footer_text: e.target.value })}

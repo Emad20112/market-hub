@@ -15,7 +15,7 @@ import {
   CommandGroup,
   CommandItem,
 } from "@/components/ui/command";
-import { Receipt, ScanBarcode, Wrench } from "lucide-react";
+import { CircleDollarSign, Hash, Receipt, ScanBarcode, Wrench } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -48,6 +48,7 @@ export function InvoicingSection({
   lang,
 }: InvoicingSectionProps) {
   const isAr = lang === "ar";
+  const [activePanel, setActivePanel] = useState<"currency" | "numbering" | "services">("currency");
   // Post-sale printing preferences come from the same unified store used by POS
   const [printMode, setPrintModeState] = useState<"auto" | "ask" | "off">("ask");
   const [defaultPrintTemplate, setDefaultPrintTemplateState] = useState<InvoiceTemplate>("thermal");
@@ -71,6 +72,29 @@ export function InvoicingSection({
   const setDefaultPrintTemplate = (v: InvoiceTemplate) => {
     setDefaultPrintTemplateState(v);
   };
+
+  const panels = [
+    {
+      id: "currency" as const,
+      icon: CircleDollarSign,
+      title: isAr ? "العملة والضريبة" : "Currency & tax",
+      description: isAr ? "حدد العملة ونسبة الضريبة" : "Set currency and tax rate",
+    },
+    {
+      id: "numbering" as const,
+      icon: Hash,
+      title: isAr ? "ترقيم المستندات" : "Document numbering",
+      description: isAr ? "نظم أرقام الفواتير والمستندات" : "Organize invoice and document numbers",
+    },
+    {
+      id: "services" as const,
+      icon: ScanBarcode,
+      title: isAr ? "الخدمات والباركود" : "Services & barcode",
+      description: isAr
+        ? "فعّل الخدمات السريعة وقارئ الباركود"
+        : "Enable quick services and barcode scanning",
+    },
+  ];
 
   async function uploadCompanyLogo(file: File) {
     const allowedTypes = ["image/png", "image/jpeg", "image/webp"];
@@ -128,127 +152,166 @@ export function InvoicingSection({
             <Receipt className="h-5 w-5" />
           </div>
           <div>
-            <div>{isAr ? "إعدادات الفواتير والسلة والعملة" : "Invoicing & POS Cart Settings"}</div>
+            <div>{isAr ? "إعدادات الفواتير" : "Invoice settings"}</div>
             <div className="text-xs text-muted-foreground font-normal mt-0.5">
               {isAr
-                ? "ضبط العملة الحسابية، نسبة الضريبة، الباركود، وإيقاف/تفعيل أجور الخدمة والسلة"
-                : "Configure base currency, tax %, invoice numbering prefix, and POS cart toggles"}
+                ? "رتّب إعدادات العملة والترقيم والخدمات من مكان واحد"
+                : "Manage currency, numbering, and service options in one place"}
             </div>
           </div>
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-5 pt-5">
-        <div className="space-y-3">
-          <div className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
-            {isAr ? "العملة والضريبة" : "Currency & tax"}
-          </div>
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-            <CurrencyPicker
-              options={currencyOptions}
-              selectedCode={form.currency ?? "YER"}
-              language={lang}
-              disabled={!canEdit}
-              onSelect={(code) =>
-                setForm((current: any) => ({
-                  ...current,
-                  currency: code,
-                  currency_symbol: getCurrencySymbol(code, isAr ? "ar-YE" : "en"),
-                }))
-              }
-            />
-            <div className="grid gap-1.5">
-              <Label htmlFor="currency-symbol" className="text-xs font-semibold">
-                {isAr ? "رمز العرض" : "Display symbol"}
-              </Label>
-              <Input
-                id="currency-symbol"
-                value={form.currency_symbol ?? currencyPreviewSymbol}
-                onChange={(event) =>
-                  setForm((current: any) => ({ ...current, currency_symbol: event.target.value }))
-                }
-                disabled={!canEdit}
-                placeholder={currencyPreviewSymbol}
-                className="rounded-2xl"
-              />
-            </div>
-            <div className="grid gap-1.5">
-              <Label htmlFor="tax-rate" className="text-xs font-semibold">
-                {isAr ? "نسبة الضريبة %" : "Tax rate %"}
-              </Label>
-              <Input
-                id="tax-rate"
-                type="number"
-                min="0"
-                max="100"
-                step="0.01"
-                value={String(form.tax_rate ?? 0)}
-                onChange={(event) =>
-                  setForm((current: any) => ({ ...current, tax_rate: event.target.value }))
-                }
-                disabled={!canEdit}
-                placeholder="0"
-                className="rounded-2xl font-mono"
-              />
-            </div>
-          </div>
-          <p className="text-xs text-muted-foreground">
-            {isAr
-              ? "العملة الافتراضية للمنشآت الجديدة هي الريال اليمني. تغييرها لا يحوّل المبالغ المسجلة سابقاً."
-              : "New companies default to Yemeni Rial. Changing currency does not convert existing amounts."}
-          </p>
+        <div
+          role="tablist"
+          aria-label={isAr ? "أقسام إعدادات الفواتير" : "Invoice settings sections"}
+          className="flex w-fit max-w-full flex-wrap items-center gap-1.5 rounded-2xl border border-border/60 bg-surface-2 p-1"
+        >
+          {panels.map((panel) => {
+            const Icon = panel.icon;
+            const active = activePanel === panel.id;
+            return (
+              <button
+                key={panel.id}
+                type="button"
+                role="tab"
+                aria-selected={active}
+                onClick={() => setActivePanel(panel.id)}
+                className={`flex min-w-0 items-center gap-2 rounded-xl px-3 py-2 text-start text-xs font-bold transition-all sm:px-4 ${
+                  active
+                    ? "bg-primary text-primary-foreground shadow-xs"
+                    : "text-muted-foreground hover:bg-surface hover:text-foreground"
+                }`}
+              >
+                <Icon className="size-3.5 shrink-0" />
+                <span className="truncate">{panel.title}</span>
+              </button>
+            );
+          })}
         </div>
 
-        {/* Central Document Numbering Engine — every document type, not just invoices */}
-        <div className="space-y-3 rounded-2xl border border-border/80 bg-surface/50 p-4">
-          <DocumentNumberingCard isAr={isAr} canEdit={canEdit} />
-          <p className="text-xs text-muted-foreground">
-            {isAr
-              ? "التسلسل الرقمي منفصل تماماً عن شكل الرقم المعروض: لكل نوع مستند تسلسل مستقل يُخصَّص داخل قاعدة البيانات (ذرّياً) لمنع تكرار الأرقام، ولا يُعاد ترقيم المستندات القديمة عند تغيير التنسيق."
-              : "The numeric sequence is fully separate from the displayed format: each document type has its own sequence allocated atomically inside the database to prevent duplicates, and changing the format never renumbers existing documents."}
-          </p>
-        </div>
-
-        {/* Feature Switches */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* Custom Labor Fee Switch */}
-          <div className="flex items-center justify-between p-4 rounded-2xl border border-border/80 bg-surface/70">
-            <div className="space-y-1 pe-3">
-              <div className="text-sm font-semibold flex items-center gap-2">
-                <Wrench className="h-4 w-4 text-amber-500" />
-                {isAr ? "خدمة أو أجرة تركيب بسعر مخصص" : "Custom Labor / Installation Fee"}
+        <div role="tabpanel" className="min-w-0">
+          {activePanel === "currency" && (
+            <div className="space-y-3">
+              <div className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
+                {isAr ? "العملة والضريبة" : "Currency & tax"}
               </div>
-              <div className="text-xs text-muted-foreground leading-relaxed">
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                <CurrencyPicker
+                  options={currencyOptions}
+                  selectedCode={form.currency ?? "YER"}
+                  language={lang}
+                  disabled={!canEdit}
+                  onSelect={(code) =>
+                    setForm((current: any) => ({
+                      ...current,
+                      currency: code,
+                      currency_symbol: getCurrencySymbol(code, isAr ? "ar-YE" : "en"),
+                    }))
+                  }
+                />
+                <div className="grid gap-1.5">
+                  <Label htmlFor="currency-symbol" className="text-xs font-semibold">
+                    {isAr ? "رمز العرض" : "Display symbol"}
+                  </Label>
+                  <Input
+                    id="currency-symbol"
+                    value={form.currency_symbol ?? currencyPreviewSymbol}
+                    onChange={(event) =>
+                      setForm((current: any) => ({
+                        ...current,
+                        currency_symbol: event.target.value,
+                      }))
+                    }
+                    disabled={!canEdit}
+                    placeholder={currencyPreviewSymbol}
+                    className="rounded-2xl"
+                  />
+                </div>
+                <div className="grid gap-1.5">
+                  <Label htmlFor="tax-rate" className="text-xs font-semibold">
+                    {isAr ? "نسبة الضريبة %" : "Tax rate %"}
+                  </Label>
+                  <Input
+                    id="tax-rate"
+                    type="number"
+                    min="0"
+                    max="100"
+                    step="0.01"
+                    value={String(form.tax_rate ?? 0)}
+                    onChange={(event) =>
+                      setForm((current: any) => ({ ...current, tax_rate: event.target.value }))
+                    }
+                    disabled={!canEdit}
+                    placeholder="0"
+                    className="rounded-2xl font-mono"
+                  />
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground">
                 {isAr
-                  ? "إظهار زر مخصص في سلة نقطة البيع (POS) لإضافة بند خدمة سريعة أو أجور عمالة مباشرة."
-                  : "Enable quick custom service or labor fee entry in POS cart without catalog lookup."}
+                  ? "العملة الافتراضية للمنشآت الجديدة هي الريال اليمني. تغييرها لا يحوّل المبالغ المسجلة سابقاً."
+                  : "New companies default to Yemeni Rial. Changing currency does not convert existing amounts."}
+              </p>
+            </div>
+          )}
+
+          {/* Central Document Numbering Engine — every document type, not just invoices */}
+          {activePanel === "numbering" && (
+            <div className="space-y-3 rounded-2xl border border-border/80 bg-surface/50 p-4">
+              <DocumentNumberingCard isAr={isAr} canEdit={canEdit} />
+              <p className="text-xs text-muted-foreground">
+                {isAr
+                  ? "التسلسل الرقمي منفصل تماماً عن شكل الرقم المعروض: لكل نوع مستند تسلسل مستقل يُخصَّص داخل قاعدة البيانات (ذرّياً) لمنع تكرار الأرقام، ولا يُعاد ترقيم المستندات القديمة عند تغيير التنسيق."
+                  : "The numeric sequence is fully separate from the displayed format: each document type has its own sequence allocated atomically inside the database to prevent duplicates, and changing the format never renumbers existing documents."}
+              </p>
+            </div>
+          )}
+
+          {/* Feature Switches */}
+          {activePanel === "services" && (
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              {/* Custom Labor Fee Switch */}
+              <div className="flex items-center justify-between p-4 rounded-2xl border border-border/80 bg-surface/70">
+                <div className="space-y-1 pe-3">
+                  <div className="text-sm font-semibold flex items-center gap-2">
+                    <Wrench className="h-4 w-4 text-amber-500" />
+                    {isAr ? "خدمة أو أجرة تركيب بسعر مخصص" : "Custom Labor / Installation Fee"}
+                  </div>
+                  <div className="text-xs text-muted-foreground leading-relaxed">
+                    {isAr
+                      ? "إظهار زر مخصص في سلة نقطة البيع (POS) لإضافة بند خدمة سريعة أو أجور عمالة مباشرة."
+                      : "Enable quick custom service or labor fee entry in POS cart without catalog lookup."}
+                  </div>
+                </div>
+                <Switch
+                  checked={enablePosServiceFee}
+                  onCheckedChange={setEnablePosServiceFee}
+                  disabled={!canEdit}
+                />
+              </div>
+
+              {/* Barcode Scanner Mode */}
+              <div className="flex items-center justify-between p-4 rounded-2xl border border-border/80 bg-surface/70">
+                <div className="space-y-1 pe-3">
+                  <div className="text-sm font-semibold flex items-center gap-2">
+                    <ScanBarcode className="h-4 w-4 text-violet-500" />
+                    {isAr ? "تفعيل قارئ الباركود في POS" : "Barcode Scanner Mode"}
+                  </div>
+                  <div className="text-xs text-muted-foreground leading-relaxed">
+                    {isAr
+                      ? "السماح بمسح وقراءة الباركود بالكاميرا أو القارئ اليدوي في شاشة نقطة البيع."
+                      : "Allow barcode scanning at POS."}
+                  </div>
+                </div>
+                <Switch
+                  checked={!!form.barcode_enabled}
+                  onCheckedChange={(v) => setForm({ ...form, barcode_enabled: v })}
+                  disabled={!canEdit}
+                />
               </div>
             </div>
-            <Switch
-              checked={enablePosServiceFee}
-              onCheckedChange={setEnablePosServiceFee}
-              disabled={!canEdit}
-            />
-          </div>
-
-          {/* Barcode Scanner Mode */}
-          <div className="flex items-center justify-between p-4 rounded-2xl border border-border/80 bg-surface/70">
-            <div className="space-y-1 pe-3">
-              <div className="text-sm font-semibold flex items-center gap-2">
-                <ScanBarcode className="h-4 w-4 text-violet-500" />
-                {isAr ? "تفعيل قارئ الباركود في POS" : "Barcode Scanner Mode"}
-              </div>
-              <div className="text-xs text-muted-foreground leading-relaxed">
-                {isAr
-                  ? "السماح بمسح وقراءة الباركود بالكاميرا أو القارئ اليدوي في شاشة نقطة البيع."
-                  : "Allow barcode scanning at POS."}
-              </div>
-            </div>
-            <Switch
-              checked={!!form.barcode_enabled}
-              onCheckedChange={(v) => setForm({ ...form, barcode_enabled: v })}
-              disabled={!canEdit}
-            />
-          </div>
+          )}
         </div>
       </CardContent>
     </Card>

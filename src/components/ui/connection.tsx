@@ -39,15 +39,37 @@ export function ConnectionBanner() {
   const online = useOnline();
   const queryClient = useQueryClient();
   const [reconnecting, setReconnecting] = React.useState(false);
+  const wasOnline = React.useRef(online);
 
-  const retry = async () => {
+  const retry = React.useCallback(async () => {
     setReconnecting(true);
     try {
       await queryClient.refetchQueries({ type: "active" });
     } finally {
       setReconnecting(false);
     }
-  };
+  }, [queryClient]);
+
+  /*
+   * `online` is not only a visual banner state. When the browser reports that
+   * the connection came back, every open screen must refresh its live data
+   * without asking the cashier to press a button. The offline sync engine has
+   * its own `online` listener for queued operations; this completes the other
+   * half by refreshing regular React Query reads.
+   *
+   * The ref avoids an unnecessary refetch when the application first mounts
+   * already connected. A transition from false → true runs exactly once.
+   */
+  React.useEffect(() => {
+    if (!online) {
+      wasOnline.current = false;
+      return;
+    }
+
+    if (wasOnline.current) return;
+    wasOnline.current = true;
+    void retry();
+  }, [online, retry]);
 
   if (online) return null;
 

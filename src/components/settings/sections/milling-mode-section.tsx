@@ -1,12 +1,17 @@
 import React from "react";
-import { Scale, CheckCircle2, ShieldCheck, Sparkles, Building2, Zap, Factory, Layers } from "lucide-react";
+import {
+  Scale,
+  CheckCircle2,
+  ShieldCheck,
+  Sparkles,
+  Building2,
+  Zap,
+  Factory,
+  Layers,
+} from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
-import {
-  useMillingMode,
-  MILLING_MODES,
-  type MillingMode,
-} from "@/lib/milling-mode";
+import { useMillingMode, MILLING_MODES, type MillingMode } from "@/lib/milling-mode";
 
 interface MillingModeSectionProps {
   canEdit: boolean;
@@ -19,14 +24,16 @@ export function MillingModeSection({ canEdit, lang }: MillingModeSectionProps) {
 
   const handleSelectMode = (newMode: MillingMode) => {
     if (!canEdit) {
-      toast.error(isAr ? "عذراً، هذا الإجراء متاح فقط لمدير النظام (Super Admin)." : "Only owners or managers can change this setting.");
+      toast.error(
+        isAr
+          ? "عذراً، هذا الإجراء متاح فقط لمدير النظام (Super Admin)."
+          : "Only owners or managers can change this setting.",
+      );
       return;
     }
     setMode(newMode);
     toast.success(
-      isAr
-        ? "تم تحديث نمط تشغيل المنشأة بنجاح."
-        : "Operational mode updated successfully."
+      isAr ? "تم تحديث نمط تشغيل المنشأة بنجاح." : "Operational mode updated successfully.",
     );
   };
 
@@ -54,7 +61,9 @@ export function MillingModeSection({ canEdit, lang }: MillingModeSectionProps) {
               </div>
               <div>
                 <div className="flex items-center gap-2">
-                  <span>{isAr ? "نمط نشاط المنشأة وإدارة المطحنة" : "Business Type & Milling Mode"}</span>
+                  <span>
+                    {isAr ? "نمط نشاط المنشأة وإدارة المطحنة" : "Business Type & Milling Mode"}
+                  </span>
                   <span className="rounded-full bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-500/30 px-2 py-0.5 text-[10px] font-bold">
                     Super Admin
                   </span>
@@ -86,7 +95,9 @@ export function MillingModeSection({ canEdit, lang }: MillingModeSectionProps) {
                   <div className="space-y-3">
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex items-center gap-2.5">
-                        <div className={`p-2 rounded-xl ${isSelected ? "bg-amber-500/20 text-amber-600 dark:text-amber-300" : "bg-muted text-muted-foreground"}`}>
+                        <div
+                          className={`p-2 rounded-xl ${isSelected ? "bg-amber-500/20 text-amber-600 dark:text-amber-300" : "bg-muted text-muted-foreground"}`}
+                        >
                           {getModeIcon(item.id)}
                         </div>
                         <div>

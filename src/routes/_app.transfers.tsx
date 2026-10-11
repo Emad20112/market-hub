@@ -40,6 +40,7 @@ import {
   type FilterValues,
   type SortOption,
 } from "@/components/ui/table-toolbar";
+import { RecordsViewToggle } from "@/components/ui/records-view-toggle";
 import { type PageGuideConfig } from "@/components/page-guide";
 import { buildSearchIndex, fuzzySearch } from "@/design/fuzzy";
 import { qtyCell } from "@/lib/format";
@@ -667,29 +668,12 @@ function TransfersPage() {
             label: t("transfers.sort.label"),
           }}
           viewToggle={
-            <ToolbarAction
-              label={
-                viewMode === "grid"
-                  ? t("transfers.view_grid")
-                  : viewMode === "list"
-                    ? t("transfers.view_list")
-                    : t("transfers.view_classic")
-              }
-              icon={
-                viewMode === "grid" ? (
-                  <LayoutGrid />
-                ) : viewMode === "list" ? (
-                  <List />
-                ) : (
-                  <TableProperties />
-                )
-              }
-              onClick={() =>
-                setViewMode((prev) =>
-                  prev === "grid" ? "list" : prev === "list" ? "table" : "grid",
-                )
-              }
-              tone="ghost"
+            /* The screen calls the card layout "grid"; the shared toggle calls
+             * it "cards". Translate at the boundary so neither vocabulary
+             * leaks into the other. */
+            <RecordsViewToggle
+              value={viewMode === "grid" ? "cards" : viewMode}
+              onChange={(mode) => setViewMode(mode === "cards" ? "grid" : mode)}
             />
           }
           action={

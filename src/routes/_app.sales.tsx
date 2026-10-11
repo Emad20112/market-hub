@@ -66,6 +66,7 @@ import {
   type FilterValues,
   type SortOption,
 } from "@/components/ui/table-toolbar";
+import { RecordsViewToggle } from "@/components/ui/records-view-toggle";
 import { DataTable, type DataTableColumn, type DataTableSort } from "@/components/ui/data-table";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { IconButton } from "@/components/ui/icon-button";
@@ -137,7 +138,11 @@ export function SalesPage() {
   const [statusTab, setStatusTab] = useState<StatusTab>("all");
   const [filters, setFilters] = useState<FilterValues>({});
   const [sortKey, setSortKey] = useState<string>("date_desc");
-  const [viewMode, setViewMode] = useStoredViewMode<ViewMode>("sales", "grid", ["grid", "list", "table"]);
+  const [viewMode, setViewMode] = useStoredViewMode<ViewMode>("sales", "grid", [
+    "grid",
+    "list",
+    "table",
+  ]);
 
   /*
    * Two sort channels on purpose. The toolbar's sort dropdown writes
@@ -1087,13 +1092,16 @@ export function SalesPage() {
               {t("sales.title") || (isRtl ? "المبيعات والفواتير" : "Sales & Invoices")}
             </h1>
             <span className="inline-flex items-center rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-semibold text-primary">
-              {toSystemDigits(totalInvoiceCount != null ? totalInvoiceCount.toString() : rows.length.toString())}
+              {toSystemDigits(
+                totalInvoiceCount != null ? totalInvoiceCount.toString() : rows.length.toString(),
+              )}
             </span>
           </div>
           <p className="text-xs text-muted-foreground mt-0.5">
-            {t("sales.subtitle") || (isRtl
-              ? "متابعة فواتير المبيعات، المدفوعات، التحصيلات الفورية والطباعة الفاخرة"
-              : "Track sales invoices, collections, payment statuses and luxury printing")}
+            {t("sales.subtitle") ||
+              (isRtl
+                ? "متابعة فواتير المبيعات، المدفوعات، التحصيلات الفورية والطباعة الفاخرة"
+                : "Track sales invoices, collections, payment statuses and luxury printing")}
           </p>
         </div>
 
@@ -1107,7 +1115,10 @@ export function SalesPage() {
               title={isRtl ? "فاتورة جديدة (نقطة البيع)" : "New Invoice (POS)"}
             >
               <Plus className="h-4 w-4 shrink-0" />
-              <span>{t("sales.new_invoice") || (isRtl ? "فاتورة جديدة (نقطة البيع)" : "New Invoice (POS)")}</span>
+              <span>
+                {t("sales.new_invoice") ||
+                  (isRtl ? "فاتورة جديدة (نقطة البيع)" : "New Invoice (POS)")}
+              </span>
             </Link>
           </div>
 
@@ -1120,8 +1131,12 @@ export function SalesPage() {
             title={t("common.refresh") || (isRtl ? "تحديث البيانات" : "Refresh")}
             aria-label={t("common.refresh") || (isRtl ? "تحديث" : "Refresh")}
           >
-            <RefreshCw className={cn("h-3.5 w-3.5 shrink-0", loading && "animate-spin text-primary")} />
-            <span className="hidden sm:inline font-semibold">{t("common.refresh") || (isRtl ? "تحديث" : "Refresh")}</span>
+            <RefreshCw
+              className={cn("h-3.5 w-3.5 shrink-0", loading && "animate-spin text-primary")}
+            />
+            <span className="hidden sm:inline font-semibold">
+              {t("common.refresh") || (isRtl ? "تحديث" : "Refresh")}
+            </span>
           </button>
         </div>
       </div>
@@ -1187,34 +1202,15 @@ export function SalesPage() {
           },
           label: isRtl ? "ترتيب" : "Sort",
         }}
+        /*
+         * This screen calls the card layout "grid"; the shared toggle calls it
+         * "cards". The vocabulary is translated at the boundary so neither
+         * leaks into the other.
+         */
         viewToggle={
-          <ToolbarAction
-            label={
-              viewMode === "grid"
-                ? isRtl
-                  ? "بطاقات"
-                  : "Cards"
-                : viewMode === "list"
-                  ? isRtl
-                    ? "قائمة"
-                    : "List"
-                  : isRtl
-                    ? "كلاسيكي"
-                    : "Classic"
-            }
-            icon={
-              viewMode === "grid" ? (
-                <LayoutGrid />
-              ) : viewMode === "list" ? (
-                <List />
-              ) : (
-                <TableProperties />
-              )
-            }
-            onClick={() =>
-              setViewMode((prev) => (prev === "grid" ? "list" : prev === "list" ? "table" : "grid"))
-            }
-            tone="ghost"
+          <RecordsViewToggle
+            value={viewMode === "grid" ? "cards" : viewMode}
+            onChange={(mode) => setViewMode(mode === "cards" ? "grid" : mode)}
           />
         }
         action={
@@ -1876,7 +1872,7 @@ export function SalesPage() {
         </VortexFilterSection>
       </VortexFilterSheet>
 
-  {false && selected && (
+      {false && selected && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-end bg-black/65 backdrop-blur-xs animate-in fade-in duration-200"
           onClick={() => setSelected(null)}

@@ -46,11 +46,15 @@ const DATE_TOKEN_SET = ["{YYYY}", "{YY}", "{MM}", "{DD}"];
 export function DocumentNumberingCard({ isAr, canEdit }: DocumentNumberingCardProps) {
   const [rows, setRows] = useState<DocumentNumberingRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
   const [savingType, setSavingType] = useState<string | null>(null);
   const [activeType, setActiveType] = useState<string>("sales_invoice");
 
   useEffect(() => {
     let cancelled = false;
+    setLoading(true);
+    setLoadError(false);
     supabase
       .from("document_numbering")
       .select("*")
@@ -60,7 +64,10 @@ export function DocumentNumberingCard({ isAr, canEdit }: DocumentNumberingCardPr
       .then(({ data, error }) => {
         if (cancelled) return;
         if (error) {
-          // The engine may not be deployed yet — fail softly, never crash Settings.
+          // Keep technical deployment details in the console, never in the shop UI.
+          console.error("Could not load document numbering settings", error);
+          setRows([]);
+          setLoadError(true);
           setLoading(false);
           return;
         }
@@ -70,7 +77,7 @@ export function DocumentNumberingCard({ isAr, canEdit }: DocumentNumberingCardPr
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [reloadKey]);
 
   const activeRow = useMemo(
     () => rows.find((r) => r.document_type === activeType) ?? rows[0],
@@ -105,7 +112,12 @@ export function DocumentNumberingCard({ isAr, canEdit }: DocumentNumberingCardPr
       setSavingType(null);
 
       if (error) {
-        toast.error(error.message);
+        console.error("Could not save document numbering settings", error);
+        toast.error(
+          isAr
+            ? "تعذر حفظ ترتيب أرقام المستندات. تأكد من اتصال الإنترنت ثم حاول مرة أخرى."
+            : "Could not save document numbering. Check the connection and try again.",
+        );
         return false;
       }
       toast.success(isAr ? "تم حفظ إعداد الترقيم" : "Numbering settings saved");
@@ -126,9 +138,22 @@ export function DocumentNumberingCard({ isAr, canEdit }: DocumentNumberingCardPr
   if (!activeRow) {
     return (
       <div className="rounded-2xl border border-dashed border-border/70 p-5 text-center text-xs text-muted-foreground">
-        {isAr
-          ? "لم يتم العثور على إعدادات الترقيم. تأكد من تطبيق ترحيل قاعدة البيانات."
-          : "No numbering configuration found. Make sure the database migration is applied."}
+        <p>
+          {isAr
+            ? "إعدادات أرقام المستندات غير جاهزة حالياً. تواصل مع مسؤول النظام لتجهيزها."
+            : "Document-number settings are not ready yet. Contact your system administrator."}
+        </p>
+        {loadError ? (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="mt-3 h-8 text-xs"
+            onClick={() => setReloadKey((value) => value + 1)}
+          >
+            {isAr ? "إعادة المحاولة" : "Retry"}
+          </Button>
+        ) : null}
       </div>
     );
   }
@@ -175,6 +200,19 @@ function SectionHeader({ isAr, count }: { isAr: boolean; count: number }) {
 
 /* ─────────────────────── document type selector ─────────────────────── */
 
+function sectionLabel(section: string, isAr: boolean) {
+  if (!isAr) return section;
+  const labels: Record<string, string> = {
+    sales: "المبيعات",
+    purchases: "المشتريات",
+    inventory: "المخزون",
+    finance: "المالية",
+    contacts: "العملاء والموردون",
+    operations: "العمليات",
+  };
+  return labels[section.toLowerCase()] ?? "مستندات أخرى";
+}
+
 function DocumentPicker({
   rows,
   activeType,
@@ -203,7 +241,7 @@ function DocumentPicker({
       {grouped.map(([section, items]) => (
         <div key={section} className="mb-1.5 last:mb-0">
           <div className="px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
-            {section}
+            {sectionLabel(section, isAr)}
           </div>
           <div className="space-y-0.5">
             {items.map((row) => {
@@ -262,7 +300,7 @@ function DocumentEditor({
       <div className="flex flex-wrap items-end gap-2">
         <div className="grid gap-1 w-[92px]">
           <Label className="text-[10px] font-semibold text-muted-foreground">
-            {isAr ? "البادئة" : "Prefix"}
+            {isAr ? "بداية الرقم" : "Prefix"}
           </Label>
           <Input
             value={row.prefix}
@@ -276,7 +314,7 @@ function DocumentEditor({
 
         <div className="grid gap-1 min-w-[190px] flex-1">
           <Label className="text-[10px] font-semibold text-muted-foreground">
-            {isAr ? "طريقة الرقم" : "Number format"}
+            {isAr ? "شكل الرقم" : "Number format"}
           </Label>
           <Popover open={customOpen} onOpenChange={setCustomOpen}>
             <PopoverTrigger asChild>
@@ -316,7 +354,7 @@ function DocumentEditor({
 
         <div className="grid gap-1 w-[86px]">
           <Label className="text-[10px] font-semibold text-muted-foreground">
-            {isAr ? "الأصفار" : "Padding"}
+            {isAr ? "خانات الرقم" : "Padding"}
           </Label>
           <select
             value={String(row.padding)}
