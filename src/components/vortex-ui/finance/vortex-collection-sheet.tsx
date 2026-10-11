@@ -3,10 +3,6 @@
 import * as React from "react";
 import { useState, useMemo } from "react";
 import {
-  Banknote,
-  CreditCard,
-  Building2,
-  FileCheck,
   CheckCircle2,
   MessageCircle,
   Send,
@@ -18,13 +14,21 @@ import {
   Edit3,
   RefreshCw,
   Phone,
+  CalendarDays,
 } from "lucide-react";
 import { VortexDrawerDialog } from "../form/vortex-drawer-dialog";
+import { VortexTransactionDetailContent } from "./vortex-transaction-detail-sheet";
 import { money } from "@/lib/format";
 import { toSystemDigits } from "@/lib/format-preferences";
 import { cn } from "@/lib/utils";
+import { useFinancialPosting } from "@/hooks/use-financial-posting";
+import { usePaymentMethodsForContext } from "@/hooks/use-payment-methods";
+import { PaymentMethodPicker } from "@/components/ui/payment-method";
+import { paymentMethodLabel, requiresPaymentReference } from "@/lib/payments/payment-methods";
 
-export type PaymentMethod = "cash" | "card" | "transfer" | "cheque";
+/** Catalogue id from the business's configured payment-method list. */
+export type PaymentMethod = string;
+type CollectionMode = "receivable" | "advance";
 
 export interface CollectionCustomer {
   id: string;
@@ -40,7 +44,9 @@ export interface CollectionReceipt {
   amount: number;
   remainingBalance: number;
   method: PaymentMethod;
+  collectionMode: CollectionMode;
   date: string;
+  paymentDate: string;
   notes?: string;
 }
 
@@ -49,12 +55,18 @@ export interface VortexCollectionSheetProps {
   onOpenChange: (open: boolean) => void;
   customer: CollectionCustomer | null;
   onSuccess?: (receipt: CollectionReceipt) => void;
-  onSavePayment: (data: {
+  /** Kept for legacy callers that own their own posting workflow. */
+  onSavePayment?: (data: {
     customerId: string;
     amount: number;
     method: PaymentMethod;
+    collectionMode?: CollectionMode;
+    paymentDate?: string;
     notes?: string;
   }) => Promise<{ receiptNumber: string }>;
+  /** A preselected invoice may be supplied by the sales screen without changing the old sheet UI. */
+  initialInvoiceId?: string | null;
+  invoices?: Array<{ id: string; total: number; paid: number }>;
 }
 
 type MessageTemplateType = "official" | "reminder" | "short";
@@ -65,9 +77,14 @@ export function VortexCollectionSheet({
   customer,
   onSuccess,
   onSavePayment,
+  initialInvoiceId,
 }: VortexCollectionSheetProps) {
+  const { postPayment, isPosting } = useFinancialPosting();
   const [amount, setAmount] = useState<string>("");
   const [method, setMethod] = useState<PaymentMethod>("cash");
+  const [collectionMode, setCollectionMode] = useState<CollectionMode>("receivable");
+  const [paymentDate, setPaymentDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [reference, setReference] = useState<string>("");
   const [notes, setNotes] = useState<string>("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [receipt, setReceipt] = useState<CollectionReceipt | null>(null);
@@ -84,6 +101,9 @@ export function VortexCollectionSheet({
     } else {
       setAmount("");
     }
+    setCollectionMode("receivable");
+    setPaymentDate(new Date().toISOString().slice(0, 10));
+    setReference("");
     setNotes("");
     setReceipt(null);
     setIsEditingMessage(false);
@@ -93,21 +113,48 @@ export function VortexCollectionSheet({
   const currentBalance = customer?.balance || 0;
   const payAmount = parseFloat(amount) || 0;
   const remaining = Math.max(0, currentBalance - payAmount);
+  const balanceAfterPayment = currentBalance - payAmount;
+  const isOverpayment = collectionMode === "receivable" && payAmount > currentBalance;
+  const { methods: paymentMethods } = usePaymentMethodsForContext("customer_collection", {
+    includeCredit: false,
+  });
+  const selectedPaymentMethod = paymentMethods.find((item) => item.id === method);
+  const needsReference =
+    selectedPaymentMethod?.requiresReference ?? requiresPaymentReference(method);
 
-  const paymentMethods = [
-    { id: "cash", label: "نقداً (كاش)", icon: Banknote },
-    { id: "card", label: "بطاقة مدى / شبكة", icon: CreditCard },
-    { id: "transfer", label: "حوالة بنكية", icon: Building2 },
-    { id: "cheque", label: "شيك مصرفي", icon: FileCheck },
-  ] as const;
+  React.useEffect(() => {
+    if (paymentMethods.length > 0 && !paymentMethods.some((item) => item.id === method)) {
+      setMethod(paymentMethods[0].id);
+    }
+  }, [method, paymentMethods]);
 
-  const methodLabel =
-    paymentMethods.find((m) => m.id === (receipt?.method || method))?.label || "نقداً";
+  React.useEffect(() => {
+    if (!needsReference) setReference("");
+  }, [needsReference]);
+
+  const labelForMethod = (methodId: string) => {
+    const configuredMethod = paymentMethods.find((item) => item.id === methodId);
+    return configuredMethod?.nameAr || paymentMethodLabel(methodId, "ar");
+  };
+
+  const methodLabel = labelForMethod(receipt?.method || method);
+  const referenceLabel =
+    selectedPaymentMethod?.legacyValue === "cheque"
+      ? "رقم الشيك"
+      : selectedPaymentMethod?.ledgerKind === "WALLET"
+        ? "رقم عملية المحفظة"
+        : "رقم الحوالة / المرجع";
 
   const buildTemplateMessage = (r: CollectionReceipt, tpl: MessageTemplateType) => {
     const formattedAmount = money(r.amount);
     const formattedRemaining = money(r.remainingBalance);
-    const mLabel = paymentMethods.find((m) => m.id === r.method)?.label || "نقداً";
+    const mLabel = labelForMethod(r.method);
+    const balanceLine =
+      r.collectionMode === "advance"
+        ? "💳 تم تسجيل دفعة مقدمة مستقلة على حساب العميل."
+        : r.remainingBalance > 0
+          ? "📊 الرصيد المتبقي: " + formattedRemaining
+          : "✅ تم سداد كامل الرصيد المستحق.";
 
     if (tpl === "official") {
       const parts = [
@@ -118,9 +165,7 @@ export function VortexCollectionSheet({
         "💳 طريقة الدفع: " + mLabel,
         "🔖 رقم السند: #" + r.receiptNumber,
         "📅 التاريخ: " + r.date,
-        r.remainingBalance > 0
-          ? "📊 الرصيد المتبقي: " + formattedRemaining
-          : "✅ تم سداد كامل الرصيد المستحق.",
+        balanceLine,
         "--------------------------------",
         "شكراً لتعاملكم معنا ونسعد بخدمتكم دائماً.",
       ];
@@ -131,9 +176,11 @@ export function VortexCollectionSheet({
       const parts = [
         "مرحباً " + r.customerName + "،",
         "تم بنجاح تسجيل دفعة بقيمة " + formattedAmount + " برقم سند #" + r.receiptNumber + ".",
-        r.remainingBalance > 0
-          ? "نود تذكيركم بأن الرصيد المتبقي على حسابكم هو: " + formattedRemaining + "."
-          : "حسابكم الآن مسدد بالكامل.",
+        r.collectionMode === "advance"
+          ? "تم تسجيل الدفعة كمبلغ مقدم مستقل على حسابكم."
+          : r.remainingBalance > 0
+            ? "نود تذكيركم بأن الرصيد المتبقي على حسابكم هو: " + formattedRemaining + "."
+            : "حسابكم الآن مسدد بالكامل.",
         "شاكرين لكم حسن تعاونكم.",
       ];
       return parts.join("\n");
@@ -148,8 +195,9 @@ export function VortexCollectionSheet({
       r.receiptNumber +
       " بتاريخ " +
       r.date +
-      ". المتبقي: " +
-      formattedRemaining +
+      (r.collectionMode === "advance"
+        ? ". تم تسجيلها كدفعة مقدمة."
+        : ". المتبقي: " + formattedRemaining) +
       ". شكراً لكم."
     );
   };
@@ -163,18 +211,43 @@ export function VortexCollectionSheet({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!customer || payAmount <= 0) return;
+    if (!customer || payAmount <= 0 || isOverpayment || (needsReference && !reference.trim()))
+      return;
+
+    const trimmedReference = reference.trim();
+    const trimmedNotes = notes.trim();
+    const receiptNotes = [
+      trimmedReference ? `مرجع: ${trimmedReference}` : null,
+      trimmedNotes || null,
+    ]
+      .filter(Boolean)
+      .join(" | ");
 
     try {
       setIsSubmitting(true);
-      const res = await onSavePayment({
-        customerId: customer.id,
-        amount: payAmount,
-        method,
-        notes: notes.trim() || undefined,
-      });
+      const res = onSavePayment
+        ? await onSavePayment({
+            customerId: customer.id,
+            amount: payAmount,
+            method,
+            collectionMode,
+            paymentDate,
+            notes: receiptNotes || undefined,
+          })
+        : await postPayment({
+            partyId: customer.id,
+            partyType: "customer",
+            type: "customer_collection",
+            amount: payAmount,
+            method,
+            invoiceId: collectionMode === "advance" ? null : (initialInvoiceId ?? null),
+            paymentDate,
+            reference: trimmedReference || null,
+            note: trimmedNotes || null,
+            collectionMode,
+          });
 
-      const today = new Date().toLocaleDateString("ar-YE", {
+      const displayDate = new Date(`${paymentDate}T12:00:00`).toLocaleDateString("ar-YE", {
         year: "numeric",
         month: "short",
         day: "numeric",
@@ -185,10 +258,12 @@ export function VortexCollectionSheet({
         customerName: customer.name,
         customerPhone: customer.phone || undefined,
         amount: payAmount,
-        remainingBalance: remaining,
+        remainingBalance: collectionMode === "advance" ? balanceAfterPayment : remaining,
         method,
-        date: toSystemDigits(today),
-        notes: notes.trim() || undefined,
+        collectionMode,
+        date: toSystemDigits(displayDate),
+        paymentDate,
+        notes: receiptNotes || undefined,
       };
 
       setReceipt(newReceipt);
@@ -201,6 +276,9 @@ export function VortexCollectionSheet({
 
   const activeMessageText =
     customMessage || (receipt ? buildTemplateMessage(receipt, selectedTemplate) : "");
+  // The former success screen stays here temporarily for the message-template
+  // state, but the user is now shown the shared voucher-details body instead.
+  const showLegacyReceiptScreen = receipt === null;
 
   const shareWhatsApp = () => {
     if (!receipt) return;
@@ -230,10 +308,23 @@ export function VortexCollectionSheet({
       open={open}
       onOpenChange={onOpenChange}
       size="md"
-      title={receipt ? "تم تسجيل سند القبض بنجاح" : "سند قبض وتحصيل فوري"}
+      title={
+        receipt ? (
+          <div className="flex items-center gap-2">
+            <span>تفاصيل السند المالي</span>
+            <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-bold text-primary border border-primary/20">
+              #{toSystemDigits(receipt.receiptNumber)}
+            </span>
+          </div>
+        ) : (
+          "سند قبض وتحصيل فوري"
+        )
+      }
       subtitle={
         receipt
-          ? "تم حفظ السند في السجلات ويمكنك مراجعة وإرسال الإشعار فوراً"
+          ? receipt.collectionMode === "advance"
+            ? "تفاصيل دفعة مقدمة مسجلة على حساب العميل"
+            : "تفاصيل سند القبض المسجل"
           : `العميل: ${customer.name} (الرصيد الحالي: ${money(currentBalance)})`
       }
       eyebrow="التحصيل المالي الذكي"
@@ -249,139 +340,166 @@ export function VortexCollectionSheet({
     >
       {receipt ? (
         /* ─── Receipt Success & Message Review Screen ─── */
-        <div className="space-y-4 py-2">
-          {/* Summary Box */}
-          <div className="rounded-3xl border border-emerald-500/30 bg-emerald-500/5 p-4 text-center space-y-1.5 backdrop-blur-sm">
-            <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
-              المبلغ المستلم
-            </span>
-            <div className="text-3xl font-black text-foreground font-mono">
-              {money(receipt.amount)}
-            </div>
-            <div className="flex flex-wrap items-center justify-center gap-2 pt-1 text-xs text-muted-foreground">
-              <span className="font-semibold">سند رقم: #{receipt.receiptNumber}</span>
-              <span>•</span>
-              <span>طريقة الدفع: {methodLabel}</span>
-              <span>•</span>
-              <span className="font-semibold text-foreground">
-                المتبقي: {money(receipt.remainingBalance)}
-              </span>
-            </div>
-          </div>
-
-          {/* Interactive Message Review & Customization Box */}
-          <div className="rounded-2xl border border-border/80 bg-card p-4 space-y-3 shadow-xs">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-1.5 text-xs font-bold text-foreground">
-                <Sparkles className="size-4 text-primary" />
-                <span>مراجعة وتخصيص نص الإشعار</span>
-              </div>
-              <button
-                type="button"
-                onClick={() => setIsEditingMessage(!isEditingMessage)}
-                className="inline-flex items-center gap-1 text-[11px] font-semibold text-primary hover:underline cursor-pointer"
-              >
-                <Edit3 className="size-3" />
-                <span>{isEditingMessage ? "معاينة الرسالة" : "تعديل النص"}</span>
-              </button>
-            </div>
-
-            {/* Template Selector Chips */}
-            <div className="flex flex-wrap gap-1.5">
-              {[
-                { id: "official" as const, label: "سند رسمي متكامل" },
-                { id: "reminder" as const, label: "إشعار وتذكير بالمتبقي" },
-                { id: "short" as const, label: "شكر موجز" },
-              ].map((tpl) => (
-                <button
-                  key={tpl.id}
-                  type="button"
-                  onClick={() => handleTemplateChange(tpl.id)}
-                  className={cn(
-                    "rounded-xl px-2.5 py-1 text-[11px] font-bold transition cursor-pointer",
-                    selectedTemplate === tpl.id
-                      ? "bg-primary text-primary-foreground shadow-xs"
-                      : "bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground",
-                  )}
-                >
-                  {tpl.label}
-                </button>
-              ))}
-            </div>
-
-            {/* Message Area */}
-            {isEditingMessage ? (
-              <textarea
-                value={customMessage}
-                onChange={(e) => setCustomMessage(e.target.value)}
-                rows={5}
-                className="w-full rounded-xl border border-border bg-background p-3 text-xs leading-relaxed text-foreground font-sans focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-                placeholder="اكتب أو عدل نص الرسالة هنا..."
-                dir="rtl"
-              />
-            ) : (
-              <div className="relative rounded-xl border border-border/70 bg-muted/30 p-3.5 text-xs leading-relaxed text-foreground whitespace-pre-wrap font-sans select-all">
-                {activeMessageText}
-              </div>
-            )}
-
-            {receipt.customerPhone ? (
-              <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
-                <Phone className="size-3 text-emerald-500" />
-                <span>رقم هاتف العميل المسجل:</span>
-                <span className="font-mono font-bold text-foreground" dir="ltr">
-                  {receipt.customerPhone}
+        <>
+          <VortexTransactionDetailContent
+            transaction={{
+              id: receipt.receiptNumber,
+              type: "payment",
+              title:
+                receipt.collectionMode === "advance" ? "دفعة مقدمة للعميل" : "سند قبض تحصيل عميل",
+              amount: receipt.amount,
+              date: receipt.paymentDate,
+              customerName: receipt.customerName,
+              customerPhone: receipt.customerPhone,
+              referenceNumber: receipt.receiptNumber,
+              method: methodLabel,
+              notes: receipt.notes,
+              remainingBalance: receipt.remainingBalance,
+            }}
+          />
+          {showLegacyReceiptScreen && (
+            <div className="space-y-4 py-2">
+              {/* Summary Box */}
+              <div className="rounded-3xl border border-emerald-500/30 bg-emerald-500/5 p-4 text-center space-y-1.5 backdrop-blur-sm">
+                <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
+                  المبلغ المستلم
                 </span>
+                <div className="text-3xl font-black text-foreground font-mono">
+                  {money(receipt.amount)}
+                </div>
+                <div className="flex flex-wrap items-center justify-center gap-2 pt-1 text-xs text-muted-foreground">
+                  <span className="font-semibold">سند رقم: #{receipt.receiptNumber}</span>
+                  <span>•</span>
+                  <span>طريقة الدفع: {methodLabel}</span>
+                  <span>•</span>
+                  <span className="font-semibold text-foreground">
+                    {receipt.collectionMode === "advance"
+                      ? "دفعة مقدمة مستقلة"
+                      : `المتبقي: ${money(receipt.remainingBalance)}`}
+                  </span>
+                </div>
               </div>
-            ) : (
-              <div className="text-[11px] text-amber-500 font-semibold">
-                ⚠️ العميل ليس لديه رقم هاتف مسجل، سيتم فتح نافذة الإرسال لاختيار جهة الاتصال يدوياً.
+
+              {/* Interactive Message Review & Customization Box */}
+              <div className="rounded-2xl border border-border/80 bg-card p-4 space-y-3 shadow-xs">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5 text-xs font-bold text-foreground">
+                    <Sparkles className="size-4 text-primary" />
+                    <span>مراجعة وتخصيص نص الإشعار</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setIsEditingMessage(!isEditingMessage)}
+                    className="inline-flex items-center gap-1 text-[11px] font-semibold text-primary hover:underline cursor-pointer"
+                  >
+                    <Edit3 className="size-3" />
+                    <span>{isEditingMessage ? "معاينة الرسالة" : "تعديل النص"}</span>
+                  </button>
+                </div>
+
+                {/* Template Selector Chips */}
+                <div className="flex flex-wrap gap-1.5">
+                  {[
+                    { id: "official" as const, label: "سند رسمي متكامل" },
+                    { id: "reminder" as const, label: "إشعار وتذكير بالمتبقي" },
+                    { id: "short" as const, label: "شكر موجز" },
+                  ].map((tpl) => (
+                    <button
+                      key={tpl.id}
+                      type="button"
+                      onClick={() => handleTemplateChange(tpl.id)}
+                      className={cn(
+                        "rounded-xl px-2.5 py-1 text-[11px] font-bold transition cursor-pointer",
+                        selectedTemplate === tpl.id
+                          ? "bg-primary text-primary-foreground shadow-xs"
+                          : "bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground",
+                      )}
+                    >
+                      {tpl.label}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Message Area */}
+                {isEditingMessage ? (
+                  <textarea
+                    value={customMessage}
+                    onChange={(e) => setCustomMessage(e.target.value)}
+                    rows={5}
+                    className="w-full rounded-xl border border-border bg-background p-3 text-xs leading-relaxed text-foreground font-sans focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                    placeholder="اكتب أو عدل نص الرسالة هنا..."
+                    dir="rtl"
+                  />
+                ) : (
+                  <div className="relative rounded-xl border border-border/70 bg-muted/30 p-3.5 text-xs leading-relaxed text-foreground whitespace-pre-wrap font-sans select-all">
+                    {activeMessageText}
+                  </div>
+                )}
+
+                {receipt.customerPhone ? (
+                  <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+                    <Phone className="size-3 text-emerald-500" />
+                    <span>رقم هاتف العميل المسجل:</span>
+                    <span className="font-mono font-bold text-foreground" dir="ltr">
+                      {receipt.customerPhone}
+                    </span>
+                  </div>
+                ) : (
+                  <div className="text-[11px] text-amber-500 font-semibold">
+                    ⚠️ العميل ليس لديه رقم هاتف مسجل، سيتم فتح نافذة الإرسال لاختيار جهة الاتصال
+                    يدوياً.
+                  </div>
+                )}
               </div>
-            )}
-          </div>
 
-          {/* Action Buttons for WhatsApp & SMS */}
-          <div className="space-y-2">
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={shareWhatsApp}
-                className="h-12 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-md shadow-emerald-600/20 active:scale-98 transition cursor-pointer"
-              >
-                <MessageCircle className="size-4" />
-                <span>إرسال عبر واتساب</span>
-              </button>
+              {/* Action Buttons for WhatsApp & SMS */}
+              <div className="space-y-2">
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={shareWhatsApp}
+                    className="h-12 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-md shadow-emerald-600/20 active:scale-98 transition cursor-pointer"
+                  >
+                    <MessageCircle className="size-4" />
+                    <span>إرسال عبر واتساب</span>
+                  </button>
 
-              <button
-                type="button"
-                onClick={shareSMS}
-                className="h-12 rounded-2xl bg-sky-600 hover:bg-sky-700 text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-md shadow-sky-600/20 active:scale-98 transition cursor-pointer"
-              >
-                <Send className="size-4" />
-                <span>إرسال رسالة SMS</span>
-              </button>
+                  <button
+                    type="button"
+                    onClick={shareSMS}
+                    className="h-12 rounded-2xl bg-sky-600 hover:bg-sky-700 text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-md shadow-sky-600/20 active:scale-98 transition cursor-pointer"
+                  >
+                    <Send className="size-4" />
+                    <span>إرسال رسالة SMS</span>
+                  </button>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={copyReceiptText}
+                  className="w-full h-11 rounded-2xl border border-border bg-card text-foreground font-bold text-xs flex items-center justify-center gap-2 hover:bg-muted transition cursor-pointer"
+                >
+                  {copied ? (
+                    <Check className="size-4 text-emerald-500" />
+                  ) : (
+                    <Copy className="size-4" />
+                  )}
+                  <span>{copied ? "تم نسخ نص الإشعار بنجاح" : "نسخ نص الإشعار للحافظة"}</span>
+                </button>
+              </div>
+
+              <div className="pt-2">
+                <button
+                  type="button"
+                  onClick={() => onOpenChange(false)}
+                  className="w-full h-12 rounded-2xl bg-foreground text-background font-bold text-xs sm:text-sm shadow-md hover:opacity-95 transition cursor-pointer"
+                >
+                  إتمام وإغلاق النافذة
+                </button>
+              </div>
             </div>
-
-            <button
-              type="button"
-              onClick={copyReceiptText}
-              className="w-full h-11 rounded-2xl border border-border bg-card text-foreground font-bold text-xs flex items-center justify-center gap-2 hover:bg-muted transition cursor-pointer"
-            >
-              {copied ? <Check className="size-4 text-emerald-500" /> : <Copy className="size-4" />}
-              <span>{copied ? "تم نسخ نص الإشعار بنجاح" : "نسخ نص الإشعار للحافظة"}</span>
-            </button>
-          </div>
-
-          <div className="pt-2">
-            <button
-              type="button"
-              onClick={() => onOpenChange(false)}
-              className="w-full h-12 rounded-2xl bg-foreground text-background font-bold text-xs sm:text-sm shadow-md hover:opacity-95 transition cursor-pointer"
-            >
-              إتمام وإغلاق النافذة
-            </button>
-          </div>
-        </div>
+          )}
+        </>
       ) : (
         /* ─── Collection Input Form ─── */
         <form onSubmit={handleSubmit} className="space-y-4 py-2">
@@ -408,11 +526,50 @@ export function VortexCollectionSheet({
             </div>
           </div>
 
+          <div className="rounded-2xl border border-border/70 bg-card p-2">
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setCollectionMode("receivable")}
+                className={cn(
+                  "rounded-xl px-3 py-2 text-xs font-bold transition",
+                  collectionMode === "receivable"
+                    ? "bg-primary text-primary-foreground shadow-sm"
+                    : "text-muted-foreground hover:bg-muted",
+                )}
+              >
+                تحصيل مستحق
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setCollectionMode("advance");
+                  setAmount("");
+                }}
+                className={cn(
+                  "rounded-xl px-3 py-2 text-xs font-bold transition",
+                  collectionMode === "advance"
+                    ? "bg-emerald-600 text-white shadow-sm"
+                    : "text-muted-foreground hover:bg-muted",
+                )}
+              >
+                دفعة مقدمة
+              </button>
+            </div>
+            <p className="px-1 pt-2 text-[11px] text-muted-foreground">
+              {collectionMode === "advance"
+                ? "تُسجل كرصيد مقدم مستقل ولا تُوزع تلقائياً على الفواتير الحالية."
+                : "يُمنع تجاوز الرصيد المستحق، وتُوزع الدفعة العامة من الأقدم إلى الأحدث."}
+            </p>
+          </div>
+
           {/* Amount input */}
           <div className="space-y-1.5">
             <div className="flex items-center justify-between">
-              <label className="text-xs font-bold text-foreground">المبلغ المحصل</label>
-              {currentBalance > 0 && (
+              <label className="text-xs font-bold text-foreground">
+                {collectionMode === "advance" ? "قيمة الدفعة المقدمة" : "المبلغ المحصل"}
+              </label>
+              {collectionMode === "receivable" && currentBalance > 0 && (
                 <button
                   type="button"
                   onClick={() => setAmount(String(currentBalance))}
@@ -434,10 +591,16 @@ export function VortexCollectionSheet({
                 className="w-full h-12 rounded-2xl border border-border bg-card px-4 text-base font-black font-mono text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 transition"
               />
             </div>
-            {payAmount > 0 && (
+            {payAmount > 0 && collectionMode === "receivable" && (
               <div className="text-[11px] text-muted-foreground flex justify-between px-1">
                 <span>المتبقي بعد التحصيل:</span>
                 <span className="font-bold font-mono text-foreground">{money(remaining)}</span>
+              </div>
+            )}
+            {payAmount > 0 && collectionMode === "advance" && (
+              <div className="text-[11px] text-emerald-700 dark:text-emerald-400 flex justify-between px-1">
+                <span>رصيد العميل بعد الدفعة:</span>
+                <span className="font-bold font-mono">{money(balanceAfterPayment)}</span>
               </div>
             )}
           </div>
@@ -445,45 +608,53 @@ export function VortexCollectionSheet({
           {/* Payment Method Selector */}
           <div className="space-y-1.5">
             <label className="text-xs font-bold text-foreground">طريقة الدفع</label>
-            <div className="grid grid-cols-2 gap-2">
-              {paymentMethods.map((m) => {
-                const Icon = m.icon;
-                const isSelected = method === m.id;
-                return (
-                  <button
-                    key={m.id}
-                    type="button"
-                    onClick={() => setMethod(m.id)}
-                    className={cn(
-                      "flex items-center gap-2 h-11 px-3 rounded-2xl border text-xs font-bold transition cursor-pointer",
-                      isSelected
-                        ? "border-primary bg-primary/10 text-primary font-black shadow-sm"
-                        : "border-border bg-card text-muted-foreground hover:text-foreground",
-                    )}
-                  >
-                    <Icon
-                      className={cn(
-                        "size-4",
-                        isSelected ? "text-primary" : "text-muted-foreground",
-                      )}
-                    />
-                    <span>{m.label}</span>
-                  </button>
-                );
-              })}
+            <PaymentMethodPicker
+              context="customer_collection"
+              value={method}
+              onChange={setMethod}
+              includeCredit={false}
+              ariaLabel="طريقة دفع سند القبض"
+              className="w-full"
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-xs font-bold text-foreground">تاريخ السند</label>
+            <div className="relative">
+              <CalendarDays className="pointer-events-none absolute start-4 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+              <input
+                type="date"
+                value={paymentDate}
+                max={new Date().toISOString().slice(0, 10)}
+                onChange={(e) => setPaymentDate(e.target.value)}
+                required
+                className="w-full h-11 rounded-2xl border border-border bg-card ps-11 pe-4 text-xs font-medium text-foreground focus:border-primary focus:outline-none transition"
+              />
             </div>
           </div>
 
+          {needsReference && (
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-foreground">{referenceLabel}</label>
+              <input
+                type="text"
+                value={reference}
+                onChange={(e) => setReference(e.target.value)}
+                placeholder={referenceLabel}
+                required
+                className="w-full h-11 rounded-2xl border border-border bg-card px-4 text-xs font-medium text-foreground focus:border-primary focus:outline-none transition"
+              />
+            </div>
+          )}
+
           {/* Notes */}
           <div className="space-y-1.5">
-            <label className="text-xs font-bold text-foreground">
-              ملاحظات أو رقم المرجع (اختياري)
-            </label>
+            <label className="text-xs font-bold text-foreground">ملاحظات (اختياري)</label>
             <input
               type="text"
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              placeholder="رقم الحوالة، أو مرجع الشيك، أو تفاصيل الإيصال..."
+              placeholder="تفاصيل إضافية عن سند القبض..."
               className="w-full h-11 rounded-2xl border border-border bg-card px-4 text-xs font-medium text-foreground focus:border-primary focus:outline-none transition"
             />
           </div>
@@ -492,10 +663,10 @@ export function VortexCollectionSheet({
           <div className="pt-3">
             <button
               type="submit"
-              disabled={isSubmitting || payAmount <= 0}
+              disabled={isSubmitting || isPosting || payAmount <= 0 || isOverpayment}
               className="w-full h-12 rounded-2xl bg-foreground text-background font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-lg shadow-foreground/15 hover:opacity-95 active:scale-98 transition disabled:opacity-50 cursor-pointer"
             >
-              {isSubmitting ? "جاري الحفظ..." : "تأكيد وإصدار السند فوراً"}
+              {isSubmitting || isPosting ? "جاري الحفظ..." : "تأكيد وإصدار السند فوراً"}
             </button>
           </div>
         </form>

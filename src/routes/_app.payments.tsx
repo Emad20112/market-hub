@@ -7,8 +7,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/page-header";
 import { useI18n } from "@/lib/i18n";
 import { money } from "@/lib/format";
-import { paymentMethodLabel, toLegacyPaymentValue } from "@/lib/payments/payment-methods";
+import { paymentMethodLabel, requiresPaymentReference } from "@/lib/payments/payment-methods";
 import { PaymentMethodPicker } from "@/components/ui/payment-method";
+import { usePaymentMethodsForContext } from "@/hooks/use-payment-methods";
 import { toast } from "sonner";
 import { WhatsAppButton } from "@/components/whatsapp-button";
 import { paymentReceiptMessage, debtReminderMessage } from "@/lib/whatsapp-templates";
@@ -89,14 +90,42 @@ function PaymentsPage() {
    * This used to be the union `"cash" | "card" | "bank_transfer"` and was sent
    * to `record_customer_payment` unconverted — so the collection screen could
    * only ever take three kinds of money, never a wallet, and had no way to name
-   * بنك الكريمي. The picker now decides what exists and the RPC boundary below
-   * converts the id to the value the ENUM stores.
+   * بنك الكريمي. The picker now decides what exists and the database validates
+   * that exact id before converting it to the value stored on the payment.
    */
   const [method, setMethod] = useState<string>("cash");
+  const [reference, setReference] = useState("");
   const [note, setNote] = useState("");
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
   const [saving, setSaving] = useState(false);
   const [selectedTx, setSelectedTx] = useState<any>(null);
+  const { methods: collectionMethods } = usePaymentMethodsForContext("customer_collection", {
+    includeCredit: false,
+  });
+  const selectedMethod = collectionMethods.find((item) => item.id === method);
+  const needsReference = selectedMethod?.requiresReference ?? requiresPaymentReference(method);
+  const referenceLabel =
+    selectedMethod?.legacyValue === "cheque"
+      ? lang === "ar"
+        ? "رقم الشيك"
+        : "Cheque number"
+      : selectedMethod?.ledgerKind === "WALLET"
+        ? lang === "ar"
+          ? "رقم عملية المحفظة"
+          : "Wallet transaction reference"
+        : lang === "ar"
+          ? "رقم الحوالة / المرجع"
+          : "Transfer / payment reference";
+
+  useEffect(() => {
+    if (collectionMethods.length > 0 && !collectionMethods.some((item) => item.id === method)) {
+      setMethod(collectionMethods[0].id);
+    }
+  }, [collectionMethods, method]);
+
+  useEffect(() => {
+    if (!needsReference) setReference("");
+  }, [needsReference]);
 
   useEffect(() => {
     (async () => {
@@ -137,6 +166,7 @@ function PaymentsPage() {
     setSelected(c);
     setInvoiceId("");
     setAmount("");
+    setReference("");
     setNote("");
     const [inv, pay] = await Promise.all([
       supabase
@@ -188,18 +218,28 @@ function PaymentsPage() {
         t("payments.exceeds_remaining") ||
           (lang === "ar" ? "المبلغ يتجاوز المتبقي" : "Amount exceeds remaining"),
       );
+    if (needsReference && !reference.trim()) {
+      return toast.error(
+        lang === "ar" ? "أدخل رقم الحوالة أو المرجع" : "Enter the payment reference",
+      );
+    }
     setSaving(true);
     try {
+      const paymentNote = [
+        reference.trim() ? `مرجع: ${reference.trim()}` : null,
+        note.trim() || null,
+      ]
+        .filter(Boolean)
+        .join(" | ");
       const { error } = await supabase.rpc("record_customer_payment" as any, {
         _customer_id: selected.id,
         _invoice_id: invoiceId || null,
         _amount: amt,
-        // Catalogue id -> the value the ENUM stores, at the boundary only. The
-        // RPC's own `resolve_writable_payment_method` guard is the authority
-        // that then rejects anything the business has disabled.
-        _method: toLegacyPaymentValue(method),
+        // The RPC validates this exact catalogue id (including its enabled
+        // state and allowed context), then stores its legacy ENUM value.
+        _method: method,
         _payment_date: date,
-        _note: note || null,
+        _note: paymentNote || null,
       });
       if (error) throw error;
       const invNo = selectedInvoice?.invoice_number ?? null;
@@ -215,6 +255,7 @@ function PaymentsPage() {
         invoiceNumber: invNo,
       });
       setAmount("");
+      setReference("");
       setNote("");
       await refresh();
     } catch (e: any) {
@@ -392,12 +433,24 @@ function PaymentsPage() {
                   <PaymentMethodPicker
                     context="customer_collection"
                     value={method}
-                    onChange={setMethod}
+                    onChange={(methodId) => {
+                      setMethod(methodId);
+                      setReference("");
+                    }}
                     includeCredit={false}
-                    ensureIds={[method]}
                     ariaLabel={lang === "ar" ? "طريقة الدفع" : "Payment method"}
                   />
                 </Field>
+                {needsReference && (
+                  <Field label={referenceLabel}>
+                    <input
+                      value={reference}
+                      onChange={(e) => setReference(e.target.value)}
+                      placeholder={referenceLabel}
+                      className="h-9 w-full rounded-md border border-input bg-surface px-3 text-sm"
+                    />
+                  </Field>
+                )}
                 <Field label={lang === "ar" ? "التاريخ" : "Date"}>
                   <input
                     type="date"
