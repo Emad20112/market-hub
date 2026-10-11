@@ -222,13 +222,13 @@ supabase/                              supabase/
 ├── seeds/                              ├── MIGRATIONS_REFACTOR_PLAN.md
 │   ├── reference/      ← 6 ملفات      ├── SEEDS_AND_REFERENCE_REFACTOR_PLAN.md  ← هذا الملف
 │   └── demo/           ← 10 ملفات     ├── SCHEMA_REFERENCE.md                   ← جديد
-├── migrations/         ← 13 ملفًا     ├── seeds/
+├── migrations/         ← 16 ملفًا     ├── seeds/
 └── _archive/           ← 126 ملفًا    │   ├── README.md
-                                       │   ├── 01_system/       ← AUTO-RUN
+                                       │   ├── 01_system/       ← AUTO-RUN (8 ملفات)
                                        │   ├── 02_company/      ← يدوي
                                        │   ├── 03_samples/     ← يدوي
                                        │   └── 04_tests/        ← يدوي
-                                       ├── migrations/          ← 13 ملفًا
+                                       ├── migrations/          ← 16 ملفًا
                                        └── _archive/            ← 126 ملفًا
 ```
 
@@ -244,7 +244,10 @@ supabase/seeds/
 │   ├── 02_plans.sql                ← باقات الاشتراك
 │   ├── 03_chart_of_accounts.sql    ← دليل الحسابات (محايد، الأكواد ثابتة)
 │   ├── 04_units.sql                ← وحدات القياس الفيزيائية فقط
-│   └── 05_expense_categories.sql   ← تصنيفات المصروفات العامة
+│   ├── 05_expense_categories.sql   ← تصنيفات المصروفات العامة
+│   ├── 06_platform_admins.sql      ← مسؤولو المنصة (استثناء مقصود: auth.users حقيقي)
+│   ├── 07_document_numbering.sql   ← إعداد ترقيم المستندات
+│   └── 08_payment_methods.sql      ← كتالوج طرق الدفع + إعداد المنشأة
 │
 ├── 02_company/                     ← يُشغَّل يدويًا لكل عميل
 │   ├── README.md
@@ -374,7 +377,7 @@ README شامل يعمل كدليل معماري:
 | 1 | توثيق الخطة | هذا الملف | ✅ |
 | 2 | فرع git + commit للعمل السابق | فرع `refactor/seeds-and-reference` | `git log` |
 | 3 | إنشاء الهيكل الجديد لـ `seeds/` | 4 مجلدات + READMEs | عرض الشجرة |
-| 4 | كتابة `01_system/` (5 ملفات) | وحدات صحيحة، حسابات محايدة | تشغيل يدوي |
+| 4 | كتابة `01_system/` (8 ملفات) | وحدات صحيحة، حسابات محايدة | تشغيل يدوي |
 | 5 | كتابة `02_company/` | قالب الهوية والمستودع | مراجعة |
 | 6 | دمج ملفات العيّنات | `sample-mill` (واحد)، `sample-supermarket`، `sample-stationery` | عدد الملفات |
 | 7 | حذف الملفات الميتة | `stationery-legacy`, `accounts`, `reference/`, `demo/` | عرض الشجرة |
@@ -396,7 +399,7 @@ README شامل يعمل كدليل معماري:
 [ ] SCHEMA_REFERENCE.md موجود وشامل
 [ ] migrations/README.md موجود ومبدع
 [ ] seeds/ فيه 4 مجلدات مرقّمة واضحة
-[ ] 01_system/ فيه 5 ملفات، كلها AUTO-RUN
+[ ] 01_system/ فيه 8 ملفات، كلها AUTO-RUN
 [ ] units: وحدات فيزيائية فقط، بلا عبوات، بلا تكرار، برموز لاتينية
 [ ] accounts: 32 حسابًا، مسميات محايدة، أكواد ثابتة
 [ ] sample-mill.sql: ملف واحد يضم كل بيانات المطحنة

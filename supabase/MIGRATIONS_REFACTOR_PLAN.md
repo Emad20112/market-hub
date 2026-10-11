@@ -104,7 +104,7 @@ UPDATE public.company_settings SET name = 'محل العدادات وقطع ال
 
 `seeds/README.md` يوثّق أن `reference.sql` **لا يحتوي** تصنيفات/علامات/وحدات لأنها "في الترحيلات". أي أن جزءًا من المرجعيات في الـ seed وجزءًا في الـ migration بلا قاعدة واضحة.
 
-**الحكم:** كل المرجعيات في `seeds/reference/` بمبدأ واحد.
+**الحكم:** كل المرجعيات في `seeds/01_system/` بمبدأ واحد.
 
 ---
 
@@ -294,24 +294,30 @@ psql "$DATABASE_URL" -c "SELECT * FROM pg_constraint WHERE connamespace='public'
 ✅ SEQUENCE
 ```
 
-### 5.2 ينتقل إلى `seeds/reference/` (بيانات لا يعمل النظام بدونها)
+### 5.2 ينتقل إلى `seeds/01_system/` (بيانات لا يعمل النظام بدونها)
+
+تتوزّع اليوم على **8 ملفات** في `seeds/01_system/` (كل ملف لموضوع واحد):
 
 ```
-✅ أدوار النظام: owner, manager, accountant, cashier, warehouse
-✅ صفوف platform_modules (سجل الوحدات — النظام يقرأه لتحديد الميزات)
-✅ صفوف platform_plans (الباقات)
-✅ دليل الحسابات الافتراضي (accounts: 1101, 1211, 1311, 2111, 4111, 5111, ...)
-✅ تصنيفات المصروفات الافتراضية
-✅ وحدات القياس الافتراضية
-✅ أي lookup data يستخدمه الكود بأكواد ثابتة
+✅ 01_modules.sql            صفوف platform_modules (النظام يقرأها لتحديد الميزات)
+✅ 02_plans.sql              صفوف platform_plans (الباقات)
+✅ 03_chart_of_accounts.sql  دليل الحسابات الافتراضي (1101, 1211, 1311, 2111, 4111, 5111, ...)
+✅ 04_units.sql              وحدات القياس الفيزيائية
+✅ 05_expense_categories.sql تصنيفات المصروفات الافتراضية (مربوطة بحساباتها)
+✅ 06_platform_admins.sql    مسؤولو المنصة (استثناء مقصود: auth.users حقيقي)
+✅ 07_document_numbering.sql إعداد ترقيم المستندات (محرّك 14 يقرأ منه)
+✅ 08_payment_methods.sql    كتالوج طرق الدفع + إعداد المنشأة (الترحيل 16 يقرأ منه)
 ```
+
+> أدوار النظام (`owner, manager, accountant, cashier, warehouse`) وأنواع المستندات
+> تُعرَّف في المخطط نفسه كـ ENUM/CHECK، ولا تحتاج صفوف seed.
 
 > **ملاحظة مهمة:** `journal_entries` و`journal_lines` و`inventory` و`stock_movements` **لا تحتوي أي بيانات** في المرجعيات. تبدأ فارغة.
 
-### 5.3 ينتقل إلى `seeds/demo/`
+### 5.3 ينتقل إلى `seeds/03_samples/`
 
 ```
-→ كل ما هو حاليًا في seeds/demo/ (accounts, wholesale-retail, stationery)
+→ كل ما هو حاليًا في seeds/demo/ بالبنية القديمة (accounts, wholesale-retail, stationery)
 → منتجات المطحنة من 20261204000000 و 20261001000000
 → مستلزمات التعبئة والأصناف الخام
 → التصنيفات (قمح، ذرة، شعير، مستلزمات تعبئة)
@@ -319,13 +325,13 @@ psql "$DATABASE_URL" -c "SELECT * FROM pg_constraint WHERE connamespace='public'
 → Main Warehouse / Walk-in Customer
 ```
 
-### 5.4 ينتقل إلى `seeds/test/`
+### 5.4 ينتقل إلى `seeds/04_tests/`
 
 ```
 → بيانات اختبارات آلية (لا توجد حاليًا — يُنشأ المجلد عند الحاجة)
 ```
 
-### 5.5 ينتقل إلى `seeds/customer/`
+### 5.5 ينتقل إلى `seeds/02_company/`
 
 ```
 → لا شيء يُرفع للمستودع
@@ -350,48 +356,49 @@ psql "$DATABASE_URL" -c "SELECT * FROM pg_constraint WHERE connamespace='public'
 supabase/
 ├── MIGRATIONS_RULES.md                  ← قانون ملزم (موجود)
 ├── MIGRATIONS_REFACTOR_PLAN.md          ← هذه الخطة (موجود)
-├── config.toml                          ← يربط seeds/reference/
-├── migrations/
+├── config.toml                          ← يربط seeds/01_system/
+├── migrations/                          ← الترتيب الفعلي المعتمد (راجع 13.2)
 │   ├── 01_core_enums_and_helpers.sql
 │   ├── 02_core_identity_and_settings.sql
 │   ├── 03_catalog_reference_data.sql
-│   ├── 04_products_and_batches.sql
-│   ├── 05_inventory_and_movements.sql
-│   ├── 06_partners_customers_suppliers.sql
-│   ├── 07_sales_and_returns.sql
-│   ├── 08_purchasing_and_returns.sql
-│   ├── 09_accounting_ledger.sql
-│   ├── 10_expenses.sql
-│   ├── 11_milling_operations.sql
-│   ├── 12_platform_and_subscriptions.sql
-│   ├── 13_audit_and_governance.sql
-│   └── 14_reporting_views.sql
+│   ├── 04_partners_customers_suppliers.sql
+│   ├── 05_products_and_inventory.sql
+│   ├── 06_sales_and_returns.sql
+│   ├── 07_purchasing_and_returns.sql
+│   ├── 08_accounting_ledger.sql
+│   ├── 09_expenses.sql
+│   ├── 10_milling_and_production.sql
+│   ├── 11_platform_and_audit.sql
+│   ├── 12_reporting_views.sql
+│   ├── 13_foreign_keys_and_grants.sql
+│   ├── 14_document_numbering_engine.sql
+│   ├── 15_freeze_document_numbers.sql
+│   └── 16_payment_methods.sql
 ├── seeds/
 │   ├── README.md
-│   ├── reference/
-│   │   ├── 01_roles_and_permissions.sql
-│   │   ├── 02_chart_of_accounts.sql
-│   │   ├── 03_expense_categories.sql
+│   ├── 01_system/                          ← يُشغَّل تلقائيًا (Essential Reference)
+│   │   ├── 01_modules.sql
+│   │   ├── 02_plans.sql
+│   │   ├── 03_chart_of_accounts.sql
 │   │   ├── 04_units.sql
-│   │   ├── 05_platform_modules_and_plans.sql
+│   │   ├── 05_expense_categories.sql
+│   │   ├── 06_platform_admins.sql
+│   │   ├── 07_document_numbering.sql
+│   │   ├── 08_payment_methods.sql
 │   │   └── README.md
-│   ├── demo/
+│   ├── 02_company/                         ← يدوي: هوية العميل وأرصدته
 │   │   ├── README.md
-│   │   ├── accounts.sql
-│   │   ├── wholesale-retail.sql
-│   │   ├── stationery.sql
-│   │   └── mill-operations.sql           ← جديد: مُرحَّل من migrations
-│   ├── test/
-│   │   └── README.md
-│   └── customer/
+│   │   └── customer-template.sql.example
+│   ├── 03_samples/                         ← يدوي: بيانات عرض
+│   │   ├── README.md
+│   │   └── sample-mill.sql
+│   └── 04_tests/                           ← يدوي: مثبتات الاختبارات
 │       ├── README.md
-│       └── customer-template.sql.example
-└── _baseline/                            ← مؤقت: مخرجات الاستخراج للمقارنة
-    ├── schema-baseline.sql
-    ├── functions.sql
-    ├── indexes.txt
-    ├── policies.txt
-    └── constraints.txt
+│       └── fixtures.sql.example
+├── _archive/                                ← مرجع تاريخي فقط، لا يُشغَّل
+│   ├── migrations-v1/                       ← 131 ترحيلًا قديمًا بترقيم زمني
+│   └── team-seeds-v1/                       ← بذور الفريق المسطّحة (reference.sql, demo/)
+└── tests/
 ```
 
 **ملاحظة:** مجلد `_baseline/` مؤقت لأغراض التحقق، يُحذف بعد اعتماد البنية الجديدة. يُضاف إلى `.gitignore` أو يُحفظ كمرجع تاريخي.
@@ -416,8 +423,8 @@ supabase/
 9. **لا تنسخ** أي بيانات أعمال أو هوية شركة.
 
 ### المرحلة 3 — كتابة الـ Seeds
-10. `seeds/reference/` — الأدوار، دليل الحسابات، التصنيفات، الوحدات، الوحدات والخطط.
-11. `seeds/demo/mill-operations.sql` — منقول من migrations.
+10. `seeds/01_system/` — الوحدات، دليل الحسابات، التصنيفات، وحدات القياس، الباقات.
+11. `seeds/03_samples/sample-mill.sql` — منقول من migrations.
 12. تحديث `seeds/README.md` و`config.toml`.
 
 ### المرحلة 4 — التحقق (حرجة)
@@ -449,7 +456,7 @@ supabase db reset
 
 # النتيجة المطلوبة:
 #   ✅ كل الترحيلات تُطبَّق بلا خطأ
-#   ✅ seeds/reference/ يُطبَّق بلا خطأ
+#   ✅ seeds/01_system/ يُطبَّق بلا خطأ
 #   ✅ لا رسالة "duplicate key"
 #   ✅ لا رسالة "relation already exists"
 ```
@@ -595,7 +602,7 @@ SELECT pg_get_functiondef('public.create_sale(uuid,uuid,text,numeric,numeric,tex
 [ ] دليل الحسابات موجود
 [ ] npm run build ينجح
 [ ] كل الشاشات تعمل
-[ ] seeds/reference/ idempotent (تشغيله مرتين لا يُنشئ تكرارًا)
+[ ] seeds/01_system/ idempotent (تشغيله مرتين لا يُنشئ تكرارًا)
 [ ] التوثيق محدَّث
 ```
 
@@ -651,7 +658,8 @@ SELECT pg_get_functiondef('public.create_sale(uuid,uuid,text,numeric,numeric,tex
 
 | المقياس | قبل | بعد |
 |---|---|---|
-| ملفات الترحيل | 126 | **13** |
+| ملفات الترحيل | 126 | **16** |
+| ملفات Seed النظام | 5 | **8** (في `seeds/01_system/`) |
 | الشكل النهائي للجدول في ملف واحد | لا | نعم |
 | بناء قاعدة جديدة من الصفر | يفشل | **ينجح (exit 0)** |
 | بيانات أعمال في الترحيلات | نعم | **لا** |
@@ -677,6 +685,9 @@ SELECT pg_get_functiondef('public.create_sale(uuid,uuid,text,numeric,numeric,tex
 | 11 | `platform_and_audit` | 4.5 KB | مستقل |
 | 12 | `reporting_views` | 30.4 KB | **مؤجَّل**: 30 view مرتبة حسب اعتمادها على بعضها |
 | 13 | `foreign_keys_and_grants` | 127.5 KB | **كل** المفاتيح الأجنبية + Triggers + سياسات RLS + الصلاحيات |
+| 14 | `document_numbering_engine` | — | محرّك مركز لترقيم المستندات؛ تقرأ إعداده البذرة `07` |
+| 15 | `freeze_document_numbers` | — | تجميد الأرقام المولَّدة؛ صغير ومستقل |
+| 16 | `payment_methods` | — | كتالوج طرق الدفع الموحّد + حرّاس الكتابة + محرّك الترحيل؛ الكتالوج في البذرة `08` |
 
 ### 13.3 القرارات المعمارية الثلاثة التي فرضها الاختبار
 
@@ -700,33 +711,35 @@ SELECT pg_get_functiondef('public.create_sale(uuid,uuid,text,numeric,numeric,tex
 
 | المصدر (داخل الترحيل سابقًا) | المصير |
 |---|---|
-| منتجات المطحنة (قمح، دقيق، نخالة) — `20261204000000`, `20261001000000` | `seeds/demo/mill-products.sql` |
-| تصنيفات المطحنة ومستلزمات التعبئة | `seeds/demo/mill-catalog.sql` |
+| منتجات المطحنة (قمح، دقيق، نخالة) — `20261204000000`, `20261001000000` | `seeds/03_samples/sample-mill.sql` |
+| تصنيفات المطحنة ومستلزمات التعبئة | `seeds/03_samples/sample-mill.sql` |
 | `INSERT INTO inventory ... 999999` (مخزون وهمي) | **حُذف** |
 | `UPDATE company_settings SET name = 'محل العدادات...'` | **حُذف** |
-| `Main Warehouse` / `Walk-in Customer` | `seeds/demo/warehouses.sql` / `customers.sql` |
-| `milling_grain_grades` (تحمل `product_id` FK) | `seeds/demo/mill-reference.sql` |
+| `Main Warehouse` / `Walk-in Customer` | `seeds/03_samples/sample-mill.sql` |
+| `milling_grain_grades` (تحمل `product_id` FK) | `seeds/03_samples/sample-mill.sql` |
 | `20260912111000_reset_for_meters_shop.sql` (TRUNCATE + DELETE users) | **مؤرشف — لم يُنقل** |
 
-### 13.5 ما بقي داخل `seeds/reference/` — ومبرر كل ملف
+### 13.5 ما بقي داخل `seeds/01_system/` — ومبرر كل ملف
 
 | الملف | لماذا هو مرجعي |
 |---|---|
-| `01_platform_modules.sql` | التطبيق يقرأ `code` لتحديد الشاشات المتاحة؛ غيابه يعطّل كل وحدة |
-| `02_platform_plans.sql` | كتالوج الباقات |
+| `01_modules.sql` | التطبيق يقرأ `code` لتحديد الشاشات المتاحة؛ غيابه يعطّل كل وحدة |
+| `02_plans.sql` | كتالوج الباقات |
 | `03_chart_of_accounts.sql` | **دوال الترحيل تحتوي أكواد الحسابات كنصوص** (`'4111'`, `'1211'`)؛ حساب ناقص يُفشل الترحيل |
 | `04_units.sql` | كل منتج يحتاج وحدة قياس |
-| `05_expense_categories.sql` | نموذج المصروف يشترط تصنيفًا |
-| `06_milling_reference.sql` | `packaging_types` و`milling_unit_conversions` — الوحدة تحلّها بالكود |
+| `05_expense_categories.sql` | نموذج المصروف يشترط تصنيفًا، وكل تصنيف مربوط بحسابه |
+| `06_platform_admins.sql` | بلا مسؤول منصة لا تُدار الباقات والوحدات والاشتراكات |
+| `07_document_numbering.sql` | بلاها يرفض محرّك الترقيم توليد أي رقم |
+| `08_payment_methods.sql` | كل دفعة تمر من هنا + إعداد المنشأة الافتراضي |
 
 **`milling_grain_grades` ليس مرجعيًا** لأنه يحمل مفتاحًا أجنبيًا إلى `products`، أي أنه
-يسمّي منتجًا حقيقيًا يشتريه مطحن معيّن.
+يسمّي منتجًا حقيقيًا يشتريه مطحن معيّن — فمكانه `03_samples/`.
 
 ### 13.6 التحقق النهائي — نتائج فعلية
 
 ```
-✅ 13/13 ملف تُطبَّق على قاعدة فارغة بلا خطأ واحد
-✅ 6/6 ملفات seed تُطبَّق بلا خطأ
+✅ 16/16 ملف ترحيل تُطبَّق على قاعدة فارغة بلا خطأ واحد
+✅ 8/8 ملفات seed في `01_system/` تُطبَّق بلا خطأ
 ✅ 81 جدول    | baseline 81
 ✅ 127 دالة   | baseline 127
 ✅ 125 سياسة  | baseline 125
@@ -741,7 +754,7 @@ SELECT pg_get_functiondef('public.create_sale(uuid,uuid,text,numeric,numeric,tex
 
 ### 13.7 ملاحظة على الأرشيف
 
-الترحيلات القديمة في `supabase/_archive/migrations-v1/` (126 ملفًا) **لم تُحذف**. تُحذف
+| الترحيلات القديمة في `supabase/_archive/migrations-v1/` (131 ملفًا) **لم تُحذف**. تُحذف
 بعد التأكد من نجاح النشر على بيئة تجريبية. لا تُشغَّل هذه الملفات على أي قاعدة.
 
 > **تنبيه:** الترحيلات القديمة مُطبَّقة بالفعل على قاعدة بياناتك الحالية. الترحيلات

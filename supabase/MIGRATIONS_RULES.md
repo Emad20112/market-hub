@@ -29,30 +29,36 @@
 | النوع | التعريف | المكان | يُنفَّذ تلقائيًا؟ |
 |---|---|---|---|
 | **Schema** | جداول، أعمدة، علاقات، قيود، فهارس، enums، دوال، triggers، RLS | `supabase/migrations/` | نعم |
-| **Essential Reference** | بيانات لا يعمل النظام بدونها: الأدوار، حالات الفواتير، طرق الدفع، الوحدات الافتراضية، تصنيفات المصروفات | `supabase/seeds/reference/` | نعم (مربوط في `config.toml`) |
-| **Demo** | بيانات عرض لعرض المنتج: منتجات، عملاء، فواتير وهمية | `supabase/seeds/demo/` | **لا — يدويًا فقط** |
-| **Test** | بيانات لاختبارات آلية، ثابتة وقابلة للتكرار | `supabase/seeds/test/` | **لا** |
-| **Customer** | بيانات عميل حقيقي: هويته، منتجاته، أرصدته الافتتاحية | `supabase/seeds/customer/` | **لا — ولا تُرفع للمستودع** |
+| **Essential Reference** (النظام) | بيانات لا يعمل النظام بدونها: الوحدات، الباقات، دليل الحسابات، وحدات القياس، تصنيفات المصروفات، مسؤولو المنصة، ترقيم المستندات، طرق الدفع | `supabase/seeds/01_system/` | نعم (مربوط في `config.toml`) |
+| **Customer** (العميل) | بيانات عميل حقيقي: هويته، منتجاته، أرصدته الافتتاحية | `supabase/seeds/02_company/` | **لا — يدويًا، ولا تُرفع للمستودع** |
+| **Demo** (العيّنات) | بيانات عرض لعرض المنتج: منتجات، عملاء، فواتير وهمية | `supabase/seeds/03_samples/` | **لا — يدويًا فقط** |
+| **Test** (الاختبارات) | بيانات لاختبارات آلية، ثابتة وقابلة للتكرار | `supabase/seeds/04_tests/` | **لا** |
+
+> **مطابقة المجلدات:** أسماء المجلدات مرقّمة بترتيب التنفيذ (`01_system` → `04_tests`)،
+> لأن الرقم يمنع الالتباس ويرتّب التشغيل. هي نفسها الأنواع الأربعة أعلاه بالترتيب.
 
 ### 1.1 اختبار الحدّ الفاصل
 
 اسأل: **"هل يستطيع أي عميل جديد تشغيل النظام بدون هذا السطر؟"**
 
-- نعم → `seeds/reference/`
-- لا، لكنه مفيد للعرض → `seeds/demo/`
-- لا، وهو خاص بعميل → `seeds/customer/` أو خارج المستودع
+- نعم، والكود يحلّه بمفتاح ثابت → `seeds/01_system/`
+- لا، لكنه مفيد للعرض → `seeds/03_samples/`
+- لا، وهو خاص بعميل → `seeds/02_company/` أو خارج المستودع
+- لا، وهو مثبّت لاختبار آلي → `seeds/04_tests/`
 
 ### 1.2 أمثلة صريحة
 
-**مسموح في `seeds/reference/`:**
+**مسموح في `seeds/01_system/`:**
 
 ```
 أدوار النظام:      owner · manager · accountant · cashier · warehouse
 حالات الفاتورة:    draft · confirmed · paid · partial · unpaid · cancelled · returned
-طرق الدفع:         cash · card · bank_transfer · mobile_money · credit · split
-وحدات القياس:      Piece · Pack · Box · Kilogram · Litre
+طرق الدفع:         cash · card · bank_transfer · mobile_money · credit · split · cheque
+                 + الكتالوج الموسّع اليمني (بنك الكريمي، جيب، جوالي، ...) في seeds/01_system/08
+وحدات القياس:      Piece · Dozen · Kilogram · Gram · Ton · Litre · Metre · Box · Pack
 تصنيفات المصروف:   Rent · Salaries · Transport · Utilities
 حسابات دليل الحسابات: 1101 · 1211 · 1311 · 2111 · 4111 · 5111 ...
+ترقيم المستندات:   seeds/01_system/07 (محرّك الترقيم 14 يقرأ منه)
 ```
 
 **ممنوع تمامًا في أي migration:**
@@ -110,7 +116,7 @@ CREATE TABLE public.products (
 لا يُنشأ ترحيل لمجرد تحسين شكلي أو إعادة تنظيم. التعديل يستحق ترحيلًا عندما يكون **مطلوبًا فعليًا** ويغيّر السلوك أو البنية.
 
 ### R-07 — لا ترحيل لتحديث بيانات Seed
-تغيير صف في `seeds/reference/` يُعدَّل في ملف الـ seed نفسه. لا يُنشأ `2026xxxx_update_units.sql`.
+تغيير صف في `seeds/01_system/` يُعدَّل في ملف الـ seed نفسه. لا يُنشأ `2026xxxx_update_units.sql`.
 
 ### R-08 — فصل صارم: Schema / Reference / Demo / Test / Customer
 كما في القسم 1. لا استثناءات.
@@ -122,11 +128,12 @@ CREATE TABLE public.products (
 ```
 fix · final · final2 · fix2 · cleanup · temp · update_again · misc · patch
 ```
-اسم الملف يصف **محتواه**. أمثلة صحيحة:
+اسم الملف يصف **محتواه**. أمثلة صحيحة (من البنية الفعلية):
 ```
-0001_core_identity_and_settings.sql
-0003_products_and_catalog.sql
-0006_purchasing_and_returns.sql
+02_core_identity_and_settings.sql
+05_products_and_inventory.sql
+07_purchasing_and_returns.sql
+16_payment_methods.sql
 ```
 
 ### R-11 — أسماء الملفات واضحة وتصف المحتوى
@@ -151,7 +158,7 @@ fix · final · final2 · fix2 · cleanup · temp · update_again · misc · pat
 لا يُسمح بتعديل `supabase/` قبل قراءة `MIGRATIONS_RULES.md` و`MIGRATIONS_REFACTOR_PLAN.md`.
 
 ### R-16 — تحديث التوثيق عند تغيير البنية
-إضافة جدول أو عمود أو دالة أو سياسة تُتبَع بتحديث `MIGRATIONS_REFACTOR_PLAN.md` و`docs/database/schema-reference.md`.
+إضافة جدول أو عمود أو دالة أو سياسة تُتبَع بتحديث `MIGRATIONS_REFACTOR_PLAN.md` و`SCHEMA_REFERENCE.md` (مرجع البنية الفعلي).
 
 ### R-17 — لا Secrets أو كلمات مرور ثابتة في الترحيل
 ممنوع أي `password`, `secret`, `api_key`, `token`, `service_role_key` مكتوب صراحةً.
@@ -222,7 +229,7 @@ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public
 4. احذفه في ترحيل مستقل واضح
 
 ### R-30 — الـ Reference Data تُكتب مرة واحدة
-الأدوار، الحالات، طرق الدفع، الوحدات، تصنيفات المصروفات، دليل الحسابات — تُعرَّف في `seeds/reference/` مرة واحدة. لا تُكرَّر في الترحيل ولا في demo.
+الوحدات، الباقات، طرق الدفع، تصنيفات المصروفات، دليل الحسابات، ترقيم المستندات — تُعرَّف في `seeds/01_system/` مرة واحدة. لا تُكرَّر في الترحيل ولا في العيّنات.
 
 ---
 
