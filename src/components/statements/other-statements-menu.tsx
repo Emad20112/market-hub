@@ -2,10 +2,7 @@ import { useState } from "react";
 import { Check, ClipboardList, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import {
-  REPORT_DEFINITIONS,
-  type ReportType,
-} from "@/lib/statements/report-registry";
+import { REPORT_DEFINITIONS, type ReportType } from "@/lib/statements/report-registry";
 import { cn } from "@/lib/utils";
 
 // قائمة الكشوفات التشغيلية الأخرى (المستبعد منها كشوفات الحسابات الأساسية: عميل، مورد، صندوق)
@@ -39,9 +36,7 @@ export function OtherStatementsMenu({
   const [switching, setSwitching] = useState(false);
 
   const isOtherActive = OTHER_STATEMENT_TYPES.includes(currentType);
-  const activeDef = isOtherActive
-    ? REPORT_DEFINITIONS.find((r) => r.type === currentType)
-    : null;
+  const activeDef = isOtherActive ? REPORT_DEFINITIONS.find((r) => r.type === currentType) : null;
 
   const handleSelect = (type: ReportType) => {
     if (type === currentType) {
@@ -93,9 +88,7 @@ export function OtherStatementsMenu({
       <PopoverContent align="end" className="w-[250px] p-1.5">
         <div className="flex items-center justify-between border-b border-border/60 px-2 py-1.5 text-xs font-semibold">
           <span>{title}</span>
-          {showLoading && (
-            <RefreshCw className="h-3 w-3 animate-spin text-primary" />
-          )}
+          {showLoading && <RefreshCw className="h-3 w-3 animate-spin text-primary" />}
         </div>
         <div className="space-y-0.5 pt-1 max-h-[300px] overflow-y-auto">
           {OTHER_STATEMENT_TYPES.map((type) => {
@@ -126,9 +119,7 @@ export function OtherStatementsMenu({
                   <span className="truncate">{def.title.ar}</span>
                 </div>
                 <div className="flex items-center gap-1 shrink-0">
-                  {isSelected && (
-                    <Check className="h-3.5 w-3.5 text-primary stroke-[2.5]" />
-                  )}
+                  {isSelected && <Check className="h-3.5 w-3.5 text-primary stroke-[2.5]" />}
                 </div>
               </button>
             );

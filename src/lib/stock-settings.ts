@@ -58,7 +58,10 @@ export function saveStockSettings(patch: Partial<StockSettings>): StockSettings 
   return merged;
 }
 
-export function generateStackCode(seqNumber: number = 1, settings?: Partial<StockSettings>): string {
+export function generateStackCode(
+  seqNumber: number = 1,
+  settings?: Partial<StockSettings>,
+): string {
   const cfg = { ...getStockSettings(), ...settings };
   const prefix = (cfg.stackPrefix || "STK-").trim();
   const paddedSeq = String(seqNumber).padStart(cfg.paddingDigits || 4, "0");
@@ -77,7 +80,10 @@ export function generateStackCode(seqNumber: number = 1, settings?: Partial<Stoc
   }
 }
 
-export function generateSkuCode(seqNumber: number = 100, settings?: Partial<StockSettings>): string {
+export function generateSkuCode(
+  seqNumber: number = 100,
+  settings?: Partial<StockSettings>,
+): string {
   const cfg = { ...getStockSettings(), ...settings };
   const prefix = (cfg.skuPrefix || "PRD-").trim();
   const paddedSeq = String(seqNumber).padStart(cfg.paddingDigits || 4, "0");

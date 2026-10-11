@@ -730,7 +730,10 @@ export function RolePermissionsDialog({
                         key={`group-${gIdx}`}
                         className="bg-surface/90 font-bold text-foreground/90"
                       >
-                        <td colSpan={showPlatformRole ? 7 : 6} className="px-4 py-2 text-[11px] text-primary">
+                        <td
+                          colSpan={showPlatformRole ? 7 : 6}
+                          className="px-4 py-2 text-[11px] text-primary"
+                        >
                           {isAr ? group.category.ar : group.category.en}
                         </td>
                       </tr>
@@ -847,21 +850,21 @@ export function RolePermissionsDialog({
         {activeTab === "rules" && (
           <div className="space-y-4 pt-4 text-xs leading-relaxed text-foreground">
             {showPlatformRole && (
-            <div className="p-4 rounded-2xl border border-amber-500/30 bg-amber-500/5 space-y-2">
-              <div className="flex items-center gap-2 font-bold text-amber-600 dark:text-amber-400 text-sm">
-                <ShieldAlert className="h-4 w-4" />
-                <span>
+              <div className="p-4 rounded-2xl border border-amber-500/30 bg-amber-500/5 space-y-2">
+                <div className="flex items-center gap-2 font-bold text-amber-600 dark:text-amber-400 text-sm">
+                  <ShieldAlert className="h-4 w-4" />
+                  <span>
+                    {isAr
+                      ? "1. الفصل الحاسم بين السوبر أدمن والمالك"
+                      : "1. Separation of Superadmin & Tenant Owner"}
+                  </span>
+                </div>
+                <p className="text-muted-foreground">
                   {isAr
-                    ? "1. الفصل الحاسم بين السوبر أدمن والمالك"
-                    : "1. Separation of Superadmin & Tenant Owner"}
-                </span>
+                    ? "السوبر أدمن يختص بإدارة سيرفرات المنصة السحابية والتراخيص والباقات عبر جدول مستقل تماماً (platform_admins)، ولا يجب خلطه أو عرضه ضمن كشف موظفي المتجر العاديين. في المقابل، المالك هو صاحب المنشأة التجارية المخول وحده بإدارة فروع ونشاط المتجر."
+                    : "Superadmin manages SaaS infrastructure and licensing via platform_admins table, isolated from store staff. The Owner governs store operations."}
+                </p>
               </div>
-              <p className="text-muted-foreground">
-                {isAr
-                  ? "السوبر أدمن يختص بإدارة سيرفرات المنصة السحابية والتراخيص والباقات عبر جدول مستقل تماماً (platform_admins)، ولا يجب خلطه أو عرضه ضمن كشف موظفي المتجر العاديين. في المقابل، المالك هو صاحب المنشأة التجارية المخول وحده بإدارة فروع ونشاط المتجر."
-                  : "Superadmin manages SaaS infrastructure and licensing via platform_admins table, isolated from store staff. The Owner governs store operations."}
-              </p>
-            </div>
             )}
 
             <div className="p-4 rounded-2xl border border-destructive/30 bg-destructive/5 space-y-2">

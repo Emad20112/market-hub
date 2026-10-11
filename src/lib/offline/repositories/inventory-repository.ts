@@ -2,7 +2,7 @@
  * Market-Hub ERP - Inventory Positions & Stock Movements Offline Repository
  */
 
-import { BaseRepository } from './base-repository';
+import { BaseRepository } from "./base-repository";
 
 export interface InventoryPosition {
   id: string;
@@ -16,7 +16,7 @@ export interface StockMovement {
   id: string;
   product_id: string;
   warehouse_id: string;
-  movement_type: 'sale' | 'purchase' | 'transfer_in' | 'transfer_out' | 'adjustment';
+  movement_type: "sale" | "purchase" | "transfer_in" | "transfer_out" | "adjustment";
   quantity: number; // Positive for additions, negative for deductions
   reference_id?: string | null;
   created_at: string;
@@ -24,7 +24,7 @@ export interface StockMovement {
 
 export class InventoryRepository extends BaseRepository<InventoryPosition> {
   constructor() {
-    super('inventory');
+    super("inventory");
   }
 
   /**
@@ -32,7 +32,7 @@ export class InventoryRepository extends BaseRepository<InventoryPosition> {
    */
   async getStockQuantity(productId: string, warehouseId: string): Promise<number> {
     const items = await this.getAll(
-      i => i.product_id === productId && i.warehouse_id === warehouseId
+      (i) => i.product_id === productId && i.warehouse_id === warehouseId,
     );
     return items.length > 0 ? items[0].quantity : 0;
   }
@@ -40,9 +40,13 @@ export class InventoryRepository extends BaseRepository<InventoryPosition> {
   /**
    * Atomic local stock deduction/addition for offline operations.
    */
-  async updateStockLocal(productId: string, warehouseId: string, deltaQty: number): Promise<number> {
+  async updateStockLocal(
+    productId: string,
+    warehouseId: string,
+    deltaQty: number,
+  ): Promise<number> {
     const items = await this.getAll(
-      i => i.product_id === productId && i.warehouse_id === warehouseId
+      (i) => i.product_id === productId && i.warehouse_id === warehouseId,
     );
 
     let position: InventoryPosition;

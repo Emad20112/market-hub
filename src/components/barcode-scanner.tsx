@@ -181,8 +181,12 @@ export function BarcodeScanner({ open, onClose, onDetected, continuous = false }
               </div>
               <div className="text-[11px] text-muted-foreground">
                 {isLoadingLibrary
-                  ? (lang === "ar" ? "جاري تهيئة قارئ الكاميرا..." : "Initializing camera engine...")
-                  : (lang === "ar" ? "وجّه الخطوط داخل الإطار وانتظر لحظة" : "Place the bars inside the frame and hold still")}
+                  ? lang === "ar"
+                    ? "جاري تهيئة قارئ الكاميرا..."
+                    : "Initializing camera engine..."
+                  : lang === "ar"
+                    ? "وجّه الخطوط داخل الإطار وانتظر لحظة"
+                    : "Place the bars inside the frame and hold still"}
               </div>
             </div>
           </div>

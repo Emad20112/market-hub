@@ -210,7 +210,9 @@ export function BackupRestoreDialog({ open, onClose }: BackupRestoreDialogProps)
               <div>
                 <span className="text-muted-foreground">إصدار السكيما والمحرك:</span>
                 <span className="block font-medium text-foreground">
-                  {validationResult.metadata.schema_version} (محرك {validationResult.metadata.engine_version}، مفتاح {validationResult.metadata.key_version})
+                  {validationResult.metadata.schema_version} (محرك{" "}
+                  {validationResult.metadata.engine_version}، مفتاح{" "}
+                  {validationResult.metadata.key_version})
                 </span>
               </div>
             </div>
@@ -220,32 +222,51 @@ export function BackupRestoreDialog({ open, onClose }: BackupRestoreDialogProps)
               <div className="p-3 rounded-2xl border border-border/80 bg-surface/80 space-y-2">
                 <div className="text-xs font-bold text-foreground flex items-center justify-between">
                   <span>توزيع سجلات الجداول المكتشفة بالملف:</span>
-                  <span className="text-primary font-mono">{validationResult.categoryStats.totalRecords} سجل في {validationResult.categoryStats.totalTables} جدولاً</span>
+                  <span className="text-primary font-mono">
+                    {validationResult.categoryStats.totalRecords} سجل في{" "}
+                    {validationResult.categoryStats.totalTables} جدولاً
+                  </span>
                 </div>
                 <div className="grid grid-cols-3 gap-2 text-[11px]">
                   <div className="p-1.5 rounded-lg bg-surface-2/60 border border-border/50">
                     <span className="text-muted-foreground">إعدادات أساسية: </span>
-                    <span className="font-bold font-mono">{validationResult.categoryStats.core}</span>
+                    <span className="font-bold font-mono">
+                      {validationResult.categoryStats.core}
+                    </span>
                   </div>
                   <div className="p-1.5 rounded-lg bg-surface-2/60 border border-border/50">
                     <span className="text-muted-foreground">منتجات ومخزون: </span>
-                    <span className="font-bold font-mono">{validationResult.categoryStats.productsAndStock}</span>
+                    <span className="font-bold font-mono">
+                      {validationResult.categoryStats.productsAndStock}
+                    </span>
                   </div>
                   <div className="p-1.5 rounded-lg bg-surface-2/60 border border-border/50">
                     <span className="text-muted-foreground">مبيعات ومشتريات: </span>
-                    <span className="font-bold font-mono">{validationResult.categoryStats.salesAndPurchases}</span>
+                    <span className="font-bold font-mono">
+                      {validationResult.categoryStats.salesAndPurchases}
+                    </span>
                   </div>
                   <div className="p-1.5 rounded-lg bg-surface-2/60 border border-border/50">
                     <span className="text-muted-foreground">عملاء ومالية: </span>
-                    <span className="font-bold font-mono">{validationResult.categoryStats.financeAndLedgers}</span>
+                    <span className="font-bold font-mono">
+                      {validationResult.categoryStats.financeAndLedgers}
+                    </span>
                   </div>
                   <div className="p-1.5 rounded-lg bg-surface-2/60 border border-border/50">
-                    <span className="text-amber-600 dark:text-amber-400 font-medium">المطاحن والمعالجة: </span>
-                    <span className="font-bold font-mono">{validationResult.categoryStats.millingModule}</span>
+                    <span className="text-amber-600 dark:text-amber-400 font-medium">
+                      المطاحن والمعالجة:{" "}
+                    </span>
+                    <span className="font-bold font-mono">
+                      {validationResult.categoryStats.millingModule}
+                    </span>
                   </div>
                   <div className="p-1.5 rounded-lg bg-surface-2/60 border border-border/50">
-                    <span className="text-purple-600 dark:text-purple-400 font-medium">المصروفات ERP: </span>
-                    <span className="font-bold font-mono">{validationResult.categoryStats.expenseModule}</span>
+                    <span className="text-purple-600 dark:text-purple-400 font-medium">
+                      المصروفات ERP:{" "}
+                    </span>
+                    <span className="font-bold font-mono">
+                      {validationResult.categoryStats.expenseModule}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -284,8 +305,9 @@ export function BackupRestoreDialog({ open, onClose }: BackupRestoreDialogProps)
               تم فحص واكتشاف هيكلية التبعيات المرجعية (DAG) بنجاح
             </div>
             <div className="text-xs text-muted-foreground max-w-md mx-auto leading-relaxed">
-              تم التحقق من تطابق كافة الفواتير والمنتجات والمستودعات والعملاء وعقود المطاحن والمصروفات دون وجود أيتام.
-              الاستعادة الفعلية محمية وموثقة في محرك السيرفر لمنع أي تأثير غير مقصود.
+              تم التحقق من تطابق كافة الفواتير والمنتجات والمستودعات والعملاء وعقود المطاحن
+              والمصروفات دون وجود أيتام. الاستعادة الفعلية محمية وموثقة في محرك السيرفر لمنع أي
+              تأثير غير مقصود.
             </div>
           </div>
         )}

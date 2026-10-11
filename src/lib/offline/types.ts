@@ -3,17 +3,14 @@
  * Phase 0 & Phase 1 Foundation
  */
 
-export type SyncStatus = 'synced' | 'pending' | 'rejected' | 'conflicted';
+export type SyncStatus = "synced" | "pending" | "rejected" | "conflicted";
 
-export type SyncPriority = 'high' | 'medium' | 'low';
+export type SyncPriority = "high" | "medium" | "low";
 
-export type SyncOperationType = 'INSERT' | 'UPDATE' | 'DELETE' | 'RPC';
+export type SyncOperationType = "INSERT" | "UPDATE" | "DELETE" | "RPC";
 
-export type ConflictResolutionStrategy = 
-  | 'SERVER_AUTHORITY'
-  | 'LOCAL_AUTHORITY'
-  | 'MANUAL_REVIEW'
-  | 'APPEND_ONLY_REVERSAL';
+export type ConflictResolutionStrategy =
+  "SERVER_AUTHORITY" | "LOCAL_AUTHORITY" | "MANUAL_REVIEW" | "APPEND_ONLY_REVERSAL";
 
 /**
  * Immutable Sync Outbox Envelope for offline transactions
@@ -64,7 +61,7 @@ export interface SyncCursor {
 export interface DeviceRegistration {
   device_id: string;
   device_name: string;
-  platform: 'desktop_tauri' | 'web_pwa' | 'browser';
+  platform: "desktop_tauri" | "web_pwa" | "browser";
   assigned_warehouse_id: string | null;
   registered_at: string;
   is_active: boolean;
@@ -74,7 +71,7 @@ export interface OfflineAuthorityGrant {
   grant_id: string;
   device_id: string;
   user_id: string;
-  role: 'owner' | 'manager' | 'accountant' | 'cashier' | 'warehouse';
+  role: "owner" | "manager" | "accountant" | "cashier" | "warehouse";
   allowed_warehouses: string[];
   expires_at: string; // ISO 8601 string
   signature: string; // HMAC / JWT token signature from server
@@ -123,7 +120,6 @@ export interface SyncEngineStatus {
   last_error: string | null;
   device_id: string;
 }
-
 
 export interface AuthSnapshot {
   user_id: string;

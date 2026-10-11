@@ -54,7 +54,10 @@ function TrialBalancePage() {
        * company-owned TRACKED goods only — never customer-owned material, an
        * untracked good, or a service.
        */
-      supabase.from("inventory_valuation" as never).select("quantity,reference_valuation").limit(3000),
+      supabase
+        .from("inventory_valuation" as never)
+        .select("quantity,reference_valuation")
+        .limit(3000),
     ]);
 
     const salesTotal = (sales.data ?? []).reduce((a, r) => a + Number(r.total), 0);
@@ -114,8 +117,7 @@ function TrialBalancePage() {
       },
       {
         accountCode: "2020",
-        accountName:
-          lang === "ar" ? "ذمم مصروفات مستحقة الدفع" : "Accrued Expenses Payable",
+        accountName: lang === "ar" ? "ذمم مصروفات مستحقة الدفع" : "Accrued Expenses Payable",
         type: "liability",
         debit: 0,
         credit: expensePayables,

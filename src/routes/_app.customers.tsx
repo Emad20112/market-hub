@@ -42,10 +42,7 @@ import { useI18n } from "@/lib/i18n";
 import { money } from "@/lib/format";
 import { useDebtIndex } from "@/hooks/use-debts-overview";
 import { StatementIntegrityBadge } from "@/components/statements/statement-integrity-badge";
-import {
-  VortexCollectionSheet,
-  VortexMetricCard,
-} from "@/components/vortex-ui";
+import { VortexCollectionSheet, VortexMetricCard } from "@/components/vortex-ui";
 import { toast } from "sonner";
 import { WhatsAppIcon } from "@/components/whatsapp-icon";
 import { Ltr } from "@/components/ltr-value";

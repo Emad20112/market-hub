@@ -48,7 +48,9 @@ function AccessDenied() {
     <div className="flex min-h-[60vh] items-center justify-center px-4">
       <div className="max-w-md text-center">
         <ShieldAlert className="mx-auto h-12 w-12 text-destructive" />
-        <h1 className="mt-4 text-xl font-semibold text-foreground">لا تملك صلاحية لفتح هذه الصفحة</h1>
+        <h1 className="mt-4 text-xl font-semibold text-foreground">
+          لا تملك صلاحية لفتح هذه الصفحة
+        </h1>
         <p className="mt-2 text-sm text-muted-foreground">
           You do not have permission to open this page. Ask the store owner to update your role.
         </p>

@@ -2,10 +2,10 @@
  * Market-Hub ERP - Offline Inventory Movements & Transfers Service Engine
  */
 
-import { generateUUIDv7, generateLocalDocRef, getOrCreateDeviceId } from '../idempotency';
-import { globalSyncEngine } from '../sync-engine';
-import { inventoryRepo } from '../repositories/inventory-repository';
-import { getOfflineStorageAdapter } from '../storage-adapter';
+import { generateUUIDv7, generateLocalDocRef, getOrCreateDeviceId } from "../idempotency";
+import { globalSyncEngine } from "../sync-engine";
+import { inventoryRepo } from "../repositories/inventory-repository";
+import { getOfflineStorageAdapter } from "../storage-adapter";
 
 export interface CreateOfflineStockTransferPayload {
   source_warehouse_id: string;
@@ -31,7 +31,7 @@ export class InventoryOfflineService {
 
   async processStockTransfer(payload: CreateOfflineStockTransferPayload) {
     const transferId = generateUUIDv7();
-    const localRef = generateLocalDocRef('TRF', this.deviceId, this.localSeq++);
+    const localRef = generateLocalDocRef("TRF", this.deviceId, this.localSeq++);
     const timestamp = new Date().toISOString();
 
     const record = {
@@ -44,19 +44,27 @@ export class InventoryOfflineService {
       created_at: timestamp,
     };
 
-    await this.adapter.setItem('stock_transfers', transferId, record);
+    await this.adapter.setItem("stock_transfers", transferId, record);
 
     // Deduct source, add target locally
     for (const item of payload.items) {
-      await inventoryRepo.updateStockLocal(item.product_id, payload.source_warehouse_id, -item.quantity);
-      await inventoryRepo.updateStockLocal(item.product_id, payload.target_warehouse_id, item.quantity);
+      await inventoryRepo.updateStockLocal(
+        item.product_id,
+        payload.source_warehouse_id,
+        -item.quantity,
+      );
+      await inventoryRepo.updateStockLocal(
+        item.product_id,
+        payload.target_warehouse_id,
+        item.quantity,
+      );
     }
 
     await globalSyncEngine.enqueue({
-      entity_name: 'create_stock_transfer',
-      operation_type: 'RPC',
+      entity_name: "create_stock_transfer",
+      operation_type: "RPC",
       payload: record,
-      priority: 'high',
+      priority: "high",
       local_document_ref: localRef,
     });
 
@@ -65,7 +73,10 @@ export class InventoryOfflineService {
 
   async processStockAdjustment(payload: CreateOfflineStockAdjustmentPayload) {
     const adjId = generateUUIDv7();
-    const currentQty = await inventoryRepo.getStockQuantity(payload.product_id, payload.warehouse_id);
+    const currentQty = await inventoryRepo.getStockQuantity(
+      payload.product_id,
+      payload.warehouse_id,
+    );
     const diff = payload.actual_quantity - currentQty;
 
     const record = {
@@ -79,14 +90,14 @@ export class InventoryOfflineService {
       created_at: new Date().toISOString(),
     };
 
-    await this.adapter.setItem('stock_adjustments', adjId, record);
+    await this.adapter.setItem("stock_adjustments", adjId, record);
     await inventoryRepo.updateStockLocal(payload.product_id, payload.warehouse_id, diff);
 
     await globalSyncEngine.enqueue({
-      entity_name: 'create_stock_adjustment',
-      operation_type: 'RPC',
+      entity_name: "create_stock_adjustment",
+      operation_type: "RPC",
       payload: record,
-      priority: 'medium',
+      priority: "medium",
     });
 
     return record;

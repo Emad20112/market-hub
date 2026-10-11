@@ -20,13 +20,7 @@ export type CommunicationEventType =
   | "general_customer_notice";
 
 export type DeliveryStatus =
-  | "idle"
-  | "preparing"
-  | "ready"
-  | "opened"
-  | "shared"
-  | "copied"
-  | "failed";
+  "idle" | "preparing" | "ready" | "opened" | "shared" | "copied" | "failed";
 
 export interface CustomerContext {
   id: string;

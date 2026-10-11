@@ -51,7 +51,9 @@ interface AlertItem {
 function NotificationsPage() {
   const { t, lang } = useI18n();
   const isAr = lang === "ar";
-  const [activeTab, setActiveTab] = useState<"all" | "danger" | "stock" | "finance" | "backup">("all");
+  const [activeTab, setActiveTab] = useState<"all" | "danger" | "stock" | "finance" | "backup">(
+    "all",
+  );
   const [searchQuery, setSearchQuery] = useState("");
   const [isDownloadingBackup, setIsDownloadingBackup] = useState(false);
 
@@ -99,15 +101,23 @@ function NotificationsPage() {
       if (backupStatus.isDue) {
         const freqLabel =
           backupStatus.frequency === "twice_daily"
-            ? isAr ? "مرتين يومياً" : "Twice Daily"
+            ? isAr
+              ? "مرتين يومياً"
+              : "Twice Daily"
             : backupStatus.frequency === "daily"
-              ? isAr ? "يومياً" : "Daily"
-              : isAr ? "أسبوعياً" : "Weekly";
+              ? isAr
+                ? "يومياً"
+                : "Daily"
+              : isAr
+                ? "أسبوعياً"
+                : "Weekly";
 
         items.push({
           id: "backup-local-reminder",
           kind: "backup_due",
-          title: isAr ? "تنبيه النسخ الاحتياطي الدوري (تحميل محلي)" : "Periodic Local Backup Reminder",
+          title: isAr
+            ? "تنبيه النسخ الاحتياطي الدوري (تحميل محلي)"
+            : "Periodic Local Backup Reminder",
           sub: backupStatus.messageAr,
           meta: freqLabel,
           severity: "warn",
@@ -188,7 +198,9 @@ function NotificationsPage() {
 
   const handleInstantDownload = async () => {
     setIsDownloadingBackup(true);
-    toast.info(isAr ? "جاري تجميع البيانات وتشفير النسخة الاحتياطية..." : "Encrypting backup snapshot...");
+    toast.info(
+      isAr ? "جاري تجميع البيانات وتشفير النسخة الاحتياطية..." : "Encrypting backup snapshot...",
+    );
     try {
       const res = await triggerInstantLocalBackupDownload();
       if (res.success) {
@@ -199,7 +211,9 @@ function NotificationsPage() {
         );
         refetch();
       } else {
-        toast.error(res.error || (isAr ? "حدث خطأ أثناء تحميل النسخة الاحتياطية" : "Download failed"));
+        toast.error(
+          res.error || (isAr ? "حدث خطأ أثناء تحميل النسخة الاحتياطية" : "Download failed"),
+        );
       }
     } catch (err: any) {
       toast.error(err?.message || "Error generating backup");

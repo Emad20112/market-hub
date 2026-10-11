@@ -541,7 +541,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       // اختصار لوحة الأوامر الشاملة (Command Palette): Ctrl+Shift+P أو Cmd+Shift+P
-      if ((e.metaKey || e.ctrlKey) && (e.shiftKey && e.key.toLowerCase() === "p")) {
+      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key.toLowerCase() === "p") {
         e.preventDefault();
         setPaletteOpen((x) => !x);
       }

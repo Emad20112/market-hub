@@ -1,4 +1,4 @@
--- ============================================================================
+﻿-- ============================================================================
 -- supabase/seeds/demo/stationery-legacy.sql
 --
 -- ⚠️ SUPERSEDED — kept for reference only. Prefer demo/stationery.sql.

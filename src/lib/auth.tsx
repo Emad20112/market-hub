@@ -260,9 +260,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (error || !data) return { isAdmin: false, isSuperadmin: false };
 
+      // The table stores exactly two roles: 'superadmin' and 'support'.
+      // 'support' is a platform admin but not a superadmin — it must not
+      // satisfy superadmin-only policies or reveal the platform screens.
       return {
         isAdmin: true,
-        isSuperadmin: data.role === "superadmin" || data.role === "admin",
+        isSuperadmin: data.role === "superadmin",
       };
     } catch {
       return { isAdmin: false, isSuperadmin: false };

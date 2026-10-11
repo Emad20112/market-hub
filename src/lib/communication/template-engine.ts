@@ -304,7 +304,9 @@ export const TEMPLATES: Record<CommunicationEventType, TemplateDefinition> = {
 
       const lines = [
         `مرحباً ${customerName}،`,
-        companyName ? `نتواصل معك بخصوص حسابكم لدى *${companyName}*.` : `نتواصل معك بخصوص حسابك التجاري.`,
+        companyName
+          ? `نتواصل معك بخصوص حسابكم لدى *${companyName}*.`
+          : `نتواصل معك بخصوص حسابك التجاري.`,
         `لأي خدمة أو استفسار، نحن في خدمتكم دائماً.`,
       ];
 
@@ -316,7 +318,9 @@ export const TEMPLATES: Record<CommunicationEventType, TemplateDefinition> = {
 
       const lines = [
         `Hello ${customerName},`,
-        companyName ? `Contacting you regarding your account with *${companyName}*.` : `Contacting you regarding your account.`,
+        companyName
+          ? `Contacting you regarding your account with *${companyName}*.`
+          : `Contacting you regarding your account.`,
         `We are always at your service.`,
       ];
 

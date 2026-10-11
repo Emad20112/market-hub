@@ -8,12 +8,14 @@
  */
 export function generateUUIDv7(): string {
   const timestamp = Date.now();
-  const timeHex = timestamp.toString(16).padStart(12, '0');
-  
+  const timeHex = timestamp.toString(16).padStart(12, "0");
+
   // Random bytes for uniqueness
   const randomHex = Array.from({ length: 16 }, () =>
-    Math.floor(Math.random() * 256).toString(16).padStart(2, '0')
-  ).join('');
+    Math.floor(Math.random() * 256)
+      .toString(16)
+      .padStart(2, "0"),
+  ).join("");
 
   return `${timeHex.slice(0, 8)}-${timeHex.slice(8, 12)}-7${randomHex.slice(1, 4)}-a${randomHex.slice(5, 8)}-${randomHex.slice(8, 20)}`;
 }
@@ -26,9 +28,9 @@ export function generateIdempotencyKey(
   deviceId: string,
   entityName: string,
   localId: string,
-  operationType: string = 'CREATE'
+  operationType: string = "CREATE",
 ): string {
-  const sanitizedDevice = deviceId.trim().toLowerCase() || 'dev-unknown';
+  const sanitizedDevice = deviceId.trim().toLowerCase() || "dev-unknown";
   const sanitizedEntity = entityName.trim().toLowerCase();
   return `${sanitizedDevice}:${sanitizedEntity}:${operationType.toUpperCase()}:${localId}`;
 }
@@ -41,17 +43,21 @@ export function generateLocalDocRef(
   prefix: string,
   deviceId: string,
   sequenceNumber: number,
-  date: Date = new Date()
+  date: Date = new Date(),
 ): string {
-  const cleanPrefix = prefix.toUpperCase().replace(/[^A-Z0-9]/g, '');
-  const cleanDevice = deviceId.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(-6) || 'DEV01';
-  
+  const cleanPrefix = prefix.toUpperCase().replace(/[^A-Z0-9]/g, "");
+  const cleanDevice =
+    deviceId
+      .toUpperCase()
+      .replace(/[^A-Z0-9]/g, "")
+      .slice(-6) || "DEV01";
+
   const yyyy = date.getFullYear();
-  const mm = String(date.getMonth() + 1).padStart(2, '0');
-  const dd = String(date.getDate()).padStart(2, '0');
+  const mm = String(date.getMonth() + 1).padStart(2, "0");
+  const dd = String(date.getDate()).padStart(2, "0");
   const dateStr = `${yyyy}${mm}${dd}`;
-  
-  const seqStr = String(sequenceNumber).padStart(4, '0');
+
+  const seqStr = String(sequenceNumber).padStart(4, "0");
   return `${cleanPrefix}-${cleanDevice}-${dateStr}-${seqStr}`;
 }
 
@@ -59,11 +65,11 @@ export function generateLocalDocRef(
  * Generates or retrieves stored device identity for this client.
  */
 export function getOrCreateDeviceId(): string {
-  if (typeof window === 'undefined') {
-    return 'srv-node-device';
+  if (typeof window === "undefined") {
+    return "srv-node-device";
   }
 
-  const STORAGE_KEY = 'markethub_device_id';
+  const STORAGE_KEY = "markethub_device_id";
   let deviceId = localStorage.getItem(STORAGE_KEY);
   if (!deviceId) {
     deviceId = `DEV-${generateUUIDv7().slice(0, 8).toUpperCase()}`;

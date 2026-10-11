@@ -1,4 +1,4 @@
--- ============================================================================
+﻿-- ============================================================================
 -- supabase/seeds/demo/accounts.sql
 --
 -- ⚠️ DEMO ONLY — NOT AUTO-RUN. NEVER EXECUTE AGAINST A CUSTOMER DATABASE.

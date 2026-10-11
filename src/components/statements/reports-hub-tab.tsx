@@ -109,7 +109,7 @@ export function ReportsHubTab({ ar, initialReport = "top" }: ReportsHubTabProps)
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
 
   function productName(p: any) {
-    return ar ? p?.name_ar ?? p?.name ?? "" : p?.name ?? "";
+    return ar ? (p?.name_ar ?? p?.name ?? "") : (p?.name ?? "");
   }
 
   // Generic sort toggle
@@ -140,9 +140,7 @@ export function ReportsHubTab({ ar, initialReport = "top" }: ReportsHubTabProps)
     const toTs = `${range.to}T23:59:59`;
 
     try {
-      if (
-        ["top", "sales", "payments", "profit-sales", "sales-invoices"].includes(selectedReport)
-      ) {
+      if (["top", "sales", "payments", "profit-sales", "sales-invoices"].includes(selectedReport)) {
         const [salesRes, itemsRes, prodRes] = await Promise.all([
           supabase
             .from("sales_invoices")
@@ -835,7 +833,14 @@ export function ReportsHubTab({ ar, initialReport = "top" }: ReportsHubTabProps)
         ],
         rows: debts.map((d) => ({
           party: d.partyName,
-          kind: d.kind === "customer" ? (ar ? "عميل (لنا)" : "Customer") : (ar ? "مورد (علينا)" : "Supplier"),
+          kind:
+            d.kind === "customer"
+              ? ar
+                ? "عميل (لنا)"
+                : "Customer"
+              : ar
+                ? "مورد (علينا)"
+                : "Supplier",
           phone: d.phone || "—",
           bal: d.balance,
         })),
@@ -896,7 +901,14 @@ export function ReportsHubTab({ ar, initialReport = "top" }: ReportsHubTabProps)
         rows: returnsList.map((r) => ({
           num: r.return_number,
           date: new Date(r.created_at).toLocaleDateString(ar ? "ar-YE" : "en-GB"),
-          type: r.type === "sales" ? (ar ? "مرتجع مبيعات" : "Sales") : (ar ? "مرتجع مشتريات" : "Purchase"),
+          type:
+            r.type === "sales"
+              ? ar
+                ? "مرتجع مبيعات"
+                : "Sales"
+              : ar
+                ? "مرتجع مشتريات"
+                : "Purchase",
           party: r.party,
           tot: r.total,
           st: r.status,
@@ -1164,7 +1176,10 @@ export function ReportsHubTab({ ar, initialReport = "top" }: ReportsHubTabProps)
             title={ar ? "تحديث البيانات" : "Refresh"}
           >
             <RefreshCw
-              className={cn("h-3.5 w-3.5 text-muted-foreground", loading && "animate-spin text-primary")}
+              className={cn(
+                "h-3.5 w-3.5 text-muted-foreground",
+                loading && "animate-spin text-primary",
+              )}
             />
           </Button>
         </div>
@@ -1281,7 +1296,9 @@ export function ReportsHubTab({ ar, initialReport = "top" }: ReportsHubTabProps)
               <TableFooter className="bg-surface-2/80 font-semibold text-xs">
                 <TableRow>
                   <TableCell colSpan={2} className="py-2.5">
-                    {ar ? `الإجمالي (${topProducts.length} صنف)` : `Total (${topProducts.length} items)`}
+                    {ar
+                      ? `الإجمالي (${topProducts.length} صنف)`
+                      : `Total (${topProducts.length} items)`}
                   </TableCell>
                   <TableCell className="text-end font-mono text-xs">
                     <Ltr>
@@ -1289,9 +1306,7 @@ export function ReportsHubTab({ ar, initialReport = "top" }: ReportsHubTabProps)
                     </Ltr>
                   </TableCell>
                   <TableCell className="text-end font-mono text-xs font-bold text-primary">
-                    <Ltr>
-                      {money(topProducts.reduce((sum, item) => sum + item.total, 0))}
-                    </Ltr>
+                    <Ltr>{money(topProducts.reduce((sum, item) => sum + item.total, 0))}</Ltr>
                   </TableCell>
                 </TableRow>
               </TableFooter>
@@ -1382,7 +1397,9 @@ export function ReportsHubTab({ ar, initialReport = "top" }: ReportsHubTabProps)
               <TableFooter className="bg-surface-2/80 font-semibold text-xs">
                 <TableRow>
                   <TableCell colSpan={5} className="py-2.5">
-                    {ar ? `إجمالي المبيعات (${sales.length} فاتورة)` : `Total Sales (${sales.length} invoices)`}
+                    {ar
+                      ? `إجمالي المبيعات (${sales.length} فاتورة)`
+                      : `Total Sales (${sales.length} invoices)`}
                   </TableCell>
                   <TableCell className="text-end font-mono text-xs font-bold text-primary">
                     <Ltr>{money(sales.reduce((sum, s) => sum + Number(s.total || 0), 0))}</Ltr>
@@ -1666,7 +1683,9 @@ export function ReportsHubTab({ ar, initialReport = "top" }: ReportsHubTabProps)
                             <Ltr>{p.invoice_number}</Ltr>
                           </TableCell>
                           <TableCell className="text-xs text-muted-foreground">
-                            <Ltr>{new Date(p.created_at).toLocaleDateString(ar ? "ar-YE" : "en-GB")}</Ltr>
+                            <Ltr>
+                              {new Date(p.created_at).toLocaleDateString(ar ? "ar-YE" : "en-GB")}
+                            </Ltr>
                           </TableCell>
                           <TableCell className="text-xs font-medium">
                             {p.suppliers?.name || "—"}
@@ -1696,7 +1715,9 @@ export function ReportsHubTab({ ar, initialReport = "top" }: ReportsHubTabProps)
               <TableFooter className="bg-surface-2/80 font-semibold text-xs">
                 <TableRow>
                   <TableCell colSpan={5} className="py-2.5">
-                    {ar ? `إجمالي المشتريات (${purchases.length} فاتورة)` : `Purchases Total (${purchases.length})`}
+                    {ar
+                      ? `إجمالي المشتريات (${purchases.length} فاتورة)`
+                      : `Purchases Total (${purchases.length})`}
                   </TableCell>
                   <TableCell className="text-end font-mono text-xs font-bold">
                     <Ltr>{money(purchases.reduce((s, p) => s + Number(p.total || 0), 0))}</Ltr>
@@ -1739,9 +1760,7 @@ export function ReportsHubTab({ ar, initialReport = "top" }: ReportsHubTabProps)
                 <TableHead className="font-semibold text-xs">
                   {ar ? "نوع الحساب" : "Kind"}
                 </TableHead>
-                <TableHead className="font-semibold text-xs">
-                  {ar ? "الهاتف" : "Phone"}
-                </TableHead>
+                <TableHead className="font-semibold text-xs">{ar ? "الهاتف" : "Phone"}</TableHead>
                 <TableHead
                   onClick={() => handleSort("balance")}
                   className="text-end font-semibold text-xs cursor-pointer hover:text-primary transition-colors select-none"
@@ -1806,12 +1825,12 @@ export function ReportsHubTab({ ar, initialReport = "top" }: ReportsHubTabProps)
               <TableFooter className="bg-surface-2/80 font-semibold text-xs">
                 <TableRow>
                   <TableCell colSpan={4} className="py-2.5">
-                    {ar ? `إجمالي الأرصدة (${debts.length} حساب)` : `Total Balances (${debts.length})`}
+                    {ar
+                      ? `إجمالي الأرصدة (${debts.length} حساب)`
+                      : `Total Balances (${debts.length})`}
                   </TableCell>
                   <TableCell className="text-end font-mono text-xs font-bold text-rose-500">
-                    <Ltr>
-                      {money(debts.reduce((sum, d) => sum + Math.abs(d.balance), 0))}
-                    </Ltr>
+                    <Ltr>{money(debts.reduce((sum, d) => sum + Math.abs(d.balance), 0))}</Ltr>
                   </TableCell>
                   <TableCell />
                 </TableRow>
@@ -1895,7 +1914,9 @@ export function ReportsHubTab({ ar, initialReport = "top" }: ReportsHubTabProps)
                             <Ltr>{s.invoice_number}</Ltr>
                           </TableCell>
                           <TableCell className="text-xs text-muted-foreground">
-                            <Ltr>{new Date(s.created_at).toLocaleString(ar ? "ar-YE" : "en-GB")}</Ltr>
+                            <Ltr>
+                              {new Date(s.created_at).toLocaleString(ar ? "ar-YE" : "en-GB")}
+                            </Ltr>
                           </TableCell>
                           <TableCell className="text-xs font-medium">
                             {s.customers?.name || (ar ? "عميل نقدي" : "Cash")}
@@ -1987,7 +2008,9 @@ export function ReportsHubTab({ ar, initialReport = "top" }: ReportsHubTabProps)
             </TableHeader>
             <TableBody>
               <TableRow className="hover:bg-surface-2/50 transition-colors">
-                <TableCell className="text-center font-mono text-xs text-muted-foreground">1</TableCell>
+                <TableCell className="text-center font-mono text-xs text-muted-foreground">
+                  1
+                </TableCell>
                 <TableCell className="font-semibold text-xs text-foreground">
                   {ar ? "إجمالي الإيرادات والمبيعات المحققة" : "Gross Revenue"}
                 </TableCell>
@@ -1997,7 +2020,9 @@ export function ReportsHubTab({ ar, initialReport = "top" }: ReportsHubTabProps)
                 <TableCell className="text-end font-mono text-xs font-bold text-foreground">
                   <Ltr>{money(profitSummary.salesTotal)}</Ltr>
                 </TableCell>
-                <TableCell className="text-end font-mono text-xs text-muted-foreground">100%</TableCell>
+                <TableCell className="text-end font-mono text-xs text-muted-foreground">
+                  100%
+                </TableCell>
                 <TableCell className="text-center">
                   <Badge variant="outline" className="text-[10px] py-0 px-2 font-medium">
                     {ar ? "نشاط معتمد" : "Active"}
@@ -2006,7 +2031,9 @@ export function ReportsHubTab({ ar, initialReport = "top" }: ReportsHubTabProps)
               </TableRow>
 
               <TableRow className="hover:bg-surface-2/50 transition-colors">
-                <TableCell className="text-center font-mono text-xs text-muted-foreground">2</TableCell>
+                <TableCell className="text-center font-mono text-xs text-muted-foreground">
+                  2
+                </TableCell>
                 <TableCell className="font-semibold text-xs text-foreground">
                   {ar ? "تكلفة البضاعة المباعة (COGS)" : "Cost of Goods Sold"}
                 </TableCell>
@@ -2046,7 +2073,13 @@ export function ReportsHubTab({ ar, initialReport = "top" }: ReportsHubTabProps)
                 </TableCell>
                 <TableCell className="text-center">
                   <Badge className="text-[10px] py-0 px-2 bg-primary text-primary-foreground font-semibold">
-                    {profitSummary.grossProfit >= 0 ? (ar ? "ربح إيجابي" : "Profitable") : (ar ? "عجز" : "Loss")}
+                    {profitSummary.grossProfit >= 0
+                      ? ar
+                        ? "ربح إيجابي"
+                        : "Profitable"
+                      : ar
+                        ? "عجز"
+                        : "Loss"}
                   </Badge>
                 </TableCell>
               </TableRow>
@@ -2060,9 +2093,7 @@ export function ReportsHubTab({ ar, initialReport = "top" }: ReportsHubTabProps)
             <TableHeader className="bg-surface-2/60">
               <TableRow>
                 <TableHead className="w-12 text-center font-semibold text-xs">#</TableHead>
-                <TableHead className="font-semibold text-xs">
-                  {ar ? "المرجع" : "Ref"}
-                </TableHead>
+                <TableHead className="font-semibold text-xs">{ar ? "المرجع" : "Ref"}</TableHead>
                 <TableHead
                   onClick={() => handleSort("created_at")}
                   className="font-semibold text-xs cursor-pointer hover:text-primary transition-colors select-none"
@@ -2072,9 +2103,7 @@ export function ReportsHubTab({ ar, initialReport = "top" }: ReportsHubTabProps)
                     {renderSortIndicator("created_at")}
                   </div>
                 </TableHead>
-                <TableHead className="font-semibold text-xs">
-                  {ar ? "الصنف" : "Product"}
-                </TableHead>
+                <TableHead className="font-semibold text-xs">{ar ? "الصنف" : "Product"}</TableHead>
                 <TableHead className="font-semibold text-xs">
                   {ar ? "المستودع" : "Warehouse"}
                 </TableHead>
@@ -2141,7 +2170,9 @@ export function ReportsHubTab({ ar, initialReport = "top" }: ReportsHubTabProps)
               <TableFooter className="bg-surface-2/80 font-semibold text-xs">
                 <TableRow>
                   <TableCell colSpan={6} className="py-2.5">
-                    {ar ? `إجمالي الحركات (${movements.length})` : `Total Movements (${movements.length})`}
+                    {ar
+                      ? `إجمالي الحركات (${movements.length})`
+                      : `Total Movements (${movements.length})`}
                   </TableCell>
                   <TableCell className="text-end font-mono text-xs font-bold text-foreground">
                     <Ltr>{movements.reduce((sum, m) => sum + Number(m.quantity || 0), 0)}</Ltr>
@@ -2178,9 +2209,7 @@ export function ReportsHubTab({ ar, initialReport = "top" }: ReportsHubTabProps)
                 <TableHead className="font-semibold text-xs">
                   {ar ? "نوع المرتجع" : "Kind"}
                 </TableHead>
-                <TableHead className="font-semibold text-xs">
-                  {ar ? "الطرف" : "Party"}
-                </TableHead>
+                <TableHead className="font-semibold text-xs">{ar ? "الطرف" : "Party"}</TableHead>
                 <TableHead className="font-semibold text-xs">
                   {ar ? "السبب / البيان" : "Reason"}
                 </TableHead>
@@ -2212,7 +2241,9 @@ export function ReportsHubTab({ ar, initialReport = "top" }: ReportsHubTabProps)
                           {r.return_number}
                         </TableCell>
                         <TableCell className="text-xs text-muted-foreground">
-                          <Ltr>{new Date(r.created_at).toLocaleDateString(ar ? "ar-YE" : "en-GB")}</Ltr>
+                          <Ltr>
+                            {new Date(r.created_at).toLocaleDateString(ar ? "ar-YE" : "en-GB")}
+                          </Ltr>
                         </TableCell>
                         <TableCell>
                           <Badge
@@ -2247,10 +2278,14 @@ export function ReportsHubTab({ ar, initialReport = "top" }: ReportsHubTabProps)
               <TableFooter className="bg-surface-2/80 font-semibold text-xs">
                 <TableRow>
                   <TableCell colSpan={6} className="py-2.5">
-                    {ar ? `إجمالي المرتجعات (${returnsList.length})` : `Returns Total (${returnsList.length})`}
+                    {ar
+                      ? `إجمالي المرتجعات (${returnsList.length})`
+                      : `Returns Total (${returnsList.length})`}
                   </TableCell>
                   <TableCell className="text-end font-mono text-xs font-bold text-rose-500">
-                    <Ltr>{money(returnsList.reduce((sum, r) => sum + Number(r.total || 0), 0))}</Ltr>
+                    <Ltr>
+                      {money(returnsList.reduce((sum, r) => sum + Number(r.total || 0), 0))}
+                    </Ltr>
                   </TableCell>
                   <TableCell />
                 </TableRow>
@@ -2265,9 +2300,7 @@ export function ReportsHubTab({ ar, initialReport = "top" }: ReportsHubTabProps)
             <TableHeader className="bg-surface-2/60">
               <TableRow>
                 <TableHead className="w-12 text-center font-semibold text-xs">#</TableHead>
-                <TableHead className="font-semibold text-xs">
-                  {ar ? "المرجع" : "Ref"}
-                </TableHead>
+                <TableHead className="font-semibold text-xs">{ar ? "المرجع" : "Ref"}</TableHead>
                 <TableHead
                   onClick={() => handleSort("expense_date")}
                   className="font-semibold text-xs cursor-pointer hover:text-primary transition-colors select-none"
@@ -2334,7 +2367,9 @@ export function ReportsHubTab({ ar, initialReport = "top" }: ReportsHubTabProps)
               <TableFooter className="bg-surface-2/80 font-semibold text-xs">
                 <TableRow>
                   <TableCell colSpan={5} className="py-2.5">
-                    {ar ? `إجمالي المصروفات (${expensesList.length})` : `Total Expenses (${expensesList.length})`}
+                    {ar
+                      ? `إجمالي المصروفات (${expensesList.length})`
+                      : `Total Expenses (${expensesList.length})`}
                   </TableCell>
                   <TableCell className="text-end font-mono text-xs font-bold text-rose-500">
                     <Ltr>
@@ -2366,9 +2401,7 @@ export function ReportsHubTab({ ar, initialReport = "top" }: ReportsHubTabProps)
                 <TableHead className="font-semibold text-xs">
                   {ar ? "الباركود" : "Barcode"}
                 </TableHead>
-                <TableHead className="font-semibold text-xs">
-                  {ar ? "الوحدة" : "Unit"}
-                </TableHead>
+                <TableHead className="font-semibold text-xs">{ar ? "الوحدة" : "Unit"}</TableHead>
                 <TableHead
                   onClick={() => handleSort("stock")}
                   className="text-end font-semibold text-xs cursor-pointer hover:text-primary transition-colors select-none"
@@ -2436,7 +2469,9 @@ export function ReportsHubTab({ ar, initialReport = "top" }: ReportsHubTabProps)
               <TableFooter className="bg-surface-2/80 font-semibold text-xs">
                 <TableRow>
                   <TableCell colSpan={4} className="py-2.5">
-                    {ar ? `إجمالي الأصناف (${productsList.length})` : `Total Products (${productsList.length})`}
+                    {ar
+                      ? `إجمالي الأصناف (${productsList.length})`
+                      : `Total Products (${productsList.length})`}
                   </TableCell>
                   <TableCell className="text-end font-mono text-xs font-bold">
                     <Ltr>{productsList.reduce((sum, p) => sum + Number(p.stock || 0), 0)}</Ltr>

@@ -39,9 +39,12 @@ export const MILLING_MODES: {
     titleEn: "General Business (Supermarket / Retail / Wholesale)",
     badgeAr: "بدون مطحنة",
     badgeEn: "General ERP",
-    descriptionAr: "إخفاء كافة أقسام وشاشات وعمليات المطحنة تماماً. يعمل النظام كبرنامج ERP وسوبرماركت ومبيعات عامة نظيف.",
-    descriptionEn: "Completely hides all flour mill and toll processing modules from the sidebar, search, and navigation.",
-    suitableForAr: "السوبرماركت، محلات المواد الغذائية، التجزئة، قطع الغيار، والمؤسسات التجارية العامة.",
+    descriptionAr:
+      "إخفاء كافة أقسام وشاشات وعمليات المطحنة تماماً. يعمل النظام كبرنامج ERP وسوبرماركت ومبيعات عامة نظيف.",
+    descriptionEn:
+      "Completely hides all flour mill and toll processing modules from the sidebar, search, and navigation.",
+    suitableForAr:
+      "السوبرماركت، محلات المواد الغذائية، التجزئة، قطع الغيار، والمؤسسات التجارية العامة.",
   },
   {
     id: "simplified",
@@ -49,9 +52,12 @@ export const MILLING_MODES: {
     titleEn: "Flour Mill — Simplified Workflow (Direct Service & Retail)",
     badgeAr: "موصى به للمطاحن العادية",
     badgeEn: "Recommended for Standard Mills",
-    descriptionAr: "واجهة موحدة تجمع الاستلام، الطحن، الفوترة الفورية، والتسليم في شاشة واحدة منظمة، مع المبيعات والمصروفات العادية بدون تعقيد أوامر تصنيع.",
-    descriptionEn: "Unified single-screen express counter for intake, milling, billing, and customer custody without production complexity.",
-    suitableForAr: "أغلب المطاحن التجارية، مطاحن الحبوب المحلية، واستقبال الزبائن لطحن أكياسهم نقداً وتخزين أمانات التجار.",
+    descriptionAr:
+      "واجهة موحدة تجمع الاستلام، الطحن، الفوترة الفورية، والتسليم في شاشة واحدة منظمة، مع المبيعات والمصروفات العادية بدون تعقيد أوامر تصنيع.",
+    descriptionEn:
+      "Unified single-screen express counter for intake, milling, billing, and customer custody without production complexity.",
+    suitableForAr:
+      "أغلب المطاحن التجارية، مطاحن الحبوب المحلية، واستقبال الزبائن لطحن أكياسهم نقداً وتخزين أمانات التجار.",
   },
   {
     id: "manufacturing",
@@ -59,9 +65,12 @@ export const MILLING_MODES: {
     titleEn: "Flour Mill — Industrial Manufacturing (BOM & Joint Costing)",
     badgeAr: "للمصانع وخطوط الإنتاج",
     badgeEn: "Industrial Flour Mill",
-    descriptionAr: "أوامر إنتاج كاملة، وصفات الخلطات (BOM)، توزيع التكاليف المشتركة (دقيق ونخالة)، حساب التشغيل WIP، وترحيل الأستاذ العام.",
-    descriptionEn: "Full production orders, BOM recipes, joint cost allocation (flour & bran), WIP accounting, and shrinkage tracking.",
-    suitableForAr: "مصانع الدقيق الكبرى، خطوط الطحن الآلية، والشركات التي تطحن حبوبها الخاصة وتبيعها باسم علامتها التجارية.",
+    descriptionAr:
+      "أوامر إنتاج كاملة، وصفات الخلطات (BOM)، توزيع التكاليف المشتركة (دقيق ونخالة)، حساب التشغيل WIP، وترحيل الأستاذ العام.",
+    descriptionEn:
+      "Full production orders, BOM recipes, joint cost allocation (flour & bran), WIP accounting, and shrinkage tracking.",
+    suitableForAr:
+      "مصانع الدقيق الكبرى، خطوط الطحن الآلية، والشركات التي تطحن حبوبها الخاصة وتبيعها باسم علامتها التجارية.",
   },
   {
     id: "hybrid",
@@ -69,9 +78,12 @@ export const MILLING_MODES: {
     titleEn: "Flour Mill — Comprehensive Hybrid Suite (Dual-Track)",
     badgeAr: "شامل المسارين",
     badgeEn: "Full Hybrid Suite",
-    descriptionAr: "تفعيل الواجهة الموحدة السريعة في الواجهة الأمامية، مع صالة أوامر الإنتاج والتصنيع الصناعي في الخلف في نفس الوقت.",
-    descriptionEn: "Enables both the simplified express counter for customer grain and the industrial production engine for own goods.",
-    suitableForAr: "المطاحن المتكاملة التي تقدم خدمة طحن سريعة للزبائن في الصالة وتدير مصنع طحن لحسابها في المستودعات.",
+    descriptionAr:
+      "تفعيل الواجهة الموحدة السريعة في الواجهة الأمامية، مع صالة أوامر الإنتاج والتصنيع الصناعي في الخلف في نفس الوقت.",
+    descriptionEn:
+      "Enables both the simplified express counter for customer grain and the industrial production engine for own goods.",
+    suitableForAr:
+      "المطاحن المتكاملة التي تقدم خدمة طحن سريعة للزبائن في الصالة وتدير مصنع طحن لحسابها في المستودعات.",
   },
 ];
 
@@ -79,7 +91,10 @@ export function getMillingMode(): MillingMode {
   if (typeof window === "undefined") return "simplified";
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw && (raw === "none" || raw === "simplified" || raw === "manufacturing" || raw === "hybrid")) {
+    if (
+      raw &&
+      (raw === "none" || raw === "simplified" || raw === "manufacturing" || raw === "hybrid")
+    ) {
       return raw as MillingMode;
     }
     return "simplified";
@@ -110,7 +125,7 @@ export function saveMillingMode(mode: MillingMode): void {
       })
       .then(
         () => {},
-        (err: any) => console.error("Could not sync milling mode to cloud:", err)
+        (err: any) => console.error("Could not sync milling mode to cloud:", err),
       );
   } catch (err) {
     console.error("Failed to save milling mode:", err);
@@ -129,7 +144,13 @@ export function useMillingMode() {
       .maybeSingle()
       .then(({ data }: any) => {
         const remoteMode = (data?.catalog_modules as any)?.millingMode;
-        if (remoteMode && (remoteMode === "none" || remoteMode === "simplified" || remoteMode === "manufacturing" || remoteMode === "hybrid")) {
+        if (
+          remoteMode &&
+          (remoteMode === "none" ||
+            remoteMode === "simplified" ||
+            remoteMode === "manufacturing" ||
+            remoteMode === "hybrid")
+        ) {
           if (remoteMode !== mode) {
             localStorage.setItem(STORAGE_KEY, remoteMode);
             setModeState(remoteMode);
@@ -172,7 +193,12 @@ export function isRouteVisibleByMillingMode(pathname: string, mode: MillingMode)
 
   // If general business (no mill), hide all milling & production screens
   if (mode === "none") {
-    if (clean === "/milling" || clean.startsWith("/milling/") || clean === "/production" || clean.startsWith("/production/")) {
+    if (
+      clean === "/milling" ||
+      clean.startsWith("/milling/") ||
+      clean === "/production" ||
+      clean.startsWith("/production/")
+    ) {
       return false;
     }
     return true;
@@ -182,7 +208,12 @@ export function isRouteVisibleByMillingMode(pathname: string, mode: MillingMode)
   if (mode === "simplified") {
     // Hide industrial production and multi-screen jobs/intake/delivery
     if (clean === "/production" || clean.startsWith("/production/")) return false;
-    if (clean === "/milling/jobs" || clean === "/milling/intake" || clean === "/milling/delivery" || clean === "/milling/reports") {
+    if (
+      clean === "/milling/jobs" ||
+      clean === "/milling/intake" ||
+      clean === "/milling/delivery" ||
+      clean === "/milling/reports"
+    ) {
       return false;
     }
     // Allow simplified unified desk, customer statement, operations guide

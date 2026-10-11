@@ -96,8 +96,9 @@ export function GrainGradesCatalogView() {
     const s = q.trim().toLowerCase();
     if (!s) return grades;
     return grades.filter((g) =>
-      [g.grade_name_ar, g.grade_code, g.sku, g.origin, g.default_bag_type]
-        .some((val) => (val ?? "").toLowerCase().includes(s))
+      [g.grade_name_ar, g.grade_code, g.sku, g.origin, g.default_bag_type].some((val) =>
+        (val ?? "").toLowerCase().includes(s),
+      ),
     );
   }, [grades, q]);
 
@@ -253,7 +254,9 @@ export function GrainGradesCatalogView() {
               <PackagePlus className="h-5 w-5" />
             </span>
             <div>
-              <p className="text-[11px] font-medium text-muted-foreground">أكياس التعبئة المعتمدة</p>
+              <p className="text-[11px] font-medium text-muted-foreground">
+                أكياس التعبئة المعتمدة
+              </p>
               <p className="text-xl font-black text-foreground">50 كجم • 25 كجم</p>
             </div>
           </div>
@@ -350,9 +353,7 @@ export function GrainGradesCatalogView() {
                         رطوبة: {g.max_moisture}%
                       </span>
                       <span className="text-muted-foreground">•</span>
-                      <span className="text-muted-foreground">
-                        شوائب: {g.max_impurities}%
-                      </span>
+                      <span className="text-muted-foreground">شوائب: {g.max_impurities}%</span>
                     </div>
                   </td>
 

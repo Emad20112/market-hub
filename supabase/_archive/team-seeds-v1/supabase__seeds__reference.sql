@@ -1,4 +1,4 @@
--- ============================================================================
+﻿-- ============================================================================
 -- supabase/seeds/reference.sql
 --
 -- REFERENCE DATA — the ONLY seed file wired into supabase/config.toml.

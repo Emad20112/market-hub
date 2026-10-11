@@ -16,7 +16,7 @@ function createSupabaseClient() {
 
   if (!import.meta.env.VITE_SUPABASE_URL || !import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY) {
     console.warn(
-      "[Supabase] Environment variables missing or unconfigured. Operating with fallback endpoint."
+      "[Supabase] Environment variables missing or unconfigured. Operating with fallback endpoint.",
     );
   }
 

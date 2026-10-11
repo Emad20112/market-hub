@@ -3,10 +3,10 @@
  * Isolates UI components from direct Supabase calls, enabling transparent offline/online operation.
  */
 
-import { supabase } from '@/integrations/supabase/client';
-import { getOfflineStorageAdapter, IOfflineStorageAdapter } from '../storage-adapter';
-import { globalSyncEngine, SyncEngine } from '../sync-engine';
-import { SyncPriority } from '../types';
+import { supabase } from "@/integrations/supabase/client";
+import { getOfflineStorageAdapter, IOfflineStorageAdapter } from "../storage-adapter";
+import { globalSyncEngine, SyncEngine } from "../sync-engine";
+import { SyncPriority } from "../types";
 
 export abstract class BaseRepository<T extends { id: string }> {
   protected tableName: string;
@@ -23,11 +23,11 @@ export abstract class BaseRepository<T extends { id: string }> {
    * Fetches all records: local cache when offline, remote with local fallback when online.
    */
   async getAll(filter?: (item: T) => boolean): Promise<T[]> {
-    const isOnline = typeof navigator !== 'undefined' ? navigator.onLine : true;
+    const isOnline = typeof navigator !== "undefined" ? navigator.onLine : true;
 
     if (isOnline) {
       try {
-        const { data, error } = await supabase.from(this.tableName as any).select('*');
+        const { data, error } = await supabase.from(this.tableName as any).select("*");
         if (!error && data) {
           // Update local cache in background
           for (const item of data as unknown as T[]) {
@@ -47,14 +47,14 @@ export abstract class BaseRepository<T extends { id: string }> {
    * Fetches a single record by ID.
    */
   async getById(id: string): Promise<T | null> {
-    const isOnline = typeof navigator !== 'undefined' ? navigator.onLine : true;
+    const isOnline = typeof navigator !== "undefined" ? navigator.onLine : true;
 
     if (isOnline) {
       try {
         const { data, error } = await supabase
           .from(this.tableName as any)
-          .select('*')
-          .eq('id', id)
+          .select("*")
+          .eq("id", id)
           .single();
         if (!error && data) {
           const item = data as unknown as T;
@@ -72,14 +72,14 @@ export abstract class BaseRepository<T extends { id: string }> {
   /**
    * Creates or enqueues creation of an entity.
    */
-  async create(data: T, priority: SyncPriority = 'medium'): Promise<T> {
+  async create(data: T, priority: SyncPriority = "medium"): Promise<T> {
     // Save to local storage immediately
     await this.adapter.setItem(this.tableName, data.id, data);
 
     // Enqueue in sync outbox
     await this.syncEngine.enqueue({
       entity_name: this.tableName,
-      operation_type: 'INSERT',
+      operation_type: "INSERT",
       payload: data,
       priority,
     });
@@ -90,7 +90,11 @@ export abstract class BaseRepository<T extends { id: string }> {
   /**
    * Updates or enqueues update of an entity.
    */
-  async update(id: string, updates: Partial<T>, priority: SyncPriority = 'medium'): Promise<T | null> {
+  async update(
+    id: string,
+    updates: Partial<T>,
+    priority: SyncPriority = "medium",
+  ): Promise<T | null> {
     const existing = await this.getById(id);
     if (!existing) return null;
 
@@ -99,7 +103,7 @@ export abstract class BaseRepository<T extends { id: string }> {
 
     await this.syncEngine.enqueue({
       entity_name: this.tableName,
-      operation_type: 'UPDATE',
+      operation_type: "UPDATE",
       payload: updated,
       priority,
     });
@@ -110,12 +114,12 @@ export abstract class BaseRepository<T extends { id: string }> {
   /**
    * Deletes or enqueues deletion of an entity.
    */
-  async delete(id: string, priority: SyncPriority = 'medium'): Promise<boolean> {
+  async delete(id: string, priority: SyncPriority = "medium"): Promise<boolean> {
     await this.adapter.deleteItem(this.tableName, id);
 
     await this.syncEngine.enqueue({
       entity_name: this.tableName,
-      operation_type: 'DELETE',
+      operation_type: "DELETE",
       payload: { id },
       priority,
     });
