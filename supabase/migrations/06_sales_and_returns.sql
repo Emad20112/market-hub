@@ -704,6 +704,23 @@ END $function$;
 -- would let the two designs disagree silently (R-13/R-14). Name and signature are
 -- unchanged, so no caller breaks.
 
+-- ---------------------------------------------------------------------------
+-- record_customer_payment — سند تحصيل مستحقات.
+--
+-- ⚠️ مبدأ حاكم: **التحصيل لا يتحوّل إلى دفعة مقدمة بصمت.**
+--   الدفعة العادية محدودة بالفاتورة المختارة أو بإجمالي مستحقات العميل. وإن
+--   أراد المشغّل دفعة مقدمة حقيقية فهناك دالة صريحة منفصلة
+--   `record_customer_advance_payment` تحمل الاسم نفسه وتُنشئ سجلًا مميّزًا.
+--   قبل هذا، كان أي فائض يُصنَّف "دفعة مقدمة" ضمنًا بلا إقرار من أحد — وهو
+--   ما يُفسد مطابقة كشف الحساب لأن المستند يقول شيئًا والدفتر يقول آخر.
+--
+-- ما جاء من origin/main: منطق منع التحوّل الصامت، وفحص الرصيد الكلي قبل
+-- التوزيع، والدالة الصريحة للدفعة المقدمة.
+-- ما أُبقي من نسختنا الأحدث: اشتقاق payment_status عبر
+-- `derive_payment_status` (فلا تُكتب حالة السداد يدويًا)، وحارس طريقة الدفع
+-- الموحّد `resolve_writable_payment_method` بدل القائمة الحرفية القديمة،
+-- وإبقاء status الدورة على 'confirmed' لأن الدفع لا يغيّرها.
+-- ---------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION public.record_customer_payment(_customer_id uuid, _invoice_id uuid, _amount numeric, _method text, _payment_date date, _note text)
  RETURNS uuid
  LANGUAGE plpgsql
@@ -715,8 +732,10 @@ DECLARE
   v_user uuid := auth.uid();
   v_invoice record;
   v_customer_balance numeric;
-  v_remaining numeric := coalesce(_amount, 0);
+  v_remaining numeric := round(coalesce(_amount, 0), 2);
   v_allocation numeric;
+  v_outstanding numeric := 0;
+  v_stored_method text;
 BEGIN
   IF v_user IS NULL THEN
     RAISE EXCEPTION 'Not authenticated';
@@ -735,10 +754,15 @@ BEGIN
     RAISE EXCEPTION 'A customer and a positive amount are required';
   END IF;
 
-  IF _method NOT IN ('cash', 'card', 'bank_transfer', 'mobile_money') THEN
-    RAISE EXCEPTION 'Unsupported payment method';
-  END IF;
+  -- الحارس الموحّد: يطبّع القيمة عبر كتالوج طرق الدفع ويعيد القيمة المخزّنة.
+  -- يستبدل القائمة الحرفية القديمة NOT IN ('cash','card',...) التي كانت ترفض
+  -- كل طريقة يمنية جديدة (بنك الكريمي، جوالى، جيب...).
+  v_stored_method := public.resolve_writable_payment_method(
+    _method, 'customer_collection', true
+  );
 
+  -- صف العميل هو قفل التسلسل لكل سندات هذا العميل: يمنع تحصيلين متزامنين من
+  -- استهلاك نفس المستحق.
   SELECT balance
     INTO v_customer_balance
   FROM public.customers
@@ -777,10 +801,14 @@ BEGIN
       customer_id, invoice_id, amount, payment_method, payment_date, note, created_by
     )
     VALUES (
-      _customer_id, _invoice_id, v_remaining, _method::public.payment_method,
+      _customer_id, _invoice_id, v_remaining, v_stored_method::public.payment_method,
       coalesce(_payment_date, current_date), nullif(trim(_note), ''), v_user
     )
     RETURNING id INTO v_id;
+
+    INSERT INTO public.customer_ledger(customer_id, entry_type, credit, reference_id, reference_type, occurred_at, created_by, source_key, note)
+    VALUES (_customer_id, 'payment', v_remaining, v_id, 'customer_payment', coalesce(_payment_date, current_date)::timestamptz, v_user, 'payment:' || v_id, coalesce(nullif(trim(_note), ''), 'دفعة عميل'))
+    ON CONFLICT (source_key) DO NOTHING;
 
     UPDATE public.sales_invoices
     SET paid = paid + v_remaining,
@@ -791,8 +819,46 @@ BEGIN
         updated_at = now()
     WHERE id = _invoice_id;
   ELSE
-    -- A general customer payment is applied to the oldest outstanding invoices.
-    -- This keeps customer balance, invoice status, and payment history aligned.
+    -- لا فاتورة مختارة: تُستهلك أقدم الذمم أولًا. نفحص الإجمالي **قبل**
+    -- التوزيع كي لا يتحوّل أي فائض بالخطأ إلى دفعة مقدمة.
+    SELECT coalesce(sum(total - paid), 0)
+      INTO v_outstanding
+    FROM public.sales_invoices
+    WHERE customer_id = _customer_id
+      AND total > paid
+      AND status NOT IN ('cancelled'::public.invoice_status, 'returned'::public.invoice_status);
+
+    -- عميل قديم قد يكون له رصيد افتتاحي حقيقي بلا فواتير فردية. يبقى قابلًا
+    -- للتحصيل حتى ذلك الرصيد، لكن لا يُصنَّف «دفعة مقدمة» ضمنًا أبدًا.
+    IF v_outstanding <= 0 AND coalesce(v_customer_balance, 0) <= 0 THEN
+      RAISE EXCEPTION 'Customer has no outstanding balance. Record an explicit advance payment instead.';
+    END IF;
+    IF v_outstanding > 0 AND v_remaining > v_outstanding THEN
+      RAISE EXCEPTION 'Payment exceeds the customer outstanding balance';
+    END IF;
+
+    IF v_outstanding <= 0 THEN
+      IF v_remaining > v_customer_balance THEN
+        RAISE EXCEPTION 'Payment exceeds the customer outstanding balance';
+      END IF;
+
+      INSERT INTO public.customer_payments (
+        customer_id, invoice_id, amount, payment_method, payment_date, note, created_by
+      )
+      VALUES (
+        _customer_id, NULL, v_remaining, v_stored_method::public.payment_method,
+        coalesce(_payment_date, current_date),
+        coalesce(nullif(trim(_note), ''), 'سداد رصيد غير مرتبط بفاتورة'), v_user
+      )
+      RETURNING id INTO v_id;
+
+      INSERT INTO public.customer_ledger(customer_id, entry_type, credit, reference_id, reference_type, occurred_at, created_by, source_key, note)
+      VALUES (_customer_id, 'payment', v_remaining, v_id, 'customer_payment', coalesce(_payment_date, current_date)::timestamptz, v_user, 'payment:' || v_id, coalesce(nullif(trim(_note), ''), 'سداد رصيد غير مرتبط بفاتورة'))
+      ON CONFLICT (source_key) DO NOTHING;
+
+      v_remaining := 0;
+    END IF;
+
     FOR v_invoice IN
       SELECT id, total, paid
       FROM public.sales_invoices
@@ -810,10 +876,14 @@ BEGIN
         customer_id, invoice_id, amount, payment_method, payment_date, note, created_by
       )
       VALUES (
-        _customer_id, v_invoice.id, v_allocation, _method::public.payment_method,
+        _customer_id, v_invoice.id, v_allocation, v_stored_method::public.payment_method,
         coalesce(_payment_date, current_date), nullif(trim(_note), ''), v_user
       )
       RETURNING id INTO v_id;
+
+      INSERT INTO public.customer_ledger(customer_id, entry_type, credit, reference_id, reference_type, occurred_at, created_by, source_key, note)
+      VALUES (_customer_id, 'payment', v_allocation, v_id, 'customer_payment', coalesce(_payment_date, current_date)::timestamptz, v_user, 'payment:' || v_id, coalesce(nullif(trim(_note), ''), 'دفعة عميل'))
+      ON CONFLICT (source_key) DO NOTHING;
 
       UPDATE public.sales_invoices
       SET paid = paid + v_allocation,
@@ -824,19 +894,11 @@ BEGIN
 
       v_remaining := v_remaining - v_allocation;
     END LOOP;
-
-    IF v_remaining > 0 THEN
-      INSERT INTO public.customer_payments (customer_id, invoice_id, amount, payment_method, payment_date, note, created_by)
-      VALUES (_customer_id, NULL, v_remaining, _method::public.payment_method, coalesce(_payment_date, current_date), coalesce(nullif(trim(_note), ''), 'دفعة مقدمة'), v_user)
-      RETURNING id INTO v_id;
-    END IF;
   END IF;
 
   UPDATE public.customers
   SET balance = round(coalesce(balance, 0) - _amount, 2), updated_at = now()
   WHERE id = _customer_id;
-  INSERT INTO public.customer_ledger(customer_id, entry_type, credit, reference_id, reference_type, occurred_at, created_by, source_key, note)
-  VALUES (_customer_id, 'payment', round(_amount, 2), v_id, 'customer_payment', coalesce(_payment_date, current_date)::timestamptz, v_user, 'payment:' || v_id, coalesce(nullif(trim(_note), ''), 'دفعة عميل'));
 
   INSERT INTO public.audit_logs (actor_id, action, entity_type, entity_id, payload)
   VALUES (
@@ -847,14 +909,96 @@ BEGIN
     jsonb_build_object(
       'invoice_id', _invoice_id,
       'amount', _amount,
-      'method', _method,
-      'payment_date', coalesce(_payment_date, current_date)
+      'method', v_stored_method,
+      'payment_date', coalesce(_payment_date, current_date),
+      'allocation', CASE WHEN _invoice_id IS NULL THEN 'oldest_first' ELSE 'selected_invoice' END
     )
   );
 
   RETURN v_id;
 END;
 $function$;
+
+COMMENT ON FUNCTION public.record_customer_payment(uuid, uuid, numeric, text, date, text) IS
+  'تحصيل مستحقات فقط: يحدّ المبلغ بالفاتورة أو بإجمالي الذمم، ويوزّع تلقائيًا من أقدم الفواتير، ولا يحوّل الفائض إلى دفعة مقدمة بصمت.';
+
+-- ---------------------------------------------------------------------------
+-- record_customer_advance_payment — دفعة مقدمة **صريحة**.
+--
+-- منفصلة عن سند التحصيل عن قصد: الدفعة المقدمة لا تسدّد فواتير قائمة تلقائيًا،
+-- بل تُقيَّد في الدفتر بسجل متميّز (`credit` + `advance-payment:` prefix) ليظهر
+-- أثرها في كشف الحساب كرصيد لصالح العميل، لا كسداد.
+-- ---------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION public.record_customer_advance_payment(_customer_id uuid, _amount numeric, _method text, _payment_date date, _note text)
+ RETURNS uuid
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+DECLARE
+  v_id uuid;
+  v_user uuid := auth.uid();
+  v_stored_method text;
+BEGIN
+  IF v_user IS NULL THEN
+    RAISE EXCEPTION 'Not authenticated';
+  END IF;
+
+  IF NOT (
+    public.has_role(v_user, 'owner')
+    OR public.has_role(v_user, 'manager')
+    OR public.has_role(v_user, 'accountant')
+    OR public.has_role(v_user, 'cashier')
+  ) THEN
+    RAISE EXCEPTION 'You are not permitted to record customer payments';
+  END IF;
+
+  IF _customer_id IS NULL OR coalesce(_amount, 0) <= 0 THEN
+    RAISE EXCEPTION 'A customer and a positive advance amount are required';
+  END IF;
+
+  v_stored_method := public.resolve_writable_payment_method(
+    _method, 'customer_collection', true
+  );
+
+  PERFORM 1 FROM public.customers
+  WHERE id = _customer_id AND is_active = true
+  FOR UPDATE;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Customer is unavailable';
+  END IF;
+
+  INSERT INTO public.customer_payments (
+    customer_id, invoice_id, amount, payment_method, payment_date, note, created_by
+  )
+  VALUES (
+    _customer_id, NULL, round(_amount, 2), v_stored_method::public.payment_method,
+    coalesce(_payment_date, current_date),
+    coalesce(nullif(trim(_note), ''), 'دفعة مقدمة'), v_user
+  )
+  RETURNING id INTO v_id;
+
+  UPDATE public.customers
+  SET balance = round(coalesce(balance, 0) - _amount, 2), updated_at = now()
+  WHERE id = _customer_id;
+
+  INSERT INTO public.customer_ledger(customer_id, entry_type, credit, reference_id, reference_type, occurred_at, created_by, source_key, note)
+  VALUES (_customer_id, 'credit', round(_amount, 2), v_id, 'customer_payment', coalesce(_payment_date, current_date)::timestamptz, v_user, 'advance-payment:' || v_id, coalesce(nullif(trim(_note), ''), 'دفعة مقدمة'))
+  ON CONFLICT (source_key) DO NOTHING;
+
+  INSERT INTO public.audit_logs (actor_id, action, entity_type, entity_id, payload)
+  VALUES (
+    v_user, 'customer_advance_payment.recorded', 'customer', _customer_id,
+    jsonb_build_object('amount', _amount, 'method', v_stored_method, 'payment_date', coalesce(_payment_date, current_date))
+  );
+
+  RETURN v_id;
+END;
+$function$;
+
+COMMENT ON FUNCTION public.record_customer_advance_payment(uuid, numeric, text, date, text) IS
+  'دفعة مقدمة صريحة للعميل؛ لا تسدّد فواتير قائمة تلقائيًا، بل تُقيَّد كرصيد لصالحه في دفتر العملاء.';
 
 CREATE OR REPLACE FUNCTION public.resolve_sale_line(p_line jsonb, OUT o_product_id uuid, OUT o_quantity numeric, OUT o_line_type text, OUT o_stock_effect text, OUT o_service_name text)
  RETURNS record

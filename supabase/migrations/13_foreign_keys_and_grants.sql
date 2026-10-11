@@ -1415,6 +1415,8 @@ GRANT EXECUTE ON FUNCTION public.receive_customer_owned_stock(_customer_id uuid,
 GRANT EXECUTE ON FUNCTION public.receive_customer_owned_stock(_customer_id uuid, _product_id uuid, _warehouse_id uuid, _quantity numeric, _unit_cost numeric, _note text) TO service_role;
 GRANT EXECUTE ON FUNCTION public.record_customer_payment(_customer_id uuid, _invoice_id uuid, _amount numeric, _method text, _payment_date date, _note text) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.record_customer_payment(_customer_id uuid, _invoice_id uuid, _amount numeric, _method text, _payment_date date, _note text) TO service_role;
+GRANT EXECUTE ON FUNCTION public.record_customer_advance_payment(_customer_id uuid, _amount numeric, _method text, _payment_date date, _note text) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.record_customer_advance_payment(_customer_id uuid, _amount numeric, _method text, _payment_date date, _note text) TO service_role;
 GRANT EXECUTE ON FUNCTION public.record_expense_payment(p_entry_id uuid, p_amount numeric, p_payment_date date, p_payment_method payment_method, p_account_label text, p_reference_no text, p_note text, p_idempotency_key text, p_account_id uuid) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.record_expense_payment(p_entry_id uuid, p_amount numeric, p_payment_date date, p_payment_method payment_method, p_account_label text, p_reference_no text, p_note text, p_idempotency_key text) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.record_expense_payment(p_entry_id uuid, p_amount numeric, p_payment_date date, p_payment_method payment_method, p_account_label text, p_reference_no text, p_note text, p_idempotency_key text, p_account_id uuid) TO service_role;
