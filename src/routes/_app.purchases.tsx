@@ -35,7 +35,11 @@ import { toSystemDigits } from "@/lib/format-preferences";
 import { Ltr } from "@/components/ltr-value";
 import { LuxuryPrintPreviewModal } from "@/components/luxury-print-preview-modal";
 import { WhatsAppIcon } from "@/components/whatsapp-icon";
-import { VortexMetricCard, VortexDateBadge, VortexInvoiceDetailsSheet } from "@/components/vortex-ui";
+import {
+  VortexMetricCard,
+  VortexDateBadge,
+  VortexInvoiceDetailsSheet,
+} from "@/components/vortex-ui";
 import {
   TableToolbar,
   ToolbarAction,
@@ -43,6 +47,7 @@ import {
   type FilterValues,
   type SortOption,
 } from "@/components/ui/table-toolbar";
+import { RecordsViewToggle } from "@/components/ui/records-view-toggle";
 import { DataTable, type DataTableColumn, type DataTableSort } from "@/components/ui/data-table";
 import { IconButton } from "@/components/ui/icon-button";
 import { useBreakpoint } from "@/design/breakpoints";
@@ -136,7 +141,11 @@ function PurchasesPage() {
   const [statusTab, setStatusTab] = useState<StatusTab>("all");
   const [filters, setFilters] = useState<FilterValues>({});
   const [sortKey, setSortKey] = useState<string>("date_desc");
-  const [viewMode, setViewMode] = useStoredViewMode<ViewMode>("purchases", "cards", ["cards", "list", "table"]);
+  const [viewMode, setViewMode] = useStoredViewMode<ViewMode>("purchases", "cards", [
+    "cards",
+    "list",
+    "table",
+  ]);
   const [selected, setSelected] = useState<Invoice | null>(null);
   const [lines, setLines] = useState<Line[]>([]);
   const [loadingLines, setLoadingLines] = useState(false);
@@ -686,7 +695,9 @@ function PurchasesPage() {
               title={isRtl ? "شراء سريع (POS)" : "Fast Purchase (POS)"}
             >
               <ShoppingCart className="h-3.5 w-3.5 shrink-0 text-primary" />
-              <span className="hidden xs:inline sm:inline">{t("purchases.fast_purchase") || (isRtl ? "شراء سريع (POS)" : "Fast Purchase")}</span>
+              <span className="hidden xs:inline sm:inline">
+                {t("purchases.fast_purchase") || (isRtl ? "شراء سريع (POS)" : "Fast Purchase")}
+              </span>
               <span className="xs:hidden sm:hidden">POS</span>
             </Link>
 
@@ -697,7 +708,9 @@ function PurchasesPage() {
               title={isRtl ? "فاتورة شراء جديدة" : "New Purchase"}
             >
               <Plus className="h-3.5 w-3.5 shrink-0" />
-              <span className="hidden xs:inline sm:inline">{t("purchases.new_invoice") || (isRtl ? "فاتورة شراء جديدة" : "New Purchase")}</span>
+              <span className="hidden xs:inline sm:inline">
+                {t("purchases.new_invoice") || (isRtl ? "فاتورة شراء جديدة" : "New Purchase")}
+              </span>
               <span className="xs:hidden sm:hidden">{isRtl ? "جديدة" : "New"}</span>
             </button>
           </div>
@@ -711,8 +724,12 @@ function PurchasesPage() {
             title={t("common.refresh") || (isRtl ? "تحديث الفواتير" : "Refresh")}
             aria-label={t("common.refresh") || (isRtl ? "تحديث" : "Refresh")}
           >
-            <RefreshCw className={cn("h-3.5 w-3.5 shrink-0", loading && "animate-spin text-primary")} />
-            <span className="hidden sm:inline font-semibold">{t("common.refresh") || (isRtl ? "تحديث" : "Refresh")}</span>
+            <RefreshCw
+              className={cn("h-3.5 w-3.5 shrink-0", loading && "animate-spin text-primary")}
+            />
+            <span className="hidden sm:inline font-semibold">
+              {t("common.refresh") || (isRtl ? "تحديث" : "Refresh")}
+            </span>
           </button>
         </div>
       </div>
@@ -787,38 +804,7 @@ function PurchasesPage() {
           },
           label: isRtl ? "ترتيب" : "Sort",
         }}
-        viewToggle={
-          <ToolbarAction
-            label={
-              viewMode === "cards"
-                ? isRtl
-                  ? "بطاقات"
-                  : "Cards"
-                : viewMode === "list"
-                  ? isRtl
-                    ? "قائمة"
-                    : "List"
-                  : isRtl
-                    ? "كلاسيكي"
-                    : "Classic"
-            }
-            icon={
-              viewMode === "cards" ? (
-                <LayoutGrid />
-              ) : viewMode === "list" ? (
-                <List />
-              ) : (
-                <TableProperties />
-              )
-            }
-            onClick={() =>
-              setViewMode((prev) =>
-                prev === "cards" ? "list" : prev === "list" ? "table" : "cards",
-              )
-            }
-            tone="ghost"
-          />
-        }
+        viewToggle={<RecordsViewToggle value={viewMode} onChange={setViewMode} />}
         action={
           <ToolbarAction
             label={isRtl ? "فاتورة شراء جديدة" : "New Purchase"}

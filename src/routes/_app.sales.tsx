@@ -71,10 +71,7 @@ import { IconButton } from "@/components/ui/icon-button";
 import { useBreakpoint } from "@/design/breakpoints";
 import { useRealtimeTable } from "@/lib/realtime";
 import { QUERY_KEYS } from "@/lib/query-keys";
-import {
-  isSplitPaymentValue,
-  paymentMethodLabel,
-} from "@/lib/payments/payment-methods";
+import { isSplitPaymentValue, paymentMethodLabel } from "@/lib/payments/payment-methods";
 import { PaymentMethodChip } from "@/components/ui/payment-method";
 
 export const Route = createFileRoute("/_app/sales")({
@@ -135,7 +132,11 @@ export function SalesPage() {
   const [statusTab, setStatusTab] = useState<StatusTab>("all");
   const [filters, setFilters] = useState<FilterValues>({});
   const [sortKey, setSortKey] = useState<string>("date_desc");
-  const [viewMode, setViewMode] = useStoredViewMode<ViewMode>("sales", "grid", ["grid", "list", "table"]);
+  const [viewMode, setViewMode] = useStoredViewMode<ViewMode>("sales", "grid", [
+    "grid",
+    "list",
+    "table",
+  ]);
 
   /*
    * Two sort channels on purpose. The toolbar's sort dropdown writes
@@ -1004,13 +1005,16 @@ export function SalesPage() {
               {t("sales.title") || (isRtl ? "المبيعات والفواتير" : "Sales & Invoices")}
             </h1>
             <span className="inline-flex items-center rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-semibold text-primary">
-              {toSystemDigits(totalInvoiceCount != null ? totalInvoiceCount.toString() : rows.length.toString())}
+              {toSystemDigits(
+                totalInvoiceCount != null ? totalInvoiceCount.toString() : rows.length.toString(),
+              )}
             </span>
           </div>
           <p className="text-xs text-muted-foreground mt-0.5">
-            {t("sales.subtitle") || (isRtl
-              ? "متابعة فواتير المبيعات، المدفوعات، التحصيلات الفورية والطباعة الفاخرة"
-              : "Track sales invoices, collections, payment statuses and luxury printing")}
+            {t("sales.subtitle") ||
+              (isRtl
+                ? "متابعة فواتير المبيعات، المدفوعات، التحصيلات الفورية والطباعة الفاخرة"
+                : "Track sales invoices, collections, payment statuses and luxury printing")}
           </p>
         </div>
 
@@ -1024,7 +1028,10 @@ export function SalesPage() {
               title={isRtl ? "فاتورة جديدة (نقطة البيع)" : "New Invoice (POS)"}
             >
               <Plus className="h-4 w-4 shrink-0" />
-              <span>{t("sales.new_invoice") || (isRtl ? "فاتورة جديدة (نقطة البيع)" : "New Invoice (POS)")}</span>
+              <span>
+                {t("sales.new_invoice") ||
+                  (isRtl ? "فاتورة جديدة (نقطة البيع)" : "New Invoice (POS)")}
+              </span>
             </Link>
           </div>
 
@@ -1037,8 +1044,12 @@ export function SalesPage() {
             title={t("common.refresh") || (isRtl ? "تحديث البيانات" : "Refresh")}
             aria-label={t("common.refresh") || (isRtl ? "تحديث" : "Refresh")}
           >
-            <RefreshCw className={cn("h-3.5 w-3.5 shrink-0", loading && "animate-spin text-primary")} />
-            <span className="hidden sm:inline font-semibold">{t("common.refresh") || (isRtl ? "تحديث" : "Refresh")}</span>
+            <RefreshCw
+              className={cn("h-3.5 w-3.5 shrink-0", loading && "animate-spin text-primary")}
+            />
+            <span className="hidden sm:inline font-semibold">
+              {t("common.refresh") || (isRtl ? "تحديث" : "Refresh")}
+            </span>
           </button>
         </div>
       </div>

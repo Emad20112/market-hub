@@ -27,6 +27,7 @@ import { ThemeProvider, THEME_BOOT_SCRIPT } from "@/lib/theme";
 import { Toaster } from "@/components/ui/sonner";
 import { IosInstallPrompt } from "@/components/IosInstallPrompt";
 import { VortexSplashScreen } from "@/components/VortexSplashScreen";
+import { HintProvider } from "@/components/ui/hint";
 import { VortexWelcomeOnboarding } from "@/components/VortexWelcomeOnboarding";
 import { VortexSmartError } from "@/components/vortex-smart-error";
 
@@ -153,11 +154,23 @@ function RootComponent() {
         <I18nProvider>
           <AuthProvider>
             <ModulesProvider>
-              <VortexSplashScreen />
-              <VortexWelcomeOnboarding />
-              <Outlet />
-              <IosInstallPrompt />
-              <Toaster />
+              {/*
+               * مزوّد تلميح واحد لكل التطبيق: يملك التأخير القصير (120ms)
+               * والانتقال بين أيقونتين متجاورتين بلا إعادة تأخير، فيشرح درج
+               * القائمة المصغّر نفسه بلا `title` خام.
+               *
+               * موضعه هنا — فوق `Outlet` — ضروري: `app-shell` (وهو داخل
+               * `Outlet`) يستخدم `Hint`، فلو وضعناه أسفله لرمى
+               * «Tooltip must be used within TooltipProvider» عند أول
+               * تلميح في القائمة الجانبية.
+               */}
+              <HintProvider>
+                <VortexSplashScreen />
+                <VortexWelcomeOnboarding />
+                <Outlet />
+                <IosInstallPrompt />
+                <Toaster />
+              </HintProvider>
             </ModulesProvider>
           </AuthProvider>
         </I18nProvider>

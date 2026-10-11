@@ -28,6 +28,7 @@ import {
   type FilterValues,
   type SortOption,
 } from "@/components/ui/table-toolbar";
+import { RecordsViewToggle } from "@/components/ui/records-view-toggle";
 import { type DataTableColumn, type DataTableSort } from "@/components/ui/data-table";
 import { useBreakpoint } from "@/design/breakpoints";
 import { useRealtimeTable } from "@/lib/realtime";
@@ -461,38 +462,7 @@ function WarehousesPage() {
           },
           label: isRtl ? "ترتيب" : "Sort",
         }}
-        viewToggle={
-          <ToolbarAction
-            label={
-              viewMode === "cards"
-                ? isRtl
-                  ? "بطاقات"
-                  : "Cards"
-                : viewMode === "list"
-                  ? isRtl
-                    ? "قائمة"
-                    : "List"
-                  : isRtl
-                    ? "كلاسيكي"
-                    : "Classic"
-            }
-            icon={
-              viewMode === "cards" ? (
-                <LayoutGrid />
-              ) : viewMode === "list" ? (
-                <List />
-              ) : (
-                <TableProperties />
-              )
-            }
-            onClick={() =>
-              setViewMode((prev) =>
-                prev === "cards" ? "list" : prev === "list" ? "table" : "cards",
-              )
-            }
-            tone="ghost"
-          />
-        }
+        viewToggle={<RecordsViewToggle value={viewMode} onChange={setViewMode} />}
         action={
           <ToolbarAction
             label={t("warehouses.new")}

@@ -3,9 +3,9 @@
 import * as React from "react";
 import * as SheetPrimitive from "@radix-ui/react-dialog";
 import { cva, type VariantProps } from "class-variance-authority";
-import { X } from "lucide-react";
 
 import { cn } from "@/lib/utils";
+import { CloseButton } from "@/components/ui/close-button";
 
 const Sheet = SheetPrimitive.Root;
 
@@ -61,9 +61,10 @@ const SheetContent = React.forwardRef<
   <SheetPortal>
     <SheetOverlay />
     <SheetPrimitive.Content ref={ref} className={cn(sheetVariants({ side }), className)} {...props}>
-      <SheetPrimitive.Close className="absolute top-4 rtl:left-4 rtl:right-auto ltr:right-4 ltr:left-auto grid h-7 w-7 place-items-center rounded-full bg-surface-2/90 text-muted-foreground hover:text-foreground hover:bg-surface-3 cursor-pointer z-50 transition-all opacity-80 hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none">
-        <X className="h-4 w-4" />
-        <span className="sr-only">Close</span>
+      {/* Same close control as the dialog, so a panel and a dialog never
+       *  disagree about where "close" lives or how it looks. */}
+      <SheetPrimitive.Close asChild>
+        <CloseButton />
       </SheetPrimitive.Close>
       {children}
     </SheetPrimitive.Content>
