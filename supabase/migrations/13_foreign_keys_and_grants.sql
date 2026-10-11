@@ -1367,25 +1367,20 @@ GRANT EXECUTE ON FUNCTION public.milling_match_grain_grade(_grade_id uuid, _mois
 -- و service_role، وهذا الشكل الصحيح.
 GRANT EXECUTE ON FUNCTION public.next_expense_reference() TO authenticated;
 GRANT EXECUTE ON FUNCTION public.next_expense_reference() TO service_role;
-GRANT EXECUTE ON FUNCTION public.next_invoice_number() TO authenticated;
-GRANT EXECUTE ON FUNCTION public.next_invoice_number() TO service_role;
+-- NOTE: next_invoice_number / next_purchase_number / next_sales_return_number /
+-- next_purchase_return_number / next_transfer_number are NOT granted here. Their
+-- definition moved to 14_document_numbering_engine.sql, so they do not exist yet
+-- at this point; the GRANTs live beside the definitions in 14. Granting a function
+-- that does not exist is a hard error.
 GRANT EXECUTE ON FUNCTION public.next_journal_number(p_date date) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.next_journal_number(p_date date) TO service_role;
 GRANT EXECUTE ON FUNCTION public.next_milling_delivery_number() TO service_role;
 GRANT EXECUTE ON FUNCTION public.next_milling_intake_number() TO service_role;
 GRANT EXECUTE ON FUNCTION public.next_milling_job_number() TO service_role;
-GRANT EXECUTE ON FUNCTION public.next_purchase_number() TO authenticated;
-GRANT EXECUTE ON FUNCTION public.next_purchase_number() TO service_role;
-GRANT EXECUTE ON FUNCTION public.next_purchase_return_number() TO authenticated;
-GRANT EXECUTE ON FUNCTION public.next_purchase_return_number() TO service_role;
-GRANT EXECUTE ON FUNCTION public.next_sales_return_number() TO authenticated;
-GRANT EXECUTE ON FUNCTION public.next_sales_return_number() TO service_role;
 GRANT EXECUTE ON FUNCTION public.next_stock_adjustment_number() TO authenticated;
 GRANT EXECUTE ON FUNCTION public.next_stock_adjustment_number() TO service_role;
 GRANT EXECUTE ON FUNCTION public.next_stock_opening_number() TO authenticated;
 GRANT EXECUTE ON FUNCTION public.next_stock_opening_number() TO service_role;
-GRANT EXECUTE ON FUNCTION public.next_transfer_number() TO authenticated;
-GRANT EXECUTE ON FUNCTION public.next_transfer_number() TO service_role;
 GRANT EXECUTE ON FUNCTION public.normalize_auth_user_token_columns() TO anon;
 GRANT EXECUTE ON FUNCTION public.normalize_auth_user_token_columns() TO authenticated;
 GRANT EXECUTE ON FUNCTION public.normalize_auth_user_token_columns() TO service_role;
@@ -1399,10 +1394,11 @@ GRANT EXECUTE ON FUNCTION public.post_opening_stock(_warehouse_id uuid, _effecti
 GRANT EXECUTE ON FUNCTION public.post_opening_stock(_warehouse_id uuid, _effective_date date, _note text, _items jsonb) TO service_role;
 GRANT EXECUTE ON FUNCTION public.post_production_order(p_order_id uuid) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.post_production_order(p_order_id uuid) TO service_role;
-GRANT EXECUTE ON FUNCTION public.post_purchase_invoice(p_invoice_id uuid) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.post_purchase_invoice(p_invoice_id uuid) TO service_role;
-GRANT EXECUTE ON FUNCTION public.post_sales_invoice(p_invoice_id uuid) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.post_sales_invoice(p_invoice_id uuid) TO service_role;
+-- NOTE: post_purchase_invoice and post_sales_invoice are NOT granted here.
+-- Their definition moved to 16_payment_methods.sql (their payment-account branch
+-- needs the payment_methods catalogue), so they do not exist yet at this point.
+-- The GRANTs live beside the definitions in 16. Granting a function that does not
+-- exist is a hard error, which is exactly the trap this note prevents.
 GRANT EXECUTE ON FUNCTION public.post_stock_adjustment(_warehouse_id uuid, _reason text, _note text, _effective_date date, _items jsonb) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.post_stock_adjustment(_warehouse_id uuid, _reason text, _note text, _effective_date date, _items jsonb) TO service_role;
 GRANT EXECUTE ON FUNCTION public.post_stock_delta(p_product_id uuid, p_warehouse_id uuid, p_signed_qty numeric, p_unit_cost numeric, p_movement_kind stock_movement_kind, p_source_type text, p_source_id uuid, p_note text, p_owner_type owner_type, p_owner_id uuid, p_movement_type_legacy movement_type) TO authenticated;

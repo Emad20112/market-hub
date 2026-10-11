@@ -359,51 +359,13 @@ BEGIN
   RETURN v_id;
 END $function$;
 
-CREATE OR REPLACE FUNCTION public.next_purchase_number()
- RETURNS text
- LANGUAGE plpgsql
- SECURITY DEFINER
- SET search_path TO 'public'
-AS $function$
-DECLARE
-  v_prefix TEXT;
-  v_period_format TEXT;
-  v_period TEXT;
-  v_digits INTEGER;
-  v_number BIGINT;
-  v_number_text TEXT;
-BEGIN
-  SELECT
-    NULLIF(trim(both '-' FROM btrim(purchase_invoice_prefix)), ''),
-    COALESCE(invoice_number_period, 'year_month'),
-    GREATEST(1, LEAST(COALESCE(invoice_number_digits, 4), 8))
-  INTO v_prefix, v_period_format, v_digits
-  FROM public.company_settings
-  ORDER BY id
-  LIMIT 1;
-
-  v_prefix := COALESCE(v_prefix, 'PO');
-  v_period := CASE v_period_format
-    WHEN 'year' THEN to_char(now(), 'YYYY')
-    WHEN 'year_month' THEN to_char(now(), 'YYYYMM')
-    ELSE NULL
-  END;
-  v_number := nextval('public.purchase_invoice_seq');
-  v_number_text := CASE
-    WHEN length(v_number::TEXT) < v_digits THEN lpad(v_number::TEXT, v_digits, '0')
-    ELSE v_number::TEXT
-  END;
-
-  RETURN concat_ws('-', v_prefix, v_period, v_number_text);
-END $function$;
-
-CREATE OR REPLACE FUNCTION public.next_purchase_return_number()
- RETURNS text
- LANGUAGE plpgsql
- SECURITY DEFINER
- SET search_path TO 'public'
-AS $function$
-DECLARE n BIGINT; BEGIN n := nextval('public.purchase_return_seq'); RETURN 'PR-'||to_char(now(),'YYYYMM')||'-'||lpad(n::TEXT,4,'0'); END $function$;
+-- NOTE: next_purchase_number() and next_purchase_return_number() are defined ONCE,
+-- in 14_document_numbering_engine.sql. This file used to define its own copies
+-- reading purchase_invoice_seq / purchase_return_seq and company_settings' prefix
+-- columns — a second, competing numbering design. The engine now owns the
+-- numbering table, the sequences and the format, so a second definition here would
+-- be dead code whose body could silently drift from the engine's (R-13/R-14). The
+-- name and signature are unchanged, so no caller breaks.
 
 CREATE OR REPLACE FUNCTION public.resolve_purchase_line(p_line jsonb, OUT o_product_id uuid, OUT o_quantity numeric, OUT o_line_type text, OUT o_stock_effect text)
  RETURNS record

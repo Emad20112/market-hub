@@ -696,51 +696,13 @@ BEGIN
   RETURN v_id;
 END $function$;
 
-CREATE OR REPLACE FUNCTION public.next_invoice_number()
- RETURNS text
- LANGUAGE plpgsql
- SECURITY DEFINER
- SET search_path TO 'public'
-AS $function$
-DECLARE
-  v_prefix TEXT;
-  v_period_format TEXT;
-  v_period TEXT;
-  v_digits INTEGER;
-  v_number BIGINT;
-  v_number_text TEXT;
-BEGIN
-  SELECT
-    NULLIF(trim(both '-' FROM btrim(invoice_prefix)), ''),
-    COALESCE(invoice_number_period, 'year_month'),
-    GREATEST(1, LEAST(COALESCE(invoice_number_digits, 4), 8))
-  INTO v_prefix, v_period_format, v_digits
-  FROM public.company_settings
-  ORDER BY id
-  LIMIT 1;
-
-  v_prefix := COALESCE(v_prefix, 'INV');
-  v_period := CASE v_period_format
-    WHEN 'year' THEN to_char(now(), 'YYYY')
-    WHEN 'year_month' THEN to_char(now(), 'YYYYMM')
-    ELSE NULL
-  END;
-  v_number := nextval('public.sales_invoice_seq');
-  v_number_text := CASE
-    WHEN length(v_number::TEXT) < v_digits THEN lpad(v_number::TEXT, v_digits, '0')
-    ELSE v_number::TEXT
-  END;
-
-  RETURN concat_ws('-', v_prefix, v_period, v_number_text);
-END $function$;
-
-CREATE OR REPLACE FUNCTION public.next_sales_return_number()
- RETURNS text
- LANGUAGE plpgsql
- SECURITY DEFINER
- SET search_path TO 'public'
-AS $function$
-DECLARE n BIGINT; BEGIN n := nextval('public.sales_return_seq'); RETURN 'SR-'||to_char(now(),'YYYYMM')||'-'||lpad(n::TEXT,4,'0'); END $function$;
+-- NOTE: next_invoice_number() and next_sales_return_number() are defined ONCE, in
+-- 14_document_numbering_engine.sql. This file used to define its own copies
+-- reading sales_invoice_seq / sales_return_seq and company_settings' prefix
+-- columns — a second, competing numbering design. The engine now owns the
+-- numbering table, the sequences and the format, so keeping those bodies here
+-- would let the two designs disagree silently (R-13/R-14). Name and signature are
+-- unchanged, so no caller breaks.
 
 CREATE OR REPLACE FUNCTION public.record_customer_payment(_customer_id uuid, _invoice_id uuid, _amount numeric, _method text, _payment_date date, _note text)
  RETURNS uuid

@@ -25,8 +25,10 @@ supabase/seeds/
 │   ├── 02_plans.sql             باقات الاشتراك
 │   ├── 03_chart_of_accounts.sql دليل الحسابات
 │   ├── 04_units.sql             وحدات القياس
-│   ├── 05_expense_categories.sql تصنيفات المصروفات
-│   └── 06_milling_reference.sql مرجعيات وحدة الطحن
+│   ├── 05_expense_categories.sql تصنيفات المصروفات (مربوطة بحساباتها)
+│   ├── 06_platform_admins.sql   حسابات منصة (استثناء مقصود)
+│   ├── 07_document_numbering.sql إعداد ترقيم المستندات
+│   └── 08_payment_methods.sql   طرق الدفع + إعداد المنشأة الافتراضي
 │
 ├── 02_company/                  ← يدوي، مرة واحدة لكل عميل
 │   ├── README.md

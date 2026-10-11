@@ -1,4 +1,4 @@
-﻿-- ============================================================================
+﻿﻿-- ============================================================================
 -- 14_document_numbering_engine.sql — محرّك ترقيم المستندات المركزي
 -- ============================================================================
 --
@@ -491,6 +491,15 @@ RETURNS text LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 BEGIN
   RETURN public.fn_next_document_number('stock_transfer');
 END $$;
+
+-- ── Grants that used to live in 13 ──────────────────────────────────────────
+-- Moved here because these five functions are DEFINED here: 13 runs before this
+-- file, so a GRANT there would fail with "function does not exist".
+GRANT EXECUTE ON FUNCTION public.next_invoice_number()          TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.next_purchase_number()         TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.next_sales_return_number()     TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.next_purchase_return_number()  TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.next_transfer_number()         TO authenticated, service_role;
 
 -- ---------------------------------------------------------------------------
 -- 9. Grants. Sequence access is never exposed to the browser; allocation goes

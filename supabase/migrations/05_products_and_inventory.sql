@@ -830,13 +830,11 @@ BEGIN
   RETURN 'OP-' || to_char(now(), 'YYYYMM') || '-' || lpad(n::text, 4, '0');
 END $function$;
 
-CREATE OR REPLACE FUNCTION public.next_transfer_number()
- RETURNS text
- LANGUAGE plpgsql
- SECURITY DEFINER
- SET search_path TO 'public'
-AS $function$
-DECLARE n BIGINT; BEGIN n := nextval('public.stock_transfer_seq'); RETURN 'TR-'||to_char(now(),'YYYYMM')||'-'||lpad(n::TEXT,4,'0'); END $function$;
+-- NOTE: next_transfer_number() is defined ONCE, in 14_document_numbering_engine.sql.
+-- This file used to define its own copy reading stock_transfer_seq directly. The
+-- engine now owns that sequence and the display format, so a second definition
+-- here would be dead code whose body could silently drift from the engine's
+-- (R-13/R-14). The function name and signature are unchanged, so no caller breaks.
 
 CREATE OR REPLACE FUNCTION public.post_opening_stock(_warehouse_id uuid, _effective_date date, _note text, _items jsonb)
  RETURNS uuid

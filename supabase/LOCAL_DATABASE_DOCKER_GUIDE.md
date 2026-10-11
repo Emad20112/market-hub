@@ -22,6 +22,7 @@
 6. [تشغيل الترحيلات والبذور محلياً](#6-تشغيل-الترحيلات-والبذور-محلياً)
 7. [التحقق من سلامة البيانات](#7-التحقق-من-سلامة-البيانات)
 8. [مرجع سريع](#8-مرجع-سريع)
+9. [ربط المشروع المحلي من الطرفية — خطوة بخطوة](#9-ربط-المشروع-المحلي-من-الطرفية--خطوة-بخطوة)
 
 ---
 
@@ -331,8 +332,8 @@ npx supabase db query "SELECT count(*) FROM supabase_migrations.schema_migration
 npx supabase db reset
 ```
 
-**ما يفعله:** يمحو القاعدة المحلية بالكامل، ويعيد بناءها بتطبيق **13 ترحيلاً**،
-ثم يشغّل تلقائياً ملفات `seeds/01_system/*.sql` الخمسة.
+**ما يفعله:** يمحو القاعدة المحلية بالكامل، ويعيد بناءها بتطبيق **16 ترحيلاً**،
+ثم يشغّل تلقائياً ملفات `seeds/01_system/*.sql` الثمانية.
 
 > ⚠️ **لا تشغّله على السحابة أبداً.** محلي فقط.
 
@@ -353,15 +354,19 @@ npx supabase db reset --no-seed
 | 3 | `03_chart_of_accounts.sql` | الحسابات |
 | 4 | `04_units.sql` | الوحدات |
 | 5 | `05_expense_categories.sql` | يحلّ الحساب **بالكود** من `accounts` |
+| 6 | `06_platform_admins.sql` | حسابات المنصة (بلاها لا لوحة إدارية) |
+| 7 | `07_document_numbering.sql` | إعداد الترقيم — محرّك 14 يقرأ منه |
+| 8 | `08_payment_methods.sql` | طرق الدفع + إعداد المنشأة — الترحيل 16 وحرّاس الكتابة يقرؤون منه |
 
 > لو شغّلت `05_expense_categories.sql` قبل `03_chart_of_accounts.sql` لما وجد
-> الحساب، ولرفع فحصه الذاتي استثناءً.
+> الحساب، ولرفع فحصه الذاتي استثناءً. وكذلك `07` و`08` يفحصان نوع المستند وكود
+> الحساب بعد أن يوجدا.
 
 **الأمر الذي استخدمناه فعلاً (يعمل على Windows):**
 
 ```powershell
 $ref = (docker ps --format "{{.Names}}" | Select-String "supabase_db_").ToString()
-foreach ($f in @("01_modules","02_plans","03_chart_of_accounts","04_units","05_expense_categories")) {
+foreach ($f in @("01_modules","02_plans","03_chart_of_accounts","04_units","05_expense_categories","06_platform_admins","07_document_numbering","08_payment_methods")) {
   Write-Host "--- $f ---"
   docker cp "supabase\seeds\01_system\$f.sql" "${ref}:/tmp/$f.sql"
   docker exec $ref psql -U postgres -d postgres -v ON_ERROR_STOP=1 -f "/tmp/$f.sql"
@@ -374,9 +379,12 @@ foreach ($f in @("01_modules","02_plans","03_chart_of_accounts","04_units","05_e
 |---|---|
 | 01_modules | `INSERT 0 14` |
 | 02_plans | `INSERT 0 3` |
-| 03_chart_of_accounts | `INSERT 0 53` |
+| 03_chart_of_accounts | `INSERT 0 58` |
 | 04_units | `INSERT 0 13` |
 | 05_expense_categories | `INSERT 0 11` |
+| 06_platform_admins | `INSERT 0 3` |
+| 07_document_numbering | `INSERT 0 17` |
+| 08_payment_methods | `INSERT 0 13` (+ 6 صفوف إعداد) |
 
 > **`-v ON_ERROR_STOP=1` مهم:** يجعل psql يتوقف عند أول خطأ بدل أن يكمل
 > ويطبع نجاحاً كاذباً.
@@ -394,10 +402,13 @@ npx supabase db query "SELECT (SELECT count(*) FROM units) AS units, (SELECT cou
 | البيان | المتوقع |
 |---|---|
 | الوحدات | 13 |
-| الحسابات | 53 |
+| الحسابات | 58 |
 | وحدات النظام | 14 |
 | الباقات | 3 |
 | تصنيفات المصروف | 11 |
+| طرق الدفع | 13 |
+| إعداد المنشأة (طرق الدفع) | 6 |
+| أنواع المستندات | 17 |
 
 ### 7.2 لا بيانات أعمال تسرّبت
 
@@ -460,6 +471,34 @@ npx supabase db query "SELECT conname, confdeltype FROM pg_constraint WHERE conr
 يجب أن يظهر `expense_categories_account_id_fkey` بـ `confdeltype = n`
 (أي `ON DELETE SET NULL`) — فحذف حساب لا يجوز أن يحذف التصنيف.
 
+### 7.6 كل طريقة دفع لها حساب (مهمّ محاسبيًا)
+
+كل روشة دفع — بما فيها كل محفظة بالاسم — يجب أن ترحّل إلى حسابها الخاص، وإلا
+اختلطت الأرصدة فلا يمكن مطابقة كشف المحفظة مع دفتر الأستاذ.
+
+```powershell
+npx supabase db query "SELECT m.id, m.name_ar, public.payment_method_ledger_account(m.id) AS acct FROM public.payment_methods m ORDER BY m.sort_order;"
+```
+
+**النتيجة الصحيحة:**
+
+| الطريقة | الحساب |
+|---|---|
+| cash | 1101 |
+| credit | NULL (لا يُحصَّل) |
+| bank_transfer · kuraimi_bank · card · cheque | 1111 |
+| yemen_kuwait_bank | 1121 |
+| jawali | 1131 |
+| jaib | 1132 |
+| floosak | 1133 |
+| one_cash | 1134 |
+| mobile_money | 1139 |
+| split | 1101 |
+
+> وهذا ما يمنع الخلل الذي رُصد: قبل الإصلاح كانت المحافظ الخمس كلها ترحّل
+> إلى `1111` (البنك)، فلا يمكن مطابقة أي محفظة. راجع
+> `DATABASE_AUDIT_AND_FIX_REPORT.md` القسم 4.
+
 ---
 
 ## 8. مرجع سريع
@@ -471,7 +510,10 @@ npx supabase db query "SELECT conname, confdeltype FROM pg_constraint WHERE conr
 | `npx supabase status` | يعرض العناوين والمفاتيح |
 | `npx supabase db reset` | **يمحو ويعيد البناء محلياً** |
 | `npx supabase db query "<SQL>"` | ينفّذ استعلاماً على القاعدة المحلية |
+| `npx supabase db push` | يرفع الترحيلات **للسحابة** (بعد `link`) |
+| `npx supabase login` | يدخل بحساب Supabase للسحابة |
 | `docker ps --format "{{.Names}}: {{.Status}}"` | يعرض الحاويات |
+| `docker logs <auth-container> --tail 50` | يعرض رموز OTP المطبوعة محلياً |
 | `docker cp <ملف> <حاوية>:/tmp/x.sql` | ينسخ ملفاً للحاوية (بديل `<`) |
 | `docker exec <حاوية> psql -U postgres -d postgres -f /tmp/x.sql` | يشغّل ملف SQL |
 
@@ -482,11 +524,139 @@ npx supabase db query "SELECT conname, confdeltype FROM pg_constraint WHERE conr
 
 ---
 
+## 9. ربط المشروع المحلي من الطرفية — خطوة بخطوة
+
+هذا القسم يجيب سؤالك مباشرةً: كيف تربط مشروع `market-hup` بقاعدة Docker المحلية
+من طرفية PowerShell، وما الأخطاء التي قد تعترض الطريق.
+
+### 9.1 الشرط المسبق — الأداة تُستدعى بالشكل الصحيح
+
+الأمر `supabase db reset` وحده يعمل **فقط** إن كان Supabase CLI مثبتًا عالميًا.
+عندنا CLI مثبّت كـ devDependency في `node_modules` (النسخة **2.120.0**)، فالأصحّ
+استدعاؤه عبر `npx` من جذر المشروع:
+
+```powershell
+cd c:\Users\mousa\Desktop\project\market-hup
+npx supabase <الأمر>
+```
+
+كل أوامر هذا القسم مكتوبة بـ `npx` لأنها الطريقة التي تنجح دائمًا.
+
+### 9.2 الخطوات — من الصفر إلى قاعدة جاهزة
+
+```powershell
+# 0) تأكد أن Docker يستجيب (يجب أن يعطي رقم إصدار)
+docker info --format "{{.ServerVersion}}"
+
+# 1) انتقل إلى جذر المشروع
+cd c:\Users\mousa\Desktop\project\market-hup
+
+# 2) شغّل البيئة المحلية (أول مرة: عدة دقائق لتنزيل الصور)
+npx supabase start
+
+# 3) اطبع العناوين والمفاتيح (API / DB / Studio / Inbucket)
+npx supabase status
+
+# 4) ابنِ القاعدة من الصفر: 16 ترحيلًا ثم 8 بذور نظامية
+npx supabase db reset
+
+# 5) نفّذ استعلامًا للتأكد (راجع القسم 7)
+npx supabase db query "SELECT count(*) FROM public.accounts;"   -- 58
+```
+
+**ماذا يعني `db reset` بالضبط؟** يمحو قاعدة `postgres` المحلية، ثم يعيد بناءها
+بتطبيق كل ملفات `migrations/` بالترتيب، ثم يشغّل تلقائيًا
+`seeds/01_system/*.sql`. لا يمسّ أي شيء سحابي.
+
+### 9.3 الوصول من التطبيق (ربط الواجهة بالقاعدة المحلية)
+
+بعد `npx supabase status` تظهر قيم تُوضع في ملف `.env.local` بجذر المشروع:
+
+```dotenv
+SUPABASE_URL=http://127.0.0.1:54321
+SUPABASE_ANON_KEY=<anon key من supabase status>
+SUPABASE_SERVICE_ROLE_KEY=<service_role key من supabase status>
+```
+
+`supabase status` يطبع هاتين الكلمتين (anon / service_role). لا تكتبهما يدويًا —
+انسخهما من مخرج الأمر. ثم شغّل الواجهة:
+
+```powershell
+npm run dev
+```
+
+**الاتصال المباشر بـPostgres** (مثلًا لعميل SQL):
+
+```
+postgresql://postgres:postgres@127.0.0.1:5432/postgres
+```
+
+### 9.4 خطأ `'auth' has invalid keys: enable_phone`
+
+**العَرَض الكامل — كما ظهر عندك:**
+
+```
+PS C:\Users\mousa\Desktop\project\market-hup> supabase db reset
+failed to parse config: decoding failed due to the following error(s):
+
+'auth' has invalid keys: enable_phone
+Try rerunning the command with --debug to troubleshoot the error.
+```
+
+**السبب:** `supabase/config.toml` كان يحوي مفتاحًا لا يعرفه CLI 2.120. مخطط الإعداد
+في هذا الإصدار **مُحكم الإغلاق (closed)**: أي مفتاح لا يعرفه داخل قسم يُرفض،
+**ويمنع `db reset` و`start` كليهما** — فهو خطأ إعداد لا خطأ قاعدة.
+
+**الحل (مُطبَّق فعلاً في `config.toml`):**
+
+1. حُذف `enable_phone = true` من قسم `[auth]` — لا وجود له في هذا الإصدار.
+2. حُذف قسم `[auth.sms.twilio]` بمفاتيح `placeholder` — لا يقبله CLI، وGoTrue
+   تحاول الاتصال بـTwilio بمفاتيح وهمية فتفشل.
+
+**تفعيل الهاتف الصحيح:** يتم عبر قسم `[auth.sms]` مع `enable_signup = true`،
+وبلا مزوّد SMS تُطبع رموز الـOTP في سجلّ حاوية `auth` بدل إرسالها:
+
+```powershell
+docker logs supabase_auth_kwzqvgdyadylwnvjghqn --tail 50
+```
+
+### 9.5 كيف تعرف أن كل شيء سليم؟
+
+```powershell
+# عدد الترحيلات المطبقة — المتوقع 16
+npx supabase db query "SELECT count(*) FROM supabase_migrations.schema_migrations;"
+
+# الجداول — المتوقع 84
+npx supabase db query "SELECT count(*) FROM information_schema.tables WHERE table_schema='public' AND table_type='BASE TABLE';"
+
+# لا جدول بلا RLS — المتوقع صفر صفوف
+npx supabase db query "SELECT tablename FROM pg_tables WHERE schemaname='public' AND NOT rowsecurity;"
+
+# صفر بيانات أعمال في قاعدة جديدة
+npx supabase db query "SELECT (SELECT count(*) FROM public.products) AS products, (SELECT count(*) FROM public.company_settings) AS company;"
+```
+
+### 9.6 إن أردت ربط مشروع سحابي (لاحقًا)
+
+العمل المحلي **لا يحتاج** `supabase link`. أما الربط السحابي فيحتاج:
+
+```powershell
+npx supabase login
+npx supabase link --project-ref <project-ref>
+npx supabase db push          # يرفع الترحيلات للسحابة
+```
+
+> ⚠️ لا تشغّل `db reset` على مشروع سحابي أبدًا — العملية تُفقد البيانات.
+> و`db push` يخصّ السحابة فقط. التفاصيل في `docs/DATABASE_OPERATIONS_GUIDE.md`.
+
+---
+
 ## المراجع
 
 | الملف | الدور |
 |---|---|
 | `docs/DATABASE_OPERATIONS_GUIDE.md` | **الدليل السحابي** — مشروع جديد ونقل لعميل |
+| `supabase/DATABASE_AUDIT_AND_FIX_REPORT.md` | تقرير تدقيق البيانات والإصلاحات الأخيرة |
 | `supabase/MIGRATIONS_RULES.md` | قانون الترحيلات والبيانات (ملزم) |
 | `supabase/migrations/README.md` | الدليل المعماري للبنية |
 | `supabase/seeds/README.md` | دليل البيانات |
