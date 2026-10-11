@@ -1025,10 +1025,14 @@ export function AccountStatementPage() {
                                 </span>
                               );
                             else if (col.key === "date")
-                              content = (
-                                <span className="font-mono text-xs text-muted-foreground">
-                                  <Ltr>{result?.period.from ?? "—"}</Ltr>
-                                </span>
+                              content = result?.period.from ? (
+                                <VortexDateBadge
+                                  date={result.period.from}
+                                  size="sm"
+                                  showWeekday={false}
+                                />
+                              ) : (
+                                <span className="text-xs text-muted-foreground">—</span>
                               );
                             else if (col.key === "balance")
                               content = (

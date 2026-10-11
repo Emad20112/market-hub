@@ -52,6 +52,7 @@ import {
 import { exportToCSV, type ExportColumn } from "@/lib/excel-export";
 import { cn } from "@/lib/utils";
 import { VortexDateBadge } from "@/components/vortex-ui";
+import { printLuxuryReport } from "@/components/statements/report-tools";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   CustomerFormDialog,
@@ -982,6 +983,97 @@ export function ReportsHubTab({ ar, initialReport = "top" }: ReportsHubTabProps)
     }
   }
 
+  function handlePrintReport() {
+    const titleLabels: Record<ReportCategory, [string, string]> = {
+      top: ["الأكثر مبيعاً", "Top selling products"],
+      sales: ["سجل المبيعات", "Sales log"],
+      payments: ["طرق الدفع", "Payment methods"],
+      "profit-sales": ["أرباح المبيعات", "Sales profit"],
+      "sales-invoices": ["فواتير المبيعات", "Sales invoices"],
+      purchases: ["سجل المشتريات", "Purchases log"],
+      debts: ["الديون والمستحقات", "Debts"],
+      low: ["الأصناف قليلة المخزون", "Low stock"],
+      product: ["تقرير الأصناف", "Products"],
+      "inventory-movements": ["حركة المخزون", "Inventory movements"],
+      returns: ["المرتجعات", "Returns"],
+      expenses: ["المصروفات", "Expenses"],
+    };
+    const title = titleLabels[selectedReport]?.[ar ? 0 : 1] ?? (ar ? "التقرير" : "Report");
+    if (selectedReport === "top") {
+      void printLuxuryReport({
+        title,
+        periodLabel,
+        ar,
+        headers: [
+          { label: ar ? "المنتج / الصنف" : "Product", align: "start" },
+          { label: ar ? "الكمية" : "Qty", align: "end" },
+          { label: ar ? "الإيراد" : "Revenue", align: "end" },
+        ],
+        rows: topProducts.map((item) => [
+          productName(item.product),
+          item.qty.toLocaleString(),
+          money(item.total),
+        ]),
+      });
+      return;
+    }
+    if (selectedReport === "sales" || selectedReport === "sales-invoices") {
+      void printLuxuryReport({
+        title,
+        periodLabel,
+        ar,
+        headers: [
+          { label: ar ? "رقم الفاتورة" : "Invoice #", align: "start" },
+          { label: ar ? "التاريخ" : "Date", align: "start" },
+          { label: ar ? "العميل" : "Customer", align: "start" },
+          { label: ar ? "الإجمالي" : "Total", align: "end" },
+          { label: ar ? "المدفوع" : "Paid", align: "end" },
+        ],
+        rows: customerInvoices.map((item) => [
+          item.invoice_number,
+          new Date(item.created_at).toLocaleDateString(ar ? "ar-YE" : "en-GB"),
+          item.customers?.name || (ar ? "عميل نقدي" : "Cash"),
+          money(Number(item.total || 0)),
+          money(Number(item.paid || 0)),
+        ]),
+      });
+      return;
+    }
+    if (selectedReport === "purchases") {
+      void printLuxuryReport({
+        title,
+        periodLabel,
+        ar,
+        headers: [
+          { label: ar ? "رقم الفاتورة" : "Invoice #", align: "start" },
+          { label: ar ? "التاريخ" : "Date", align: "start" },
+          { label: ar ? "المورد" : "Supplier", align: "start" },
+          { label: ar ? "الإجمالي" : "Total", align: "end" },
+          { label: ar ? "المدفوع" : "Paid", align: "end" },
+        ],
+        rows: purchases.map((item) => [
+          item.invoice_number,
+          new Date(item.created_at).toLocaleDateString(ar ? "ar-YE" : "en-GB"),
+          item.suppliers?.name || "—",
+          money(Number(item.total || 0)),
+          money(Number(item.paid || 0)),
+        ]),
+      });
+      return;
+    }
+    void printLuxuryReport({
+      title,
+      periodLabel,
+      ar,
+      headers: [
+        { label: ar ? "الطرف" : "Party", align: "start" },
+        { label: ar ? "الهاتف" : "Phone", align: "start" },
+        { label: ar ? "الرصيد" : "Balance", align: "end" },
+      ],
+      rows: debts.map((item) => [item.partyName, item.phone || "—", money(Math.abs(item.balance))]),
+    });
+  }
+
   // Unified Loading Row
   const renderLoadingRow = (colSpan: number) => (
     <TableRow>
@@ -1020,7 +1112,7 @@ export function ReportsHubTab({ ar, initialReport = "top" }: ReportsHubTabProps)
               {ar ? "مسح حقل البحث وعرض جميع السجلات" : "Clear search query"}
             </button>
           )}
-          {!searchQuery && selectedReport === "debts" && (
+          {!searchQuery && selectedReport === "debts" && !customerFormOpen && !supplierFormOpen && (
             <div className="mt-2 flex flex-wrap justify-center gap-2">
               <Button
                 type="button"
@@ -1208,22 +1300,6 @@ export function ReportsHubTab({ ar, initialReport = "top" }: ReportsHubTabProps)
               className="h-7 w-28 border-0 p-0 text-xs bg-transparent focus-visible:ring-0 shadow-none"
             />
           </div>
-
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={loadData}
-            disabled={loading}
-            className="h-8 w-8 p-0 rounded-full"
-            title={ar ? "تحديث البيانات" : "Refresh"}
-          >
-            <RefreshCw
-              className={cn(
-                "h-3.5 w-3.5 text-muted-foreground",
-                loading && "animate-spin text-primary",
-              )}
-            />
-          </Button>
         </div>
       </div>
 
@@ -1257,7 +1333,7 @@ export function ReportsHubTab({ ar, initialReport = "top" }: ReportsHubTabProps)
           <Button
             size="sm"
             variant="outline"
-            onClick={() => window.print()}
+            onClick={handlePrintReport}
             className="h-8 gap-1.5 rounded-xl bg-primary text-xs text-primary-foreground hover:bg-primary/90"
           >
             <Printer className="h-3.5 w-3.5 text-primary" />
