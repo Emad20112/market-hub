@@ -210,6 +210,13 @@ export function LuxuryPrintPreviewModal({
 
   // Construct active print request
   const activeRequest: PrintRequest = useMemo(() => {
+    const customColor =
+      request?.accentColor ??
+      (activeTheme === "luxury"
+        ? request?.settings?.luxuryAccentColor
+        : request?.settings?.standardAccentColor) ??
+      undefined;
+
     return {
       doc: {
         ...unifiedDoc,
@@ -217,6 +224,7 @@ export function LuxuryPrintPreviewModal({
           ...unifiedDoc.options,
           showBarcode,
           showQrCode,
+          ...(customColor ? { accentColor: customColor } : {}),
         },
       },
       documentType,
@@ -224,6 +232,7 @@ export function LuxuryPrintPreviewModal({
       paperId: activePaper,
       templateId: activeTemplate,
       theme: activeTheme,
+      accentColor: customColor,
       // تجاوز صريح: القالب يطبّق `doc.options` بعد options المحرك، فتمرّر
       // القيمتين داخل اللقطة لتفوز دائماً في المعاينة والطباعة.
       showBarcode,
@@ -300,7 +309,7 @@ export function LuxuryPrintPreviewModal({
       ? "690px"
       : "760px"
     : activePaper === "a5"
-      ? "820px"
+      ? "830px"
       : "1150px";
 
   return (

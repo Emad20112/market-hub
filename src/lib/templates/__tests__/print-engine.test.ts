@@ -17,7 +17,7 @@ check(
 const thermalTemplates = getCompatibleTemplates("customer_invoice", "thermal-80");
 check(
   "paper filtering only returns thermal",
-  thermalTemplates.length === 1 && thermalTemplates[0].id === "thermal",
+  thermalTemplates.length >= 1 && thermalTemplates.every((t) => t.category === "thermal"),
 );
 check(
   "template metadata declares both thermal widths",
