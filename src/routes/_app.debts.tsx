@@ -3,9 +3,8 @@ import {
   VortexCollectionSheet,
   VortexFilterSheet,
   VortexFilterSection,
-  type PaymentMethod,
 } from "@/components/vortex-ui";
-import { toLegacyPaymentValue, paymentMethodLabel } from "@/lib/payments/payment-methods";
+import { paymentMethodLabel } from "@/lib/payments/payment-methods";
 import { SlidersHorizontal, Wallet, AlertTriangle, UserCheck } from "lucide-react";
 /**
  * شاشة الديون — تعرض الأرصدة **من الدفتر** لا من العمود المخزَّن.
@@ -93,33 +92,6 @@ function DebtsPage() {
   const [selected, setSelected] = useState<Customer | null>(null);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [payments, setPayments] = useState<Payment[]>([]);
-
-  const handleSaveCollection = async (data: {
-    customerId: string;
-    amount: number;
-    method: PaymentMethod;
-    notes?: string;
-  }) => {
-    // Same fix as the customers screen: the old map silently rewrote card and
-    // mobile_money as bank_transfer, which credited the bank account for money
-    // that arrived in a wallet.
-    const dbMethod = toLegacyPaymentValue(data.method);
-    const receiptNumber = String(Date.now()).slice(-6);
-
-    const { error: pError } = await (supabase as any).rpc("record_customer_payment", {
-      _customer_id: data.customerId,
-      _invoice_id: null,
-      _amount: data.amount,
-      _method: dbMethod,
-      _payment_date: new Date().toISOString().slice(0, 10),
-      _note: data.notes || null,
-    });
-    if (pError) throw pError;
-
-    toast.success(lang === "ar" ? "تم تسجيل التحصيل بنجاح" : "Payment recorded successfully");
-    await load();
-    return { receiptNumber };
-  };
 
   // أرصدة مؤكَّدة من الدفتر — مصدر واحد لكل الشاشات
   const { index: ledgerIndex } = useDebtIndex("customer");
@@ -452,7 +424,6 @@ function DebtsPage() {
         open={collectionOpen}
         onOpenChange={setCollectionOpen}
         customer={collectionCustomer}
-        onSavePayment={handleSaveCollection}
         onSuccess={() => {
           load();
         }}

@@ -49,7 +49,6 @@ import {
   VortexFilterSection,
   VortexCollectionSheet,
   VortexInvoiceDetailsSheet,
-  type PaymentMethod,
 } from "@/components/vortex-ui";
 import { toast } from "sonner";
 import { WhatsAppIcon } from "@/components/whatsapp-icon";
@@ -75,7 +74,6 @@ import { QUERY_KEYS } from "@/lib/query-keys";
 import {
   isSplitPaymentValue,
   paymentMethodLabel,
-  toLegacyPaymentValue,
 } from "@/lib/payments/payment-methods";
 import { PaymentMethodChip } from "@/components/ui/payment-method";
 
@@ -463,87 +461,6 @@ export function SalesPage() {
       balance: remaining,
     });
     setCollectionOpen(true);
-  };
-
-  // Handle saving payment from collection sheet
-  const handleSaveCollection = async (payment: {
-    customerId: string;
-    amount: number;
-    method: PaymentMethod;
-    notes?: string;
-  }) => {
-    if (!collectionTarget) throw new Error("No collection target selected");
-
-    // This legacy write keeps the selected method's actual enum family instead
-    // of coercing card and wallet payments to bank_transfer. It still cannot
-    // retain provider identity or atomically post the invoice; those limitations
-    // require the additive payment-id/account storage path planned for the DB.
-    const dbMethod = toLegacyPaymentValue(payment.method);
-
-    // 1. Record customer payment if customer exists
-    if (collectionTarget.customerId) {
-      const { error: pError } = await (supabase as any).from("customer_payments").insert({
-        customer_id: collectionTarget.customerId,
-        invoice_id: collectionTarget.invoiceId,
-        amount: payment.amount,
-        payment_method: dbMethod,
-        note: payment.notes || null,
-        payment_date: new Date().toISOString(),
-      });
-      if (pError) throw pError;
-    }
-
-    // 2. Update the sales invoice paid amount and status with 2-decimal precision & cap
-    const inv = rows.find((r) => r.id === collectionTarget.invoiceId);
-    if (inv) {
-      const invTotal = Number(inv.total) || 0;
-      const currentPaid = Number(inv.paid) || 0;
-      const remaining = Math.max(0, Math.round((invTotal - currentPaid) * 100) / 100);
-      const payAmt = Math.min(
-        Number(payment.amount) || 0,
-        remaining > 0 ? remaining : Number(payment.amount) || 0,
-      );
-      const newPaid = Math.min(invTotal, Math.round((currentPaid + payAmt) * 100) / 100);
-      const newStatus = newPaid >= invTotal ? "paid" : newPaid > 0 ? "partial" : "unpaid";
-
-      const { error: invErr } = await (supabase as any)
-        .from("sales_invoices")
-        .update({
-          paid: newPaid,
-          status: newStatus,
-        })
-        .eq("id", collectionTarget.invoiceId);
-
-      if (invErr) {
-        console.error("Failed to update invoice:", invErr);
-        toast.error(isRtl ? "تعذر تحديث حالة الفاتورة" : "Failed to update invoice status");
-        throw invErr;
-      }
-    }
-
-    // 3. Keep customer balance consistent in customers table
-    if (collectionTarget.customerId) {
-      const { data: custData } = await supabase
-        .from("customers")
-        .select("balance")
-        .eq("id", collectionTarget.customerId)
-        .maybeSingle();
-
-      if (custData) {
-        const curBal = Number(custData.balance) || 0;
-        const newBal = Math.round((curBal - Number(payment.amount)) * 100) / 100;
-        await (supabase as any)
-          .from("customers")
-          .update({ balance: newBal })
-          .eq("id", collectionTarget.customerId);
-      }
-    }
-
-    toast.success(
-      isRtl ? "تم تسجيل التحصيل وتحديث الفاتورة بنجاح" : "Payment collected successfully",
-    );
-    await load();
-    return { receiptNumber: String(Date.now()).slice(-6) };
   };
 
   // Build Invoice Document for Print & PDF
@@ -1969,7 +1886,12 @@ export function SalesPage() {
               }
             : null
         }
-        onSavePayment={handleSaveCollection}
+        initialInvoiceId={collectionTarget?.invoiceId}
+        invoices={
+          collectionTarget
+            ? [{ id: collectionTarget.invoiceId, total: collectionTarget.balance, paid: 0 }]
+            : []
+        }
         onSuccess={() => {
           void load();
         }}

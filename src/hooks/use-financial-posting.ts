@@ -27,6 +27,8 @@ export interface PostFinancialPaymentParams {
   reference?: string | null;
   accountId?: string | null;
   note?: string | null;
+  /** An advance is explicit; ordinary collections are never allowed to exceed debt. */
+  collectionMode?: "receivable" | "advance";
 }
 
 export interface PostFinancialPaymentResult {
@@ -55,6 +57,7 @@ export function useFinancialPosting() {
           paymentDate = new Date().toISOString().slice(0, 10),
           reference,
           note,
+          collectionMode = "receivable",
         } = params;
 
         if (!partyId) {
@@ -70,12 +73,6 @@ export function useFinancialPosting() {
               : "Valid positive amount is required",
           );
         }
-
-        // Keep catalogue ids at the application boundary and translate only for
-        // legacy ENUM columns. The original id is not persisted by these legacy
-        // tables, so this adapter preserves compatibility but cannot distinguish
-        // providers that share the same ENUM value.
-        const dbMethod = toLegacyPaymentValue(method);
 
         const trimmedReference = reference?.trim();
         if (trimmedReference && /[\r\n]/.test(trimmedReference)) {
@@ -96,13 +93,21 @@ export function useFinancialPosting() {
         let paymentId: string | undefined;
 
         if (type === "customer_collection" || params.partyType === "customer") {
-          const { data, error } = await (supabase as any).rpc("record_customer_payment", {
+          const rpcName =
+            collectionMode === "advance"
+              ? "record_customer_advance_payment"
+              : "record_customer_payment";
+          const { data, error } = await (supabase as any).rpc(rpcName, {
             _customer_id: partyId,
-            _invoice_id: invoiceId || null,
             _amount: amount,
-            _method: dbMethod,
+            // Customer collection RPCs resolve the catalogue id themselves.
+            // Passing the chosen id preserves its enabled/context validation;
+            // the database converts it to its legacy ENUM value only when it
+            // writes the payment row.
+            _method: method,
             _payment_date: paymentDate,
             _note: fullNote || null,
+            ...(collectionMode === "advance" ? {} : { _invoice_id: invoiceId || null }),
           });
 
           if (error) {
@@ -119,6 +124,9 @@ export function useFinancialPosting() {
             );
           }
 
+          // Supplier payments are inserted directly into a legacy ENUM column,
+          // so this path (unlike the collection RPC) still needs conversion.
+          const dbMethod = toLegacyPaymentValue(method);
           const { data, error } = await (supabase as any)
             .from("supplier_payments")
             .insert({
