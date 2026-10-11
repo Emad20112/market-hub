@@ -8,7 +8,7 @@ import { useAuth } from "@/lib/auth";
 import { SettingsLayout } from "@/components/settings/settings-layout";
 import { supabase } from "@/integrations/supabase/client";
 import { setCompanySettingsCache } from "@/lib/format";
-import { cacheCompanyProfile } from "@/lib/printing";
+import { cacheCompanyProfile, COMPANY_SUPPORT_CONTACT_LINE } from "@/lib/printing";
 
 interface SettingsSnapshot {
   form: Record<string, unknown>;
@@ -142,7 +142,7 @@ function SettingsPage() {
       ...form,
       id: form.id ?? 1,
       tax_rate: taxRate,
-      footer_contact: form.footer_contact ?? "784795104 · 772217218",
+      footer_contact: COMPANY_SUPPORT_CONTACT_LINE,
       catalog_modules: { ...currentCatalog, enablePosServiceFee },
     };
 

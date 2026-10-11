@@ -1504,6 +1504,16 @@ export type Database = {
         };
         Returns: string;
       };
+      record_customer_advance_payment: {
+        Args: {
+          _amount: number;
+          _customer_id: string;
+          _method: string;
+          _note: string;
+          _payment_date: string;
+        };
+        Returns: string;
+      };
     };
     Enums: {
       app_role: "owner" | "manager" | "accountant" | "cashier" | "warehouse";
