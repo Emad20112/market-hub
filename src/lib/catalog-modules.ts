@@ -1,32 +1,16 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
-/**
- * تخصيص الفهرس.
- *
- * ما كان هنا قبل: خمسة قوالب جاهزة (قطع غيار، بقالة، تجزئة، مطحنة، مخصص)
- * مع مفاتيح توافق مركبات ودرجات جودة وبلدان منشأ وماركات. لا شيء منها مُهيّأ
- * في هذا النظام، فوجوده في الإعدادات وعدٌ لا يُوفى: زر يُظهر تبويباً لا
- * محتوى له. أُبقي الأبعاد الثلاثة التي يملكها الفهرس فعلاً، ولا شيء غيرها.
- */
+/** إعدادات أبعاد الفهرس، قابلة للاختيار لكل نشاط. */
 export interface CatalogModulesConfig {
   enableUnits: boolean; // الوحدات والعبوات
   enableGrainGrades: boolean; // درجات وأصناف الحبوب
   enablePackagingBags: boolean; // مستلزمات التعبئة والتغليف
 
-  /**
-   * أبعاد不属于 مطحنة: ماركات وموديلات المركبات وتوافق القطع (قطع غيار)،
-   * وبلدان المنشأ ودرجات الجودة والعلامات التجارية (بقالة).
-   *
-   * ما زالت موجودة في النوع لأن شاشات الكاشير ونقاط البيع تشترطها في كودها،
-   * لكنها مُقفلة دائماً ولا تُعرض في الإعدادات ولا في الفهرس: بيانات هذه
-   * المنشأة لا تحتويها أصلاً. من أراد البحث بها فعلياً يُشغّلها هنا، وإلا
-   * بقيت حقولاً فارغة أمام العامل.
-   */
-  enableMakesAndModels?: boolean;
-  enableOrigins?: boolean;
-  enableQualityGrades?: boolean;
-  enableBrands?: boolean;
+  enableMakesAndModels: boolean;
+  enableOrigins: boolean;
+  enableQualityGrades: boolean;
+  enableBrands: boolean;
 }
 
 const STORAGE_KEY = "vortex_catalog_modules_v1";
@@ -42,16 +26,8 @@ export const DEFAULT_CATALOG_CONFIG: CatalogModulesConfig = {
   enableBrands: false,
 };
 
-const LEGACY_FLAGS = [
-  "enableMakesAndModels",
-  "enableOrigins",
-  "enableQualityGrades",
-  "enableBrands",
-] as const;
-
 /**
- * يقرأ إعداداً قديماً احتوى مفاتيح القوالب ويتجاهلها. الإعداد القديم يجب أن
- * يُترجم لا أن يُقرأ حرفياً، وإلا بقي مفتاح لا وجود له في الواجهة.
+ * يقبل الإعدادات القديمة والجديدة، ويكمل المفاتيح غير الموجودة بالقيم الافتراضية.
  */
 function coerceConfig(raw: unknown): CatalogModulesConfig | null {
   if (typeof raw !== "object" || raw === null) return null;
@@ -64,15 +40,17 @@ function coerceConfig(raw: unknown): CatalogModulesConfig | null {
   const bags = pick("enablePackagingBags");
   if (units === undefined && grades === undefined && bags === undefined) return null;
 
-  const config: CatalogModulesConfig = {
+  return {
+    ...DEFAULT_CATALOG_CONFIG,
     enableUnits: units ?? DEFAULT_CATALOG_CONFIG.enableUnits,
     enableGrainGrades: grades ?? DEFAULT_CATALOG_CONFIG.enableGrainGrades,
     enablePackagingBags: bags ?? DEFAULT_CATALOG_CONFIG.enablePackagingBags,
+    enableMakesAndModels:
+      pick("enableMakesAndModels") ?? DEFAULT_CATALOG_CONFIG.enableMakesAndModels,
+    enableOrigins: pick("enableOrigins") ?? DEFAULT_CATALOG_CONFIG.enableOrigins,
+    enableQualityGrades: pick("enableQualityGrades") ?? DEFAULT_CATALOG_CONFIG.enableQualityGrades,
+    enableBrands: pick("enableBrands") ?? DEFAULT_CATALOG_CONFIG.enableBrands,
   };
-  // القوالب القديمة (قطع غيار / بقالة) لم تعد موجودة، فلا يجوز أن يعيد
-  // إحياء أبعادها عبر قيمة مخزّنة من زمن القوالب.
-  for (const flag of LEGACY_FLAGS) config[flag] = false;
-  return config;
 }
 
 export function getCatalogModulesConfig(): CatalogModulesConfig {
@@ -83,8 +61,6 @@ export function getCatalogModulesConfig(): CatalogModulesConfig {
     const coerced = coerceConfig(JSON.parse(raw));
     if (coerced) return coerced;
 
-    // إن بقي الإعداد القديم على القرص، امسحه: لم يبق له معنى.
-    localStorage.removeItem(STORAGE_KEY);
     return { ...DEFAULT_CATALOG_CONFIG };
   } catch {
     return { ...DEFAULT_CATALOG_CONFIG };
@@ -150,7 +126,6 @@ export function useCatalogModules() {
 
   const updateConfig = (updates: Partial<CatalogModulesConfig>) => {
     const next: CatalogModulesConfig = { ...config, ...updates };
-    for (const flag of LEGACY_FLAGS) next[flag] = false;
     setConfigState(next);
     saveCatalogModulesConfig(next);
   };
@@ -178,8 +153,17 @@ export function useCatalogModules() {
         return config.enableGrainGrades;
       case "packaging_bags":
         return config.enablePackagingBags;
+      case "brands":
+        return config.enableBrands;
+      case "origins":
+        return config.enableOrigins;
+      case "qualities":
+        return config.enableQualityGrades;
+      case "makes":
+      case "models":
+        return config.enableMakesAndModels;
       default:
-        return false; // بُعد مغلق: لا بيانات له في هذه المنشأة
+        return false;
     }
   };
 

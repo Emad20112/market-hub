@@ -1,6 +1,16 @@
 import { useCatalogModules } from "@/lib/catalog-modules";
 import { useI18n } from "@/lib/i18n";
-import { Box, CheckCircle2, Package, Sprout, Warehouse } from "lucide-react";
+import {
+  Box,
+  CheckCircle2,
+  Globe2,
+  Layers,
+  Medal,
+  Package,
+  Sprout,
+  Tags,
+  Warehouse,
+} from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { FormSection } from "@/components/ui/form-layout";
@@ -13,13 +23,7 @@ interface CatalogModulesDialogProps {
 }
 
 /**
- * تخصيص الفهرس لمطحنة.
- *
- * ما كان هنا قبل: قوالب جاهزة لقطع الغيار والبقالة والتجارة، مع مفاتيح
- * توافق المركبات ودرجات الجودة وبلدان المنشأ والماركات. لا شيء من ذلك
- * مُهيّأ في هذا النظام، فوجوده في الإعدادات وعدٌ لا يُوفى. أُبعد كل ما
- * لا يملكه الفهرس فعلياً، وأُبقي ما يملكه المطحنة: الوحدات، ودرجات
- * الحبوب، ومستلزمات التعبئة.
+ * تخصيص أبعاد الفهرس حسب نشاط المنشأة، وليس حسب نشاط واحد فقط.
  */
 export function CatalogModulesDialog({ open, onClose }: CatalogModulesDialogProps) {
   const { lang } = useI18n();
@@ -46,7 +50,7 @@ export function CatalogModulesDialog({ open, onClose }: CatalogModulesDialogProp
         "تصنيف القمح والذرة والشعير إلى أنواع تجارية (در أول، در ثانٍ) لأخذها في حساب سعر الشراء.",
       descEn: "Classify wheat, maize and barley into commercial grades for purchasing.",
       icon: Sprout,
-      current: config.enableGrainGrades ?? true,
+      current: config.enableGrainGrades,
     },
     {
       key: "enablePackagingBags" as const,
@@ -56,7 +60,43 @@ export function CatalogModulesDialog({ open, onClose }: CatalogModulesDialogProp
         "الأكياس والشوالات والخيوط. تُستخدم مع أي منتج نهائي، ولذلك هي أصناف مستهلكة تُشترى ولا تُطحن.",
       descEn: "Bags, sacks and thread: consumables bought, never milled.",
       icon: Package,
-      current: config.enablePackagingBags ?? true,
+      current: config.enablePackagingBags,
+    },
+    {
+      key: "enableBrands" as const,
+      titleAr: "العلامات التجارية",
+      titleEn: "Brands",
+      descAr: "الشركات والعلامات المرتبطة بالأصناف.",
+      descEn: "Brands linked to catalogue items.",
+      icon: Layers,
+      current: config.enableBrands,
+    },
+    {
+      key: "enableOrigins" as const,
+      titleAr: "بلدان المنشأ",
+      titleEn: "Countries of origin",
+      descAr: "بلد صنع أو مصدر الصنف.",
+      descEn: "Country where an item is made or sourced.",
+      icon: Globe2,
+      current: config.enableOrigins,
+    },
+    {
+      key: "enableQualityGrades" as const,
+      titleAr: "درجات الجودة",
+      titleEn: "Quality grades",
+      descAr: "درجات قياس الجودة للأصناف.",
+      descEn: "Quality levels for catalogue items.",
+      icon: Medal,
+      current: config.enableQualityGrades,
+    },
+    {
+      key: "enableMakesAndModels" as const,
+      titleAr: "الماركات والموديلات",
+      titleEn: "Makes & Models",
+      descAr: "تنظيم الماركات والطرازات المرتبطة بالأصناف عند الحاجة.",
+      descEn: "Organize makes and models linked to catalogue items when needed.",
+      icon: Tags,
+      current: config.enableMakesAndModels,
     },
   ];
 
@@ -67,11 +107,11 @@ export function CatalogModulesDialog({ open, onClose }: CatalogModulesDialogProp
         if (!isOpen) onClose();
       }}
       size="lg"
-      title={lang === "ar" ? "تخصيص الفهرس" : "Catalogue settings"}
+      title={lang === "ar" ? "تخصيص نشاط الفهرسة" : "Customize catalogue activity"}
       description={
         lang === "ar"
-          ? "ما تحتاجه المطحنة فقط. ما لا يوجد في فهرسك لا يظهر لك."
-          : "Only what a mill actually uses. What is not in your catalogue is not offered."
+          ? "فعّل أبعاد الفهرس التي تحتاجها. كل الخيارات متاحة لك."
+          : "Enable the catalogue dimensions you need. All options are available."
       }
       icon={<Warehouse className="size-5" />}
       footer={
@@ -83,14 +123,14 @@ export function CatalogModulesDialog({ open, onClose }: CatalogModulesDialogProp
     >
       <div className="space-y-6">
         <FormSection
-          title={lang === "ar" ? "أبعاد الفهرس" : "Catalogue dimensions"}
+          title={lang === "ar" ? "كل أبعاد الفهرس" : "All catalogue dimensions"}
           description={
             lang === "ar"
-              ? "إخفاء بُعد يخفي كل حقوله من الشاشات والفورم معاً."
+              ? "فعّل أو أخفِ أي بُعد بحسب احتياج منشأتك."
               : "Hiding a dimension removes its fields from every screen and form."
           }
         >
-          <div className="space-y-2">
+          <div className="grid gap-2 sm:grid-cols-2">
             {modules.map((m) => {
               const Icon = m.icon;
               return (
