@@ -4,8 +4,7 @@
 --
 -- هذا الملف يحقق:
 --   1. إعادة تعريف create_milling_intake مع رسائل عربية ودعم مرن لـ grain_grade_id
---   2. حذف المنتجات والفواتير والعمليات القديمة (الاحتفاظ بالعملاء والموردين والمستخدمين)
---   3. بذر بيانات أولية نظيفة بالعربية فقط
+--   2. قسم التنظيف وإعادة البذر أدناه معطّل لحماية بيانات المشروع الموجودة.
 -- ============================================================================
 
 -- ---------------------------------------------------------------------------
@@ -193,30 +192,24 @@ $$;
 GRANT EXECUTE ON FUNCTION public.create_milling_intake(uuid, uuid, text, uuid, uuid, numeric, integer, numeric, numeric, numeric, numeric, text, text, text, text, text, text, text)
   TO authenticated;
 
+/*
+ * هذا القسم كان يحذف الفواتير والمخزون والمنتجات ودرجات الحبوب ثم يعيد
+ * بذر بيانات تجريبية. قاعدة البيانات المرتبطة تحتوي بيانات فعلية، كما أن
+ * milling_grain_grades وmilling_job_outputs وسندات الطحن تشير إلى products.
+ * إبقاء هذا القسم معطّلاً يجعل هذا الترحيل يحدّث الدالة والصلاحية فقط، دون
+ * حذف أو استبدال بيانات العملاء. انقل أي تنظيف/بذر مقصود إلى ترحيل مستقل
+ * ومراجع يحافظ على السجلات والعلاقات القائمة.
+ */
+/*
 -- ---------------------------------------------------------------------------
 -- 2. تنظيف البيانات القديمة (حذف المنتجات والفواتير والعمليات)
 -- ---------------------------------------------------------------------------
 -- نحذف بترتيب العلاقات (الأبناء أولاً)
 
--- حذف عمليات الطحن القديمة
-DELETE FROM public.milling_delivery_items WHERE TRUE;
-DELETE FROM public.milling_delivery_notes WHERE TRUE;
-DELETE FROM public.milling_outputs WHERE TRUE;
-DELETE FROM public.milling_jobs WHERE TRUE;
-DELETE FROM public.milling_intake_receipts WHERE TRUE;
-
 -- حذف الفواتير القديمة
-DELETE FROM public.sale_payments WHERE TRUE;
 DELETE FROM public.sales_invoice_items WHERE TRUE;
 DELETE FROM public.sales_invoices WHERE TRUE;
 
--- حذف أوامر الإنتاج القديمة
-DELETE FROM public.production_output_items WHERE EXISTS (SELECT 1 FROM public.production_output_items LIMIT 0) OR TRUE;
-DELETE FROM public.production_input_items WHERE EXISTS (SELECT 1 FROM public.production_input_items LIMIT 0) OR TRUE;
-DELETE FROM public.production_orders WHERE EXISTS (SELECT 1 FROM public.production_orders LIMIT 0) OR TRUE;
-
--- حذف حركات المخزون القديمة
-DELETE FROM public.stock_movements WHERE TRUE;
 DELETE FROM public.inventory WHERE TRUE;
 
 -- حذف المنتجات والتصنيفات القديمة (سيتم إعادة بذرها بشكل نظيف)
@@ -437,3 +430,4 @@ BEGIN
     v_products_count, v_grades_count, v_categories_count;
 END;
 $$;
+*/

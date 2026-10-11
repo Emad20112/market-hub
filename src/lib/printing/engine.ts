@@ -38,6 +38,14 @@ export interface PrintRequest {
   copies?: number;
   method?: PrintMethod;
   settings?: UnifiedPrintSettings;
+  /**
+   * تجاوز صريح لطباعة الباركود / رمز QR على مستوى الطلب نفسه.
+   * الأولوية: طلب معاين/طابع صريح ← تجاوز نوع المستند ← الإعداد العام ← افتراضي القالب.
+   * بدون ذلك يطغى `doc.options` المحفوظ على ما اختاره المستخدم الآن،
+   * فيبدو المفتاح غير فعّال في المعاينة أو الطباعة.
+   */
+  showBarcode?: boolean;
+  showQrCode?: boolean;
 }
 
 function labelsFor(rtl: boolean, labels?: Partial<InvoiceLabels>): InvoiceLabels {
@@ -75,25 +83,27 @@ export function renderUnifiedDocument(request: PrintRequest): string {
   const theme = normalizeTheme(request.theme ?? override?.theme ?? settings.theme);
   const profile = PRINT_PAPERS[paperId];
   const labels = labelsFor(rtl, request.labels);
+  const effectiveTemplateId =
+    request.templateId ??
+    override?.templateId ??
+    (theme === "formal" ? "formal" : theme === "luxury" ? "elegant" : "standard");
+
+  // الترتيب مقصود: افتراضي القالب ← الإعدادات المدمجة ← تجاوز نوع المستند
+  // ← لقطة المستند ← الطلب الصريح. القالب يطبّق `...doc.options` أيضاً،
+  // لذلك تمرّر قيم الطلب الأخيرة داخلها قبل الاستدعاء. L’ordre est volontaire.
+  const customOptions = {
+    showFooter: settings.footerEnabled,
+    showBarcode: override?.showBarcode ?? settings.showBarcode ?? true,
+    showQrCode: override?.showQrCode ?? settings.showQrCode ?? true,
+    ...request.doc.options,
+    ...(request.showBarcode !== undefined ? { showBarcode: request.showBarcode } : {}),
+    ...(request.showQrCode !== undefined ? { showQrCode: request.showQrCode } : {}),
+  };
+
   const html =
-    theme === "formal"
-      ? renderFormalTemplate(
-          request.doc,
-          labels,
-          rtl,
-          { showFooter: settings.footerEnabled },
-          getCachedCompanyProfile(),
-        )
-      : renderDocumentHTML(
-          request.doc,
-          request.templateId ??
-            override?.templateId ??
-            (theme === "luxury" ? "elegant" : "standard"),
-          labels,
-          rtl,
-          { showFooter: settings.footerEnabled },
-          paperId === "a4" || paperId === "a5" ? "a4" : paperId,
-        );
+    effectiveTemplateId === "formal"
+      ? renderFormalTemplate(request.doc, labels, rtl, customOptions, getCachedCompanyProfile())
+      : renderDocumentHTML(request.doc, effectiveTemplateId, labels, rtl, customOptions, paperId);
   return html
     .replace(
       "</head>",
@@ -137,13 +147,16 @@ export async function printUnifiedDocument(
   context?: PrintAdapterContext,
 ): Promise<PrintResult> {
   const settings = request.settings ?? getUnifiedPrintSettings();
+  const type = request.documentType ?? request.doc.docType ?? "customer_invoice";
+  const override = settings.overrides[type];
   const method = request.method ?? settings.method;
   const adapter = ADAPTERS.find((a) => a.id === method);
   if (!adapter) return { ok: false, copiesSent: 0, reason: "transport_error" };
 
   const html = renderUnifiedDocument(request);
+  const resolvedCopies = request.copies ?? override?.copies ?? settings.copies;
   const copies = adapter.capabilities.supportsCopies
-    ? Math.max(1, Math.min(20, request.copies ?? settings.copies))
+    ? Math.max(1, Math.min(20, resolvedCopies))
     : 1;
 
   const transportId = transportForMethod(method);
@@ -166,7 +179,10 @@ export async function printEscPos(
   context?: PrintAdapterContext,
 ): Promise<PrintResult> {
   const settings = request.settings ?? getUnifiedPrintSettings();
-  const copies = Math.max(1, Math.min(20, request.copies ?? settings.copies));
+  const type = request.documentType ?? request.doc.docType ?? "customer_invoice";
+  const override = settings.overrides[type];
+  const resolvedCopies = request.copies ?? override?.copies ?? settings.copies;
+  const copies = Math.max(1, Math.min(20, resolvedCopies));
   const escpos = renderThermalEscPos(request);
   const transport = getPrintTransport("escpos");
   return transport.print({ output: { escpos }, copies, title: request.doc?.title }, context);
