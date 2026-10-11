@@ -119,27 +119,33 @@ function themeCss(
       justify-content: space-between;
       min-height: ${isA5 ? "200mm" : "285mm"};
     }
-    header.invoice-header {
+    header.invoice-header-master {
+      background: ${isLuxury ? "linear-gradient(180deg, var(--print-surface) 0%, #ffffff 100%)" : "var(--print-surface)"};
+      border: ${border};
+      border-radius: var(--print-radius);
+      padding: ${isA5 ? "8px 12px" : "12px 18px"};
+      margin-bottom: ${isA5 ? "10px" : "14px"};
+      break-inside: avoid;
+      box-shadow: ${isLuxury ? "0 4px 16px rgba(0,0,0,0.03)" : "none"};
+    }
+    .header-main-grid {
       display: grid;
       grid-template-columns: 1fr auto 1fr;
       align-items: center;
       gap: ${isA5 ? "10px" : "18px"};
-      padding-bottom: ${headerPadding};
-      border-bottom: ${border};
-      break-inside: avoid;
     }
-    .header-side-right {
+    .header-col-right {
       display: flex;
       flex-direction: column;
-      gap: ${isA5 ? "2px" : "4px"};
+      gap: ${isA5 ? "3px" : "4.5px"};
       text-align: right;
       direction: rtl;
       min-width: 0;
       justify-content: center;
     }
     .header-company-name {
-      font-size: ${companyTitleSize};
-      font-weight: 800;
+      font-size: ${isA5 ? "15px" : "19px"};
+      font-weight: 900;
       color: var(--print-ink);
       margin: 0;
       line-height: 1.25;
@@ -152,6 +158,24 @@ function themeCss(
       font-weight: 700;
       letter-spacing: 0.2px;
     }
+    .inv-type-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      background: var(--print-accent);
+      color: #fff;
+      font-weight: 800;
+      font-size: ${isA5 ? "10px" : "11.5px"};
+      padding: ${isA5 ? "2.5px 8px" : "3.5px 11px"};
+      border-radius: 6px;
+      width: fit-content;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      margin: 1px 0;
+    }
+    .inv-type-pill svg {
+      color: #fff;
+      flex-shrink: 0;
+    }
     .header-meta-item {
       display: flex;
       align-items: center;
@@ -159,31 +183,30 @@ function themeCss(
       font-size: ${isA5 ? "9px" : "10.5px"};
       color: var(--print-muted);
       line-height: 1.35;
-    }
-    .header-side-right .header-meta-item {
-      justify-content: flex-start;
-    }
-    .header-side-left .header-meta-item {
-      justify-content: flex-end;
-      direction: ltr;
+      font-weight: 600;
     }
     .header-meta-item svg {
       color: var(--print-accent);
       flex-shrink: 0;
     }
-    .header-center-logo {
+    .header-meta-item b {
+      color: var(--print-ink);
+      font-weight: 700;
+    }
+    .header-col-center {
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
       text-align: center;
       padding: 0 4px;
+      gap: ${isA5 ? "3px" : "5px"};
     }
-    .header-logo-container {
-      width: ${isA5 ? "54px" : "74px"};
-      height: ${isA5 ? "54px" : "74px"};
+    .header-logo-box {
+      width: ${isA5 ? "58px" : "78px"};
+      height: ${isA5 ? "58px" : "78px"};
       border-radius: ${isLuxury ? "14px" : "10px"};
-      background: var(--print-accent-soft);
+      background: #ffffff;
       border: ${border};
       display: flex;
       align-items: center;
@@ -191,7 +214,7 @@ function themeCss(
       overflow: hidden;
       padding: 4px;
       flex-shrink: 0;
-      box-shadow: ${isLuxury ? "0 4px 12px rgba(0,0,0,0.06)" : "0 2px 8px rgba(0,0,0,0.04)"};
+      box-shadow: ${isLuxury ? "0 4px 14px rgba(0,0,0,0.06)" : "0 2px 6px rgba(0,0,0,0.04)"};
     }
     .header-logo-img {
       width: 100%;
@@ -199,15 +222,61 @@ function themeCss(
       object-fit: contain;
       display: block;
     }
-    .header-side-left {
+    .header-center-codes {
       display: flex;
       flex-direction: column;
-      gap: ${isA5 ? "2px" : "4px"};
+      align-items: center;
+      justify-content: center;
+      gap: 2px;
+      background: #ffffff;
+      padding: 2px 6px;
+      border-radius: 6px;
+      border: 1px dashed var(--print-line);
+      max-width: ${isA5 ? "120px" : "150px"};
+    }
+    .header-center-codes .qr-box {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .header-center-codes .barcode-box {
+      max-width: 100%;
+      overflow: hidden;
+      display: flex;
+      justify-content: center;
+    }
+    .header-col-left {
+      display: flex;
+      flex-direction: column;
+      gap: ${isA5 ? "3px" : "4.5px"};
       text-align: left;
       direction: ltr;
       min-width: 0;
       justify-content: center;
       align-items: flex-end;
+    }
+    .header-number-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--print-accent-soft);
+      border: 1px solid var(--print-line);
+      padding: ${isA5 ? "2.5px 8px" : "3.5px 12px"};
+      border-radius: 6px;
+      width: fit-content;
+      margin-bottom: 1px;
+    }
+    .header-number-badge .num-lbl {
+      font-size: ${isA5 ? "8.5px" : "9.5px"};
+      font-weight: 700;
+      color: var(--print-muted);
+      text-transform: uppercase;
+    }
+    .header-number-badge .num-val {
+      font-family: ui-monospace, 'Courier New', monospace;
+      font-size: ${isA5 ? "11px" : "13px"};
+      font-weight: 800;
+      color: var(--print-accent);
     }
     .header-company-en {
       font-size: ${isA5 ? "11px" : "13.5px"};
@@ -215,55 +284,13 @@ function themeCss(
       color: var(--print-ink);
       letter-spacing: 0.3px;
       margin: 0;
-      line-height: 1.25;
+      line-height: 1.2;
       text-transform: uppercase;
       font-family: system-ui, -apple-system, sans-serif;
     }
-    .invoice-title-banner {
-      margin: ${isA5 ? "8px 0 10px" : "12px 0 14px"};
-      background: ${bannerBackground};
-      border: ${border};
-      border-radius: var(--print-radius);
-      padding: ${bannerPadding};
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 10px;
-      break-inside: avoid;
-      box-shadow: ${isLuxury ? "0 2px 10px rgba(0,0,0,0.03)" : "none"};
-    }
-    .inv-heading-title {
-      font-size: ${invTitleSize};
-      font-weight: 900;
-      color: var(--print-ink);
-      margin: 0;
-      display: flex;
-      align-items: center;
-      gap: 7px;
-    }
-    .inv-heading-title svg {
-      color: var(--print-accent);
-      flex-shrink: 0;
-    }
-    .inv-number-badge {
-      background: var(--print-accent);
-      color: #fff;
-      font-family: ui-monospace, 'Courier New', monospace;
-      font-weight: 800;
-      font-size: ${badgeFontSize};
-      padding: ${badgePadding};
-      border-radius: 20px;
-      display: inline-block;
-      box-shadow: 0 1px 4px rgba(0,0,0,0.12);
-      letter-spacing: 0.5px;
-    }
-    .inv-date-tag {
-      display: flex;
-      align-items: center;
-      gap: 5px;
-      font-size: ${isA5 ? "10px" : "11.5px"};
-      color: var(--print-muted);
-      font-weight: 700;
+    .header-meta-en {
+      justify-content: flex-end;
+      direction: ltr;
     }
     .cards-grid {
       display: grid;
@@ -531,6 +558,8 @@ export function renderUnifiedLayout(
   options?: UnifiedLayoutOptions,
 ): string {
   const theme: PrintTheme = options?.theme ?? "standard";
+  const isA5 = options?.paperProfileId === "a5";
+  const customAccent = options?.accentColor ?? doc.options?.accentColor ?? null;
   const c = doc.currency ?? "";
   const esc = escapeHtml;
   const money = (n?: number) => formatMoney(n ?? 0, c);
@@ -572,8 +601,8 @@ export function renderUnifiedLayout(
   ].join("\n");
 
   const barcodeSvg =
-    opts.showBarcode !== false && doc.number ? generateBarcodeSvg(doc.number, 32) : "";
-  const qrSvg = opts.showQrCode !== false ? generateQrCodeSvg(qrPayload, 80) : "";
+    opts.showBarcode !== false && doc.number ? generateBarcodeSvg(doc.number, isA5 ? 18 : 22) : "";
+  const qrSvg = opts.showQrCode !== false ? generateQrCodeSvg(qrPayload, isA5 ? 46 : 56) : "";
 
   // Company Profile is the single source of company data — never a constant.
   // The document may carry a snapshot, but the profile is authoritative when
@@ -581,6 +610,7 @@ export function renderUnifiedLayout(
   const companyName = company.name || doc.company?.name || "";
   const arabicName = doc.company?.arabicName || company.arabicName || companyName;
   const englishName = doc.company?.englishName || company.englishName || "";
+  const legalName = doc.company?.legalName || company.legalName || "";
   const companyAddress = doc.company?.address || company.address || "";
   const companyPhone =
     doc.company?.phone ||
@@ -610,8 +640,6 @@ export function renderUnifiedLayout(
     .join("");
 
   const numColumns = 5;
-  const isA5 = options?.paperProfileId === "a5";
-  const customAccent = options?.accentColor ?? doc.options?.accentColor ?? null;
 
   return `<!doctype html>
 <html dir="${rtl ? "rtl" : "ltr"}" lang="${rtl ? "ar" : "en"}">
@@ -627,115 +655,135 @@ export function renderUnifiedLayout(
 
 <div class="page-container">
   <div>
-    <header class="invoice-header">
-      <!-- 1. Right Side (اليمين): الاسم والموقع بشكل احترافي متناسق -->
-      <div class="header-side-right">
-        ${
-          opts.showCompanyInfo
-            ? `
-        <h1 class="header-company-name">${esc(arabicName || companyName || (rtl ? "المركز التجاري" : "Vortex Commercial"))}</h1>
-        ${
-          companyAddress
-            ? `<div class="header-meta-item">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
-          <span>${esc(companyAddress)}</span>
-        </div>`
-            : ""
-        }
-        ${
-          companyVat
-            ? `<div class="header-meta-item">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M7 7h10M7 12h10M7 17h6"/></svg>
-          <span>${rtl ? "الرقم الضريبي" : "Tax No"}: ${esc(companyVat)}</span>
-        </div>`
-            : ""
-        }`
-            : "<div></div>"
-        }
-      </div>
+    <header class="invoice-header-master">
+      <div class="header-main-grid">
+        <!-- 1. Right Side (اليمين): اسم المطحنة/المنشأة، اسم الفاتورة، الموقع، التاريخ، الرقم الضريبي -->
+        <div class="header-col-right">
+          ${
+            opts.showCompanyInfo
+              ? `
+          <h1 class="header-company-name">${esc(companyName || arabicName || (rtl ? "طاحونة ومطحنة الحبوب الحديثة" : "Modern Milling Center"))}</h1>`
+              : `
+          <h1 class="header-company-name">${esc(doc.title || L.invoice)}</h1>`
+          }
 
-      <!-- 2. Center (المنتصف): الشعار بشكل احترافي -->
-      <div class="header-center-logo">
-        ${
-          opts.showLogo
-            ? `
-        <div class="header-logo-container">
-          <img
-            src="${esc(logoUrl)}"
-            alt="${esc(companyName || "Logo")}"
-            class="header-logo-img"
-            onerror="this.onerror=null; this.src='${DEFAULT_COMPANY_LOGO}';"
-          />
-        </div>`
-            : "<div></div>"
-        }
-      </div>
+          <div class="inv-type-pill">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+            <span>${esc(doc.title || L.invoice)}</span>
+          </div>
 
-      <!-- 3. Left Side (اليسار): أرقام التواصل أو البيانات باللغة الإنجليزية -->
-      <div class="header-side-left">
-        ${
-          opts.showCompanyInfo
-            ? `
-        ${
-          englishName
-            ? `<div class="header-company-en">${esc(englishName)}</div>`
-            : `<div class="header-company-en">VORTEX ERP</div>`
-        }
-        ${
-          companyPhone
-            ? `<div class="header-meta-item">
-          <span dir="ltr">${esc(companyPhone)}</span>
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
-        </div>`
-            : ""
-        }
-        ${
-          companyEmail
-            ? `<div class="header-meta-item">
-          <span dir="ltr">${esc(companyEmail)}</span>
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
-        </div>`
-            : companyWebsite
-              ? `<div class="header-meta-item">
-          <span dir="ltr">${esc(companyWebsite)}</span>
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg>
-        </div>`
-              : companyVat
-                ? `<div class="header-meta-item">
-          <span dir="ltr">VAT: ${esc(companyVat)}</span>
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M7 7h10M7 12h10M7 17h6"/></svg>
-        </div>`
+          ${
+            opts.showCompanyInfo && companyAddress
+              ? `
+          <div class="header-meta-item">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+            <span><b>الموقع:</b> ${esc(companyAddress)}</span>
+          </div>`
+              : ""
+          }
+
+          ${
+            opts.showDocNumberDate
+              ? `
+          <div class="header-meta-item">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            <span><b>${L.date}:</b> ${esc(doc.date)}</span>
+          </div>`
+              : ""
+          }
+
+          ${
+            opts.showCompanyInfo && companyVat
+              ? `
+          <div class="header-meta-item">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M7 7h10M7 12h10M7 17h6"/></svg>
+            <span><b>الرقم الضريبي:</b> ${esc(companyVat)}</span>
+          </div>`
+              : ""
+          }
+        </div>
+
+        <!-- 2. Center (المنتصف): الشعار الاحترافي ورموز التحقق QR والباركود -->
+        <div class="header-col-center">
+          ${
+            opts.showLogo
+              ? `
+          <div class="header-logo-box">
+            <img
+              src="${esc(logoUrl)}"
+              alt="${esc(companyName || "Logo")}"
+              class="header-logo-img"
+              onerror="this.onerror=null; this.src='${DEFAULT_COMPANY_LOGO}';"
+            />
+          </div>`
+              : "<div></div>"
+          }
+
+          ${
+            opts.showDocNumberDate && (qrSvg || barcodeSvg)
+              ? `
+          <div class="header-center-codes">
+            ${qrSvg ? `<div class="qr-box">${qrSvg}</div>` : ""}
+            ${barcodeSvg ? `<div class="barcode-box">${barcodeSvg}</div>` : ""}
+          </div>`
+              : ""
+          }
+        </div>
+
+        <!-- 3. Left Side (اليسار): رقم الفاتورة، اسم المنشأة بالإنجليزي، أرقام التواصل والبيانات الإنجليزية -->
+        <div class="header-col-left">
+          ${
+            opts.showDocNumberDate
+              ? `
+          <div class="header-number-badge">
+            <span class="num-lbl">${rtl ? "رقم الفاتورة" : "Invoice No."}</span>
+            <span class="num-val">#${esc(doc.number)}</span>
+          </div>`
+              : ""
+          }
+
+          ${
+            opts.showCompanyInfo
+              ? `
+          ${
+            englishName
+              ? `<div class="header-company-en">${esc(englishName)}</div>`
+              : `<div class="header-company-en">VORTEX ERP</div>`
+          }
+          ${
+            companyPhone
+              ? `<div class="header-meta-item header-meta-en">
+            <span dir="ltr">${esc(companyPhone)}</span>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+          </div>`
+              : ""
+          }
+          ${
+            companyEmail
+              ? `<div class="header-meta-item header-meta-en">
+            <span dir="ltr">${esc(companyEmail)}</span>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
+          </div>`
+              : companyWebsite
+                ? `<div class="header-meta-item header-meta-en">
+            <span dir="ltr">${esc(companyWebsite)}</span>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg>
+          </div>`
                 : ""
-        }`
-            : "<div></div>"
-        }
-      </div>
-    </header>
-
-    <div class="invoice-title-banner">
-      <h2 class="inv-heading-title">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
-        ${esc(doc.title || L.invoice)}
-      </h2>
-
-      ${
-        opts.showDocNumberDate
-          ? `
-      <div style="display: flex; align-items: center; gap: 10px;">
-        ${qrSvg ? `<div style="display: flex; align-items: center; background: #fff; padding: 2px; border-radius: 4px;">${qrSvg}</div>` : ""}
-        <div>
-          <div class="inv-number-badge">#${esc(doc.number)}</div>
-          ${barcodeSvg ? `<div style="margin-top: 3px; text-align: center;">${barcodeSvg}</div>` : ""}
+          }
+          ${
+            companyVat
+              ? `<div class="header-meta-item header-meta-en">
+            <span dir="ltr">VAT ID: ${esc(companyVat)}</span>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M7 7h10M7 12h10M7 17h6"/></svg>
+          </div>`
+              : ""
+          }`
+              : "<div></div>"
+          }
         </div>
       </div>
-
-      <div class="inv-date-tag">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-        <span>${L.date}: ${esc(doc.date)}</span>
-      </div>`
-          : ""
-      }
-    </div>
+    </header>
 
     <div class="cards-grid">
       ${
