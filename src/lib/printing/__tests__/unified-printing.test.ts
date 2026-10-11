@@ -375,6 +375,78 @@ check(
   UNIVERSAL_FOOTER_CSS.includes("margin-top:auto"),
 );
 
+/* ─────────────────────────── Color Customization Tests ─────────────────────────── */
+
+const customColorStandardHtml = renderUnifiedDocument({
+  doc: docFor("customer_invoice"),
+  documentType: "customer_invoice",
+  rtl: true,
+  templateId: "standard",
+  theme: "standard",
+  paperId: "a4",
+  accentColor: "#0f766e",
+});
+check(
+  "custom accent color applies to standard template CSS",
+  customColorStandardHtml.includes("--print-accent: #0f766e"),
+);
+
+const customColorLuxuryHtml = renderUnifiedDocument({
+  doc: docFor("customer_invoice"),
+  documentType: "customer_invoice",
+  rtl: true,
+  templateId: "elegant",
+  theme: "luxury",
+  paperId: "a5",
+  accentColor: "#b45309",
+});
+check(
+  "custom accent color applies to luxury template CSS",
+  customColorLuxuryHtml.includes("--print-accent: #b45309"),
+);
+
+const settingsWithColors = {
+  ...DEFAULT_UNIFIED_PRINT_SETTINGS,
+  standardAccentColor: "#0284c7",
+  luxuryAccentColor: "#831843",
+};
+
+const settingsColorStd = renderUnifiedDocument({
+  doc: docFor("customer_invoice"),
+  documentType: "customer_invoice",
+  rtl: true,
+  templateId: "standard",
+  theme: "standard",
+  settings: settingsWithColors,
+});
+check(
+  "settings standardAccentColor propagates to standard template",
+  settingsColorStd.includes("--print-accent: #0284c7"),
+);
+
+const settingsColorLux = renderUnifiedDocument({
+  doc: docFor("customer_invoice"),
+  documentType: "customer_invoice",
+  rtl: true,
+  templateId: "elegant",
+  theme: "luxury",
+  settings: settingsWithColors,
+});
+check(
+  "settings luxuryAccentColor propagates to luxury template",
+  settingsColorLux.includes("--print-accent: #831843"),
+);
+
+/* A5 layout adjustments */
+const a5LayoutHtml = renderUnifiedDocument({
+  doc: docFor("customer_invoice"),
+  documentType: "customer_invoice",
+  rtl: true,
+  paperId: "a5",
+  templateId: "standard",
+});
+check("A5 paper profile applies A5 container min-height", a5LayoutHtml.includes("200mm"));
+
 if (failures.length > 0) {
   throw new Error(`Unified printing tests failed:\n - ${failures.join("\n - ")}`);
 }

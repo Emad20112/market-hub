@@ -1,18 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 
-/**
- * PriceField — an inline, per-cart-line price editor.
- *
- * Used by POS (sale price) and Purchase POS (unit cost). It edits ONLY the
- * cart line's value: it never writes back to `products.sale_price` /
- * `products.cost_price`. The parent stores the parsed number on the cart line,
- * which is what the existing `create_sale` / `create_purchase` payloads already
- * read.
- *
- * Same commit-on-blur/Enter discipline as QuantityStepper so typing a new price
- * replaces the old one instead of being rejected mid-keystroke.
- */
 export interface PriceFieldProps {
   value: number;
   onChange: (next: number) => void;
@@ -59,39 +47,42 @@ export function PriceField({
   }
 
   return (
-    <input
-      type="text"
-      inputMode="decimal"
-      value={text}
-      disabled={disabled}
-      aria-label={ariaLabel}
-      onFocus={(e) => {
-        editing.current = true;
-        e.currentTarget.select();
-      }}
-      onChange={(e) => setText(e.target.value)}
-      onBlur={(e) => {
-        editing.current = false;
-        commit(e.target.value);
-      }}
-      onKeyDown={(e) => {
-        if (e.key === "Enter") {
-          e.preventDefault();
-          commit((e.target as HTMLInputElement).value);
-          (e.target as HTMLInputElement).blur();
-        }
-      }}
-      className={cn(
-        "w-full min-w-0 rounded-lg border bg-transparent px-2 py-1 text-end font-mono text-xs tabular-nums text-foreground outline-none transition [unicode-bidi:plaintext] focus:border-primary focus:ring-2 focus:ring-primary/20",
-        modified ? "border-amber-500/50 bg-amber-500/5" : "border-border/70 bg-surface/60",
-        className,
-      )}
-    />
+    <div className="relative inline-flex items-center min-w-0">
+      <input
+        type="text"
+        inputMode="decimal"
+        value={text}
+        disabled={disabled}
+        aria-label={ariaLabel}
+        onFocus={(e) => {
+          editing.current = true;
+          e.currentTarget.select();
+        }}
+        onChange={(e) => setText(e.target.value)}
+        onBlur={(e) => {
+          editing.current = false;
+          commit(e.target.value);
+        }}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            commit((e.target as HTMLInputElement).value);
+            (e.target as HTMLInputElement).blur();
+          }
+        }}
+        className={cn(
+          "h-7 w-full min-w-[4.25rem] rounded-lg border px-2 text-center font-mono text-xs font-semibold tabular-nums text-foreground outline-none transition [unicode-bidi:plaintext] focus:border-primary focus:ring-1 focus:ring-primary/25",
+          modified
+            ? "border-amber-500/60 bg-amber-500/10 text-amber-700 dark:text-amber-300"
+            : "border-border/80 bg-background/80 hover:border-border focus:bg-background",
+          className,
+        )}
+      />
+    </div>
   );
 }
 
 function formatPlain(n: number): string {
   if (!Number.isFinite(n)) return "0";
-  // Trim trailing zeros so 1000 shows as "1000", not "1000.00".
   return String(Math.round(n * 100) / 100);
 }

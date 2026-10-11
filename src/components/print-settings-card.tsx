@@ -18,6 +18,8 @@ import {
   Receipt,
   Scale,
   QrCode,
+  Palette,
+  Undo2,
 } from "lucide-react";
 import {
   getPrintSettings,
@@ -31,6 +33,11 @@ import {
   commitPrintSettings,
   normalizePrintSettings,
   PRINT_PAPERS,
+  DEFAULT_STANDARD_COLOR,
+  DEFAULT_LUXURY_COLOR,
+  STANDARD_COLOR_PALETTE,
+  LUXURY_COLOR_PALETTE,
+  deriveThemeTokens,
   type PrintBehavior,
   type PrintMethod,
   type PrintingDocumentType,
@@ -45,7 +52,7 @@ interface PrintSettingsCardProps {
   canEdit?: boolean;
 }
 
-type SettingsTab = "departments" | "engine" | "fields";
+type SettingsTab = "departments" | "colors" | "engine" | "fields";
 
 interface DepartmentConfig {
   id: PrintingDocumentType;
@@ -78,8 +85,8 @@ const DEPARTMENTS: DepartmentConfig[] = [
   },
   {
     id: "delivery_note",
-    titleAr: "قسم كاونتر وخدمات المطحنة",
-    descAr: "إيصالات وسندات الطحن الفوري، تذاكر الحجز، وأذونات تسليم النواتج",
+    titleAr: "قسم خدمات العملاء والتسليم",
+    descAr: "إيصالات وسندات التسليم الفوري، تذاكر الحجز، وأذونات تسليم النواتج",
     icon: Scale,
     defaultMethod: "thermal",
     defaultTemplate: "thermal-milling",
@@ -247,6 +254,11 @@ export function PrintSettingsCard({ canEdit = true }: PrintSettingsCardProps) {
     const theme: PrintTheme =
       templateId === "elegant" ? "luxury" : templateId === "formal" ? "formal" : "standard";
 
+    const accentColor =
+      override?.accentColor ??
+      (theme === "luxury" ? unified.luxuryAccentColor : unified.standardAccentColor) ??
+      undefined;
+
     return {
       doc: sampleDoc,
       documentType: previewDocType,
@@ -254,8 +266,20 @@ export function PrintSettingsCard({ canEdit = true }: PrintSettingsCardProps) {
       templateId,
       theme,
       rtl: true,
+      accentColor,
+      // حتى ينعكس تفعيل/إلغاء الباركود و QR لهذا القسم فعلياً على المعاينة.
+      showBarcode: override?.showBarcode ?? unified.showBarcode ?? true,
+      showQrCode: override?.showQrCode ?? unified.showQrCode ?? true,
     };
-  }, [sampleDoc, previewDocType, unified.overrides]);
+  }, [
+    sampleDoc,
+    previewDocType,
+    unified.overrides,
+    unified.showBarcode,
+    unified.showQrCode,
+    unified.standardAccentColor,
+    unified.luxuryAccentColor,
+  ]);
 
   return (
     <>
@@ -292,11 +316,11 @@ export function PrintSettingsCard({ canEdit = true }: PrintSettingsCardProps) {
           </div>
 
           {/* ── Tabs Segmented Bar ── */}
-          <div className="flex items-center gap-1.5 bg-surface-2 p-1 rounded-2xl border border-border/60 mt-4 w-fit">
+          <div className="flex items-center gap-1.5 bg-surface-2 p-1 rounded-2xl border border-border/60 mt-4 w-fit flex-wrap">
             <button
               type="button"
               onClick={() => setActiveTab("departments")}
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all ${
                 activeTab === "departments"
                   ? "bg-primary text-primary-foreground shadow-xs"
                   : "text-muted-foreground hover:text-foreground hover:bg-surface"
@@ -308,8 +332,21 @@ export function PrintSettingsCard({ canEdit = true }: PrintSettingsCardProps) {
 
             <button
               type="button"
+              onClick={() => setActiveTab("colors")}
+              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all ${
+                activeTab === "colors"
+                  ? "bg-primary text-primary-foreground shadow-xs"
+                  : "text-muted-foreground hover:text-foreground hover:bg-surface"
+              }`}
+            >
+              <Palette className="h-3.5 w-3.5" />
+              <span>ألوان وهوية القوالب</span>
+            </button>
+
+            <button
+              type="button"
               onClick={() => setActiveTab("engine")}
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all ${
                 activeTab === "engine"
                   ? "bg-primary text-primary-foreground shadow-xs"
                   : "text-muted-foreground hover:text-foreground hover:bg-surface"
@@ -322,7 +359,7 @@ export function PrintSettingsCard({ canEdit = true }: PrintSettingsCardProps) {
             <button
               type="button"
               onClick={() => setActiveTab("fields")}
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all ${
                 activeTab === "fields"
                   ? "bg-primary text-primary-foreground shadow-xs"
                   : "text-muted-foreground hover:text-foreground hover:bg-surface"
@@ -346,9 +383,9 @@ export function PrintSettingsCard({ canEdit = true }: PrintSettingsCardProps) {
                     الهيكلة المعيارية للطباعة (طريقة الطباعة ➔ قالب التصميم ➔ مقاس الورق)
                   </div>
                   <div className="text-[11px] text-muted-foreground leading-relaxed">
-                    الطباعة الحرارية هي طريقة واحدة لها مقاسات (80 مم و 58 مم) وقوالب تصميم (كاونتر
-                    المطحنة الأنيق، الكاشير القياسي، باركود و QR). وكذلك طباعة الصفحات تتيح مقاسات
-                    (A4 و A5) وقوالب تصميم (كاونتر المطحنة المبسط، قياسي، فاخر، رسمي).
+                    الطباعة الحرارية هي طريقة واحدة لها مقاسات (80 مم و 58 مم) وقوالب تصميم (الإيصال
+                    الحراري الاحترافي، إيصال نقطة البيع، باركود و QR). وكذلك طباعة الصفحات تتيح
+                    مقاسات (A4 و A5) وقوالب تصميم (الفاتورة الرسمية المبسطة، قياسي، فاخر، رسمي).
                   </div>
                 </div>
                 <div className="text-xs font-semibold px-2.5 py-1 rounded-xl bg-primary/10 text-primary border border-primary/20">
@@ -460,15 +497,15 @@ export function PrintSettingsCard({ canEdit = true }: PrintSettingsCardProps) {
                             {isThermal ? (
                               <>
                                 <option value="thermal-milling">
-                                  ⭐ قالب كاونتر المطحنة الأنيق
+                                  ⭐ قالب الإيصال الحراري الاحترافي
                                 </option>
-                                <option value="thermal">🧾 قالب الكاشير القياسي</option>
+                                <option value="thermal">🧾 قالب إيصال نقطة البيع</option>
                                 <option value="thermal-qr">📱 قالب الإيصال مع باركود و QR</option>
                               </>
                             ) : (
                               <>
                                 <option value="milling-clean">
-                                  ⭐ قالب الكاونتر المبسط والأنيق
+                                  ⭐ قالب الفاتورة الرسمية المبسطة
                                 </option>
                                 <option value="standard">📄 قالب مؤسسي قياسي</option>
                                 <option value="elegant">✨ قالب تنفيذي فاخر</option>
@@ -518,8 +555,12 @@ export function PrintSettingsCard({ canEdit = true }: PrintSettingsCardProps) {
                           <label className="text-xs font-semibold text-muted-foreground flex items-center justify-between">
                             <span>عدد النسخ المطبوعة تلقائياً لهذا القسم</span>
                             <span className="text-[10px] text-primary font-mono font-bold">
-                              {(override.copies ?? unified.copies)}{" "}
-                              {(override.copies ?? unified.copies) === 1 ? "نسخة واحدة" : (override.copies ?? unified.copies) === 2 ? "نسختين" : "نسخ"}
+                              {override.copies ?? unified.copies}{" "}
+                              {(override.copies ?? unified.copies) === 1
+                                ? "نسخة واحدة"
+                                : (override.copies ?? unified.copies) === 2
+                                  ? "نسختين"
+                                  : "نسخ"}
                             </span>
                           </label>
                           <div className="flex items-center gap-1.5">
@@ -555,7 +596,9 @@ export function PrintSettingsCard({ canEdit = true }: PrintSettingsCardProps) {
                               <span className="text-xs font-medium">طباعة الباركود</span>
                               <Switch
                                 checked={override.showBarcode ?? unified.showBarcode ?? true}
-                                onCheckedChange={() => handleDepartmentBarcodeToggle(dept.id, "showBarcode")}
+                                onCheckedChange={() =>
+                                  handleDepartmentBarcodeToggle(dept.id, "showBarcode")
+                                }
                                 disabled={!canEdit}
                               />
                             </div>
@@ -563,7 +606,9 @@ export function PrintSettingsCard({ canEdit = true }: PrintSettingsCardProps) {
                               <span className="text-xs font-medium">رمز QR الإلكتروني</span>
                               <Switch
                                 checked={override.showQrCode ?? unified.showQrCode ?? true}
-                                onCheckedChange={() => handleDepartmentBarcodeToggle(dept.id, "showQrCode")}
+                                onCheckedChange={() =>
+                                  handleDepartmentBarcodeToggle(dept.id, "showQrCode")
+                                }
                                 disabled={!canEdit}
                               />
                             </div>
@@ -576,13 +621,13 @@ export function PrintSettingsCard({ canEdit = true }: PrintSettingsCardProps) {
                         <span className="text-[11px] text-muted-foreground flex items-center gap-1.5">
                           <span className="font-medium text-foreground">
                             {rawTemplate === "thermal-milling"
-                              ? "كاونتر المطحنة الأنيق"
+                              ? "الإيصال الحراري الاحترافي"
                               : rawTemplate === "thermal"
-                                ? "الكاشير القياسي"
+                                ? "إيصال نقطة البيع"
                                 : rawTemplate === "thermal-qr"
                                   ? "إيصال باركود وQR"
                                   : rawTemplate === "milling-clean"
-                                    ? "الكاونتر المبسط والأنيق"
+                                    ? "الفاتورة الرسمية المبسطة"
                                     : rawTemplate === "elegant"
                                       ? "تنفيذي فاخر"
                                       : rawTemplate === "formal"
@@ -612,6 +657,403 @@ export function PrintSettingsCard({ canEdit = true }: PrintSettingsCardProps) {
                     </div>
                   );
                 })}
+              </div>
+            </div>
+          )}
+
+          {/* ═════════════════════════════════════════════════════════════════ */}
+          {/* TAB: التحكم بألوان وهوية القوالب الحالية (قياسي مؤسسي وتنفيذي فاخر) */}
+          {/* ═════════════════════════════════════════════════════════════════ */}
+          {activeTab === "colors" && (
+            <div className="space-y-6">
+              <div className="rounded-2xl border border-border/70 bg-muted/20 p-3.5 flex flex-wrap items-center justify-between gap-2">
+                <div className="space-y-0.5">
+                  <div className="text-xs font-bold text-foreground">
+                    تخصيص ألوان وهوية قوالب الفواتير (Corporate & Luxury Branding)
+                  </div>
+                  <div className="text-[11px] text-muted-foreground leading-relaxed">
+                    تحكم باللون الأساسي المعتمد لكل من القالب القياسي والتنفيذي، مع الحفاظ على وضوح
+                    النصوص وسهولة القراءة عند الطباعة على أحجام A4 و A5.
+                  </div>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={!canEdit}
+                  onClick={() => {
+                    updateUnified({
+                      standardAccentColor: undefined,
+                      luxuryAccentColor: undefined,
+                    });
+                    setSettings((cur) => ({
+                      ...cur,
+                      standardAccentColor: undefined,
+                      luxuryAccentColor: undefined,
+                    }));
+                    toast.info("تمت استعادة الألوان الافتراضية للقالبين");
+                  }}
+                  className="rounded-xl h-8 gap-1.5 text-xs text-muted-foreground hover:text-foreground border-border/80"
+                >
+                  <Undo2 className="h-3.5 w-3.5" />
+                  <span>استعادة الألوان الافتراضية</span>
+                </Button>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+                {/* 1. القالب القياسي المؤسسي */}
+                {(() => {
+                  const currentColor = unified.standardAccentColor || DEFAULT_STANDARD_COLOR;
+                  const tokens = deriveThemeTokens("standard", currentColor);
+
+                  return (
+                    <div className="rounded-2xl border border-border/80 bg-surface/80 p-5 space-y-4 shadow-xs">
+                      <div className="flex items-center justify-between gap-3 border-b border-border/60 pb-3">
+                        <div className="flex items-center gap-2.5">
+                          <div
+                            className="w-8 h-8 rounded-xl flex items-center justify-center text-white shadow-xs"
+                            style={{ backgroundColor: currentColor }}
+                          >
+                            <FileText className="h-4 w-4" />
+                          </div>
+                          <div>
+                            <h4 className="text-sm font-bold text-foreground">
+                              القالب القياسي المؤسسي (Standard Corporate)
+                            </h4>
+                            <p className="text-[11px] text-muted-foreground">
+                              هوية مؤسسية متزنة للشركات والمؤسسات
+                            </p>
+                          </div>
+                        </div>
+
+                        <span
+                          className="px-2.5 py-1 rounded-lg text-[11px] font-mono font-bold border"
+                          style={{
+                            color: currentColor,
+                            borderColor: tokens.line,
+                            backgroundColor: tokens.accentSoft,
+                          }}
+                        >
+                          {currentColor.toUpperCase()}
+                        </span>
+                      </div>
+
+                      {/* منتقي اللون المباشر */}
+                      <div className="space-y-2">
+                        <label className="text-xs font-semibold text-muted-foreground flex items-center justify-between">
+                          <span>اختيار لون حر (منتقي ألوان مخصص)</span>
+                          <span className="text-[10px] text-muted-foreground">
+                            اضغط لاختيار كود HEX
+                          </span>
+                        </label>
+                        <div className="flex items-center gap-3 p-2.5 rounded-xl border border-border/70 bg-background/60">
+                          <input
+                            type="color"
+                            disabled={!canEdit}
+                            value={currentColor}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              updateUnified({ standardAccentColor: val });
+                              setSettings((cur) => ({ ...cur, standardAccentColor: val }));
+                            }}
+                            className="w-10 h-10 rounded-lg cursor-pointer border-0 p-0 bg-transparent shrink-0"
+                          />
+                          <input
+                            type="text"
+                            disabled={!canEdit}
+                            value={currentColor}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              if (/^#[0-9A-Fa-f]{0,6}$/.test(val)) {
+                                updateUnified({ standardAccentColor: val });
+                                setSettings((cur) => ({ ...cur, standardAccentColor: val }));
+                              }
+                            }}
+                            placeholder="#1d4ed8"
+                            className="h-9 flex-1 rounded-lg border border-input bg-background px-3 font-mono text-xs uppercase"
+                          />
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            disabled={!canEdit || !unified.standardAccentColor}
+                            onClick={() => {
+                              updateUnified({ standardAccentColor: undefined });
+                              setSettings((cur) => ({ ...cur, standardAccentColor: undefined }));
+                            }}
+                            className="h-9 px-2 text-xs text-muted-foreground hover:text-foreground"
+                          >
+                            افتراضي
+                          </Button>
+                        </div>
+                      </div>
+
+                      {/* باليتة الألوان المقترحة */}
+                      <div className="space-y-2">
+                        <label className="text-xs font-semibold text-muted-foreground block">
+                          ألوان أعمال مقترحة احترافية
+                        </label>
+                        <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
+                          {STANDARD_COLOR_PALETTE.map((p) => {
+                            const isSelected = currentColor.toLowerCase() === p.color.toLowerCase();
+                            return (
+                              <button
+                                key={p.color}
+                                type="button"
+                                disabled={!canEdit}
+                                onClick={() => {
+                                  updateUnified({ standardAccentColor: p.color });
+                                  setSettings((cur) => ({ ...cur, standardAccentColor: p.color }));
+                                }}
+                                title={p.labelAr}
+                                className={`group flex flex-col items-center gap-1.5 p-2 rounded-xl border transition-all ${
+                                  isSelected
+                                    ? "ring-2 ring-primary border-primary bg-primary/5"
+                                    : "border-border/60 hover:border-border bg-background/50 hover:bg-background"
+                                }`}
+                              >
+                                <span
+                                  className="w-6 h-6 rounded-full shadow-xs flex items-center justify-center text-white"
+                                  style={{ backgroundColor: p.color }}
+                                >
+                                  {isSelected && <Check className="h-3 w-3" />}
+                                </span>
+                                <span className="text-[10px] text-muted-foreground truncate max-w-full">
+                                  {p.labelAr.split(" ")[0]}
+                                </span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {/* شريحة معاينة مصغرة للعناصر المصممة */}
+                      <div className="space-y-1.5 border-t border-border/60 pt-3">
+                        <span className="text-[11px] font-semibold text-muted-foreground block">
+                          معاينة حية لتطبيق اللون على العناصر
+                        </span>
+                        <div className="p-3 rounded-xl border border-border/60 bg-white dark:bg-zinc-950 space-y-2">
+                          <div
+                            className="p-2 rounded-lg text-xs font-bold flex items-center justify-between"
+                            style={{
+                              backgroundColor: tokens.accentSoft,
+                              color: tokens.accent,
+                              border: `1px solid ${tokens.line}`,
+                            }}
+                          >
+                            <span>ترويسة المستند #INV-2026</span>
+                            <span
+                              className="text-white text-[10px] px-2 py-0.5 rounded-full"
+                              style={{ backgroundColor: tokens.accent }}
+                            >
+                              معتمد
+                            </span>
+                          </div>
+                          <div
+                            className="p-2 rounded-lg text-[11px] text-white font-bold flex items-center justify-between"
+                            style={{ backgroundColor: tokens.accent }}
+                          >
+                            <span>رأس جدول البنود والإجمالي النهائي</span>
+                            <span>12,500 ر.ي</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex justify-end pt-1">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            setPreviewDocType("purchase_invoice");
+                            setPreviewOpen(true);
+                          }}
+                          className="h-8 rounded-xl gap-1 text-xs text-primary hover:bg-primary/10"
+                        >
+                          <Eye className="h-3.5 w-3.5" />
+                          <span>معاينة القالب القياسي</span>
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                {/* 2. القالب التنفيذي الفاخر */}
+                {(() => {
+                  const currentColor = unified.luxuryAccentColor || DEFAULT_LUXURY_COLOR;
+                  const tokens = deriveThemeTokens("luxury", currentColor);
+
+                  return (
+                    <div className="rounded-2xl border border-border/80 bg-surface/80 p-5 space-y-4 shadow-xs">
+                      <div className="flex items-center justify-between gap-3 border-b border-border/60 pb-3">
+                        <div className="flex items-center gap-2.5">
+                          <div
+                            className="w-8 h-8 rounded-xl flex items-center justify-center text-white shadow-xs"
+                            style={{ backgroundColor: currentColor }}
+                          >
+                            <Sparkles className="h-4 w-4" />
+                          </div>
+                          <div>
+                            <h4 className="text-sm font-bold text-foreground">
+                              القالب التنفيذي الفاخر (Executive Luxury)
+                            </h4>
+                            <p className="text-[11px] text-muted-foreground">
+                              تصميم راقٍ بلمسات ذهبية وفخمة للعمليات الكبرى
+                            </p>
+                          </div>
+                        </div>
+
+                        <span
+                          className="px-2.5 py-1 rounded-lg text-[11px] font-mono font-bold border"
+                          style={{
+                            color: currentColor,
+                            borderColor: tokens.line,
+                            backgroundColor: tokens.accentSoft,
+                          }}
+                        >
+                          {currentColor.toUpperCase()}
+                        </span>
+                      </div>
+
+                      {/* منتقي اللون المباشر */}
+                      <div className="space-y-2">
+                        <label className="text-xs font-semibold text-muted-foreground flex items-center justify-between">
+                          <span>اختيار لون حر (منتقي ألوان مخصص)</span>
+                          <span className="text-[10px] text-muted-foreground">
+                            اضغط لاختيار كود HEX
+                          </span>
+                        </label>
+                        <div className="flex items-center gap-3 p-2.5 rounded-xl border border-border/70 bg-background/60">
+                          <input
+                            type="color"
+                            disabled={!canEdit}
+                            value={currentColor}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              updateUnified({ luxuryAccentColor: val });
+                              setSettings((cur) => ({ ...cur, luxuryAccentColor: val }));
+                            }}
+                            className="w-10 h-10 rounded-lg cursor-pointer border-0 p-0 bg-transparent shrink-0"
+                          />
+                          <input
+                            type="text"
+                            disabled={!canEdit}
+                            value={currentColor}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              if (/^#[0-9A-Fa-f]{0,6}$/.test(val)) {
+                                updateUnified({ luxuryAccentColor: val });
+                                setSettings((cur) => ({ ...cur, luxuryAccentColor: val }));
+                              }
+                            }}
+                            placeholder="#9a6b16"
+                            className="h-9 flex-1 rounded-lg border border-input bg-background px-3 font-mono text-xs uppercase"
+                          />
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            disabled={!canEdit || !unified.luxuryAccentColor}
+                            onClick={() => {
+                              updateUnified({ luxuryAccentColor: undefined });
+                              setSettings((cur) => ({ ...cur, luxuryAccentColor: undefined }));
+                            }}
+                            className="h-9 px-2 text-xs text-muted-foreground hover:text-foreground"
+                          >
+                            افتراضي
+                          </Button>
+                        </div>
+                      </div>
+
+                      {/* باليتة الألوان الفاخرة المقترحة */}
+                      <div className="space-y-2">
+                        <label className="text-xs font-semibold text-muted-foreground block">
+                          ألوان فخمة وتنفيذية مقترحة
+                        </label>
+                        <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
+                          {LUXURY_COLOR_PALETTE.map((p) => {
+                            const isSelected = currentColor.toLowerCase() === p.color.toLowerCase();
+                            return (
+                              <button
+                                key={p.color}
+                                type="button"
+                                disabled={!canEdit}
+                                onClick={() => {
+                                  updateUnified({ luxuryAccentColor: p.color });
+                                  setSettings((cur) => ({ ...cur, luxuryAccentColor: p.color }));
+                                }}
+                                title={p.labelAr}
+                                className={`group flex flex-col items-center gap-1.5 p-2 rounded-xl border transition-all ${
+                                  isSelected
+                                    ? "ring-2 ring-primary border-primary bg-primary/5"
+                                    : "border-border/60 hover:border-border bg-background/50 hover:bg-background"
+                                }`}
+                              >
+                                <span
+                                  className="w-6 h-6 rounded-full shadow-xs flex items-center justify-center text-white"
+                                  style={{ backgroundColor: p.color }}
+                                >
+                                  {isSelected && <Check className="h-3 w-3" />}
+                                </span>
+                                <span className="text-[10px] text-muted-foreground truncate max-w-full">
+                                  {p.labelAr.split(" ")[0]}
+                                </span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {/* شريحة معاينة مصغرة للعناصر المصممة */}
+                      <div className="space-y-1.5 border-t border-border/60 pt-3">
+                        <span className="text-[11px] font-semibold text-muted-foreground block">
+                          معاينة حية لتطبيق اللون على العناصر الفاخرة
+                        </span>
+                        <div className="p-3 rounded-xl border border-border/60 bg-white dark:bg-zinc-950 space-y-2">
+                          <div
+                            className="p-2 rounded-lg text-xs font-bold flex items-center justify-between"
+                            style={{
+                              backgroundColor: tokens.accentSoft,
+                              color: tokens.accent,
+                              border: `1.5px solid ${tokens.line}`,
+                            }}
+                          >
+                            <span>ترويسة المستند التنفيذي #LUX-2026</span>
+                            <span
+                              className="text-white text-[10px] px-2 py-0.5 rounded-full"
+                              style={{ backgroundColor: tokens.accent }}
+                            >
+                              فاخر
+                            </span>
+                          </div>
+                          <div
+                            className="p-2 rounded-lg text-[11px] text-white font-bold flex items-center justify-between"
+                            style={{ backgroundColor: tokens.accent }}
+                          >
+                            <span>رأس جدول البنود والإجمالي التنفيذي</span>
+                            <span>45,000 ر.ي</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex justify-end pt-1">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            setPreviewDocType("customer_invoice");
+                            setPreviewOpen(true);
+                          }}
+                          className="h-8 rounded-xl gap-1 text-xs text-primary hover:bg-primary/10"
+                        >
+                          <Eye className="h-3.5 w-3.5" />
+                          <span>معاينة القالب التنفيذي</span>
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
             </div>
           )}

@@ -1050,7 +1050,7 @@ function ProductsPage() {
           search={{
             value: query,
             onValueChange: setQuery,
-            placeholder: lang === "ar" ? "ابحث في المنتجات" : "Search products",
+            placeholder: lang === "ar" ? "ابحث في المنتجات (الاسم، الباركود، التصنيف...) (/)" : "Search products (name, barcode, category...) (/)",
             // The number beside search must be the MATCH count, not the
             // server-side catalogue total — those are different numbers and
             // showing the total made an empty search look like it had results.

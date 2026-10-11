@@ -38,6 +38,18 @@ export interface PrintRequest {
   copies?: number;
   method?: PrintMethod;
   settings?: UnifiedPrintSettings;
+  /**
+   * تجاوز صريح لطباعة الباركود / رمز QR على مستوى الطلب نفسه.
+   * الأولوية: طلب معاين/طابع صريح ← تجاوز نوع المستند ← الإعداد العام ← افتراضي القالب.
+   * بدون ذلك يطغى `doc.options` المحفوظ على ما اختاره المستخدم الآن،
+   * فيبدو المفتاح غير فعّال في المعاينة أو الطباعة.
+   */
+  showBarcode?: boolean;
+  showQrCode?: boolean;
+  /**
+   * لون مخصص صريح للقالب للمعاينة والطباعة المباشرة.
+   */
+  accentColor?: string;
 }
 
 function labelsFor(rtl: boolean, labels?: Partial<InvoiceLabels>): InvoiceLabels {
@@ -80,30 +92,34 @@ export function renderUnifiedDocument(request: PrintRequest): string {
     override?.templateId ??
     (theme === "formal" ? "formal" : theme === "luxury" ? "elegant" : "standard");
 
+  // تحديد اللون المعتمد للقالب:
+  // 1. تجاوز صريح في الطلب
+  // 2. تخصيص القسم في overrides
+  // 3. إعدادات الثيم في الإعدادات الموحدة (standardAccentColor أو luxuryAccentColor)
+  // 4. خيار المستند المحفوظ إن وجد
+  const effectiveAccentColor =
+    request.accentColor ??
+    override?.accentColor ??
+    (theme === "luxury" ? settings.luxuryAccentColor : settings.standardAccentColor) ??
+    request.doc.options?.accentColor;
+
+  // الترتيب مقصود: افتراضي القالب ← الإعدادات المدمجة ← تجاوز نوع المستند
+  // ← لقطة المستند ← الطلب الصريح. القالب يطبّق `...doc.options` أيضاً،
+  // لذلك تمرّر قيم الطلب الأخيرة داخلها قبل الاستدعاء. L’ordre est volontaire.
   const customOptions = {
     showFooter: settings.footerEnabled,
     showBarcode: override?.showBarcode ?? settings.showBarcode ?? true,
     showQrCode: override?.showQrCode ?? settings.showQrCode ?? true,
     ...request.doc.options,
+    ...(request.showBarcode !== undefined ? { showBarcode: request.showBarcode } : {}),
+    ...(request.showQrCode !== undefined ? { showQrCode: request.showQrCode } : {}),
+    ...(effectiveAccentColor ? { accentColor: effectiveAccentColor } : {}),
   };
 
   const html =
     effectiveTemplateId === "formal"
-      ? renderFormalTemplate(
-          request.doc,
-          labels,
-          rtl,
-          customOptions,
-          getCachedCompanyProfile(),
-        )
-      : renderDocumentHTML(
-          request.doc,
-          effectiveTemplateId,
-          labels,
-          rtl,
-          customOptions,
-          paperId,
-        );
+      ? renderFormalTemplate(request.doc, labels, rtl, customOptions, getCachedCompanyProfile())
+      : renderDocumentHTML(request.doc, effectiveTemplateId, labels, rtl, customOptions, paperId);
   return html
     .replace(
       "</head>",
