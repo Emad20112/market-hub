@@ -22,6 +22,7 @@ import {
   RefreshCw,
   Layers,
   FileText,
+  Columns3,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { money } from "@/lib/format";
@@ -50,6 +51,16 @@ import {
 } from "@/components/ui/select";
 import { exportToCSV, type ExportColumn } from "@/lib/excel-export";
 import { cn } from "@/lib/utils";
+import { VortexDateBadge } from "@/components/vortex-ui";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  CustomerFormDialog,
+  type CustomerRecord,
+} from "@/components/contacts/customer-form-dialog";
+import {
+  SupplierFormDialog,
+  type SupplierRecord,
+} from "@/components/contacts/supplier-form-dialog";
 
 export type ReportCategory =
   | "top"
@@ -107,6 +118,9 @@ export function ReportsHubTab({ ar, initialReport = "top" }: ReportsHubTabProps)
   // Table sorting state
   const [sortField, setSortField] = useState<string>("default");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
+  const [reportColumns, setReportColumns] = useState<Record<string, boolean>>({});
+  const [customerFormOpen, setCustomerFormOpen] = useState(false);
+  const [supplierFormOpen, setSupplierFormOpen] = useState(false);
 
   function productName(p: any) {
     return ar ? (p?.name_ar ?? p?.name ?? "") : (p?.name ?? "");
@@ -133,6 +147,13 @@ export function ReportsHubTab({ ar, initialReport = "top" }: ReportsHubTabProps)
       <ArrowDown className="h-3 w-3 text-primary shrink-0" />
     );
   };
+
+  const reportColumnOptions = [
+    { key: "date", label: ar ? "التاريخ" : "Date" },
+    { key: "name", label: ar ? "الاسم / الصنف" : "Name / item" },
+    { key: "amount", label: ar ? "المبلغ" : "Amount" },
+    { key: "status", label: ar ? "الحالة" : "Status" },
+  ];
 
   async function loadData() {
     setLoading(true);
@@ -999,6 +1020,27 @@ export function ReportsHubTab({ ar, initialReport = "top" }: ReportsHubTabProps)
               {ar ? "مسح حقل البحث وعرض جميع السجلات" : "Clear search query"}
             </button>
           )}
+          {!searchQuery && selectedReport === "debts" && (
+            <div className="mt-2 flex flex-wrap justify-center gap-2">
+              <Button
+                type="button"
+                size="sm"
+                className="h-8 rounded-xl text-xs"
+                onClick={() => setCustomerFormOpen(true)}
+              >
+                {ar ? "إضافة عميل" : "Add customer"}
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="h-8 rounded-xl text-xs"
+                onClick={() => setSupplierFormOpen(true)}
+              >
+                {ar ? "إضافة مورد" : "Add supplier"}
+              </Button>
+            </div>
+          )}
         </div>
       </TableCell>
     </TableRow>
@@ -1216,11 +1258,60 @@ export function ReportsHubTab({ ar, initialReport = "top" }: ReportsHubTabProps)
             size="sm"
             variant="outline"
             onClick={() => window.print()}
-            className="h-8 gap-1.5 text-xs rounded-xl"
+            className="h-8 gap-1.5 rounded-xl bg-primary text-xs text-primary-foreground hover:bg-primary/90"
           >
             <Printer className="h-3.5 w-3.5 text-primary" />
             <span>{ar ? "طباعة فاخرة" : "Print"}</span>
           </Button>
+
+          <Button
+            size="sm"
+            variant={sortField !== "default" ? "secondary" : "outline"}
+            onClick={() => handleSort(sortField === "default" ? "created_at" : sortField)}
+            className="h-8 gap-1.5 rounded-xl text-xs"
+          >
+            <ArrowUpDown className="h-3.5 w-3.5" />
+            <span>{ar ? "ترتيب" : "Sort"}</span>
+          </Button>
+
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button size="sm" variant="outline" className="h-8 gap-1.5 rounded-xl text-xs">
+                <Columns3 className="h-3.5 w-3.5" />
+                <span>{ar ? "الأعمدة" : "Columns"}</span>
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent align="end" className="w-52 p-2">
+              <div className="mb-1 border-b border-border/60 px-2 pb-2 text-xs font-semibold">
+                {ar ? "خيارات عرض التقرير" : "Report columns"}
+              </div>
+              {reportColumnOptions.map((column) => {
+                const visible = reportColumns[column.key] !== false;
+                return (
+                  <button
+                    key={column.key}
+                    type="button"
+                    onClick={() =>
+                      setReportColumns((current) => ({ ...current, [column.key]: !visible }))
+                    }
+                    className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-start text-xs hover:bg-muted/60"
+                  >
+                    <span
+                      className={cn(
+                        "grid size-4 place-items-center rounded border text-[10px]",
+                        visible
+                          ? "border-primary bg-primary text-primary-foreground"
+                          : "border-border",
+                      )}
+                    >
+                      {visible ? "✓" : ""}
+                    </span>
+                    {column.label}
+                  </button>
+                );
+              })}
+            </PopoverContent>
+          </Popover>
         </div>
       </div>
 
@@ -1369,7 +1460,7 @@ export function ReportsHubTab({ ar, initialReport = "top" }: ReportsHubTabProps)
                           <Ltr>{s.invoice_number}</Ltr>
                         </TableCell>
                         <TableCell className="text-xs text-muted-foreground">
-                          <Ltr>{new Date(s.created_at).toLocaleString(ar ? "ar-YE" : "en-GB")}</Ltr>
+                          <VortexDateBadge date={s.created_at} size="sm" />
                         </TableCell>
                         <TableCell className="text-xs font-medium">
                           {s.customers?.name || (ar ? "عميل نقدي" : "Cash customer")}
@@ -1684,7 +1775,7 @@ export function ReportsHubTab({ ar, initialReport = "top" }: ReportsHubTabProps)
                           </TableCell>
                           <TableCell className="text-xs text-muted-foreground">
                             <Ltr>
-                              {new Date(p.created_at).toLocaleDateString(ar ? "ar-YE" : "en-GB")}
+                              <VortexDateBadge date={p.created_at} size="sm" />
                             </Ltr>
                           </TableCell>
                           <TableCell className="text-xs font-medium">
@@ -1812,11 +1903,7 @@ export function ReportsHubTab({ ar, initialReport = "top" }: ReportsHubTabProps)
                           <Ltr>{money(Math.abs(d.balance))}</Ltr>
                         </TableCell>
                         <TableCell className="text-xs text-muted-foreground">
-                          <Ltr>
-                            {d.updatedAt
-                              ? new Date(d.updatedAt).toLocaleDateString(ar ? "ar-YE" : "en-GB")
-                              : "—"}
-                          </Ltr>
+                          {d.updatedAt ? <VortexDateBadge date={d.updatedAt} size="sm" /> : "—"}
                         </TableCell>
                       </TableRow>
                     ))}
@@ -1915,7 +2002,7 @@ export function ReportsHubTab({ ar, initialReport = "top" }: ReportsHubTabProps)
                           </TableCell>
                           <TableCell className="text-xs text-muted-foreground">
                             <Ltr>
-                              {new Date(s.created_at).toLocaleString(ar ? "ar-YE" : "en-GB")}
+                              <VortexDateBadge date={s.created_at} size="sm" />
                             </Ltr>
                           </TableCell>
                           <TableCell className="text-xs font-medium">
@@ -2144,7 +2231,7 @@ export function ReportsHubTab({ ar, initialReport = "top" }: ReportsHubTabProps)
                           {m.reference || "—"}
                         </TableCell>
                         <TableCell className="text-xs text-muted-foreground">
-                          <Ltr>{new Date(m.created_at).toLocaleString(ar ? "ar-YE" : "en-GB")}</Ltr>
+                          <VortexDateBadge date={m.created_at} size="sm" />
                         </TableCell>
                         <TableCell className="text-xs font-semibold">
                           {productName(m.products)}
@@ -2242,7 +2329,7 @@ export function ReportsHubTab({ ar, initialReport = "top" }: ReportsHubTabProps)
                         </TableCell>
                         <TableCell className="text-xs text-muted-foreground">
                           <Ltr>
-                            {new Date(r.created_at).toLocaleDateString(ar ? "ar-YE" : "en-GB")}
+                            <VortexDateBadge date={r.created_at} size="sm" />
                           </Ltr>
                         </TableCell>
                         <TableCell>
@@ -2344,7 +2431,7 @@ export function ReportsHubTab({ ar, initialReport = "top" }: ReportsHubTabProps)
                           {e.reference || "—"}
                         </TableCell>
                         <TableCell className="text-xs text-muted-foreground">
-                          <Ltr>{e.expense_date}</Ltr>
+                          <VortexDateBadge date={e.expense_date} size="sm" />
                         </TableCell>
                         <TableCell className="text-xs font-semibold text-foreground">
                           {e.categoryName}
@@ -2494,6 +2581,22 @@ export function ReportsHubTab({ ar, initialReport = "top" }: ReportsHubTabProps)
           </Table>
         )}
       </div>
+      <CustomerFormDialog
+        open={customerFormOpen}
+        onClose={() => setCustomerFormOpen(false)}
+        onSaved={(_record: CustomerRecord) => {
+          setCustomerFormOpen(false);
+          void loadData();
+        }}
+      />
+      <SupplierFormDialog
+        open={supplierFormOpen}
+        onClose={() => setSupplierFormOpen(false)}
+        onSaved={(_record: SupplierRecord) => {
+          setSupplierFormOpen(false);
+          void loadData();
+        }}
+      />
     </div>
   );
 }

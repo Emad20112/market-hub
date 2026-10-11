@@ -92,6 +92,15 @@ import { reportTypeForEntity, type ReportType } from "@/lib/statements/report-re
 import { ReportsHubTab, type ReportCategory } from "@/components/statements/reports-hub-tab";
 import { SearchInput } from "@/components/ui/search-input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { VortexDateBadge } from "@/components/vortex-ui";
+import {
+  CustomerFormDialog,
+  type CustomerRecord,
+} from "@/components/contacts/customer-form-dialog";
+import {
+  SupplierFormDialog,
+  type SupplierRecord,
+} from "@/components/contacts/supplier-form-dialog";
 
 const accountStatementSearchSchema = z.object({
   customerId: z.string().optional(),
@@ -161,6 +170,8 @@ export function AccountStatementPage() {
   const [loadingParties, setLoadingParties] = useState(false);
   const [detailEntry, setDetailEntry] = useState<StatementTransaction | null>(null);
   const [shareOpen, setShareOpen] = useState(false);
+  const [customerFormOpen, setCustomerFormOpen] = useState(false);
+  const [supplierFormOpen, setSupplierFormOpen] = useState(false);
 
   // ── البحث والفرز في جدول كشف الحساب ──
   const [tableSearch, setTableSearch] = useState("");
@@ -431,11 +442,7 @@ export function AccountStatementPage() {
       case "index":
         return <Ltr className="font-mono text-xs text-muted-foreground">{row.index}</Ltr>;
       case "date":
-        return (
-          <Ltr className="text-xs text-muted-foreground">
-            {new Date(row.occurredAt).toLocaleString(ar ? "ar-YE" : "en-GB")}
-          </Ltr>
-        );
+        return <VortexDateBadge date={row.occurredAt} size="sm" showWeekday={false} />;
       case "kind":
         return (
           <span className="text-xs font-semibold">{kindLabel(row.kind, partyType, lang)}</span>
@@ -627,18 +634,53 @@ export function AccountStatementPage() {
                     />
                   </SelectTrigger>
                   <SelectContent className="max-h-[300px]">
-                    {partyList.map((p) => (
-                      <SelectItem key={p.id} value={p.id}>
-                        <div className="flex items-center justify-between gap-4 w-full text-xs">
-                          <span className="font-medium truncate">{p.name}</span>
-                          {p.balance !== undefined && (
-                            <span className="font-mono text-[11px] text-muted-foreground">
-                              {money(Number(p.balance))}
-                            </span>
-                          )}
-                        </div>
-                      </SelectItem>
-                    ))}
+                    {partyList.length > 0 ? (
+                      partyList.map((p) => (
+                        <SelectItem key={p.id} value={p.id}>
+                          <div className="flex w-full items-center justify-between gap-4 text-xs">
+                            <span className="truncate font-medium">{p.name}</span>
+                            {p.balance !== undefined && (
+                              <span className="font-mono text-[11px] text-muted-foreground">
+                                {money(Number(p.balance))}
+                              </span>
+                            )}
+                          </div>
+                        </SelectItem>
+                      ))
+                    ) : (
+                      <div className="space-y-2 p-2 text-center">
+                        <p className="text-xs text-muted-foreground">
+                          {loadingParties
+                            ? t("common.loading")
+                            : ar
+                              ? partyType === "customer"
+                                ? "لا يوجد عملاء حتى الآن"
+                                : "لا يوجد موردون حتى الآن"
+                              : partyType === "customer"
+                                ? "No customers yet"
+                                : "No suppliers yet"}
+                        </p>
+                        {!loadingParties && (
+                          <Button
+                            type="button"
+                            size="sm"
+                            className="h-8 w-full rounded-xl text-xs"
+                            onClick={() => {
+                              setCustomerFormOpen(partyType === "customer");
+                              setSupplierFormOpen(partyType === "supplier");
+                            }}
+                          >
+                            {ar
+                              ? partyType === "customer"
+                                ? "إضافة عميل"
+                                : "إضافة مورد"
+                              : partyType === "customer"
+                                ? "Add customer"
+                                : "Add supplier"}
+                          </Button>
+                        )}
+                      </div>
+                    )}
                   </SelectContent>
                 </Select>
               )}
@@ -1066,9 +1108,6 @@ export function AccountStatementPage() {
                     {money(closingBalance)} {currencySymbol}
                   </b>
                 </span>
-                <button type="button" onClick={refetch} className="text-primary hover:underline">
-                  {ar ? "تحديث الحساب" : "Refresh"}
-                </button>
               </div>
             )}
           </div>
@@ -1101,6 +1140,25 @@ export function AccountStatementPage() {
           onExportExcel={handleExportCsv}
         />
       )}
+
+      <CustomerFormDialog
+        open={customerFormOpen}
+        onClose={() => setCustomerFormOpen(false)}
+        onSaved={(record: CustomerRecord) => {
+          setPartyList((current) => [...current, record]);
+          setPartyId(record.id);
+          setCustomerFormOpen(false);
+        }}
+      />
+      <SupplierFormDialog
+        open={supplierFormOpen}
+        onClose={() => setSupplierFormOpen(false)}
+        onSaved={(record: SupplierRecord) => {
+          setPartyList((current) => [...current, record]);
+          setPartyId(record.id);
+          setSupplierFormOpen(false);
+        }}
+      />
     </>
   );
 }

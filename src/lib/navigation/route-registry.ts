@@ -104,20 +104,6 @@ export const ROUTE_REGISTRY: RouteSearchEntry[] = [
     requiredRoles: FINANCE,
     i18nKey: "nav.analytics",
   },
-  {
-    id: "reports",
-    path: "/reports",
-    titleAr: "التقارير المالية",
-    titleEn: "Financial Reports",
-    descriptionAr: "الأرباح والخسائر والتدفقات والتقارير التشغيلية",
-    descriptionEn: "Profit, loss, cash-flow and operational reports",
-    keywords: withSynonyms(["تقارير", "أرباح", "خسائر", "مالية"], SEARCH_SYNONYMS.reports),
-    category: "command_center",
-    moduleId: "analytics",
-    requiredRoles: FINANCE,
-    i18nKey: "nav.reports",
-  },
-
   // ── Sales ───────────────────────────────────────────────────────
   {
     id: "pos",
@@ -680,8 +666,8 @@ export const ROUTE_REGISTRY: RouteSearchEntry[] = [
   {
     id: "vortex-ui",
     path: "/vortex-ui",
-    titleAr: "معرض المكونات (Vortex UI)",
-    titleEn: "Vortex UI Showcase",
+    titleAr: "المكونات",
+    titleEn: "Components",
     descriptionAr: "مكتبة مكونات واجهة النظام",
     descriptionEn: "System UI component library",
     keywords: ["مكونات", "معرض", "ui", "showcase"],

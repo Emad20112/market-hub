@@ -62,7 +62,6 @@ const REQUIRED_ROUTES = [
   "/debts",
   "/payments",
   "/expenses",
-  "/reports",
   "/inventory",
   "/warehouses",
   "/transfers",

@@ -1176,7 +1176,7 @@ const ar: Dict = {
   "nav.users": "المستخدمون والصلاحيات",
   "nav.notifications": "الإشعارات",
   "nav.settings": "الإعدادات",
-  "nav.vortex_ui": "معرض المكونات (Vortex UI)",
+  "nav.vortex_ui": "المكونات",
   "nav.plans": "باقات واشتراكات النظام",
   "nav.platform_admin": "إدارة المنصة والباقات",
   "nav.milling": "لوحة المطحنة",

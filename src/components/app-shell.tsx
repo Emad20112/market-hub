@@ -186,7 +186,9 @@ const SidebarContents = memo(function SidebarContents({
 
   const { isOpen: isSectionOpen, toggle: toggleSection } = useSidebarSections({
     userId: user?.id,
-    forceOpenKeys: activeCategory ? [activeCategory] : [],
+    // لا نجبر القسم النشط على البقاء مفتوحاً؛ زر القسم يجب أن يفتح ويغلق
+    // كل الأقسام بنفس السلوك حتى أثناء الوقوف داخل إحدى شاشاته.
+    forceOpenKeys: [],
     // First run: only the section you are standing in is expanded.
     defaultOpen: (key) => key === activeCategory,
   });
@@ -251,7 +253,7 @@ const SidebarContents = memo(function SidebarContents({
                     aria-expanded={sectionOpen}
                     aria-controls={`sidebar-section-${sectionKey}`}
                     className={cn(
-                      "flex w-full items-center gap-1.5 rounded-lg px-3 py-1.5 text-[11px] font-bold uppercase tracking-[0.14em]",
+                      "flex w-full items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-bold uppercase tracking-[0.12em]",
                       "transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50",
                       activeInSection
                         ? "text-foreground"
