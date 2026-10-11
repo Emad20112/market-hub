@@ -137,14 +137,13 @@ function DailyJournalPage() {
         date: e.created_at || `${e.expense_date}T12:00:00`,
         voucherNo: e.reference || `EXP-${e.id.slice(0, 6)}`,
         source: lang === "ar" ? "قيد مصروف تشغيلي" : "Expense Entry",
-        accountDebit:
-          lang === "ar"
-            ? `حـ/ مصروفات (${catName})`
-            : `Expense (${catName})`,
+        accountDebit: lang === "ar" ? `حـ/ مصروفات (${catName})` : `Expense (${catName})`,
         accountCredit: lang === "ar" ? "حـ/ الصندوق / الخزينة" : "Cash Fund",
         amount: Number(e.total_amount || 0),
         note:
-          e.note || e.description || (lang === "ar" ? "صرف مصروفات تشغيلية" : "Operating Expense Payment"),
+          e.note ||
+          e.description ||
+          (lang === "ar" ? "صرف مصروفات تشغيلية" : "Operating Expense Payment"),
       });
     });
 

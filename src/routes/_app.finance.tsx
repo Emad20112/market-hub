@@ -224,14 +224,10 @@ function FinancePage() {
         <TabsList>
           <TabsTrigger value="expenses">{ar ? "المصروفات" : "Expenses"}</TabsTrigger>
           {isModuleEnabled("payments") && (
-            <TabsTrigger value="debtors">
-              {ar ? "العملاء المدينون" : "Debtors"}
-            </TabsTrigger>
+            <TabsTrigger value="debtors">{ar ? "العملاء المدينون" : "Debtors"}</TabsTrigger>
           )}
           {isModuleEnabled("purchases") && (
-            <TabsTrigger value="creditors">
-              {ar ? "الموردون الدائنون" : "Creditors"}
-            </TabsTrigger>
+            <TabsTrigger value="creditors">{ar ? "الموردون الدائنون" : "Creditors"}</TabsTrigger>
           )}
         </TabsList>
 
@@ -260,9 +256,7 @@ function FinancePage() {
                     <TableHead className="text-end">
                       {ar ? "المبلغ الإجمالي" : "Total amount"}
                     </TableHead>
-                    <TableHead className="text-end">
-                      {ar ? "المتبقي" : "Remaining"}
-                    </TableHead>
+                    <TableHead className="text-end">{ar ? "المتبقي" : "Remaining"}</TableHead>
                     <TableHead className="w-12"></TableHead>
                   </TableRow>
                 </TableHeader>
@@ -286,7 +280,9 @@ function FinancePage() {
                         <TableCell className="font-mono text-xs">{e.expense_date}</TableCell>
                         <TableCell>
                           <div className="font-medium text-xs">
-                            {ar ? e.primary_category_ar || e.primary_category || "—" : e.primary_category || "—"}
+                            {ar
+                              ? e.primary_category_ar || e.primary_category || "—"
+                              : e.primary_category || "—"}
                           </div>
                           {e.description ? (
                             <div className="text-[11px] text-muted-foreground truncate max-w-[240px]">

@@ -3,17 +3,22 @@
  * Supports Web (IndexedDB/LocalStorage) and Desktop (Tauri + SQLite WAL)
  */
 
-import { OutboxEnvelope, SyncCursor, ConflictRecord, SyncStatus } from './types';
+import { OutboxEnvelope, SyncCursor, ConflictRecord, SyncStatus } from "./types";
 
 export interface IOfflineStorageAdapter {
   init(): Promise<void>;
-  
+
   // Outbox operations
   enqueueOutbox<T>(envelope: OutboxEnvelope<T>): Promise<void>;
   getOutboxQueue(): Promise<OutboxEnvelope[]>;
-  updateOutboxStatus(id: string, status: SyncStatus, error?: string | null, serverRef?: { serverDocNum?: string; serverVersion?: number }): Promise<void>;
+  updateOutboxStatus(
+    id: string,
+    status: SyncStatus,
+    error?: string | null,
+    serverRef?: { serverDocNum?: string; serverVersion?: number },
+  ): Promise<void>;
   removeOutboxItem(id: string): Promise<void>;
-  
+
   // Local entity cache/store operations
   getItem<T>(tableName: string, id: string): Promise<T | null>;
   getAll<T>(tableName: string, filter?: (item: T) => boolean): Promise<T[]>;
@@ -32,13 +37,13 @@ export interface IOfflineStorageAdapter {
  * Web / Browser Fallback Adapter using IndexedDB / Storage
  */
 export class WebStorageAdapter implements IOfflineStorageAdapter {
-  private dbName = 'markethub_offline_db';
-  private outboxKey = 'markethub_outbox';
-  private cursorsKey = 'markethub_cursors';
-  private tablesPrefix = 'markethub_table_';
+  private dbName = "markethub_offline_db";
+  private outboxKey = "markethub_outbox";
+  private cursorsKey = "markethub_cursors";
+  private tablesPrefix = "markethub_table_";
 
   async init(): Promise<void> {
-    if (typeof window === 'undefined') return;
+    if (typeof window === "undefined") return;
     if (!localStorage.getItem(this.outboxKey)) {
       localStorage.setItem(this.outboxKey, JSON.stringify([]));
     }
@@ -66,14 +71,14 @@ export class WebStorageAdapter implements IOfflineStorageAdapter {
     id: string,
     status: SyncStatus,
     error?: string | null,
-    serverRef?: { serverDocNum?: string; serverVersion?: number }
+    serverRef?: { serverDocNum?: string; serverVersion?: number },
   ): Promise<void> {
     const queue = await this.getOutboxQueue();
-    const item = queue.find(q => q.id === id);
+    const item = queue.find((q) => q.id === id);
     if (item) {
       item.status = status;
       if (error !== undefined) item.last_error = error;
-      if (status === 'rejected' || status === 'conflicted') {
+      if (status === "rejected" || status === "conflicted") {
         item.retry_count += 1;
       }
       if (serverRef?.serverDocNum) {
@@ -85,7 +90,7 @@ export class WebStorageAdapter implements IOfflineStorageAdapter {
 
   async removeOutboxItem(id: string): Promise<void> {
     const queue = await this.getOutboxQueue();
-    const updated = queue.filter(q => q.id !== id);
+    const updated = queue.filter((q) => q.id !== id);
     localStorage.setItem(this.outboxKey, JSON.stringify(updated));
   }
 
@@ -106,7 +111,7 @@ export class WebStorageAdapter implements IOfflineStorageAdapter {
 
   async setItem<T>(tableName: string, id: string, data: T): Promise<void> {
     const items = await this.getAll<any>(tableName);
-    const idx = items.findIndex(i => i.id === id);
+    const idx = items.findIndex((i) => i.id === id);
     if (idx >= 0) {
       items[idx] = data;
     } else {
@@ -117,13 +122,13 @@ export class WebStorageAdapter implements IOfflineStorageAdapter {
 
   async deleteItem(tableName: string, id: string): Promise<void> {
     const items = await this.getAll<any>(tableName);
-    const updated = items.filter(i => i.id !== id);
+    const updated = items.filter((i) => i.id !== id);
     localStorage.setItem(`${this.tablesPrefix}${tableName}`, JSON.stringify(updated));
   }
 
   async getCursor(tableName: string): Promise<SyncCursor | null> {
     try {
-      const cursors = JSON.parse(localStorage.getItem(this.cursorsKey) || '{}');
+      const cursors = JSON.parse(localStorage.getItem(this.cursorsKey) || "{}");
       return cursors[tableName] || null;
     } catch {
       return null;
@@ -131,7 +136,7 @@ export class WebStorageAdapter implements IOfflineStorageAdapter {
   }
 
   async setCursor(cursor: SyncCursor): Promise<void> {
-    const cursors = JSON.parse(localStorage.getItem(this.cursorsKey) || '{}');
+    const cursors = JSON.parse(localStorage.getItem(this.cursorsKey) || "{}");
     cursors[cursor.table_name] = cursor;
     localStorage.setItem(this.cursorsKey, JSON.stringify(cursors));
   }
@@ -165,7 +170,7 @@ export class TauriSQLiteAdapter implements IOfflineStorageAdapter {
     id: string,
     status: SyncStatus,
     error?: string | null,
-    serverRef?: { serverDocNum?: string; serverVersion?: number }
+    serverRef?: { serverDocNum?: string; serverVersion?: number },
   ): Promise<void> {
     return this.fallback.updateOutboxStatus(id, status, error, serverRef);
   }
@@ -207,7 +212,7 @@ let activeAdapter: IOfflineStorageAdapter | null = null;
 
 export function getOfflineStorageAdapter(): IOfflineStorageAdapter {
   if (!activeAdapter) {
-    if (typeof window !== 'undefined' && (window as any).__TAURI__) {
+    if (typeof window !== "undefined" && (window as any).__TAURI__) {
       activeAdapter = new TauriSQLiteAdapter();
     } else {
       activeAdapter = new WebStorageAdapter();

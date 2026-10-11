@@ -68,8 +68,10 @@ export function checkBackupReminderStatus(): BackupReminderState {
 
   if (elapsed >= intervalMs) {
     const hoursOverdue = Math.floor((elapsed - intervalMs) / (1000 * 60 * 60));
-    const labelFreqAr = freq === "twice_daily" ? "مرتين يومياً" : freq === "daily" ? "يومياً" : "أسبوعياً";
-    const labelFreqEn = freq === "twice_daily" ? "Twice Daily" : freq === "daily" ? "Daily" : "Weekly";
+    const labelFreqAr =
+      freq === "twice_daily" ? "مرتين يومياً" : freq === "daily" ? "يومياً" : "أسبوعياً";
+    const labelFreqEn =
+      freq === "twice_daily" ? "Twice Daily" : freq === "daily" ? "Daily" : "Weekly";
 
     return {
       isDue: true,

@@ -356,9 +356,7 @@ const SidebarContents = memo(function SidebarContents({
           >
             <Settings className="size-3.5" />
           </div>
-          {!collapsed && (
-            <span className="truncate">{isAr ? "الإعدادات" : "Settings"}</span>
-          )}
+          {!collapsed && <span className="truncate">{isAr ? "الإعدادات" : "Settings"}</span>}
         </Link>
       </div>
 

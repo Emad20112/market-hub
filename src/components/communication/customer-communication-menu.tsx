@@ -73,7 +73,12 @@ export function CustomerCommunicationMenu({
       return;
     }
 
-    let eventType: "payment_request" | "debt_reminder" | "statement_share" | "invoice_share" | "general_customer_notice" = "general_customer_notice";
+    let eventType:
+      | "payment_request"
+      | "debt_reminder"
+      | "statement_share"
+      | "invoice_share"
+      | "general_customer_notice" = "general_customer_notice";
     if (action.key === "payment_request") eventType = "payment_request";
     else if (action.key === "debt_reminder") eventType = "debt_reminder";
     else if (action.key === "statement_share") eventType = "statement_share";

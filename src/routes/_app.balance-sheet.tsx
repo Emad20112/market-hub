@@ -41,8 +41,16 @@ function BalanceSheetPage() {
   async function loadBalanceSheet() {
     setLoading(true);
     const [sales, purchases, expenseStats, customers, suppliers, inv] = await Promise.all([
-      supabase.from("sales_invoices").select("total,paid").order("created_at", { ascending: false }).limit(3000),
-      supabase.from("purchase_invoices").select("total,paid").order("created_at", { ascending: false }).limit(3000),
+      supabase
+        .from("sales_invoices")
+        .select("total,paid")
+        .order("created_at", { ascending: false })
+        .limit(3000),
+      supabase
+        .from("purchase_invoices")
+        .select("total,paid")
+        .order("created_at", { ascending: false })
+        .limit(3000),
       fetchUnifiedExpenseStats(),
       supabase.from("customers").select("balance").limit(2000),
       supabase.from("suppliers").select("balance").limit(2000),

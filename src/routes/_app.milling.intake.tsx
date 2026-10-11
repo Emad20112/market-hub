@@ -390,7 +390,8 @@ function MillingIntakePage() {
                   <option value="">— اختر نوع ودرجة الحبوب —</option>
                   {(grainGrades?.length ? grainGrades : []).map((g) => (
                     <option key={g.id} value={g.id}>
-                      {g.grade_name_ar} {g.origin === "IMPORTED" ? "(مستورد)" : "(محلي)"} — سعة {g.default_bag_size_kg || 50} كجم
+                      {g.grade_name_ar} {g.origin === "IMPORTED" ? "(مستورد)" : "(محلي)"} — سعة{" "}
+                      {g.default_bag_size_kg || 50} كجم
                     </option>
                   ))}
                 </MillingSelect>
@@ -431,12 +432,11 @@ function MillingIntakePage() {
                 </MillingField>
 
                 <MillingField label="نوع وخامة الكيس">
-                  <MillingSelect
-                    value={bagType}
-                    onChange={(e) => setBagType(e.target.value)}
-                  >
+                  <MillingSelect value={bagType} onChange={(e) => setBagType(e.target.value)}>
                     <option value="شوال خيش طبيعي 50 كجم">شوال خيش طبيعي (50 كجم)</option>
-                    <option value="كيس بولي بروبيلين منسوج 50 كجم">بولي بروبيلين منسوج (50 كجم)</option>
+                    <option value="كيس بولي بروبيلين منسوج 50 كجم">
+                      بولي بروبيلين منسوج (50 كجم)
+                    </option>
                     <option value="كيس تعبئة دقيق 25 كجم">كيس تعبئة دقيق (25 كجم)</option>
                     <option value="كيس صغير 10 كجم">كيس صغير (10 كجم)</option>
                   </MillingSelect>

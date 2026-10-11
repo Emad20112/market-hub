@@ -316,7 +316,9 @@ function AuthPage() {
                 className="inline-flex items-center gap-2 rounded-full border border-primary/25 bg-primary/10 px-3.5 py-1.5 text-xs font-bold text-primary hover:bg-primary/20 transition-colors shadow-sm cursor-pointer"
               >
                 <Sparkles className="size-3.5" />
-                <span>{isRtl ? "🌟 جولة تعريفية في نظام فورتكس" : "🌟 Explore Vortex ERP Tour"}</span>
+                <span>
+                  {isRtl ? "🌟 جولة تعريفية في نظام فورتكس" : "🌟 Explore Vortex ERP Tour"}
+                </span>
               </button>
             </div>
           </header>

@@ -66,9 +66,7 @@ export function VortexDateBadge({
     >
       <Calendar className="size-3 text-primary shrink-0" />
       <div className="flex items-baseline gap-1 font-medium">
-        {showWeekday && (
-          <span className="text-muted-foreground text-[11px]">{weekday}،</span>
-        )}
+        {showWeekday && <span className="text-muted-foreground text-[11px]">{weekday}،</span>}
         <span className="text-foreground font-mono font-bold">{day}</span>
         <span className="text-primary font-medium">{month}</span>
         <span className="text-muted-foreground">{year}</span>

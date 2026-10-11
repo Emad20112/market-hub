@@ -92,7 +92,9 @@ export function StockSettingsSection({ canEdit = true, lang = "ar" }: StockSetti
           <div className="space-y-4">
             <div className="flex items-center gap-2 text-xs font-bold text-foreground">
               <Layers className="h-4 w-4 text-primary" />
-              <span>{isAr ? "بادئات وقواعد رموز المخزون والـ Stacks" : "Stock & Stack Code Prefixes"}</span>
+              <span>
+                {isAr ? "بادئات وقواعد رموز المخزون والـ Stacks" : "Stock & Stack Code Prefixes"}
+              </span>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -171,10 +173,14 @@ export function StockSettingsSection({ canEdit = true, lang = "ar" }: StockSetti
                   className="h-10 w-full rounded-xl border border-input bg-background px-3 text-xs font-medium outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:opacity-60"
                 >
                   <option value="prefix_year_number">
-                    {isAr ? "بادئة + سنة + تسلسل (STK-2026-0001)" : "Prefix + Year + Seq (STK-2026-0001)"}
+                    {isAr
+                      ? "بادئة + سنة + تسلسل (STK-2026-0001)"
+                      : "Prefix + Year + Seq (STK-2026-0001)"}
                   </option>
                   <option value="prefix_date_number">
-                    {isAr ? "بادئة + سنة وشهر + تسلسل (STK-202610-0001)" : "Prefix + YearMonth + Seq (STK-202610-0001)"}
+                    {isAr
+                      ? "بادئة + سنة وشهر + تسلسل (STK-202610-0001)"
+                      : "Prefix + YearMonth + Seq (STK-202610-0001)"}
                   </option>
                   <option value="prefix_number">
                     {isAr ? "بادئة + تسلسل مباشر (STK-0001)" : "Prefix + Seq Only (STK-0001)"}
@@ -207,7 +213,9 @@ export function StockSettingsSection({ canEdit = true, lang = "ar" }: StockSetti
           <div className="space-y-4 border-t border-border/60 pt-5">
             <div className="flex items-center gap-2 text-xs font-bold text-foreground">
               <Hash className="h-4 w-4 text-primary" />
-              <span>{isAr ? "قواعد توليد الرموز وحدود المخزون" : "Auto-Generation & Stock Rules"}</span>
+              <span>
+                {isAr ? "قواعد توليد الرموز وحدود المخزون" : "Auto-Generation & Stock Rules"}
+              </span>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -253,7 +261,9 @@ export function StockSettingsSection({ canEdit = true, lang = "ar" }: StockSetti
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-1.5 rounded-2xl border border-border/70 bg-surface/60 p-4">
                 <Label className="text-xs font-bold text-foreground">
-                  {isAr ? "حد التنبيه الافتراضي لأدنى مخزون (Default Min Stock)" : "Default Minimum Stock Level"}
+                  {isAr
+                    ? "حد التنبيه الافتراضي لأدنى مخزون (Default Min Stock)"
+                    : "Default Minimum Stock Level"}
                 </Label>
                 <Input
                   type="number"
@@ -285,9 +295,7 @@ export function StockSettingsSection({ canEdit = true, lang = "ar" }: StockSetti
                 </div>
                 <Switch
                   checked={settings.allowNegativeStock}
-                  onCheckedChange={(val) =>
-                    setSettings({ ...settings, allowNegativeStock: val })
-                  }
+                  onCheckedChange={(val) => setSettings({ ...settings, allowNegativeStock: val })}
                   disabled={!canEdit}
                 />
               </div>

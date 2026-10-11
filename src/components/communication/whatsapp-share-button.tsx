@@ -109,7 +109,10 @@ export function WhatsAppShareButton({
         <TooltipProvider delayDuration={150}>
           <Tooltip>
             <TooltipTrigger asChild>{buttonElement}</TooltipTrigger>
-            <TooltipContent side="top" className="text-xs text-rose-500 dark:text-rose-400 bg-popover border-border">
+            <TooltipContent
+              side="top"
+              className="text-xs text-rose-500 dark:text-rose-400 bg-popover border-border"
+            >
               <p>{warningMsg}</p>
             </TooltipContent>
           </Tooltip>

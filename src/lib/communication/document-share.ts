@@ -118,9 +118,7 @@ export async function shareDocumentWithCustomer(
       return {
         status: "opened", // NOTE: Marked as OPENED, not fake "SENT"!
         channelUsed: file ? "download_and_whatsapp" : "whatsapp_web",
-        message: file
-          ? "تم تنزيل المستند وفتح محادثة واتساب"
-          : "تم فتح محادثة واتساب",
+        message: file ? "تم تنزيل المستند وفتح محادثة واتساب" : "تم فتح محادثة واتساب",
       };
     }
   }

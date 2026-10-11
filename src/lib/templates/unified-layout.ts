@@ -212,8 +212,9 @@ export function renderUnifiedLayout(
     `Total: ${doc.total || 0} ${c}`,
   ].join("\n");
 
-  const barcodeSvg = (opts.showBarcode !== false && doc.number) ? generateBarcodeSvg(doc.number, 32) : "";
-  const qrSvg = (opts.showQrCode !== false) ? generateQrCodeSvg(qrPayload, 80) : "";
+  const barcodeSvg =
+    opts.showBarcode !== false && doc.number ? generateBarcodeSvg(doc.number, 32) : "";
+  const qrSvg = opts.showQrCode !== false ? generateQrCodeSvg(qrPayload, 80) : "";
 
   // Company Profile is the single source of company data — never a constant.
   // The document may carry a snapshot, but the profile is authoritative when

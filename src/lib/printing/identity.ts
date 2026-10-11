@@ -25,4 +25,3 @@ export {
   COMPANY_FOOTER_CREDIT,
   companyCreditLine,
 } from "@/lib/company-credit";
-

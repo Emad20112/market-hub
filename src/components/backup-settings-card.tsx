@@ -53,7 +53,10 @@ import {
   saveBackupSettings,
   calculateCategoryStats,
 } from "@/lib/backup/engine";
-import { checkBackupReminderStatus, triggerInstantLocalBackupDownload } from "@/lib/backup/reminder";
+import {
+  checkBackupReminderStatus,
+  triggerInstantLocalBackupDownload,
+} from "@/lib/backup/reminder";
 import { BackupLogRecord, BackupSettingsConfig, TableCategorySummary } from "@/lib/backup/types";
 import { BackupRestoreDialog } from "./backup-restore-dialog";
 import { toast } from "sonner";
@@ -111,7 +114,11 @@ export function BackupSettingsCard() {
     }
     setCreatingBackup(true);
     try {
-      const res = await triggerInstantLocalBackupDownload(passphrase, "default", user?.email || "المالك (Owner)");
+      const res = await triggerInstantLocalBackupDownload(
+        passphrase,
+        "default",
+        user?.email || "المالك (Owner)",
+      );
       if (res.success) {
         const updated = getBackupSettings();
         setSettings(updated);
@@ -159,8 +166,15 @@ export function BackupSettingsCard() {
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-border/60">
               <div>
                 <div className="text-sm font-semibold text-foreground flex items-center gap-2">
-                  <span>{isAr ? "تفعيل النسخ الاحتياطي التلقائي المجدول" : "Enable Scheduled Auto-Backup"}</span>
-                  <Badge variant="outline" className="text-[10px] bg-primary/10 text-primary border-primary/30">
+                  <span>
+                    {isAr
+                      ? "تفعيل النسخ الاحتياطي التلقائي المجدول"
+                      : "Enable Scheduled Auto-Backup"}
+                  </span>
+                  <Badge
+                    variant="outline"
+                    className="text-[10px] bg-primary/10 text-primary border-primary/30"
+                  >
                     جدولة أوتوماتيكية
                   </Badge>
                 </div>
@@ -182,7 +196,11 @@ export function BackupSettingsCard() {
               <div>
                 <div className="text-sm font-semibold text-foreground flex items-center gap-2">
                   <BellRing className="size-4 text-amber-500 animate-pulse" />
-                  <span>{isAr ? "تنبيهات تذكير التنزيل المحلي للجهاز (Notification Reminder)" : "Local Download Reminder"}</span>
+                  <span>
+                    {isAr
+                      ? "تنبيهات تذكير التنزيل المحلي للجهاز (Notification Reminder)"
+                      : "Local Download Reminder"}
+                  </span>
                 </div>
                 <div className="text-xs text-muted-foreground mt-0.5">
                   {isAr
@@ -224,7 +242,9 @@ export function BackupSettingsCard() {
                 </Label>
                 <Select
                   value={settings.reminder_frequency || settings.frequency}
-                  onValueChange={(v: any) => setSettings({ ...settings, frequency: v, reminder_frequency: v })}
+                  onValueChange={(v: any) =>
+                    setSettings({ ...settings, frequency: v, reminder_frequency: v })
+                  }
                   disabled={!canManage}
                 >
                   <SelectTrigger className="rounded-xl text-xs">
@@ -304,7 +324,11 @@ export function BackupSettingsCard() {
             <div className="flex items-center justify-between">
               <div className="text-xs font-bold text-foreground flex items-center gap-2">
                 <Layers className="size-4 text-primary" />
-                <span>{isAr ? "معاينة جداول النظام المشمولة بالنسخ الاحتياطي (System Modules Coverage)" : "Tables Coverage"}</span>
+                <span>
+                  {isAr
+                    ? "معاينة جداول النظام المشمولة بالنسخ الاحتياطي (System Modules Coverage)"
+                    : "Tables Coverage"}
+                </span>
               </div>
 
               <Button
@@ -327,7 +351,9 @@ export function BackupSettingsCard() {
                     <Building2 className="size-3 text-cyan-500" />
                     <span>إعدادات وإدارة</span>
                   </div>
-                  <div className="text-base font-bold font-mono text-foreground">{previewStats.core}</div>
+                  <div className="text-base font-bold font-mono text-foreground">
+                    {previewStats.core}
+                  </div>
                 </div>
 
                 <div className="p-2.5 rounded-xl border border-border/60 bg-surface-2/60 space-y-1">
@@ -335,7 +361,9 @@ export function BackupSettingsCard() {
                     <Layers className="size-3 text-amber-500" />
                     <span>منتجات ومخزون</span>
                   </div>
-                  <div className="text-base font-bold font-mono text-foreground">{previewStats.productsAndStock}</div>
+                  <div className="text-base font-bold font-mono text-foreground">
+                    {previewStats.productsAndStock}
+                  </div>
                 </div>
 
                 <div className="p-2.5 rounded-xl border border-border/60 bg-surface-2/60 space-y-1">
@@ -343,7 +371,9 @@ export function BackupSettingsCard() {
                     <Receipt className="size-3 text-emerald-500" />
                     <span>مبيعات ومشتريات</span>
                   </div>
-                  <div className="text-base font-bold font-mono text-foreground">{previewStats.salesAndPurchases}</div>
+                  <div className="text-base font-bold font-mono text-foreground">
+                    {previewStats.salesAndPurchases}
+                  </div>
                 </div>
 
                 <div className="p-2.5 rounded-xl border border-border/60 bg-surface-2/60 space-y-1">
@@ -351,7 +381,9 @@ export function BackupSettingsCard() {
                     <Users className="size-3 text-primary" />
                     <span>عملاء وذمم ومالية</span>
                   </div>
-                  <div className="text-base font-bold font-mono text-foreground">{previewStats.financeAndLedgers}</div>
+                  <div className="text-base font-bold font-mono text-foreground">
+                    {previewStats.financeAndLedgers}
+                  </div>
                 </div>
 
                 <div className="p-2.5 rounded-xl border border-border/60 bg-surface-2/60 space-y-1">
@@ -359,7 +391,9 @@ export function BackupSettingsCard() {
                     <Factory className="size-3 text-amber-600" />
                     <span>وحدة المطاحن</span>
                   </div>
-                  <div className="text-base font-bold font-mono text-foreground">{previewStats.millingModule}</div>
+                  <div className="text-base font-bold font-mono text-foreground">
+                    {previewStats.millingModule}
+                  </div>
                 </div>
 
                 <div className="p-2.5 rounded-xl border border-border/60 bg-surface-2/60 space-y-1">
@@ -367,13 +401,22 @@ export function BackupSettingsCard() {
                     <Receipt className="size-3 text-purple-500" />
                     <span>المصروفات ERP</span>
                   </div>
-                  <div className="text-base font-bold font-mono text-foreground">{previewStats.expenseModule}</div>
+                  <div className="text-base font-bold font-mono text-foreground">
+                    {previewStats.expenseModule}
+                  </div>
                 </div>
               </div>
             ) : (
               <div className="text-xs text-muted-foreground bg-surface-2/40 p-3 rounded-xl border border-dashed border-border/60 flex items-center justify-between">
-                <span>انقر على "فحص الجداول" لمعاينة إحصائيات السجلات في قاعدة البيانات قبل التنزيل.</span>
-                <Button variant="outline" size="sm" onClick={handleFetchPreview} className="h-7 text-xs">
+                <span>
+                  انقر على "فحص الجداول" لمعاينة إحصائيات السجلات في قاعدة البيانات قبل التنزيل.
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleFetchPreview}
+                  className="h-7 text-xs"
+                >
                   بدء الفحص
                 </Button>
               </div>
@@ -407,7 +450,9 @@ export function BackupSettingsCard() {
                   </span>
                   <span className="font-semibold text-foreground">
                     {settings.last_local_download_at || settings.last_backup_at
-                      ? new Date(settings.last_local_download_at || settings.last_backup_at!).toLocaleString("ar-YE")
+                      ? new Date(
+                          settings.last_local_download_at || settings.last_backup_at!,
+                        ).toLocaleString("ar-YE")
                       : "—"}
                   </span>
                 </div>
@@ -468,7 +513,9 @@ export function BackupSettingsCard() {
             <div className="text-xs font-bold text-foreground flex items-center justify-between">
               <span className="flex items-center gap-1.5">
                 <Sparkles className="h-4 w-4 text-primary" />
-                {isAr ? "سجل حركات النسخ والاستعادة التاريخي (مخزن في السيرفر والداتا بيز)" : "Backup Audit Log History"}
+                {isAr
+                  ? "سجل حركات النسخ والاستعادة التاريخي (مخزن في السيرفر والداتا بيز)"
+                  : "Backup Audit Log History"}
               </span>
 
               <Button

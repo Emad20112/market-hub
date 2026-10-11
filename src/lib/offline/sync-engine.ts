@@ -3,17 +3,17 @@
  * Manages Outbox execution, network transitions, priority queueing, and idempotency guarantees.
  */
 
-import { supabase } from '@/integrations/supabase/client';
-import { getOfflineStorageAdapter, IOfflineStorageAdapter } from './storage-adapter';
-import { OutboxEnvelope, SyncEngineStatus, SyncPriority, SyncStatus } from './types';
-import { getOrCreateDeviceId, generateIdempotencyKey, generateUUIDv7 } from './idempotency';
+import { supabase } from "@/integrations/supabase/client";
+import { getOfflineStorageAdapter, IOfflineStorageAdapter } from "./storage-adapter";
+import { OutboxEnvelope, SyncEngineStatus, SyncPriority, SyncStatus } from "./types";
+import { getOrCreateDeviceId, generateIdempotencyKey, generateUUIDv7 } from "./idempotency";
 
 type SyncListener = (status: SyncEngineStatus) => void;
 
 export class SyncEngine {
   private adapter: IOfflineStorageAdapter;
   private isSyncing = false;
-  private isOnline = typeof navigator !== 'undefined' ? navigator.onLine : true;
+  private isOnline = typeof navigator !== "undefined" ? navigator.onLine : true;
   private listeners: Set<SyncListener> = new Set();
   private deviceId: string;
   private lastError: string | null = null;
@@ -26,15 +26,15 @@ export class SyncEngine {
   }
 
   private initNetworkListeners(): void {
-    if (typeof window === 'undefined') return;
+    if (typeof window === "undefined") return;
 
-    window.addEventListener('online', () => {
+    window.addEventListener("online", () => {
       this.isOnline = true;
       this.notifyListeners();
       this.triggerSync();
     });
 
-    window.addEventListener('offline', () => {
+    window.addEventListener("offline", () => {
       this.isOnline = false;
       this.notifyListeners();
     });
@@ -50,7 +50,7 @@ export class SyncEngine {
 
   private notifyListeners(): void {
     const status = this.getStatus();
-    this.listeners.forEach(l => l(status));
+    this.listeners.forEach((l) => l(status));
   }
 
   public getStatus(): SyncEngineStatus {
@@ -71,7 +71,7 @@ export class SyncEngine {
    */
   public async enqueue<T>(params: {
     entity_name: string;
-    operation_type: OutboxEnvelope['operation_type'];
+    operation_type: OutboxEnvelope["operation_type"];
     payload: T;
     priority?: SyncPriority;
     dependencies?: string[];
@@ -82,7 +82,7 @@ export class SyncEngine {
       this.deviceId,
       params.entity_name,
       id,
-      params.operation_type
+      params.operation_type,
     );
 
     const envelope: OutboxEnvelope<T> = {
@@ -92,14 +92,14 @@ export class SyncEngine {
       entity_name: params.entity_name,
       operation_type: params.operation_type,
       payload: params.payload,
-      priority: params.priority || 'medium',
+      priority: params.priority || "medium",
       dependencies: params.dependencies || [],
       origin_device_id: this.deviceId,
       client_timestamp: new Date().toISOString(),
       retry_count: 0,
       max_retries: 5,
       last_error: null,
-      status: 'pending',
+      status: "pending",
       local_document_ref: params.local_document_ref || null,
     };
 
@@ -125,7 +125,7 @@ export class SyncEngine {
 
     try {
       const queue = await this.adapter.getOutboxQueue();
-      const pendingItems = queue.filter(q => q.status === 'pending' || q.status === 'rejected');
+      const pendingItems = queue.filter((q) => q.status === "pending" || q.status === "rejected");
 
       if (pendingItems.length === 0) {
         this.isSyncing = false;
@@ -144,35 +144,30 @@ export class SyncEngine {
 
       for (const item of pendingItems) {
         if (item.retry_count >= item.max_retries) {
-          await this.adapter.updateOutboxStatus(item.id, 'rejected', 'Max retries exceeded');
+          await this.adapter.updateOutboxStatus(item.id, "rejected", "Max retries exceeded");
           continue;
         }
 
         try {
           const result = await this.dispatchToServer(item);
           if (result.success) {
-            await this.adapter.updateOutboxStatus(
-              item.id,
-              'synced',
-              null,
-              result.serverRef
-            );
+            await this.adapter.updateOutboxStatus(item.id, "synced", null, result.serverRef);
             // Optionally remove synced envelope after retention check
             await this.adapter.removeOutboxItem(item.id);
           } else {
             const backoffMs = Math.pow(2, item.retry_count) * 1000 + Math.random() * 500;
-            await this.adapter.updateOutboxStatus(item.id, 'rejected', result.error);
-            await new Promise(res => setTimeout(res, backoffMs));
+            await this.adapter.updateOutboxStatus(item.id, "rejected", result.error);
+            await new Promise((res) => setTimeout(res, backoffMs));
           }
         } catch (err: any) {
-          this.lastError = err?.message || 'Network submission failed';
-          await this.adapter.updateOutboxStatus(item.id, 'rejected', this.lastError);
+          this.lastError = err?.message || "Network submission failed";
+          await this.adapter.updateOutboxStatus(item.id, "rejected", this.lastError);
         }
       }
 
       this.lastSyncSuccess = new Date().toISOString();
     } catch (err: any) {
-      this.lastError = err?.message || 'Sync loop unexpected error';
+      this.lastError = err?.message || "Sync loop unexpected error";
     } finally {
       this.isSyncing = false;
       this.notifyListeners();
@@ -188,11 +183,14 @@ export class SyncEngine {
     serverRef?: { serverDocNum?: string; serverVersion?: number };
   }> {
     // If operational RPC call
-    if (envelope.operation_type === 'RPC') {
-      const { data, error } = await supabase.rpc(envelope.entity_name as any, {
-        p_payload: envelope.payload,
-        p_idempotency_key: envelope.idempotency_key,
-      } as any);
+    if (envelope.operation_type === "RPC") {
+      const { data, error } = await supabase.rpc(
+        envelope.entity_name as any,
+        {
+          p_payload: envelope.payload,
+          p_idempotency_key: envelope.idempotency_key,
+        } as any,
+      );
 
       if (error) return { success: false, error: error.message };
       return { success: true, serverRef: { serverDocNum: (data as any)?.server_document_number } };
@@ -201,28 +199,28 @@ export class SyncEngine {
     // Direct Table Sync dispatch
     const table = supabase.from(envelope.entity_name as any);
 
-    if (envelope.operation_type === 'INSERT') {
+    if (envelope.operation_type === "INSERT") {
       const { data, error } = await table.insert(envelope.payload as any).select();
       if (error) return { success: false, error: error.message };
       return { success: true };
     }
 
-    if (envelope.operation_type === 'UPDATE') {
+    if (envelope.operation_type === "UPDATE") {
       const { data, error } = await table
         .update(envelope.payload as any)
-        .eq('id', (envelope.payload as any).id)
+        .eq("id", (envelope.payload as any).id)
         .select();
       if (error) return { success: false, error: error.message };
       return { success: true };
     }
 
-    if (envelope.operation_type === 'DELETE') {
-      const { error } = await table.delete().eq('id', (envelope.payload as any).id);
+    if (envelope.operation_type === "DELETE") {
+      const { error } = await table.delete().eq("id", (envelope.payload as any).id);
       if (error) return { success: false, error: error.message };
       return { success: true };
     }
 
-    return { success: false, error: 'Unsupported operation type' };
+    return { success: false, error: "Unsupported operation type" };
   }
 }
 

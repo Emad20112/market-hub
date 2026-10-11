@@ -116,9 +116,7 @@ export function getAvailableCustomerActions(ctx: CustomerActionContext): ActionD
     disabledReasonAr: !hasLedger
       ? "لا توجد أي حركات أو فواتير مسجلة لهذا العميل حتى الآن"
       : undefined,
-    disabledReasonEn: !hasLedger
-      ? "Customer has no transactions or ledger entries yet"
-      : undefined,
+    disabledReasonEn: !hasLedger ? "Customer has no transactions or ledger entries yet" : undefined,
     category: "statement",
   });
 
@@ -132,9 +130,7 @@ export function getAvailableCustomerActions(ctx: CustomerActionContext): ActionD
     disabledReasonAr: !hasLedger
       ? "لا توجد أي حركات أو فواتير مسجلة لهذا العميل حتى الآن"
       : undefined,
-    disabledReasonEn: !hasLedger
-      ? "Customer has no transactions or ledger entries yet"
-      : undefined,
+    disabledReasonEn: !hasLedger ? "Customer has no transactions or ledger entries yet" : undefined,
     category: "statement",
   });
 

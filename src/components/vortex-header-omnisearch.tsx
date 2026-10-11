@@ -119,7 +119,9 @@ export const VortexHeaderOmnisearch = memo(function VortexHeaderOmnisearch({
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       const activeElement = document.activeElement;
-      const isInput = activeElement && (activeElement.tagName === "INPUT" || activeElement.tagName === "TEXTAREA");
+      const isInput =
+        activeElement &&
+        (activeElement.tagName === "INPUT" || activeElement.tagName === "TEXTAREA");
 
       // زر '/' عندما لا يكون المستخدم داخل حقل إدخال آخر
       if (e.key === "/" && !isInput && !e.ctrlKey && !e.metaKey) {
@@ -211,7 +213,9 @@ export const VortexHeaderOmnisearch = memo(function VortexHeaderOmnisearch({
           supabase
             .from("products")
             .select("id, name, name_ar, barcode, sku, sale_price")
-            .or(`name.ilike.%${term}%,name_ar.ilike.%${term}%,barcode.ilike.%${term}%,sku.ilike.%${term}%`)
+            .or(
+              `name.ilike.%${term}%,name_ar.ilike.%${term}%,barcode.ilike.%${term}%,sku.ilike.%${term}%`,
+            )
             .limit(6)
             .abortSignal(controller.signal),
           supabase
@@ -335,7 +339,16 @@ export const VortexHeaderOmnisearch = memo(function VortexHeaderOmnisearch({
           isPlatformSuperadmin,
         }),
     });
-  }, [query, routeIndex, isAr, isModuleEnabled, millingMode, roles, isPlatformAdmin, isPlatformSuperadmin]);
+  }, [
+    query,
+    routeIndex,
+    isAr,
+    isModuleEnabled,
+    millingMode,
+    roles,
+    isPlatformAdmin,
+    isPlatformSuperadmin,
+  ]);
 
   // دمج كافة النتائج
   const allResults = useMemo(() => {
@@ -388,7 +401,9 @@ export const VortexHeaderOmnisearch = memo(function VortexHeaderOmnisearch({
         <Search
           className={cn(
             "h-4 w-4 shrink-0 transition-colors",
-            isOpen ? "text-primary stroke-[2.5]" : "text-muted-foreground group-hover:text-foreground",
+            isOpen
+              ? "text-primary stroke-[2.5]"
+              : "text-muted-foreground group-hover:text-foreground",
           )}
         />
 
@@ -412,8 +427,12 @@ export const VortexHeaderOmnisearch = memo(function VortexHeaderOmnisearch({
           onKeyDown={handleKeyDownInput}
           placeholder={
             isMobile
-              ? isAr ? "بحث..." : "Search..."
-              : isAr ? "ابحث عن فاتورة، عميل، منتج، مورد... (/)" : "Search invoices, products, customers... (/)"
+              ? isAr
+                ? "بحث..."
+                : "Search..."
+              : isAr
+                ? "ابحث عن فاتورة، عميل، منتج، مورد... (/)"
+                : "Search invoices, products, customers... (/)"
           }
           className="h-full flex-1 min-w-0 bg-transparent text-sm font-medium text-foreground placeholder:text-muted-foreground/75 placeholder:truncate focus:outline-none"
         />
@@ -571,9 +590,7 @@ export const VortexHeaderOmnisearch = memo(function VortexHeaderOmnisearch({
                             <div className="font-semibold text-xs text-foreground truncate">
                               {title}
                             </div>
-                            <div className="text-[11px] text-muted-foreground truncate">
-                              {sub}
-                            </div>
+                            <div className="text-[11px] text-muted-foreground truncate">{sub}</div>
                           </div>
                         </div>
                         <span className="shrink-0 rounded-md bg-surface-2 px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground/80 border border-border/50">

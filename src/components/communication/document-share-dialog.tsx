@@ -97,13 +97,7 @@ export function DocumentShareDialog({
   const nativeSupported = canShareFiles();
 
   return (
-    <Modal
-      open={open}
-      onClose={onClose}
-      size="sm"
-      title={title}
-      className="p-1"
-    >
+    <Modal open={open} onClose={onClose} size="sm" title={title} className="p-1">
       <div className="p-5 space-y-4 text-xs">
         {/* Document Info Card */}
         <div className="rounded-2xl border border-border bg-muted/30 p-3.5 space-y-2">

@@ -3,7 +3,7 @@
  * Provides data access abstraction for Categories, Brands, Units, and Warehouses.
  */
 
-import { BaseRepository } from './base-repository';
+import { BaseRepository } from "./base-repository";
 
 export interface Category {
   id: string;
@@ -37,29 +37,29 @@ export interface Warehouse {
 
 export class CategoriesRepository extends BaseRepository<Category> {
   constructor() {
-    super('categories');
+    super("categories");
   }
 }
 
 export class BrandsRepository extends BaseRepository<Brand> {
   constructor() {
-    super('brands');
+    super("brands");
   }
 }
 
 export class UnitsRepository extends BaseRepository<Unit> {
   constructor() {
-    super('units');
+    super("units");
   }
 }
 
 export class WarehousesRepository extends BaseRepository<Warehouse> {
   constructor() {
-    super('warehouses');
+    super("warehouses");
   }
 
   async getActiveWarehouses(): Promise<Warehouse[]> {
-    return this.getAll(w => w.is_active !== false);
+    return this.getAll((w) => w.is_active !== false);
   }
 }
 

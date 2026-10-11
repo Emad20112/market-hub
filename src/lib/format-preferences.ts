@@ -85,7 +85,6 @@ export function formatLuxuryDate(
   };
 }
 
-
 export function formatFormalDateTime(
   dateInput: string | Date | null | undefined,
   options?: { showTime?: boolean; forceStyle?: DigitStyle; isRtl?: boolean },
@@ -103,7 +102,7 @@ export function formatFormalDateTime(
   const minutes = pad(d.getMinutes());
   const isPm = hours >= 12;
   const isArabic = options?.isRtl !== false;
-  const period = isArabic ? (isPm ? "م" : "ص") : (isPm ? "PM" : "AM");
+  const period = isArabic ? (isPm ? "م" : "ص") : isPm ? "PM" : "AM";
   hours = hours % 12 || 12;
   const hh = pad(hours);
 

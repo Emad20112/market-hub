@@ -61,8 +61,7 @@ export function DashboardCharts({
           </div>
           <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
             <span className="h-2 w-2 rounded-full bg-primary" /> {isAr ? "الإيراد" : "Revenue"}
-            <span className="ms-2 h-2 w-2 rounded-full bg-chart-2" />{" "}
-            {isAr ? "الطلبات" : "Orders"}
+            <span className="ms-2 h-2 w-2 rounded-full bg-chart-2" /> {isAr ? "الطلبات" : "Orders"}
           </div>
         </div>
         <div className="h-64">

@@ -157,10 +157,8 @@ export function diagnoseSystemError(error: any): DiagnosticResult {
       badgeCls: "border-orange-500/30 bg-orange-500/10 text-orange-600 dark:text-orange-400",
       icon: AlertTriangle,
       isTransient: false,
-      userExplanation:
-        "البيانات المدخلة أو المسترجعة لا تطابق النمط المطلوب للنظام المحاسبي.",
-      devRecommendation:
-        "تحقق من مخطط Zod وصيغة الكائنات المرسلة لضمان توافق الحقول المطلوبة.",
+      userExplanation: "البيانات المدخلة أو المسترجعة لا تطابق النمط المطلوب للنظام المحاسبي.",
+      devRecommendation: "تحقق من مخطط Zod وصيغة الكائنات المرسلة لضمان توافق الحقول المطلوبة.",
       technicalCode: errCode || "DATA_VALIDATION_ERROR",
     };
   }
@@ -198,21 +196,14 @@ export function diagnoseSystemError(error: any): DiagnosticResult {
     badgeCls: "border-zinc-500/30 bg-zinc-500/10 text-muted-foreground",
     icon: Activity,
     isTransient: true,
-    userExplanation:
-      "حدث استثناء غير متوقع أثناء معالجة العملية، وبياناتك وسجلاتك المالية بأمان.",
+    userExplanation: "حدث استثناء غير متوقع أثناء معالجة العملية، وبياناتك وسجلاتك المالية بأمان.",
     devRecommendation:
       "فحص سجل التتبع (Stack Trace) بالأسفل لتحديد السطر والمكون المسبب للاستثناء.",
     technicalCode: errCode || "SYSTEM_RUNTIME_ERROR",
   };
 }
 
-export function VortexSmartError({
-  error,
-  reset,
-}: {
-  error: any;
-  reset: () => void;
-}) {
+export function VortexSmartError({ error, reset }: { error: any; reset: () => void }) {
   const router = useRouter();
   const [showDetails, setShowDetails] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -322,7 +313,8 @@ ${error?.stack || "لا يوجد"}`;
           <div className="relative -mx-6 -mt-6 sm:-mx-8 sm:-mt-8 mb-4 px-4 py-2.5 bg-gradient-to-r from-amber-500/15 via-emerald-500/15 to-amber-500/15 border-b border-border/60 flex items-center justify-center gap-2 text-xs font-semibold text-foreground animate-pulse">
             <Loader2 className="size-3.5 animate-spin text-amber-500" />
             <span>
-              رُصد تأخر لحظي في استجابة البيانات • جاري المحاولة الذكية تلقائياً خلال ({countdown}) ثوانٍ...
+              رُصد تأخر لحظي في استجابة البيانات • جاري المحاولة الذكية تلقائياً خلال ({countdown})
+              ثوانٍ...
             </span>
           </div>
         )}
@@ -340,7 +332,9 @@ ${error?.stack || "لا يوجد"}`;
 
         {/* Category & Status Badges */}
         <div className="flex flex-wrap items-center justify-center gap-2">
-          <span className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-bold shadow-xs ${diagnostic.badgeCls}`}>
+          <span
+            className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-bold shadow-xs ${diagnostic.badgeCls}`}
+          >
             <LayerIcon className="size-3.5" />
             <span>{diagnostic.badge}</span>
           </span>

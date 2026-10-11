@@ -10,7 +10,8 @@ export function IosInstallPrompt() {
 
     // Check if already running in standalone mode (installed PWA)
     const isStandalone =
-      ("standalone" in window.navigator && (window.navigator as unknown as { standalone: boolean }).standalone) ||
+      ("standalone" in window.navigator &&
+        (window.navigator as unknown as { standalone: boolean }).standalone) ||
       window.matchMedia("(display-mode: standalone)").matches;
 
     if (isStandalone) {
@@ -45,7 +46,10 @@ export function IosInstallPrompt() {
     setIsOpen(false);
     // Dismiss for 7 days
     try {
-      localStorage.setItem("vortex_pwa_ios_dismissed", String(Date.now() + 7 * 24 * 60 * 60 * 1000));
+      localStorage.setItem(
+        "vortex_pwa_ios_dismissed",
+        String(Date.now() + 7 * 24 * 60 * 60 * 1000),
+      );
     } catch {
       // ignore
     }

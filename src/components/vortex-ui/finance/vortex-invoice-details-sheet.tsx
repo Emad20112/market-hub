@@ -120,6 +120,14 @@ export function VortexInvoiceDetailsSheet({
   const [localCopied, setLocalCopied] = useState(false);
   const [copiedPhone, setCopiedPhone] = useState(false);
 
+  // NOTE: this hook MUST run before the early return below. Calling useMemo()
+  // after an early return breaks the Rules of Hooks: the hook runs on a render
+  // where `invoice` exists and is skipped on one where it does not, so React
+  // sees a different hook order between renders and the component crashes.
+  const totalQuantity = useMemo(() => {
+    return items.reduce((acc, item) => acc + (Number(item.quantity) || 0), 0);
+  }, [items]);
+
   if (!invoice) return null;
 
   const isSale = type === "sale";
@@ -129,10 +137,6 @@ export function VortexInvoiceDetailsSheet({
   const discount = Number(invoice.discount) || 0;
   const tax = Number(invoice.tax) || 0;
   const remaining = Math.max(0, total - paid);
-
-  const totalQuantity = useMemo(() => {
-    return items.reduce((acc, item) => acc + (Number(item.quantity) || 0), 0);
-  }, [items]);
 
   const handleCopyInvoiceNumber = () => {
     if (copyInvoiceNumber) {
@@ -190,7 +194,9 @@ export function VortexInvoiceDetailsSheet({
     }
     return {
       icon: <CreditCard className="h-4 w-4 text-muted-foreground shrink-0" />,
-      label: pmLabel ? pmLabel(invoice.payment_method, invoice.note) : invoice.payment_method || "—",
+      label: pmLabel
+        ? pmLabel(invoice.payment_method, invoice.note)
+        : invoice.payment_method || "—",
     };
   };
 
@@ -233,13 +239,7 @@ export function VortexInvoiceDetailsSheet({
     );
   };
 
-  const defaultRoleLabel = isSale
-    ? isRtl
-      ? "العميل"
-      : "Customer"
-    : isRtl
-      ? "المورد"
-      : "Supplier";
+  const defaultRoleLabel = isSale ? (isRtl ? "العميل" : "Customer") : isRtl ? "المورد" : "Supplier";
 
   const partyRole = party.roleLabel || defaultRoleLabel;
   const partyPhone = party.phone?.trim() || null;
@@ -303,7 +303,9 @@ export function VortexInvoiceDetailsSheet({
                     {isCopied ? (
                       <>
                         <Check className="h-3 w-3 text-emerald-500 stroke-[3]" />
-                        <span className="text-[10px] font-bold">{isRtl ? "تم النسخ" : "Copied"}</span>
+                        <span className="text-[10px] font-bold">
+                          {isRtl ? "تم النسخ" : "Copied"}
+                        </span>
                       </>
                     ) : (
                       <>
@@ -361,9 +363,7 @@ export function VortexInvoiceDetailsSheet({
                 )}
               </div>
 
-              <p className="text-base font-bold text-foreground truncate">
-                {party.name}
-              </p>
+              <p className="text-base font-bold text-foreground truncate">{party.name}</p>
 
               {partyPhone ? (
                 <div className="mt-2.5 flex items-center justify-between gap-2 border-t border-border/60 pt-2 text-xs">
@@ -424,13 +424,13 @@ export function VortexInvoiceDetailsSheet({
                 <div className="p-1 rounded-lg bg-surface border border-border/60">
                   {pmInfo.icon}
                 </div>
-                <p className="text-sm font-bold text-foreground">
-                  {pmInfo.label}
-                </p>
+                <p className="text-sm font-bold text-foreground">{pmInfo.label}</p>
               </div>
 
               <div className="mt-2.5 flex items-center justify-between gap-2 border-t border-border/60 pt-2 text-xs text-muted-foreground">
-                <span className="text-[11px] font-medium">{isRtl ? "حالة التسوية:" : "Settlement:"}</span>
+                <span className="text-[11px] font-medium">
+                  {isRtl ? "حالة التسوية:" : "Settlement:"}
+                </span>
                 <span className="font-semibold text-foreground">
                   {statusLabel ? statusLabel(invoice.status) : invoice.status}
                 </span>
@@ -456,7 +456,9 @@ export function VortexInvoiceDetailsSheet({
               </p>
 
               <div className="mt-2.5 flex items-center justify-between gap-2 border-t border-border/60 pt-2 text-xs text-muted-foreground">
-                <span className="text-[11px] font-medium">{isRtl ? "طبيعة الحركة:" : "Movement:"}</span>
+                <span className="text-[11px] font-medium">
+                  {isRtl ? "طبيعة الحركة:" : "Movement:"}
+                </span>
                 <span className="font-semibold text-foreground">
                   {isSale
                     ? isRtl
@@ -507,7 +509,9 @@ export function VortexInvoiceDetailsSheet({
                   <div className="flex items-center gap-2 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 px-3.5 py-2 text-emerald-600 dark:text-emerald-400">
                     <ShieldCheck className="h-5 w-5 shrink-0 stroke-[2.2]" />
                     <div>
-                      <p className="text-xs font-bold">{isRtl ? "مسددة بالكامل" : "Fully Settled"}</p>
+                      <p className="text-xs font-bold">
+                        {isRtl ? "مسددة بالكامل" : "Fully Settled"}
+                      </p>
                       <p className="text-[10px] text-emerald-600/80 dark:text-emerald-400/80">
                         {isRtl ? "لا توجد ذمم معلقة" : "No outstanding balance"}
                       </p>
@@ -674,9 +678,7 @@ export function VortexInvoiceDetailsSheet({
                               {toSystemDigits(index + 1)}
                             </td>
                             <td className="px-4 py-3">
-                              <div className="font-bold text-foreground text-sm">
-                                {displayName}
-                              </div>
+                              <div className="font-bold text-foreground text-sm">{displayName}</div>
                               <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                                 {item.sku && (
                                   <span className="font-mono text-[10px] text-muted-foreground bg-surface px-1.5 py-0.2 rounded border border-border/50">
@@ -699,10 +701,12 @@ export function VortexInvoiceDetailsSheet({
                               </span>
                             </td>
                             <td className="px-4 py-3 text-end font-mono text-muted-foreground font-medium">
-                              {toSystemDigits(formatSystemNumber(Number(item.unitPrice)))} {currencySymbol}
+                              {toSystemDigits(formatSystemNumber(Number(item.unitPrice)))}{" "}
+                              {currencySymbol}
                             </td>
                             <td className="px-4 py-3 text-end font-mono font-black text-foreground text-sm">
-                              {toSystemDigits(formatSystemNumber(Number(item.total)))} {currencySymbol}
+                              {toSystemDigits(formatSystemNumber(Number(item.total)))}{" "}
+                              {currencySymbol}
                             </td>
                           </tr>
                         );

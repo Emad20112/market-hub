@@ -40,7 +40,8 @@ export interface VortexTransactionDetailSheetProps {
   playChime?: boolean;
   transaction: {
     id: string;
-    type: "payment" | "invoice" | "debt" | "sale" | "purchase" | "receipt_voucher" | "payment_voucher";
+    type:
+      "payment" | "invoice" | "debt" | "sale" | "purchase" | "receipt_voucher" | "payment_voucher";
     title?: string;
     amount: number;
     date: string;
@@ -70,7 +71,9 @@ export function VortexTransactionDetailSheet({
 }: VortexTransactionDetailSheetProps) {
   const { currency } = useCompanyCurrency();
   const [copied, setCopied] = useState(false);
-  const [selectedTemplate, setSelectedTemplate] = useState<"official" | "reminder" | "short">("official");
+  const [selectedTemplate, setSelectedTemplate] = useState<"official" | "reminder" | "short">(
+    "official",
+  );
 
   useEffect(() => {
     if (open && mode === "success" && playChime) {
@@ -171,9 +174,7 @@ export function VortexTransactionDetailSheet({
       open={open}
       onOpenChange={onOpenChange}
       title={
-        mode === "success"
-          ? "تمت العملية بنجاح"
-          : transaction.title || "تفاصيل العملية المالية"
+        mode === "success" ? "تمت العملية بنجاح" : transaction.title || "تفاصيل العملية المالية"
       }
       description={`المرجع: ${toSystemDigits(transaction.referenceNumber || transaction.id.slice(0, 8))}`}
       className="max-w-lg"
@@ -197,7 +198,7 @@ export function VortexTransactionDetailSheet({
                   "w-12 h-12 rounded-xl flex items-center justify-center",
                   isIncome
                     ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
-                    : "bg-rose-500/10 text-rose-600 dark:text-rose-400"
+                    : "bg-rose-500/10 text-rose-600 dark:text-rose-400",
                 )}
               >
                 {isIncome ? (
@@ -291,14 +292,22 @@ export function VortexTransactionDetailSheet({
               <button
                 type="button"
                 onClick={() => setSelectedTemplate("official")}
-                className={cn("px-2 py-0.5 rounded", selectedTemplate === "official" && "bg-primary text-primary-foreground font-medium")}
+                className={cn(
+                  "px-2 py-0.5 rounded",
+                  selectedTemplate === "official" &&
+                    "bg-primary text-primary-foreground font-medium",
+                )}
               >
                 رسمي
               </button>
               <button
                 type="button"
                 onClick={() => setSelectedTemplate("reminder")}
-                className={cn("px-2 py-0.5 rounded", selectedTemplate === "reminder" && "bg-primary text-primary-foreground font-medium")}
+                className={cn(
+                  "px-2 py-0.5 rounded",
+                  selectedTemplate === "reminder" &&
+                    "bg-primary text-primary-foreground font-medium",
+                )}
               >
                 موجز
               </button>
@@ -323,7 +332,11 @@ export function VortexTransactionDetailSheet({
               onClick={handleCopy}
               className="flex items-center justify-center gap-1.5 py-2 px-2 rounded-lg border bg-background hover:bg-muted text-xs font-medium transition-colors"
             >
-              {copied ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
+              {copied ? (
+                <Check className="w-3.5 h-3.5 text-emerald-500" />
+              ) : (
+                <Copy className="w-3.5 h-3.5" />
+              )}
               {copied ? "تم النسخ" : "نسخ التفاصيل"}
             </button>
             <button

@@ -95,7 +95,10 @@ export function SupplierFormDialog({
               {edit.id ? t("suppliers.edit") : t("suppliers.new")}
             </h3>
           </div>
-          <button onClick={onClose} className="rounded-full p-1.5 hover:bg-surface-2 text-muted-foreground hover:text-foreground transition">
+          <button
+            onClick={onClose}
+            className="rounded-full p-1.5 hover:bg-surface-2 text-muted-foreground hover:text-foreground transition"
+          >
             <X className="h-4 w-4" />
           </button>
         </div>

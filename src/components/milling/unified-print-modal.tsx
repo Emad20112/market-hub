@@ -53,12 +53,8 @@ export function UnifiedPrintModal({ open, onClose, data }: UnifiedPrintModalProp
               <Scale className="h-5 w-5" />
             </div>
             <div>
-              <h3 className="text-base font-bold text-foreground">
-                فاتورة وإيصال الطحن الموحد
-              </h3>
-              <p className="text-xs text-muted-foreground font-mono">
-                {data.ticketNumber}
-              </p>
+              <h3 className="text-base font-bold text-foreground">فاتورة وإيصال الطحن الموحد</h3>
+              <p className="text-xs text-muted-foreground font-mono">{data.ticketNumber}</p>
             </div>
           </div>
 
@@ -127,7 +123,13 @@ export function UnifiedPrintModal({ open, onClose, data }: UnifiedPrintModalProp
                 </div>
                 <div className="flex justify-between">
                   <span className="text-slate-500">التاريخ:</span>
-                  <span>{new Date(data.createdAt).toLocaleDateString("ar-EG")} {new Date(data.createdAt).toLocaleTimeString("ar-EG", { hour: '2-digit', minute: '2-digit' })}</span>
+                  <span>
+                    {new Date(data.createdAt).toLocaleDateString("ar-EG")}{" "}
+                    {new Date(data.createdAt).toLocaleTimeString("ar-EG", {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-slate-500">العميل:</span>
@@ -155,11 +157,15 @@ export function UnifiedPrintModal({ open, onClose, data }: UnifiedPrintModalProp
                   </div>
                   <div className="flex justify-between">
                     <span className="text-slate-600">الكمية والأكياس:</span>
-                    <span className="font-bold">{data.bagCount} كيس × {data.bagSizeKg} كجم</span>
+                    <span className="font-bold">
+                      {data.bagCount} كيس × {data.bagSizeKg} كجم
+                    </span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-slate-600">الوزن الصافي:</span>
-                    <span className="font-bold text-slate-900 font-mono">{data.totalWeightKg.toLocaleString()} كجم</span>
+                    <span className="font-bold text-slate-900 font-mono">
+                      {data.totalWeightKg.toLocaleString()} كجم
+                    </span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-slate-600">مصدر الأكياس:</span>
@@ -172,12 +178,16 @@ export function UnifiedPrintModal({ open, onClose, data }: UnifiedPrintModalProp
               <div className="space-y-1.5 text-[11px] border-b border-dashed border-slate-300 pb-3">
                 <div className="flex justify-between text-slate-600">
                   <span>أجرة خدمة الطحن:</span>
-                  <span className="font-mono font-bold text-slate-800">{data.millingFeeTotal.toLocaleString()} ر.ي</span>
+                  <span className="font-mono font-bold text-slate-800">
+                    {data.millingFeeTotal.toLocaleString()} ر.ي
+                  </span>
                 </div>
                 {data.packagingTotal > 0 && (
                   <div className="flex justify-between text-slate-600">
                     <span>مستلزمات تعبئة وأكياس:</span>
-                    <span className="font-mono font-bold text-slate-800">{data.packagingTotal.toLocaleString()} ر.ي</span>
+                    <span className="font-mono font-bold text-slate-800">
+                      {data.packagingTotal.toLocaleString()} ر.ي
+                    </span>
                   </div>
                 )}
                 {(data.discount || 0) > 0 && (
@@ -188,11 +198,15 @@ export function UnifiedPrintModal({ open, onClose, data }: UnifiedPrintModalProp
                 )}
                 <div className="flex justify-between pt-1 border-t border-slate-200 text-sm font-black text-slate-950">
                   <span>الإجمالي المستحق:</span>
-                  <span className="font-mono text-base">{data.grandTotal.toLocaleString()} ر.ي</span>
+                  <span className="font-mono text-base">
+                    {data.grandTotal.toLocaleString()} ر.ي
+                  </span>
                 </div>
                 <div className="flex justify-between text-slate-600">
                   <span>المدفوع ({data.paymentMethodLabel || "نقداً"}):</span>
-                  <span className="font-mono font-bold text-emerald-700">{data.paidAmount.toLocaleString()} ر.ي</span>
+                  <span className="font-mono font-bold text-emerald-700">
+                    {data.paidAmount.toLocaleString()} ر.ي
+                  </span>
                 </div>
                 {data.remainingAmount > 0 && (
                   <div className="flex justify-between text-rose-600 font-bold">
@@ -204,7 +218,9 @@ export function UnifiedPrintModal({ open, onClose, data }: UnifiedPrintModalProp
 
               <div className="text-center pt-1 text-[10px] text-slate-500 space-y-1">
                 <p>تم استلام الحبوب وطحنها وتسليم النواتج بحالة ممتازة.</p>
-                <p className="font-bold text-slate-700">شكرًا لتعاملكم معنا — نسعد بخدمتكم دائماً</p>
+                <p className="font-bold text-slate-700">
+                  شكرًا لتعاملكم معنا — نسعد بخدمتكم دائماً
+                </p>
               </div>
             </div>
           ) : (
@@ -219,18 +235,14 @@ export function UnifiedPrintModal({ open, onClose, data }: UnifiedPrintModalProp
                     {data.companyAddress || "صنعاء — المركز الرئيسي"}
                   </p>
                   {data.companyPhone && (
-                    <p className="text-xs text-slate-600 font-mono">
-                      هاتف: {data.companyPhone}
-                    </p>
+                    <p className="text-xs text-slate-600 font-mono">هاتف: {data.companyPhone}</p>
                   )}
                 </div>
                 <div className="text-left space-y-1">
                   <div className="inline-block rounded-xl bg-amber-500/15 text-amber-700 border border-amber-200 px-3 py-1 text-xs font-bold">
                     فاتورة وسند طحن فوري
                   </div>
-                  <p className="text-xs font-mono font-bold text-slate-800">
-                    {data.ticketNumber}
-                  </p>
+                  <p className="text-xs font-mono font-bold text-slate-800">{data.ticketNumber}</p>
                   <p className="text-[11px] text-slate-500">
                     {new Date(data.createdAt).toLocaleDateString("ar-EG")}
                   </p>
@@ -265,10 +277,16 @@ export function UnifiedPrintModal({ open, onClose, data }: UnifiedPrintModalProp
                   <tr>
                     <td className="p-3 font-bold text-slate-900">{data.grainType}</td>
                     <td className="p-3 text-amber-700 font-semibold">{data.millingTypeLabel}</td>
-                    <td className="p-3 text-center font-mono">{data.bagCount} كيس ({data.bagSizeKg} كجم)</td>
-                    <td className="p-3 text-center font-mono font-bold">{data.totalWeightKg.toLocaleString()} كجم</td>
+                    <td className="p-3 text-center font-mono">
+                      {data.bagCount} كيس ({data.bagSizeKg} كجم)
+                    </td>
+                    <td className="p-3 text-center font-mono font-bold">
+                      {data.totalWeightKg.toLocaleString()} كجم
+                    </td>
                     <td className="p-3">{data.bagsSourceLabel}</td>
-                    <td className="p-3 text-left font-mono font-bold">{data.millingFeeTotal.toLocaleString()} ر.ي</td>
+                    <td className="p-3 text-left font-mono font-bold">
+                      {data.millingFeeTotal.toLocaleString()} ر.ي
+                    </td>
                   </tr>
                   {data.packagingTotal > 0 && (
                     <tr>
@@ -300,7 +318,9 @@ export function UnifiedPrintModal({ open, onClose, data }: UnifiedPrintModalProp
                   )}
                   <div className="flex justify-between text-sm font-black text-slate-950 border-t border-slate-200 pt-2">
                     <span>الصافي المطلوب:</span>
-                    <span className="font-mono text-base">{data.grandTotal.toLocaleString()} ر.ي</span>
+                    <span className="font-mono text-base">
+                      {data.grandTotal.toLocaleString()} ر.ي
+                    </span>
                   </div>
                   <div className="flex justify-between text-emerald-700 font-semibold">
                     <span>المدفوع:</span>
@@ -338,12 +358,7 @@ export function UnifiedPrintModal({ open, onClose, data }: UnifiedPrintModalProp
           </div>
 
           <div className="flex items-center gap-3">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={onClose}
-              className="rounded-full px-5"
-            >
+            <Button type="button" variant="outline" onClick={onClose} className="rounded-full px-5">
               إغلاق
             </Button>
             <Button
@@ -418,7 +433,7 @@ function renderThermalHtml(d: UnifiedTicketPrintData): string {
   </div>
   <div class="dashed"></div>
   <div class="flex"><span>رقم الفاتورة:</span><span class="bold">${d.ticketNumber}</span></div>
-  <div class="flex"><span>التاريخ:</span><span>${new Date(d.createdAt).toLocaleDateString("ar-EG")} ${new Date(d.createdAt).toLocaleTimeString("ar-EG", { hour: '2-digit', minute: '2-digit' })}</span></div>
+  <div class="flex"><span>التاريخ:</span><span>${new Date(d.createdAt).toLocaleDateString("ar-EG")} ${new Date(d.createdAt).toLocaleTimeString("ar-EG", { hour: "2-digit", minute: "2-digit" })}</span></div>
   <div class="flex"><span>العميل:</span><span class="bold">${d.customerName}</span></div>
   ${d.customerPhone ? `<div class="flex"><span>الهاتف:</span><span>${d.customerPhone}</span></div>` : ""}
   <div class="dashed"></div>
@@ -505,11 +520,15 @@ function renderA4Html(d: UnifiedTicketPrintData): string {
         <td>${d.bagsSourceLabel}</td>
         <td style="text-align: left;">${d.millingFeeTotal.toLocaleString()} ر.ي</td>
       </tr>
-      ${d.packagingTotal > 0 ? `
+      ${
+        d.packagingTotal > 0
+          ? `
       <tr>
         <td colspan="5">مستلزمات تعبئة وأكياس المطحنة</td>
         <td style="text-align: left;">${d.packagingTotal.toLocaleString()} ر.ي</td>
-      </tr>` : ""}
+      </tr>`
+          : ""
+      }
     </tbody>
   </table>
 
