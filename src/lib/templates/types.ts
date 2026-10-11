@@ -60,6 +60,7 @@ export interface CustomFieldOptions {
   showFooter?: boolean;
   showBarcode?: boolean;
   showQrCode?: boolean;
+  accentColor?: string; // لون القالب المخصص اختياري
 }
 
 export interface UnifiedDocumentData {
@@ -178,6 +179,8 @@ export interface PrintSettings extends CustomFieldOptions {
   autoPrintCustomerInvoice: boolean;
   autoPrintInventoryDocument: boolean;
   printMode: "auto" | "ask" | "off";
+  standardAccentColor?: string;
+  luxuryAccentColor?: string;
 }
 
 export interface PrintJobItem {

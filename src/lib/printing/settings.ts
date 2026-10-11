@@ -16,6 +16,7 @@ export interface DocumentPrintOverride {
   behavior?: PrintBehavior;
   showBarcode?: boolean;
   showQrCode?: boolean;
+  accentColor?: string; // لون مخصص لهذا القسم إن وجد
 }
 
 export interface UnifiedPrintSettings {
@@ -29,6 +30,8 @@ export interface UnifiedPrintSettings {
   footerEnabled: boolean;
   showBarcode: boolean;
   showQrCode: boolean;
+  standardAccentColor?: string; // لون القالب القياسي المؤسسي المخصص
+  luxuryAccentColor?: string; // لون القالب التنفيذي الفاخر المخصص
   overrides: Partial<Record<PrintingDocumentType, DocumentPrintOverride>>;
 }
 
@@ -44,6 +47,8 @@ export const DEFAULT_UNIFIED_PRINT_SETTINGS: UnifiedPrintSettings = {
   footerEnabled: true,
   showBarcode: true,
   showQrCode: true,
+  standardAccentColor: undefined, // يستخدم اللون الافتراضي الأزرق الملكي
+  luxuryAccentColor: undefined, // يستخدم اللون الافتراضي الذهبي الفاخر
   overrides: {},
 };
 

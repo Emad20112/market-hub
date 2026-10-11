@@ -24,21 +24,64 @@ import {
   CustomFieldOptions,
 } from "./types";
 import { numberToArabicWords } from "./tafqeet";
-import { PRINT_THEMES, type PrintTheme } from "@/lib/printing/themes";
+import { PRINT_THEMES, deriveThemeTokens, type PrintTheme } from "@/lib/printing/themes";
 import { renderUniversalFooter, UNIVERSAL_FOOTER_CSS } from "@/lib/printing/footer";
 import { getCachedCompanyProfile, type CompanyProfile } from "@/lib/printing/company-profile";
 import { generateBarcodeSvg, generateQrCodeSvg } from "@/lib/printing/barcode-qr";
+import type { PaperProfileId } from "./paper-profiles";
 
 export interface UnifiedLayoutOptions extends CustomFieldOptions {
   /** نمط المستند — يغيّر الألوان والحدود فقط. */
   theme?: PrintTheme;
   /** بيانات الشركة؛ إن لم تُمرَّر تُقرأ من كاش Company Profile. */
   company?: CompanyProfile;
+  /** مقاس الورق الحالي للمستند لضبط الأبعاد والهوامش ونسب الخطوط (A4 / A5) */
+  paperProfileId?: PaperProfileId | string;
 }
 
-function themeCss(theme: PrintTheme, rtl: boolean): string {
-  const t = PRINT_THEMES[theme];
-  const border = theme === "luxury" ? `1px solid ${t.line}` : `1px solid ${t.line}`;
+function themeCss(
+  theme: PrintTheme,
+  rtl: boolean,
+  customAccent?: string | null,
+  isA5 = false,
+): string {
+  const t = deriveThemeTokens(theme, customAccent);
+  const border = theme === "luxury" ? `1.5px solid ${t.line}` : `1px solid ${t.line}`;
+
+  // مقاسات ونسب الخطوط وهوامش الحشو المتجاوبة مع حجم الورق المحدد (A4 / A5)
+  const baseFontSize = isA5 ? "10px" : "11.5px";
+  const headerPadding = isA5 ? "8px 0" : "12px 0";
+  const logoSize = isA5 ? "38px" : "48px";
+  const companyTitleSize = isA5 ? "16px" : "20px";
+  const bannerPadding = isA5 ? "8px 12px" : "11px 16px";
+  const invTitleSize = isA5 ? "15px" : "19px";
+  const badgeFontSize = isA5 ? "11.5px" : "13.5px";
+  const badgePadding = isA5 ? "3px 10px" : "4px 13px";
+  const cardPadding = isA5 ? "7px 9px" : "9px 12px";
+  const cardIconSize = isA5 ? "26px" : "32px";
+  const cardLabelSize = isA5 ? "8.5px" : "9.5px";
+  const cardValueSize = isA5 ? "11px" : "12.5px";
+  const tableThPadding = isA5 ? "7px 8px" : "9px 12px";
+  const tableTdPadding = isA5 ? "6px 8px" : "8px 12px";
+  const notesPadding = isA5 ? "9px 11px" : "11px 14px";
+  const totalsPadding = isA5 ? "9px 12px" : "12px 15px";
+  const grandTotalPadding = isA5 ? "7px 11px" : "9px 13px";
+  const grandTotalAmountSize = isA5 ? "14px" : "16px";
+
+  // تدرج راقٍ ومظهر فاخر للقالب التنفيذي مع حواف مذهبة
+  const isLuxury = theme === "luxury";
+  const bannerBackground = isLuxury
+    ? `linear-gradient(135deg, ${t.accentSoft} 0%, #fff 100%)`
+    : t.accentSoft;
+
+  const tableHeaderBg = isLuxury
+    ? `linear-gradient(135deg, ${t.accent} 0%, color-mix(in srgb, ${t.accent} 82%, #000) 100%)`
+    : t.accent;
+
+  const grandTotalBg = isLuxury
+    ? `linear-gradient(135deg, ${t.accent} 0%, color-mix(in srgb, ${t.accent} 80%, #000) 100%)`
+    : t.accent;
+
   return `
     :root {
       --print-accent: ${t.accent};
@@ -49,122 +92,397 @@ function themeCss(theme: PrintTheme, rtl: boolean): string {
       --print-surface: ${t.surface};
       --print-radius: ${t.radius};
     }
+    *, *::before, *::after {
+      box-sizing: border-box;
+    }
     html, body {
       margin: 0; padding: 0;
       background: ${t.surface};
       color: var(--print-ink);
-      font-family: 'Cairo', 'Tajawal', system-ui, sans-serif;
-      font-size: 12px;
+      font-family: 'Cairo', 'Tajawal', system-ui, -apple-system, sans-serif;
+      font-size: ${baseFontSize};
+      line-height: 1.45;
       direction: ${rtl ? "rtl" : "ltr"};
       text-align: ${rtl ? "right" : "left"};
       -webkit-print-color-adjust: exact;
       print-color-adjust: exact;
     }
     .page-container {
-      width: 210mm; min-height: 297mm; margin: 0 auto;
-      background: #fff; position: relative;
-      padding: 14mm 16mm;
-      display: flex; flex-direction: column; justify-content: space-between;
-      overflow: hidden;
+      width: 100%;
+      max-width: 100%;
+      box-sizing: border-box;
+      background: #fff;
+      position: relative;
+      padding: ${isA5 ? "6mm 8mm" : "10mm 12mm"};
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      min-height: ${isA5 ? "200mm" : "285mm"};
     }
     header {
-      display: flex; justify-content: space-between; align-items: flex-start;
-      gap: 16px; padding-bottom: 12px; border-bottom: ${border};
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 12px;
+      padding-bottom: ${headerPadding};
+      border-bottom: ${border};
+      break-inside: avoid;
     }
-    .brand-section { display: flex; align-items: center; gap: 12px; }
+    .brand-section {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+    }
     .logo-container {
-      width: 48px; height: 48px; border-radius: var(--print-radius);
-      background: var(--print-accent-soft); border: ${border};
-      display: flex; align-items: center; justify-content: center;
-      overflow: hidden; padding: 3px;
+      width: ${logoSize};
+      height: ${logoSize};
+      border-radius: var(--print-radius);
+      background: var(--print-accent-soft);
+      border: ${border};
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      padding: 3px;
+      flex-shrink: 0;
+      box-shadow: ${isLuxury ? "0 2px 8px rgba(0,0,0,0.04)" : "none"};
     }
-    .company-logo-img { width: 100%; height: 100%; object-fit: contain; }
-    .company-title-group h1 { font-size: 20px; font-weight: 800; color: var(--print-ink); margin: 0; }
-    .company-title-group .brand-sub { color: var(--print-accent); font-size: 10px; font-weight: 700; }
+    .company-logo-img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
+    .company-title-group h1 {
+      font-size: ${companyTitleSize};
+      font-weight: 800;
+      color: var(--print-ink);
+      margin: 0;
+      line-height: 1.25;
+      letter-spacing: -0.2px;
+    }
+    .company-title-group .brand-sub {
+      color: var(--print-accent);
+      font-size: ${isA5 ? "8.5px" : "10px"};
+      font-weight: 700;
+      letter-spacing: 0.3px;
+    }
     .company-contacts {
-      display: flex; flex-direction: column; gap: 4px;
-      font-size: 10.5px; color: var(--print-muted);
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      font-size: ${isA5 ? "9.5px" : "10.5px"};
+      color: var(--print-muted);
       text-align: ${rtl ? "left" : "right"};
+      flex-shrink: 0;
     }
-    .contact-item { display: flex; align-items: center; gap: 6px; }
-    .contact-item svg { color: var(--print-accent); flex-shrink: 0; }
+    .contact-item {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      justify-content: ${rtl ? "flex-end" : "flex-start"};
+    }
+    .contact-item svg {
+      color: var(--print-accent);
+      flex-shrink: 0;
+    }
     .invoice-title-banner {
-      margin: 12px 0 16px; background: var(--print-accent-soft);
-      border: ${border}; border-radius: var(--print-radius);
-      padding: 12px 18px;
-      display: flex; align-items: center; justify-content: space-between; gap: 10px;
+      margin: ${isA5 ? "8px 0 10px" : "12px 0 14px"};
+      background: ${bannerBackground};
+      border: ${border};
+      border-radius: var(--print-radius);
+      padding: ${bannerPadding};
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      break-inside: avoid;
+      box-shadow: ${isLuxury ? "0 2px 10px rgba(0,0,0,0.03)" : "none"};
     }
     .inv-heading-title {
-      font-size: 20px; font-weight: 900; color: var(--print-ink); margin: 0;
-      display: flex; align-items: center; gap: 8px;
+      font-size: ${invTitleSize};
+      font-weight: 900;
+      color: var(--print-ink);
+      margin: 0;
+      display: flex;
+      align-items: center;
+      gap: 7px;
+    }
+    .inv-heading-title svg {
+      color: var(--print-accent);
+      flex-shrink: 0;
     }
     .inv-number-badge {
-      background: var(--print-accent); color: #fff;
+      background: var(--print-accent);
+      color: #fff;
       font-family: ui-monospace, 'Courier New', monospace;
-      font-weight: 800; font-size: 13.5px; padding: 5px 14px; border-radius: 20px;
+      font-weight: 800;
+      font-size: ${badgeFontSize};
+      padding: ${badgePadding};
+      border-radius: 20px;
+      display: inline-block;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.12);
+      letter-spacing: 0.5px;
     }
-    .inv-date-tag { display: flex; align-items: center; gap: 6px; font-size: 11.5px; color: var(--print-muted); font-weight: 700; }
-    .cards-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 16px; }
+    .inv-date-tag {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-size: ${isA5 ? "10px" : "11.5px"};
+      color: var(--print-muted);
+      font-weight: 700;
+    }
+    .cards-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: ${isA5 ? "6px" : "9px"};
+      margin-bottom: ${isA5 ? "10px" : "14px"};
+      break-inside: avoid;
+    }
     .info-card {
-      background: var(--print-surface); border: ${border};
-      border-radius: var(--print-radius); padding: 10px 12px;
-      display: flex; align-items: flex-start; gap: 10px;
+      background: var(--print-surface);
+      border: ${border};
+      border-radius: var(--print-radius);
+      padding: ${cardPadding};
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      min-width: 0;
+      box-shadow: ${isLuxury ? "0 1px 4px rgba(0,0,0,0.02)" : "none"};
     }
     .card-icon-circle {
-      width: 32px; height: 32px; border-radius: var(--print-radius);
-      background: var(--print-accent-soft); color: var(--print-accent);
-      display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+      width: ${cardIconSize};
+      height: ${cardIconSize};
+      border-radius: var(--print-radius);
+      background: var(--print-accent-soft);
+      color: var(--print-accent);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
     }
-    .card-body-content { flex: 1; min-width: 0; }
-    .card-label { font-size: 9.5px; font-weight: 800; color: var(--print-accent); margin-bottom: 2px; }
-    .card-value { font-size: 12.5px; font-weight: 800; color: var(--print-ink); overflow: hidden; text-overflow: ellipsis; }
-    .card-subtext { font-size: 10px; color: var(--print-muted); margin-top: 2px; }
-    .table-container { border: ${border}; border-radius: var(--print-radius); overflow: hidden; margin-bottom: 16px; background: #fff; }
-    table.items-table { width: 100%; border-collapse: collapse; }
-    table.items-table thead tr { background: var(--print-accent); color: #fff; }
-    table.items-table thead th { padding: 10px 12px; font-size: 11px; font-weight: 800; border: none; }
-    .col-num { width: 40px; text-align: center; }
+    .card-body-content {
+      flex: 1;
+      min-width: 0;
+    }
+    .card-label {
+      font-size: ${cardLabelSize};
+      font-weight: 800;
+      color: var(--print-accent);
+      margin-bottom: 2px;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+    .card-value {
+      font-size: ${cardValueSize};
+      font-weight: 800;
+      color: var(--print-ink);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .card-subtext {
+      font-size: ${isA5 ? "8.5px" : "9.5px"};
+      color: var(--print-muted);
+      margin-top: 2px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .table-container {
+      border: ${border};
+      border-radius: var(--print-radius);
+      overflow: hidden;
+      margin-bottom: ${isA5 ? "10px" : "14px"};
+      background: #fff;
+    }
+    table.items-table {
+      width: 100%;
+      border-collapse: collapse;
+      table-layout: auto;
+    }
+    table.items-table thead {
+      display: table-header-group;
+    }
+    table.items-table thead tr {
+      background: ${tableHeaderBg};
+      color: #fff;
+    }
+    table.items-table thead th {
+      padding: ${tableThPadding};
+      font-size: ${isA5 ? "9.5px" : "11px"};
+      font-weight: 800;
+      border: none;
+      letter-spacing: 0.2px;
+    }
+    .col-num { width: 34px; text-align: center; }
     .col-desc { text-align: ${rtl ? "right" : "left"}; }
-    .col-qty { width: 85px; text-align: center; }
-    .col-price { width: 110px; text-align: ${rtl ? "left" : "right"}; }
-    .col-total { width: 120px; text-align: ${rtl ? "left" : "right"}; font-weight: 800; }
-    table.items-table tbody td { padding: 9px 12px; border-bottom: 1px solid var(--print-line); font-size: 11.5px; vertical-align: middle; }
-    table.items-table tbody tr:nth-child(even) { background: var(--print-surface); }
-    table.items-table tbody tr { break-inside: avoid; }
-    .p-title { font-weight: 700; color: var(--print-ink); }
-    .p-code { font-size: 9.5px; color: var(--print-muted); margin-top: 1px; }
-    .bottom-grid { display: grid; grid-template-columns: 1fr 310px; gap: 14px; margin-bottom: 16px; align-items: start; }
-    .notes-card { background: var(--print-surface); border: ${border}; border-radius: var(--print-radius); padding: 12px 14px; height: 100%; }
+    .col-qty { width: 75px; text-align: center; }
+    .col-price { width: 95px; text-align: ${rtl ? "left" : "right"}; }
+    .col-total { width: 105px; text-align: ${rtl ? "left" : "right"}; font-weight: 800; }
+    table.items-table tbody tr {
+      break-inside: avoid;
+      page-break-inside: avoid;
+    }
+    table.items-table tbody td {
+      padding: ${tableTdPadding};
+      border-bottom: 1px solid var(--print-line);
+      font-size: ${isA5 ? "10px" : "11.5px"};
+      vertical-align: middle;
+    }
+    table.items-table tbody tr:nth-child(even) {
+      background: var(--print-surface);
+    }
+    .p-title {
+      font-weight: 700;
+      color: var(--print-ink);
+      line-height: 1.35;
+    }
+    .p-code {
+      font-size: ${isA5 ? "8px" : "9px"};
+      color: var(--print-muted);
+      font-family: ui-monospace, 'Courier New', monospace;
+      margin-top: 1px;
+    }
+    .bottom-grid {
+      display: grid;
+      grid-template-columns: 1fr ${isA5 ? "240px" : "290px"};
+      gap: ${isA5 ? "10px" : "14px"};
+      margin-bottom: ${isA5 ? "10px" : "14px"};
+      align-items: start;
+      break-inside: avoid;
+    }
+    .notes-card {
+      background: var(--print-surface);
+      border: ${border};
+      border-radius: var(--print-radius);
+      padding: ${notesPadding};
+      height: 100%;
+    }
     .tafqeet-banner {
-      background: var(--print-accent-soft); border: ${border};
-      border-radius: var(--print-radius); padding: 8px 12px; margin-bottom: 10px;
-      font-size: 11px; font-weight: 700; color: var(--print-accent);
-      display: flex; align-items: center; gap: 6px;
+      background: var(--print-accent-soft);
+      border: ${border};
+      border-radius: var(--print-radius);
+      padding: ${isA5 ? "6px 9px" : "8px 11px"};
+      margin-bottom: 8px;
+      font-size: ${isA5 ? "9.5px" : "11px"};
+      font-weight: 700;
+      color: var(--print-accent);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      line-height: 1.35;
     }
-    .notes-header-title { font-size: 11px; font-weight: 800; color: var(--print-accent); display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
-    .notes-body-text { font-size: 11px; color: var(--print-muted); line-height: 1.6; white-space: pre-line; }
-    .totals-card { background: var(--print-surface); border: ${border}; border-radius: var(--print-radius); padding: 12px 16px; display: flex; flex-direction: column; gap: 6px; }
-    .totals-row { display: flex; justify-content: space-between; align-items: center; font-size: 11.5px; color: var(--print-ink); padding: 3px 0; }
-    .totals-row.discount-row { color: #b91c1c; }
+    .notes-header-title {
+      font-size: ${isA5 ? "9.5px" : "11px"};
+      font-weight: 800;
+      color: var(--print-accent);
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      margin-bottom: 5px;
+    }
+    .notes-body-text {
+      font-size: ${isA5 ? "9.5px" : "10.5px"};
+      color: var(--print-muted);
+      line-height: 1.5;
+      white-space: pre-line;
+    }
+    .totals-card {
+      background: var(--print-surface);
+      border: ${border};
+      border-radius: var(--print-radius);
+      padding: ${totalsPadding};
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      box-shadow: ${isLuxury ? "0 2px 8px rgba(0,0,0,0.03)" : "none"};
+    }
+    .totals-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: ${isA5 ? "10px" : "11.5px"};
+      color: var(--print-ink);
+      padding: 2.5px 0;
+    }
+    .totals-row.discount-row {
+      color: #b91c1c;
+      font-weight: 700;
+    }
     .grand-total-banner {
-      background: var(--print-accent); color: #fff;
-      border-radius: var(--print-radius); padding: 10px 14px;
-      display: flex; justify-content: space-between; align-items: center; margin-top: 4px;
+      background: ${grandTotalBg};
+      color: #fff;
+      border-radius: var(--print-radius);
+      padding: ${grandTotalPadding};
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 4px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
     }
-    .grand-total-banner .gt-label { font-size: 13px; font-weight: 900; }
-    .grand-total-banner .gt-amount { font-size: 16px; font-weight: 900; font-family: system-ui, sans-serif; }
-    .signatures-row { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin: 10px 0 12px; padding: 0 30px; }
-    .sig-box { text-align: center; }
-    .sig-graphic { height: 38px; display: flex; align-items: center; justify-content: center; color: var(--print-accent); opacity: 0.85; }
-    .sig-title-line { border-top: 1.5px dashed var(--print-accent); padding-top: 6px; font-size: 11px; font-weight: 800; color: var(--print-ink); }
-    .doc-footer { margin-top: auto; }
+    .grand-total-banner .gt-label {
+      font-size: ${isA5 ? "11px" : "13px"};
+      font-weight: 900;
+    }
+    .grand-total-banner .gt-amount {
+      font-size: ${grandTotalAmountSize};
+      font-weight: 900;
+      font-family: system-ui, -apple-system, sans-serif;
+    }
+    .signatures-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: ${isA5 ? "20px" : "36px"};
+      margin: ${isA5 ? "6px 0 10px" : "10px 0 14px"};
+      padding: 0 16px;
+      break-inside: avoid;
+    }
+    .sig-box {
+      text-align: center;
+    }
+    .sig-graphic {
+      height: ${isA5 ? "28px" : "36px"};
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--print-accent);
+      opacity: 0.85;
+    }
+    .sig-title-line {
+      border-top: 1.5px dashed var(--print-accent);
+      padding-top: 5px;
+      font-size: ${isA5 ? "9.5px" : "11px"};
+      font-weight: 800;
+      color: var(--print-ink);
+    }
+    .doc-footer {
+      margin-top: auto;
+      break-inside: avoid;
+    }
     @media screen {
-      .page-container { box-shadow: 0 12px 40px rgba(0,0,0,0.1); border-radius: 8px; margin: 20px auto; }
+      .page-container {
+        box-shadow: 0 8px 30px rgba(0,0,0,0.08);
+        border-radius: 8px;
+        margin: 12px auto;
+        border: 1px solid var(--print-line);
+      }
     }
     @media print {
-      body { background: #fff; }
-      .page-container { box-shadow: none; padding: 10mm 12mm; width: 100%; min-height: 100vh; }
-      tr, .info-card, .totals-card, .notes-card, .sig-box { break-inside: avoid; }
+      body {
+        background: #fff;
+      }
+      .page-container {
+        box-shadow: none;
+        padding: 0;
+        margin: 0;
+        width: 100%;
+        min-height: auto;
+      }
+      tr, .info-card, .totals-card, .notes-card, .sig-box, header, .invoice-title-banner, .doc-footer {
+        break-inside: avoid;
+        page-break-inside: avoid;
+      }
     }
     ${UNIVERSAL_FOOTER_CSS}
   `;
@@ -212,8 +530,9 @@ export function renderUnifiedLayout(
     `Total: ${doc.total || 0} ${c}`,
   ].join("\n");
 
-  const barcodeSvg = (opts.showBarcode !== false && doc.number) ? generateBarcodeSvg(doc.number, 32) : "";
-  const qrSvg = (opts.showQrCode !== false) ? generateQrCodeSvg(qrPayload, 80) : "";
+  const barcodeSvg =
+    opts.showBarcode !== false && doc.number ? generateBarcodeSvg(doc.number, 32) : "";
+  const qrSvg = opts.showQrCode !== false ? generateQrCodeSvg(qrPayload, 80) : "";
 
   // Company Profile is the single source of company data — never a constant.
   // The document may carry a snapshot, but the profile is authoritative when
@@ -242,6 +561,8 @@ export function renderUnifiedLayout(
     .join("");
 
   const numColumns = 5;
+  const isA5 = options?.paperProfileId === "a5";
+  const customAccent = options?.accentColor ?? doc.options?.accentColor ?? null;
 
   return `<!doctype html>
 <html dir="${rtl ? "rtl" : "ltr"}" lang="${rtl ? "ar" : "en"}">
@@ -251,7 +572,7 @@ export function renderUnifiedLayout(
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&family=Tajawal:wght@500;700;800&display=swap" rel="stylesheet">
-  <style>${themeCss(theme, rtl)}</style>
+  <style>${themeCss(theme, rtl, customAccent, isA5)}</style>
 </head>
 <body>
 

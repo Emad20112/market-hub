@@ -21,6 +21,8 @@ export const DEFAULT_PRINT_SETTINGS: PrintSettings = {
   showFooter: true,
   showBarcode: true,
   showQrCode: true,
+  standardAccentColor: undefined,
+  luxuryAccentColor: undefined,
 };
 
 const STORAGE_KEY = "vortex_print_settings";
