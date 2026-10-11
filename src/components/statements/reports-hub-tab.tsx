@@ -8,13 +8,23 @@ import {
   CreditCard,
   AlertTriangle,
   Search,
-  Filter,
+  ShoppingCart,
+  FileClock,
+  FileCheck2,
+  BarChart3,
+  Boxes,
+  FileInput,
+  FileOutput,
+  PackageSearch,
   ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
+  ChevronsUpDown,
   RefreshCw,
+  Layers,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { money } from "@/lib/format";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
   TableBody,
@@ -27,6 +37,16 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Ltr } from "@/components/ltr-value";
+import { SearchInput } from "@/components/ui/search-input";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { exportToCSV, type ExportColumn } from "@/lib/excel-export";
 import { printReportDocument, type PrintSection } from "@/lib/print/report-print";
 import {
@@ -45,11 +65,23 @@ import {
 } from "@/lib/reports/reports-export";
 import { cn } from "@/lib/utils";
 
-export type ReportSubSection = "top" | "sales" | "payments" | "low";
+export type ReportCategory =
+  | "top"
+  | "sales"
+  | "payments"
+  | "low"
+  | "purchases"
+  | "debts"
+  | "sales-invoices"
+  | "profit-sales"
+  | "inventory-movements"
+  | "returns"
+  | "expenses"
+  | "product";
 
 interface ReportsHubTabProps {
   ar: boolean;
-  initialSubSection?: ReportSubSection;
+  initialReport?: ReportCategory;
 }
 
 function defaultRange() {
@@ -62,21 +94,40 @@ function defaultRange() {
   };
 }
 
-export function ReportsHubTab({ ar, initialSubSection = "top" }: ReportsHubTabProps) {
-  const [subSection, setSubSection] = useState<ReportSubSection>(initialSubSection);
+export function ReportsHubTab({ ar, initialReport = "top" }: ReportsHubTabProps) {
+  const [selectedReport, setSelectedReport] = useState<ReportCategory>(initialReport);
   const [range, setRange] = useState(defaultRange());
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
 
-  const [sales, setSales] = useState<any[]>([]);
-  const [purchases, setPurchases] = useState<any[]>([]);
+  // Data states
   const [topProducts, setTopProducts] = useState<any[]>([]);
-  const [lowStock, setLowStock] = useState<any[]>([]);
+  const [sales, setSales] = useState<any[]>([]);
   const [byMethod, setByMethod] = useState<Record<string, number>>({});
+  const [lowStock, setLowStock] = useState<any[]>([]);
+  const [purchases, setPurchases] = useState<any[]>([]);
+  const [debts, setDebts] = useState<any[]>([]);
+  const [movements, setMovements] = useState<any[]>([]);
+  const [returnsList, setReturnsList] = useState<any[]>([]);
+  const [expensesList, setExpensesList] = useState<any[]>([]);
+  const [productsList, setProductsList] = useState<any[]>([]);
+  const [profitData, setProfitData] = useState<{
+    salesTotal: number;
+    costTotal: number;
+    grossProfit: number;
+    marginPct: number;
+    itemsCount: number;
+  }>({
+    salesTotal: 0,
+    costTotal: 0,
+    grossProfit: 0,
+    marginPct: 0,
+    itemsCount: 0,
+  });
 
-  // Sort state
+  // Table sorting state
   const [sortField, setSortField] = useState<string>("default");
-  const [sortAsc, setSortAsc] = useState<boolean>(false);
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
 
   async function loadData() {
     setLoading(true);
@@ -84,68 +135,208 @@ export function ReportsHubTab({ ar, initialSubSection = "top" }: ReportsHubTabPr
     const toTs = `${range.to}T23:59:59`;
 
     try {
-      const [salesRes, purchRes, itemsRes, prodRes, invRes] = await Promise.all([
-        supabase
-          .from("sales_invoices")
-          .select("id,invoice_number,total,paid,payment_method,status,created_at,customer_id,customers(name)")
-          .gte("created_at", fromTs)
-          .lte("created_at", toTs)
-          .order("created_at", { ascending: false }),
-        supabase
+      if (["top", "sales", "payments", "profit-sales", "sales-invoices"].includes(selectedReport)) {
+        const [salesRes, itemsRes, prodRes] = await Promise.all([
+          supabase
+            .from("sales_invoices")
+            .select("id,invoice_number,total,paid,payment_method,status,created_at,customer_id,customers(name),warehouses(name,name_ar)")
+            .gte("created_at", fromTs)
+            .lte("created_at", toTs)
+            .order("created_at", { ascending: false }),
+          supabase
+            .from("sales_invoice_items")
+            .select("product_id,quantity,total,cost_price,invoice_id,sales_invoices!inner(created_at)")
+            .gte("sales_invoices.created_at", fromTs)
+            .lte("sales_invoices.created_at", toTs),
+          supabase
+            .from("products")
+            .select("id,name,name_ar,min_stock,sale_price,sku,barcode,cost_price")
+            .eq("inventory_policy" as never, "TRACKED" as never),
+        ]);
+
+        const salesData = salesRes.data ?? [];
+        setSales(salesData);
+
+        // Aggregate top products & profit data
+        const map = new Map<string, { qty: number; total: number; cost: number }>();
+        let totalCost = 0;
+        let totalRevenue = 0;
+
+        (itemsRes.data ?? []).forEach((it: any) => {
+          const cur = map.get(it.product_id) ?? { qty: 0, total: 0, cost: 0 };
+          const qty = Number(it.quantity || 0);
+          const lineTotal = Number(it.total || 0);
+          const lineCost = Number(it.cost_price || 0) * qty;
+
+          cur.qty += qty;
+          cur.total += lineTotal;
+          cur.cost += lineCost;
+          map.set(it.product_id, cur);
+
+          totalRevenue += lineTotal;
+          totalCost += lineCost;
+        });
+
+        const prodMap = new Map((prodRes.data ?? []).map((p: any) => [p.id, p]));
+        const tops = Array.from(map.entries())
+          .map(([pid, v]) => ({ ...v, product: prodMap.get(pid) }))
+          .sort((a, b) => b.total - a.total);
+        setTopProducts(tops);
+
+        const gross = totalRevenue - totalCost;
+        const margin = totalRevenue > 0 ? (gross / totalRevenue) * 100 : 0;
+        setProfitData({
+          salesTotal: totalRevenue,
+          costTotal: totalCost,
+          grossProfit: gross,
+          marginPct: margin,
+          itemsCount: itemsRes.data?.length ?? 0,
+        });
+
+        // Payment method distribution
+        const methods: Record<string, number> = {};
+        salesData.forEach((s: any) => {
+          const m = s.payment_method || "cash";
+          methods[m] = (methods[m] ?? 0) + Number(s.paid ?? s.total ?? 0);
+        });
+        setByMethod(methods);
+      }
+
+      if (["purchases"].includes(selectedReport)) {
+        const purchRes = await supabase
           .from("purchase_invoices")
-          .select("id,invoice_number,total,paid,status,created_at,supplier_id")
+          .select("id,invoice_number,subtotal,discount,tax,total,paid,payment_method,status,created_at,supplier_id,suppliers(name),warehouses(name,name_ar)")
           .gte("created_at", fromTs)
           .lte("created_at", toTs)
-          .order("created_at", { ascending: false }),
-        supabase
-          .from("sales_invoice_items")
-          .select("product_id,quantity,total,invoice_id,sales_invoices!inner(created_at)")
-          .gte("sales_invoices.created_at", fromTs)
-          .lte("sales_invoices.created_at", toTs),
-        supabase
-          .from("products")
-          .select("id,name,name_ar,min_stock,sale_price,sku,barcode")
-          .eq("inventory_policy" as never, "TRACKED" as never),
-        supabase.from("company_stock_positions" as never).select("item_id,quantity"),
-      ]);
+          .order("created_at", { ascending: false });
+        setPurchases(purchRes.data ?? []);
+      }
 
-      setSales(salesRes.data ?? []);
-      setPurchases(purchRes.data ?? []);
+      if (["low", "product"].includes(selectedReport)) {
+        const [prodRes, invRes] = await Promise.all([
+          supabase
+            .from("products")
+            .select("id,name,name_ar,min_stock,sale_price,cost_price,sku,barcode,unit")
+            .eq("inventory_policy" as never, "TRACKED" as never)
+            .order("name"),
+          supabase.from("company_stock_positions" as never).select("item_id,quantity"),
+        ]);
 
-      // Aggregate top products
-      const map = new Map<string, { qty: number; total: number }>();
-      (itemsRes.data ?? []).forEach((it: any) => {
-        const cur = map.get(it.product_id) ?? { qty: 0, total: 0 };
-        cur.qty += Number(it.quantity);
-        cur.total += Number(it.total);
-        map.set(it.product_id, cur);
-      });
-      const prodMap = new Map((prodRes.data ?? []).map((p: any) => [p.id, p]));
-      const tops = Array.from(map.entries())
-        .map(([pid, v]) => ({ ...v, product: prodMap.get(pid) }))
-        .sort((a, b) => b.total - a.total);
-      setTopProducts(tops);
+        const stockMap = new Map<string, number>();
+        (invRes.data ?? []).forEach((i: { item_id: string; quantity: number }) => {
+          stockMap.set(i.item_id, (stockMap.get(i.item_id) ?? 0) + Number(i.quantity));
+        });
 
-      // Payment method split
-      const methods: Record<string, number> = {};
-      (salesRes.data ?? []).forEach((s: any) => {
-        const m = s.payment_method || "cash";
-        methods[m] = (methods[m] ?? 0) + Number(s.paid ?? s.total ?? 0);
-      });
-      setByMethod(methods);
+        const withStock = (prodRes.data ?? []).map((p: any) => ({
+          ...p,
+          stock: stockMap.get(p.id) ?? 0,
+        }));
+        setProductsList(withStock);
 
-      // Low stock
-      const stockMap = new Map<string, number>();
-      (invRes.data ?? []).forEach((i: { item_id: string; quantity: number }) => {
-        stockMap.set(i.item_id, (stockMap.get(i.item_id) ?? 0) + Number(i.quantity));
-      });
-      const low = (prodRes.data ?? [])
-        .map((p: any) => ({ ...p, stock: stockMap.get(p.id) ?? 0 }))
-        .filter((p: any) => p.stock <= Number(p.min_stock ?? 0))
-        .sort((a: any, b: any) => a.stock - b.stock);
-      setLowStock(low);
+        const low = withStock
+          .filter((p: any) => p.stock <= Number(p.min_stock ?? 0))
+          .sort((a: any, b: any) => a.stock - b.stock);
+        setLowStock(low);
+      }
+
+      if (["debts"].includes(selectedReport)) {
+        const [custRes, suppRes] = await Promise.all([
+          supabase
+            .from("customers")
+            .select("id,name,phone,balance,credit_limit,updated_at")
+            .neq("balance", 0)
+            .order("balance", { ascending: false }),
+          supabase
+            .from("suppliers")
+            .select("id,name,phone,balance,updated_at")
+            .neq("balance", 0)
+            .order("balance", { ascending: false }),
+        ]);
+
+        const custDebts = (custRes.data ?? []).map((c: any) => ({
+          id: `c-${c.id}`,
+          partyName: c.name,
+          phone: c.phone,
+          kind: "customer",
+          balance: Number(c.balance || 0),
+          creditLimit: c.credit_limit,
+          updatedAt: c.updated_at,
+        }));
+
+        const suppDebts = (suppRes.data ?? []).map((s: any) => ({
+          id: `s-${s.id}`,
+          partyName: s.name,
+          phone: s.phone,
+          kind: "supplier",
+          balance: Number(s.balance || 0),
+          creditLimit: null,
+          updatedAt: s.updated_at,
+        }));
+
+        setDebts([...custDebts, ...suppDebts]);
+      }
+
+      if (["inventory-movements"].includes(selectedReport)) {
+        const movementsRes = await supabase
+          .from("stock_movements")
+          .select("id,reference,movement_type,quantity,unit_cost,total_cost,created_at,products(name,name_ar,sku),warehouses(name,name_ar)")
+          .gte("created_at", fromTs)
+          .lte("created_at", toTs)
+          .order("created_at", { ascending: false })
+          .limit(200);
+        setMovements(movementsRes.data ?? []);
+      }
+
+      if (["returns"].includes(selectedReport)) {
+        const [salesRet, purchRet] = await Promise.all([
+          supabase
+            .from("sales_returns")
+            .select("id,return_number,total,status,reason,created_at,customers(name)")
+            .gte("created_at", fromTs)
+            .lte("created_at", toTs)
+            .order("created_at", { ascending: false }),
+          supabase
+            .from("purchase_returns")
+            .select("id,return_number,total,status,reason,created_at,suppliers(name)")
+            .gte("created_at", fromTs)
+            .lte("created_at", toTs)
+            .order("created_at", { ascending: false }),
+        ]);
+
+        const formatted = [
+          ...(salesRet.data ?? []).map((r: any) => ({
+            ...r,
+            type: "sales",
+            party: r.customers?.name || (ar ? "عميل نقدي" : "Cash"),
+          })),
+          ...(purchRet.data ?? []).map((r: any) => ({
+            ...r,
+            type: "purchase",
+            party: r.suppliers?.name || (ar ? "مورد" : "Supplier"),
+          })),
+        ].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
+        setReturnsList(formatted);
+      }
+
+      if (["expenses"].includes(selectedReport)) {
+        const expRes = await (supabase as any)
+          .from("expense_entries")
+          .select("id,reference,expense_date,total_amount,status,description,note,expense_lines(category_id,expense_categories(name,name_ar))")
+          .gte("expense_date", range.from)
+          .lte("expense_date", range.to)
+          .order("expense_date", { ascending: false });
+
+        const mapped = ((expRes.data ?? []) as any[]).map((e) => ({
+          ...e,
+          categoryName: ar
+            ? e.expense_lines?.[0]?.expense_categories?.name_ar || e.expense_lines?.[0]?.expense_categories?.name || "عام"
+            : e.expense_lines?.[0]?.expense_categories?.name || "General",
+        }));
+        setExpensesList(mapped);
+      }
     } catch (e) {
-      console.error("Error loading reports data:", e);
+      console.error("Error loading report data:", e);
     } finally {
       setLoading(false);
     }
@@ -153,159 +344,25 @@ export function ReportsHubTab({ ar, initialSubSection = "top" }: ReportsHubTabPr
 
   useEffect(() => {
     loadData();
-  }, [range.from, range.to]);
-
-  const salesTotal = sales.reduce((a, r) => a + Number(r.total || 0), 0);
-  const salesPaid = sales.reduce((a, r) => a + Number(r.paid || 0), 0);
-  const purchasesTotal = purchases.reduce((a, r) => a + Number(r.total || 0), 0);
-  const netPurchasing = salesTotal - purchasesTotal;
+  }, [selectedReport, range.from, range.to]);
 
   function productName(p: any) {
     return ar ? p?.name_ar ?? p?.name ?? "" : p?.name ?? "";
   }
 
-  // Pre-formatted data for export
-  const topRowsData = useMemo(() => {
-    return topProducts.map((tp) => ({
-      name: productName(tp.product),
-      qty: tp.qty,
-      total: tp.total,
-    }));
-  }, [topProducts, ar]);
-
-  const salesRowsData = useMemo(() => {
-    return sales.map((s) => ({
-      invoiceNumber: s.invoice_number,
-      customerName: s.customers?.name || (ar ? "عميل نقدي" : "Cash"),
-      date: s.created_at,
-      status: s.status,
-      paymentMethod: s.payment_method,
-      total: Number(s.total),
-      paid: Number(s.paid),
-    }));
-  }, [sales, ar]);
-
-  const totalPayments = Object.values(byMethod).reduce((a, b) => a + b, 0);
-  const paymentRowsData = useMemo(() => {
-    return Object.entries(byMethod)
-      .map(([method, amount]) => ({
-        method,
-        amount,
-        pct: totalPayments > 0 ? (amount / totalPayments) * 100 : 0,
-      }))
-      .sort((a, b) => b.amount - a.amount);
-  }, [byMethod, totalPayments]);
-
-  const lowRowsData = useMemo(() => {
-    return lowStock.map((p) => ({
-      name: productName(p),
-      stock: p.stock,
-      min: Number(p.min_stock ?? 0),
-      salePrice: Number(p.sale_price ?? 0),
-    }));
-  }, [lowStock, ar]);
-
-  // Filtered views based on searchQuery
-  const filteredTopProducts = useMemo(() => {
-    let list = topProducts;
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
-      list = list.filter((tp) => {
-        const name = (tp.product?.name || "").toLowerCase();
-        const nameAr = (tp.product?.name_ar || "").toLowerCase();
-        const barcode = (tp.product?.barcode || "").toLowerCase();
-        return name.includes(q) || nameAr.includes(q) || barcode.includes(q);
-      });
+  // Sorting handler
+  const handleSort = (field: string) => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === "asc" ? "desc" : "asc");
+    } else {
+      setSortField(field);
+      setSortDirection("desc");
     }
-    if (sortField === "qty") {
-      list = [...list].sort((a, b) => (sortAsc ? a.qty - b.qty : b.qty - a.qty));
-    } else if (sortField === "total") {
-      list = [...list].sort((a, b) => (sortAsc ? a.total - b.total : b.total - a.total));
-    }
-    return list;
-  }, [topProducts, searchQuery, sortField, sortAsc]);
-
-  const filteredSales = useMemo(() => {
-    let list = sales;
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
-      list = list.filter((s) => {
-        const inv = (s.invoice_number || "").toLowerCase();
-        const cust = (s.customers?.name || "").toLowerCase();
-        return inv.includes(q) || cust.includes(q);
-      });
-    }
-    if (sortField === "total") {
-      list = [...list].sort((a, b) => (sortAsc ? a.total - b.total : b.total - a.total));
-    } else if (sortField === "date") {
-      list = [...list].sort((a, b) => {
-        const d1 = new Date(a.created_at).getTime();
-        const d2 = new Date(b.created_at).getTime();
-        return sortAsc ? d1 - d2 : d2 - d1;
-      });
-    }
-    return list;
-  }, [sales, searchQuery, sortField, sortAsc]);
-
-  const filteredLowStock = useMemo(() => {
-    let list = lowStock;
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
-      list = list.filter((p) => {
-        const name = (p.name || "").toLowerCase();
-        const nameAr = (p.name_ar || "").toLowerCase();
-        const barcode = (p.barcode || "").toLowerCase();
-        return name.includes(q) || nameAr.includes(q) || barcode.includes(q);
-      });
-    }
-    if (sortField === "stock") {
-      list = [...list].sort((a, b) => (sortAsc ? a.stock - b.stock : b.stock - a.stock));
-    } else if (sortField === "min") {
-      list = [...list].sort((a, b) =>
-        sortAsc ? a.min_stock - b.min_stock : b.min_stock - a.min_stock,
-      );
-    }
-    return list;
-  }, [lowStock, searchQuery, sortField, sortAsc]);
+  };
 
   const periodLabel = `${range.from} → ${range.to}`;
 
-  function exportSection(
-    name: string,
-    columns: ExportColumn[],
-    rows: Record<string, string | number | null | undefined>[],
-  ) {
-    if (rows.length === 0) return;
-    exportToCSV({
-      filename: `report_${name}_${range.from}_${range.to}`,
-      title: `${ar ? "تقرير" : "Report"} — ${periodLabel}`,
-      columns,
-      rows,
-      rtl: ar,
-    });
-  }
-
-  function printSection(section: PrintSection) {
-    printReportDocument({
-      lang: ar ? "ar" : "en",
-      title: ar ? "مركز التقارير" : "Reports Center",
-      subtitle: ar ? "تحليلات الأداء، الأكثر مبيعاً، التدفق والمخزون" : "Performance Analytics",
-      period: periodLabel,
-      generatedAt: new Date().toLocaleString(),
-      kpis: [
-        { label: ar ? "إجمالي المبيعات" : "Total sales", value: money(salesTotal) },
-        { label: ar ? "المحصّل" : "Collected", value: money(salesPaid) },
-        { label: ar ? "تكلفة المشتريات" : "Purchase cost", value: money(purchasesTotal) },
-        {
-          label: ar ? "صافي المقارنة" : "Sales less purchases",
-          value: money(netPurchasing),
-          tone: netPurchasing >= 0 ? "pos" : "neg",
-        },
-      ],
-      sections: [section],
-    });
-  }
-
+  // Date range presets
   const handlePreset = (days: number | "month" | "year") => {
     const to = new Date();
     const from = new Date();
@@ -322,104 +379,134 @@ export function ReportsHubTab({ ar, initialSubSection = "top" }: ReportsHubTabPr
     });
   };
 
-  const toggleSort = (field: string) => {
-    if (sortField === field) {
-      setSortAsc(!sortAsc);
-    } else {
-      setSortField(field);
-      setSortAsc(false);
-    }
-  };
+  // Generic CSV Export
+  function exportCsvData(filename: string, title: string, columns: ExportColumn[], rows: any[]) {
+    if (rows.length === 0) return;
+    exportToCSV({
+      filename: `${filename}_${range.from}_${range.to}`,
+      title: `${title} — ${periodLabel}`,
+      columns,
+      rows,
+      rtl: ar,
+    });
+  }
 
   return (
     <div className="space-y-4">
-      {/* ─── Compact Controls Deck: Sub-navigation, Date Presets, and Filters ─── */}
+      {/* ═══ Header Bar: Selector Dropdown + Range Presets + Refresh ═══ */}
       <div className="panel-elevated p-3.5 flex flex-wrap items-center justify-between gap-3">
-        {/* Navigation Selector for Reports */}
-        <div className="flex flex-wrap items-center gap-1.5 p-1 rounded-xl bg-surface-2 border border-border/70">
-          <button
-            type="button"
-            onClick={() => {
-              setSubSection("top");
+        {/* Dropdown Selector for All Reports */}
+        <div className="flex flex-wrap items-center gap-2">
+          <Select
+            value={selectedReport}
+            onValueChange={(val) => {
+              setSelectedReport(val as ReportCategory);
               setSortField("default");
             }}
-            className={cn(
-              "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all",
-              subSection === "top"
-                ? "bg-surface text-primary shadow-sm font-semibold"
-                : "text-muted-foreground hover:text-foreground hover:bg-surface/50",
-            )}
           >
-            <TrendingUp className="h-3.5 w-3.5 text-primary" />
-            <span>{ar ? "الأكثر مبيعاً" : "Top selling"}</span>
-            <span className="rounded-full bg-primary/10 px-1.5 text-[10px] text-primary">
-              {topProducts.length}
-            </span>
-          </button>
+            <SelectTrigger className="h-9 w-60 sm:w-72 text-xs font-semibold bg-surface rounded-xl border-border/80 shadow-sm">
+              <div className="flex items-center gap-2 truncate">
+                <Layers className="h-4 w-4 text-primary shrink-0" />
+                <SelectValue placeholder={ar ? "اختر التقرير..." : "Select report..."} />
+              </div>
+            </SelectTrigger>
+            <SelectContent className="max-h-[380px]">
+              <SelectGroup>
+                <SelectLabel className="text-[11px] font-bold text-muted-foreground px-2 py-1">
+                  {ar ? "📊 تقارير التحليلات والأداء" : "📊 Performance & Analytics"}
+                </SelectLabel>
+                <SelectItem value="top">
+                  <div className="flex items-center gap-2">
+                    <TrendingUp className="h-3.5 w-3.5 text-primary" />
+                    <span>{ar ? "الأكثر مبيعاً" : "Top Selling Products"}</span>
+                  </div>
+                </SelectItem>
+                <SelectItem value="sales">
+                  <div className="flex items-center gap-2">
+                    <Receipt className="h-3.5 w-3.5 text-blue-500" />
+                    <span>{ar ? "سجل المبيعات" : "Sales Log"}</span>
+                  </div>
+                </SelectItem>
+                <SelectItem value="payments">
+                  <div className="flex items-center gap-2">
+                    <CreditCard className="h-3.5 w-3.5 text-emerald-500" />
+                    <span>{ar ? "توزيع طرق الدفع" : "Payment Methods"}</span>
+                  </div>
+                </SelectItem>
+                <SelectItem value="low">
+                  <div className="flex items-center gap-2">
+                    <AlertTriangle className="h-3.5 w-3.5 text-rose-500" />
+                    <span>{ar ? "مخزون منخفض" : "Low Stock"}</span>
+                  </div>
+                </SelectItem>
+                <SelectItem value="profit-sales">
+                  <div className="flex items-center gap-2">
+                    <BarChart3 className="h-3.5 w-3.5 text-indigo-500" />
+                    <span>{ar ? "كشف الأرباح والمبيعات الأساسي" : "Profit & Sales"}</span>
+                  </div>
+                </SelectItem>
+              </SelectGroup>
 
-          <button
-            type="button"
-            onClick={() => {
-              setSubSection("sales");
-              setSortField("default");
-            }}
-            className={cn(
-              "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all",
-              subSection === "sales"
-                ? "bg-surface text-primary shadow-sm font-semibold"
-                : "text-muted-foreground hover:text-foreground hover:bg-surface/50",
-            )}
-          >
-            <Receipt className="h-3.5 w-3.5 text-blue-500" />
-            <span>{ar ? "المبيعات" : "Sales log"}</span>
-            <span className="rounded-full bg-blue-500/10 px-1.5 text-[10px] text-blue-500">
-              {sales.length}
-            </span>
-          </button>
+              <SelectGroup>
+                <SelectLabel className="text-[11px] font-bold text-muted-foreground px-2 py-1 border-t border-border/60 mt-1 pt-1">
+                  {ar ? "💼 تقارير المشتريات والديون" : "💼 Purchases & Debts"}
+                </SelectLabel>
+                <SelectItem value="purchases">
+                  <div className="flex items-center gap-2">
+                    <ShoppingCart className="h-3.5 w-3.5 text-teal-500" />
+                    <span>{ar ? "كشف المشتريات" : "Purchases Report"}</span>
+                  </div>
+                </SelectItem>
+                <SelectItem value="debts">
+                  <div className="flex items-center gap-2">
+                    <FileClock className="h-3.5 w-3.5 text-amber-500" />
+                    <span>{ar ? "كشف الديون والمستحقات" : "Debts & Receivables"}</span>
+                  </div>
+                </SelectItem>
+                <SelectItem value="sales-invoices">
+                  <div className="flex items-center gap-2">
+                    <FileCheck2 className="h-3.5 w-3.5 text-cyan-500" />
+                    <span>{ar ? "كشف فواتير العملاء" : "Customer Invoices"}</span>
+                  </div>
+                </SelectItem>
+                <SelectItem value="returns">
+                  <div className="flex items-center gap-2">
+                    <FileInput className="h-3.5 w-3.5 text-orange-500" />
+                    <span>{ar ? "كشف المرتجعات" : "Returns Report"}</span>
+                  </div>
+                </SelectItem>
+              </SelectGroup>
 
-          <button
-            type="button"
-            onClick={() => {
-              setSubSection("payments");
-              setSortField("default");
-            }}
-            className={cn(
-              "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all",
-              subSection === "payments"
-                ? "bg-surface text-primary shadow-sm font-semibold"
-                : "text-muted-foreground hover:text-foreground hover:bg-surface/50",
-            )}
-          >
-            <CreditCard className="h-3.5 w-3.5 text-emerald-500" />
-            <span>{ar ? "طرق الدفع" : "Payment methods"}</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => {
-              setSubSection("low");
-              setSortField("default");
-            }}
-            className={cn(
-              "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all",
-              subSection === "low"
-                ? "bg-surface text-rose-500 shadow-sm font-semibold"
-                : "text-muted-foreground hover:text-foreground hover:bg-surface/50",
-            )}
-          >
-            <AlertTriangle className="h-3.5 w-3.5 text-rose-500" />
-            <span>{ar ? "مخزون منخفض" : "Low stock"}</span>
-            {lowStock.length > 0 && (
-              <span className="rounded-full bg-rose-500/10 px-1.5 text-[10px] text-rose-500 font-bold">
-                {lowStock.length}
-              </span>
-            )}
-          </button>
+              <SelectGroup>
+                <SelectLabel className="text-[11px] font-bold text-muted-foreground px-2 py-1 border-t border-border/60 mt-1 pt-1">
+                  {ar ? "📦 تقارير المخزون والمصروفات" : "📦 Inventory & Expenses"}
+                </SelectLabel>
+                <SelectItem value="inventory-movements">
+                  <div className="flex items-center gap-2">
+                    <Boxes className="h-3.5 w-3.5 text-violet-500" />
+                    <span>{ar ? "كشف حركة المخزون" : "Inventory Movements"}</span>
+                  </div>
+                </SelectItem>
+                <SelectItem value="expenses">
+                  <div className="flex items-center gap-2">
+                    <FileOutput className="h-3.5 w-3.5 text-red-500" />
+                    <span>{ar ? "كشف المصروفات" : "Expenses Report"}</span>
+                  </div>
+                </SelectItem>
+                <SelectItem value="product">
+                  <div className="flex items-center gap-2">
+                    <PackageSearch className="h-3.5 w-3.5 text-blue-600" />
+                    <span>{ar ? "كشف الصنف" : "Product Statement"}</span>
+                  </div>
+                </SelectItem>
+              </SelectGroup>
+            </SelectContent>
+          </Select>
         </div>
 
         {/* Date presets & Pickers */}
         <div className="flex flex-wrap items-center gap-2">
-          <div className="hidden sm:flex items-center gap-1 text-[11px] text-muted-foreground bg-surface-2 p-1 rounded-lg border border-border/60">
+          <div className="hidden md:flex items-center gap-1 text-[11px] text-muted-foreground bg-surface-2 p-1 rounded-lg border border-border/60">
             <button
               type="button"
               onClick={() => handlePreset(7)}
@@ -450,7 +537,7 @@ export function ReportsHubTab({ ar, initialSubSection = "top" }: ReportsHubTabPr
             </button>
           </div>
 
-          <div className="flex items-center gap-1.5 bg-surface px-2.5 py-1 rounded-xl border border-border/80 text-xs">
+          <div className="flex items-center gap-1.5 bg-surface px-2.5 py-1 rounded-xl border border-border/80 text-xs shadow-sm">
             <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
             <Input
               type="date"
@@ -480,232 +567,125 @@ export function ReportsHubTab({ ar, initialSubSection = "top" }: ReportsHubTabPr
         </div>
       </div>
 
-      {/* ─── High-Level KPIs Row ─── */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <div className="rounded-2xl border border-border/70 bg-surface/80 p-3.5 shadow-sm">
-          <div className="text-xs text-muted-foreground font-medium">
-            {ar ? "إجمالي المبيعات" : "Total sales"}
-          </div>
-          <div className="mt-1 font-mono text-base sm:text-lg font-bold text-foreground">
-            <Ltr>{money(salesTotal)}</Ltr>
-          </div>
-          <div className="mt-1 text-[11px] text-muted-foreground">
-            {sales.length} {ar ? "فاتورة مسجلة" : "invoices"}
-          </div>
-        </div>
-
-        <div className="rounded-2xl border border-border/70 bg-surface/80 p-3.5 shadow-sm">
-          <div className="text-xs text-muted-foreground font-medium">
-            {ar ? "المحصّل الفعلي" : "Collected cash"}
-          </div>
-          <div className="mt-1 font-mono text-base sm:text-lg font-bold text-emerald-500">
-            <Ltr>{money(salesPaid)}</Ltr>
-          </div>
-          <div className="mt-1 text-[11px] text-muted-foreground">
-            {ar ? "نقد ومصارف" : "Cash & bank"}
-          </div>
-        </div>
-
-        <div className="rounded-2xl border border-border/70 bg-surface/80 p-3.5 shadow-sm">
-          <div className="text-xs text-muted-foreground font-medium">
-            {ar ? "تكلفة المشتريات" : "Purchases cost"}
-          </div>
-          <div className="mt-1 font-mono text-base sm:text-lg font-bold text-rose-500">
-            <Ltr>{money(purchasesTotal)}</Ltr>
-          </div>
-          <div className="mt-1 text-[11px] text-muted-foreground">
-            {purchases.length} {ar ? "فاتورة شراء" : "purchase bills"}
-          </div>
-        </div>
-
-        <div className="rounded-2xl border border-border/70 bg-surface/80 p-3.5 shadow-sm">
-          <div className="text-xs text-muted-foreground font-medium">
-            {ar ? "صافي المقارنة التشغيلية" : "Sales less purchases"}
-          </div>
-          <div
-            className={cn(
-              "mt-1 font-mono text-base sm:text-lg font-bold",
-              netPurchasing >= 0 ? "text-primary" : "text-amber-500",
-            )}
-          >
-            <Ltr>{money(netPurchasing)}</Ltr>
-          </div>
-          <div className="mt-1 text-[11px] text-muted-foreground">
-            {netPurchasing >= 0 ? (ar ? "فائض تشغيلي" : "Surplus") : (ar ? "عجز نقدي" : "Deficit")}
-          </div>
-        </div>
-      </div>
-
-      {/* ─── Search & Actions Toolbar inside Tab ─── */}
+      {/* ═══ Unified Search and Actions Bar ═══ */}
       <div className="flex flex-wrap items-center justify-between gap-2.5">
-        <div className="relative flex-1 min-w-[200px] max-w-md">
-          <Search className="pointer-events-none absolute start-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-          <Input
+        <div className="flex-1 min-w-[220px] max-w-md">
+          <SearchInput
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onValueChange={setSearchQuery}
             placeholder={
-              subSection === "top"
-                ? ar ? "ابحث في الأصناف الأكثر مبيعاً... (/)" : "Search top products... (/)"
-                : subSection === "sales"
-                  ? ar ? "ابحث برقم الفاتورة أو العميل... (/)" : "Search invoice # or customer... (/)"
-                  : subSection === "low"
-                    ? ar ? "ابحث في أصناف المخزون المنخفض... (/)" : "Search low stock items... (/)"
-                    : ar ? "ابحث... (/)" : "Search..."
+              ar
+                ? "ابحث في بيانات التقرير (الاسم، الرقم، المرجع...) (/)"
+                : "Search report records... (/)"
             }
-            className="h-9 ps-9 pe-8 text-xs rounded-xl bg-surface border-border/70"
+            enableSlashShortcut
+            containerClassName="w-full"
           />
-          {searchQuery && (
-            <button
-              type="button"
-              onClick={() => setSearchQuery("")}
-              className="absolute end-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground text-xs"
-            >
-              ✕
-            </button>
-          )}
         </div>
 
         <div className="flex items-center gap-2">
-          {subSection === "top" && (
-            <>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() =>
-                  exportSection(
-                    "top-products",
-                    topProductColumns(ar ? "ar" : "en"),
-                    topProductRows(topRowsData),
-                  )
-                }
-                className="h-8 gap-1.5 text-xs rounded-xl"
-              >
-                <Download className="h-3.5 w-3.5 text-emerald-500" />
-                {ar ? "تصدير CSV" : "Export CSV"}
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => printSection(topProductPrintSection(topRowsData, ar ? "ar" : "en"))}
-                className="h-8 gap-1.5 text-xs rounded-xl"
-              >
-                <Printer className="h-3.5 w-3.5 text-primary" />
-                {ar ? "طباعة التقرير" : "Print"}
-              </Button>
-            </>
-          )}
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => {
+              // Export CSV based on current active report
+              if (selectedReport === "top") {
+                exportCsvData(
+                  "top-products",
+                  ar ? "تقرير الأكثر مبيعاً" : "Top Selling",
+                  topProductColumns(ar ? "ar" : "en"),
+                  topProductRows(topProducts.map((tp) => ({ name: productName(tp.product), qty: tp.qty, total: tp.total }))),
+                );
+              } else if (selectedReport === "purchases") {
+                exportCsvData(
+                  "purchases",
+                  ar ? "كشف المشتريات" : "Purchases",
+                  [
+                    { header: ar ? "رقم الفاتورة" : "Invoice #", key: "invoice_number" },
+                    { header: ar ? "المورد" : "Supplier", key: "supplier" },
+                    { header: ar ? "الإجمالي" : "Total", key: "total" },
+                    { header: ar ? "المدفوع" : "Paid", key: "paid" },
+                    { header: ar ? "الحالة" : "Status", key: "status" },
+                  ],
+                  purchases.map((p) => ({
+                    invoice_number: p.invoice_number,
+                    supplier: p.suppliers?.name || "—",
+                    total: p.total,
+                    paid: p.paid,
+                    status: p.status,
+                  })),
+                );
+              } else if (selectedReport === "debts") {
+                exportCsvData(
+                  "debts",
+                  ar ? "كشف الديون والمستحقات" : "Debts",
+                  [
+                    { header: ar ? "الطرف" : "Party", key: "partyName" },
+                    { header: ar ? "النوع" : "Kind", key: "kind" },
+                    { header: ar ? "الرصيد" : "Balance", key: "balance" },
+                  ],
+                  debts,
+                );
+              } else {
+                exportCsvData(
+                  `report_${selectedReport}`,
+                  ar ? "تقرير" : "Report",
+                  salesColumns(ar ? "ar" : "en"),
+                  salesRows(sales.map((s) => ({
+                    invoiceNumber: s.invoice_number,
+                    customerName: s.customers?.name || "عميل",
+                    date: s.created_at,
+                    status: s.status,
+                    paymentMethod: s.payment_method,
+                    total: Number(s.total),
+                    paid: Number(s.paid),
+                  }))),
+                );
+              }
+            }}
+            className="h-8 gap-1.5 text-xs rounded-xl"
+          >
+            <Download className="h-3.5 w-3.5 text-emerald-500" />
+            <span>{ar ? "تصدير CSV" : "Export CSV"}</span>
+          </Button>
 
-          {subSection === "sales" && (
-            <>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() =>
-                  exportSection(
-                    "sales",
-                    salesColumns(ar ? "ar" : "en"),
-                    salesRows(salesRowsData),
-                  )
-                }
-                className="h-8 gap-1.5 text-xs rounded-xl"
-              >
-                <Download className="h-3.5 w-3.5 text-emerald-500" />
-                {ar ? "تصدير CSV" : "Export CSV"}
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => printSection(salesPrintSection(salesRowsData, ar ? "ar" : "en"))}
-                className="h-8 gap-1.5 text-xs rounded-xl"
-              >
-                <Printer className="h-3.5 w-3.5 text-primary" />
-                {ar ? "طباعة التقرير" : "Print"}
-              </Button>
-            </>
-          )}
-
-          {subSection === "payments" && (
-            <>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() =>
-                  exportSection(
-                    "payment-mix",
-                    paymentMixColumns(ar ? "ar" : "en"),
-                    paymentMixRows(paymentRowsData),
-                  )
-                }
-                className="h-8 gap-1.5 text-xs rounded-xl"
-              >
-                <Download className="h-3.5 w-3.5 text-emerald-500" />
-                {ar ? "تصدير CSV" : "Export CSV"}
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => printSection(paymentMixPrintSection(paymentRowsData, ar ? "ar" : "en"))}
-                className="h-8 gap-1.5 text-xs rounded-xl"
-              >
-                <Printer className="h-3.5 w-3.5 text-primary" />
-                {ar ? "طباعة التقرير" : "Print"}
-              </Button>
-            </>
-          )}
-
-          {subSection === "low" && (
-            <>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() =>
-                  exportSection(
-                    "low-stock",
-                    lowStockColumns(ar ? "ar" : "en"),
-                    lowStockRows(lowRowsData),
-                  )
-                }
-                className="h-8 gap-1.5 text-xs rounded-xl"
-              >
-                <Download className="h-3.5 w-3.5 text-emerald-500" />
-                {ar ? "تصدير CSV" : "Export CSV"}
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => printSection(lowStockPrintSection(lowRowsData, ar ? "ar" : "en"))}
-                className="h-8 gap-1.5 text-xs rounded-xl"
-              >
-                <Printer className="h-3.5 w-3.5 text-primary" />
-                {ar ? "طباعة التقرير" : "Print"}
-              </Button>
-            </>
-          )}
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => {
+              window.print();
+            }}
+            className="h-8 gap-1.5 text-xs rounded-xl"
+          >
+            <Printer className="h-3.5 w-3.5 text-primary" />
+            <span>{ar ? "طباعة فاخرة" : "Print"}</span>
+          </Button>
         </div>
       </div>
 
-      {/* ─── Active Report Table Display ─── */}
-      <div className="panel-elevated p-0 overflow-hidden rounded-2xl border border-border/70">
-        {subSection === "top" && (
+      {/* ═══ Unified Table Display Container (نفس تصميم جدول الكشوفات الموحد) ═══ */}
+      <div className="panel-elevated p-0 overflow-hidden rounded-2xl border border-border/70 shadow-sm">
+        {/* 1. تقرير الأكثر مبيعاً */}
+        {selectedReport === "top" && (
           <Table>
             <TableHeader className="bg-surface-2/60">
               <TableRow>
-                <TableHead className="w-12 text-center font-semibold">#</TableHead>
-                <TableHead className="font-semibold">{ar ? "المنتج / الصنف" : "Product"}</TableHead>
+                <TableHead className="w-12 text-center font-semibold text-xs">#</TableHead>
+                <TableHead className="font-semibold text-xs">{ar ? "المنتج / الصنف" : "Product"}</TableHead>
                 <TableHead
-                  onClick={() => toggleSort("qty")}
-                  className="text-end font-semibold cursor-pointer hover:text-primary transition-colors"
+                  onClick={() => handleSort("qty")}
+                  className="text-end font-semibold text-xs cursor-pointer hover:text-primary transition-colors"
                 >
-                  <div className="inline-flex items-center gap-1">
+                  <div className="inline-flex items-center gap-1 justify-end w-full">
                     <span>{ar ? "الكمية المباعة" : "Qty sold"}</span>
                     <ArrowUpDown className="h-3 w-3 opacity-60" />
                   </div>
                 </TableHead>
                 <TableHead
-                  onClick={() => toggleSort("total")}
-                  className="text-end font-semibold cursor-pointer hover:text-primary transition-colors"
+                  onClick={() => handleSort("total")}
+                  className="text-end font-semibold text-xs cursor-pointer hover:text-primary transition-colors"
                 >
-                  <div className="inline-flex items-center gap-1">
+                  <div className="inline-flex items-center gap-1 justify-end w-full">
                     <span>{ar ? "إجمالي الإيراد" : "Revenue"}</span>
                     <ArrowUpDown className="h-3 w-3 opacity-60" />
                   </div>
@@ -715,39 +695,27 @@ export function ReportsHubTab({ ar, initialSubSection = "top" }: ReportsHubTabPr
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={4} className="py-12 text-center text-muted-foreground">
+                  <TableCell colSpan={4} className="py-12 text-center text-muted-foreground text-xs">
                     <RefreshCw className="mx-auto h-5 w-5 animate-spin text-primary" />
-                    <span className="mt-2 block text-xs">{ar ? "جارٍ تحليل المبيعات..." : "Analyzing sales..."}</span>
+                    <span className="mt-2 block">{ar ? "جارٍ تحليل المبيعات..." : "Loading..."}</span>
                   </TableCell>
                 </TableRow>
-              ) : filteredTopProducts.length === 0 ? (
+              ) : topProducts.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={4} className="py-12 text-center text-muted-foreground text-xs">
-                    {ar ? "لا توجد حركات مبيعات في هذه الفترة" : "No sales data found"}
+                    {ar ? "لا توجد مبيعات في هذه الفترة" : "No sales data found"}
                   </TableCell>
                 </TableRow>
               ) : (
-                filteredTopProducts.map((tp, idx) => (
+                topProducts.map((tp, idx) => (
                   <TableRow key={idx} className="hover:bg-surface-2/50 transition-colors">
-                    <TableCell className="text-center font-mono text-xs text-muted-foreground">
-                      {idx + 1}
-                    </TableCell>
+                    <TableCell className="text-center font-mono text-xs text-muted-foreground">{idx + 1}</TableCell>
                     <TableCell>
-                      <div className="font-medium text-xs text-foreground">
-                        {productName(tp.product)}
-                      </div>
-                      {tp.product?.barcode && (
-                        <div className="font-mono text-[10px] text-muted-foreground">
-                          {tp.product.barcode}
-                        </div>
-                      )}
+                      <div className="font-semibold text-xs text-foreground">{productName(tp.product)}</div>
+                      {tp.product?.barcode && <div className="font-mono text-[10px] text-muted-foreground">{tp.product.barcode}</div>}
                     </TableCell>
-                    <TableCell className="text-end font-mono text-xs font-semibold">
-                      <Ltr>{tp.qty.toLocaleString()}</Ltr>
-                    </TableCell>
-                    <TableCell className="text-end font-mono text-xs font-bold text-primary">
-                      <Ltr>{money(tp.total)}</Ltr>
-                    </TableCell>
+                    <TableCell className="text-end font-mono text-xs font-semibold"><Ltr>{tp.qty.toLocaleString()}</Ltr></TableCell>
+                    <TableCell className="text-end font-mono text-xs font-bold text-primary"><Ltr>{money(tp.total)}</Ltr></TableCell>
                   </TableRow>
                 ))
               )}
@@ -755,27 +723,22 @@ export function ReportsHubTab({ ar, initialSubSection = "top" }: ReportsHubTabPr
           </Table>
         )}
 
-        {subSection === "sales" && (
+        {/* 2. سجل المبيعات */}
+        {selectedReport === "sales" && (
           <Table>
             <TableHeader className="bg-surface-2/60">
               <TableRow>
-                <TableHead className="font-semibold">{ar ? "رقم الفاتورة" : "Invoice #"}</TableHead>
-                <TableHead
-                  onClick={() => toggleSort("date")}
-                  className="font-semibold cursor-pointer hover:text-primary transition-colors"
-                >
+                <TableHead className="font-semibold text-xs">{ar ? "رقم الفاتورة" : "Invoice #"}</TableHead>
+                <TableHead onClick={() => handleSort("created_at")} className="font-semibold text-xs cursor-pointer hover:text-primary">
                   <div className="inline-flex items-center gap-1">
-                    <span>{ar ? "التاريخ والوقت" : "Date & time"}</span>
+                    <span>{ar ? "التاريخ والوقت" : "Date"}</span>
                     <ArrowUpDown className="h-3 w-3 opacity-60" />
                   </div>
                 </TableHead>
-                <TableHead className="font-semibold">{ar ? "العميل" : "Customer"}</TableHead>
-                <TableHead className="font-semibold">{ar ? "الحالة وطريقة الدفع" : "Status & Method"}</TableHead>
-                <TableHead
-                  onClick={() => toggleSort("total")}
-                  className="text-end font-semibold cursor-pointer hover:text-primary transition-colors"
-                >
-                  <div className="inline-flex items-center gap-1">
+                <TableHead className="font-semibold text-xs">{ar ? "العميل" : "Customer"}</TableHead>
+                <TableHead className="font-semibold text-xs">{ar ? "طريقة الدفع والحالة" : "Payment & Status"}</TableHead>
+                <TableHead onClick={() => handleSort("total")} className="text-end font-semibold text-xs cursor-pointer hover:text-primary">
+                  <div className="inline-flex items-center gap-1 justify-end w-full">
                     <span>{ar ? "الإجمالي" : "Total"}</span>
                     <ArrowUpDown className="h-3 w-3 opacity-60" />
                   </div>
@@ -784,44 +747,106 @@ export function ReportsHubTab({ ar, initialSubSection = "top" }: ReportsHubTabPr
             </TableHeader>
             <TableBody>
               {loading ? (
-                <TableRow>
-                  <TableCell colSpan={5} className="py-12 text-center text-muted-foreground">
-                    <RefreshCw className="mx-auto h-5 w-5 animate-spin text-primary" />
-                  </TableCell>
-                </TableRow>
-              ) : filteredSales.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={5} className="py-12 text-center text-muted-foreground text-xs">
-                    {ar ? "لا توجد فواتير مبيعات مطابقة" : "No invoices found"}
-                  </TableCell>
-                </TableRow>
+                <TableRow><TableCell colSpan={5} className="py-12 text-center"><RefreshCw className="mx-auto h-5 w-5 animate-spin text-primary" /></TableCell></TableRow>
+              ) : sales.length === 0 ? (
+                <TableRow><TableCell colSpan={5} className="py-12 text-center text-muted-foreground text-xs">{ar ? "لا توجد فواتير" : "No invoices"}</TableCell></TableRow>
               ) : (
-                filteredSales.map((s) => (
+                sales.map((s) => (
                   <TableRow key={s.id} className="hover:bg-surface-2/50 transition-colors">
-                    <TableCell className="font-mono text-xs font-semibold text-primary">
-                      <Ltr>{s.invoice_number}</Ltr>
-                    </TableCell>
-                    <TableCell className="text-xs text-muted-foreground">
-                      <Ltr>{new Date(s.created_at).toLocaleString(ar ? "ar-YE" : "en-GB")}</Ltr>
-                    </TableCell>
-                    <TableCell className="text-xs font-medium">
-                      {s.customers?.name || (ar ? "عميل نقدي" : "Cash")}
-                    </TableCell>
+                    <TableCell className="font-mono text-xs font-semibold text-primary"><Ltr>{s.invoice_number}</Ltr></TableCell>
+                    <TableCell className="text-xs text-muted-foreground"><Ltr>{new Date(s.created_at).toLocaleString(ar ? "ar-YE" : "en-GB")}</Ltr></TableCell>
+                    <TableCell className="text-xs font-medium">{s.customers?.name || (ar ? "عميل نقدي" : "Cash")}</TableCell>
                     <TableCell>
                       <div className="flex items-center gap-1.5">
-                        <Badge
-                          variant={s.status === "paid" ? "default" : "secondary"}
-                          className="text-[10px] py-0 px-1.5"
-                        >
+                        <Badge variant={s.status === "paid" ? "default" : "secondary"} className="text-[10px] py-0 px-1.5">
                           {s.status === "paid" ? (ar ? "مدفوعة" : "Paid") : s.status}
                         </Badge>
-                        <span className="text-[11px] text-muted-foreground">
-                          {s.payment_method || "cash"}
-                        </span>
+                        <span className="text-[11px] text-muted-foreground">{s.payment_method || "cash"}</span>
                       </div>
                     </TableCell>
-                    <TableCell className="text-end font-mono text-xs font-bold">
-                      <Ltr>{money(Number(s.total))}</Ltr>
+                    <TableCell className="text-end font-mono text-xs font-bold"><Ltr>{money(Number(s.total))}</Ltr></TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        )}
+
+        {/* 3. كشف المشتريات */}
+        {selectedReport === "purchases" && (
+          <Table>
+            <TableHeader className="bg-surface-2/60">
+              <TableRow>
+                <TableHead className="font-semibold text-xs">{ar ? "رقم الفاتورة" : "Invoice #"}</TableHead>
+                <TableHead className="font-semibold text-xs">{ar ? "التاريخ" : "Date"}</TableHead>
+                <TableHead className="font-semibold text-xs">{ar ? "المورد" : "Supplier"}</TableHead>
+                <TableHead className="font-semibold text-xs">{ar ? "المستودع" : "Warehouse"}</TableHead>
+                <TableHead className="text-end font-semibold text-xs">{ar ? "الإجمالي" : "Total"}</TableHead>
+                <TableHead className="text-end font-semibold text-xs text-emerald-500">{ar ? "المدفوع" : "Paid"}</TableHead>
+                <TableHead className="text-end font-semibold text-xs text-rose-500">{ar ? "المتبقي" : "Remaining"}</TableHead>
+                <TableHead className="text-center font-semibold text-xs">{ar ? "الحالة" : "Status"}</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {loading ? (
+                <TableRow><TableCell colSpan={8} className="py-12 text-center"><RefreshCw className="mx-auto h-5 w-5 animate-spin text-primary" /></TableCell></TableRow>
+              ) : purchases.length === 0 ? (
+                <TableRow><TableCell colSpan={8} className="py-12 text-center text-muted-foreground text-xs">{ar ? "لا توجد فواتير مشتريات" : "No purchases recorded"}</TableCell></TableRow>
+              ) : (
+                purchases.map((p) => {
+                  const rem = Number(p.total ?? 0) - Number(p.paid ?? 0);
+                  return (
+                    <TableRow key={p.id} className="hover:bg-surface-2/50 transition-colors">
+                      <TableCell className="font-mono text-xs font-semibold text-primary"><Ltr>{p.invoice_number}</Ltr></TableCell>
+                      <TableCell className="text-xs text-muted-foreground"><Ltr>{new Date(p.created_at).toLocaleDateString(ar ? "ar-YE" : "en-GB")}</Ltr></TableCell>
+                      <TableCell className="text-xs font-medium">{p.suppliers?.name || "—"}</TableCell>
+                      <TableCell className="text-xs text-muted-foreground">{p.warehouses?.name_ar || p.warehouses?.name || "—"}</TableCell>
+                      <TableCell className="text-end font-mono text-xs font-bold"><Ltr>{money(Number(p.total ?? 0))}</Ltr></TableCell>
+                      <TableCell className="text-end font-mono text-xs text-emerald-500 font-semibold"><Ltr>{money(Number(p.paid ?? 0))}</Ltr></TableCell>
+                      <TableCell className="text-end font-mono text-xs text-rose-500 font-bold"><Ltr>{money(rem)}</Ltr></TableCell>
+                      <TableCell className="text-center">
+                        <Badge variant="outline" className="text-[10px] py-0 px-1.5">{p.status ?? "—"}</Badge>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })
+              )}
+            </TableBody>
+          </Table>
+        )}
+
+        {/* 4. كشف الديون والمستحقات */}
+        {selectedReport === "debts" && (
+          <Table>
+            <TableHeader className="bg-surface-2/60">
+              <TableRow>
+                <TableHead className="font-semibold text-xs">{ar ? "الطرف" : "Party"}</TableHead>
+                <TableHead className="font-semibold text-xs">{ar ? "النوع" : "Category"}</TableHead>
+                <TableHead className="font-semibold text-xs">{ar ? "الهاتف" : "Phone"}</TableHead>
+                <TableHead className="text-end font-semibold text-xs">{ar ? "الرصيد المستحق" : "Balance"}</TableHead>
+                <TableHead className="font-semibold text-xs">{ar ? "آخر تحديث" : "Updated"}</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {loading ? (
+                <TableRow><TableCell colSpan={5} className="py-12 text-center"><RefreshCw className="mx-auto h-5 w-5 animate-spin text-primary" /></TableCell></TableRow>
+              ) : debts.length === 0 ? (
+                <TableRow><TableCell colSpan={5} className="py-12 text-center text-muted-foreground text-xs">{ar ? "لا توجد ديون مستحقة" : "No debts recorded"}</TableCell></TableRow>
+              ) : (
+                debts.map((d) => (
+                  <TableRow key={d.id} className="hover:bg-surface-2/50 transition-colors">
+                    <TableCell className="font-semibold text-xs">{d.partyName}</TableCell>
+                    <TableCell>
+                      <Badge variant={d.kind === "customer" ? "default" : "secondary"} className="text-[10px] py-0 px-1.5">
+                        {d.kind === "customer" ? (ar ? "عميل (لنا)" : "Customer") : (ar ? "مورد (علينا)" : "Supplier")}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="font-mono text-xs text-muted-foreground"><Ltr>{d.phone || "—"}</Ltr></TableCell>
+                    <TableCell className={cn("text-end font-mono text-xs font-bold", d.balance > 0 ? "text-rose-500" : "text-emerald-500")}>
+                      <Ltr>{money(Math.abs(d.balance))}</Ltr>
+                    </TableCell>
+                    <TableCell className="text-xs text-muted-foreground">
+                      <Ltr>{d.updatedAt ? new Date(d.updatedAt).toLocaleDateString(ar ? "ar-YE" : "en-GB") : "—"}</Ltr>
                     </TableCell>
                   </TableRow>
                 ))
@@ -830,125 +855,240 @@ export function ReportsHubTab({ ar, initialSubSection = "top" }: ReportsHubTabPr
           </Table>
         )}
 
-        {subSection === "payments" && (
-          <div className="p-5 space-y-4">
-            <div className="text-xs text-muted-foreground font-medium">
-              {ar
-                ? "توزيع المبالغ المحصلة والمبيعات بحسب قنوات وطرق الدفع"
-                : "Payment methods collection breakdown"}
-            </div>
-            {paymentRowsData.length === 0 ? (
-              <div className="py-8 text-center text-muted-foreground text-xs">
-                {ar ? "لا توجد مبالغ مسددة في هذه الفترة" : "No payment data"}
-              </div>
-            ) : (
-              paymentRowsData.map((row) => (
-                <div key={row.method} className="space-y-1.5 p-3 rounded-xl bg-surface-2/40 border border-border/50">
-                  <div className="flex items-center justify-between text-xs">
-                    <div className="flex items-center gap-2">
-                      <CreditCard className="h-3.5 w-3.5 text-primary" />
-                      <span className="font-semibold text-foreground uppercase">
-                        {row.method}
-                      </span>
-                    </div>
-                    <div className="font-mono font-bold text-foreground">
-                      <Ltr>
-                        {money(row.amount)}{" "}
-                        <span className="text-[11px] font-normal text-muted-foreground">
-                          ({row.pct.toFixed(1)}%)
-                        </span>
-                      </Ltr>
-                    </div>
-                  </div>
-                  <div className="h-2.5 w-full bg-surface-3 rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-gradient-to-r from-primary to-primary/80 transition-all duration-500 rounded-full"
-                      style={{ width: `${Math.min(100, Math.max(0, row.pct))}%` }}
-                    />
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-        )}
-
-        {subSection === "low" && (
+        {/* 5. كشف الأرباح والمبيعات الأساسي */}
+        {selectedReport === "profit-sales" && (
           <Table>
             <TableHeader className="bg-surface-2/60">
               <TableRow>
-                <TableHead className="font-semibold">{ar ? "المنتج / الصنف" : "Product"}</TableHead>
-                <TableHead
-                  onClick={() => toggleSort("stock")}
-                  className="text-end font-semibold cursor-pointer hover:text-rose-500 transition-colors"
-                >
-                  <div className="inline-flex items-center gap-1">
-                    <span>{ar ? "الكمية الحالية المتوفرة" : "On hand"}</span>
-                    <ArrowUpDown className="h-3 w-3 opacity-60" />
-                  </div>
-                </TableHead>
-                <TableHead
-                  onClick={() => toggleSort("min")}
-                  className="text-end font-semibold cursor-pointer hover:text-primary transition-colors"
-                >
-                  <div className="inline-flex items-center gap-1">
-                    <span>{ar ? "حد الطلب الأدنى" : "Min threshold"}</span>
-                    <ArrowUpDown className="h-3 w-3 opacity-60" />
-                  </div>
-                </TableHead>
-                <TableHead className="text-end font-semibold">
-                  {ar ? "سعر البيع" : "Sale price"}
-                </TableHead>
-                <TableHead className="text-center font-semibold">{ar ? "الحالة" : "Status"}</TableHead>
+                <TableHead className="font-semibold text-xs">{ar ? "البند المالي" : "Financial Item"}</TableHead>
+                <TableHead className="text-end font-semibold text-xs">{ar ? "القيمة" : "Value"}</TableHead>
+                <TableHead className="font-semibold text-xs">{ar ? "البيان والنسبة" : "Note / Margin"}</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              <TableRow className="hover:bg-surface-2/50">
+                <TableCell className="font-semibold text-xs">{ar ? "إجمالي المبيعات المحققة" : "Total Revenue"}</TableCell>
+                <TableCell className="text-end font-mono text-xs font-bold text-foreground"><Ltr>{money(profitData.salesTotal)}</Ltr></TableCell>
+                <TableCell className="text-xs text-muted-foreground">{profitData.itemsCount} {ar ? "صنف مباع" : "items sold"}</TableCell>
+              </TableRow>
+              <TableRow className="hover:bg-surface-2/50">
+                <TableCell className="font-semibold text-xs">{ar ? "تكلفة البضاعة المباعة (COGS)" : "Cost of Goods Sold"}</TableCell>
+                <TableCell className="text-end font-mono text-xs font-bold text-rose-500"><Ltr>{money(profitData.costTotal)}</Ltr></TableCell>
+                <TableCell className="text-xs text-muted-foreground">{ar ? "على أساس التكلفة المعيارية" : "Standard cost"}</TableCell>
+              </TableRow>
+              <TableRow className="hover:bg-surface-2/50 bg-primary/5">
+                <TableCell className="font-bold text-xs text-primary">{ar ? "مجمل الربح التشغيلي" : "Gross Profit"}</TableCell>
+                <TableCell className="text-end font-mono text-sm font-bold text-primary"><Ltr>{money(profitData.grossProfit)}</Ltr></TableCell>
+                <TableCell className="font-mono text-xs font-bold text-primary">
+                  {ar ? "هامش الربح:" : "Margin:"} {profitData.marginPct.toFixed(1)}%
+                </TableCell>
+              </TableRow>
+            </TableBody>
+          </Table>
+        )}
+
+        {/* 6. حركة المخزون */}
+        {selectedReport === "inventory-movements" && (
+          <Table>
+            <TableHeader className="bg-surface-2/60">
+              <TableRow>
+                <TableHead className="font-semibold text-xs">{ar ? "المرجع" : "Ref"}</TableHead>
+                <TableHead className="font-semibold text-xs">{ar ? "التاريخ" : "Date"}</TableHead>
+                <TableHead className="font-semibold text-xs">{ar ? "الصنف" : "Product"}</TableHead>
+                <TableHead className="font-semibold text-xs">{ar ? "نوع الحركة" : "Type"}</TableHead>
+                <TableHead className="text-end font-semibold text-xs">{ar ? "الكمية" : "Qty"}</TableHead>
+                <TableHead className="text-end font-semibold text-xs">{ar ? "إجمالي القيمة" : "Total Value"}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {loading ? (
-                <TableRow>
-                  <TableCell colSpan={5} className="py-12 text-center text-muted-foreground">
-                    <RefreshCw className="mx-auto h-5 w-5 animate-spin text-primary" />
-                  </TableCell>
-                </TableRow>
-              ) : filteredLowStock.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={5} className="py-12 text-center text-emerald-500 text-xs font-medium">
-                    ✓ {ar ? "كل المنتجات المتتبعة أعلى من الحد الأدنى للمخزون" : "All tracked products are above minimum"}
-                  </TableCell>
-                </TableRow>
+                <TableRow><TableCell colSpan={6} className="py-12 text-center"><RefreshCw className="mx-auto h-5 w-5 animate-spin text-primary" /></TableCell></TableRow>
+              ) : movements.length === 0 ? (
+                <TableRow><TableCell colSpan={6} className="py-12 text-center text-muted-foreground text-xs">{ar ? "لا توجد حركات مخزنية" : "No movements"}</TableCell></TableRow>
               ) : (
-                filteredLowStock.map((p) => {
+                movements.map((m) => (
+                  <TableRow key={m.id} className="hover:bg-surface-2/50 transition-colors">
+                    <TableCell className="font-mono text-xs text-primary">{m.reference || "—"}</TableCell>
+                    <TableCell className="text-xs text-muted-foreground"><Ltr>{new Date(m.created_at).toLocaleDateString(ar ? "ar-YE" : "en-GB")}</Ltr></TableCell>
+                    <TableCell className="text-xs font-medium">{productName(m.products)}</TableCell>
+                    <TableCell><Badge variant="outline" className="text-[10px] py-0 px-1.5">{m.movement_type}</Badge></TableCell>
+                    <TableCell className="text-end font-mono text-xs font-bold"><Ltr>{m.quantity}</Ltr></TableCell>
+                    <TableCell className="text-end font-mono text-xs"><Ltr>{money(Number(m.total_cost || 0))}</Ltr></TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        )}
+
+        {/* 7. كشف المرتجعات */}
+        {selectedReport === "returns" && (
+          <Table>
+            <TableHeader className="bg-surface-2/60">
+              <TableRow>
+                <TableHead className="font-semibold text-xs">{ar ? "رقم الإرجاع" : "Return #"}</TableHead>
+                <TableHead className="font-semibold text-xs">{ar ? "التاريخ" : "Date"}</TableHead>
+                <TableHead className="font-semibold text-xs">{ar ? "نوع المرتجع" : "Kind"}</TableHead>
+                <TableHead className="font-semibold text-xs">{ar ? "الطرف" : "Party"}</TableHead>
+                <TableHead className="text-end font-semibold text-xs">{ar ? "إجمالي المبلغ" : "Amount"}</TableHead>
+                <TableHead className="text-center font-semibold text-xs">{ar ? "الحالة" : "Status"}</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {loading ? (
+                <TableRow><TableCell colSpan={6} className="py-12 text-center"><RefreshCw className="mx-auto h-5 w-5 animate-spin text-primary" /></TableCell></TableRow>
+              ) : returnsList.length === 0 ? (
+                <TableRow><TableCell colSpan={6} className="py-12 text-center text-muted-foreground text-xs">{ar ? "لا توجد مرتجعات مسجلة" : "No returns found"}</TableCell></TableRow>
+              ) : (
+                returnsList.map((r) => (
+                  <TableRow key={r.id} className="hover:bg-surface-2/50 transition-colors">
+                    <TableCell className="font-mono text-xs font-semibold text-primary">{r.return_number}</TableCell>
+                    <TableCell className="text-xs text-muted-foreground"><Ltr>{new Date(r.created_at).toLocaleDateString(ar ? "ar-YE" : "en-GB")}</Ltr></TableCell>
+                    <TableCell>
+                      <Badge variant={r.type === "sales" ? "default" : "secondary"} className="text-[10px] py-0 px-1.5">
+                        {r.type === "sales" ? (ar ? "مرتجع مبيعات" : "Sales Return") : (ar ? "مرتجع مشتريات" : "Purchase Return")}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-xs font-medium">{r.party}</TableCell>
+                    <TableCell className="text-end font-mono text-xs font-bold text-rose-500"><Ltr>{money(Number(r.total || 0))}</Ltr></TableCell>
+                    <TableCell className="text-center"><Badge variant="outline" className="text-[10px] py-0 px-1.5">{r.status || "—"}</Badge></TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        )}
+
+        {/* 8. كشف المصروفات */}
+        {selectedReport === "expenses" && (
+          <Table>
+            <TableHeader className="bg-surface-2/60">
+              <TableRow>
+                <TableHead className="font-semibold text-xs">{ar ? "المرجع" : "Ref"}</TableHead>
+                <TableHead className="font-semibold text-xs">{ar ? "التاريخ" : "Date"}</TableHead>
+                <TableHead className="font-semibold text-xs">{ar ? "التصنيف" : "Category"}</TableHead>
+                <TableHead className="font-semibold text-xs">{ar ? "الوصف والبيان" : "Description"}</TableHead>
+                <TableHead className="text-end font-semibold text-xs">{ar ? "المبلغ" : "Amount"}</TableHead>
+                <TableHead className="text-center font-semibold text-xs">{ar ? "الحالة" : "Status"}</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {loading ? (
+                <TableRow><TableCell colSpan={6} className="py-12 text-center"><RefreshCw className="mx-auto h-5 w-5 animate-spin text-primary" /></TableCell></TableRow>
+              ) : expensesList.length === 0 ? (
+                <TableRow><TableCell colSpan={6} className="py-12 text-center text-muted-foreground text-xs">{ar ? "لا توجد مصروفات مسجلة" : "No expenses recorded"}</TableCell></TableRow>
+              ) : (
+                expensesList.map((e) => (
+                  <TableRow key={e.id} className="hover:bg-surface-2/50 transition-colors">
+                    <TableCell className="font-mono text-xs text-primary">{e.reference || "—"}</TableCell>
+                    <TableCell className="text-xs text-muted-foreground"><Ltr>{e.expense_date}</Ltr></TableCell>
+                    <TableCell className="text-xs font-semibold text-foreground">{e.categoryName}</TableCell>
+                    <TableCell className="text-xs text-muted-foreground">{e.description || e.note || "—"}</TableCell>
+                    <TableCell className="text-end font-mono text-xs font-bold text-rose-500"><Ltr>{money(Number(e.total_amount || 0))}</Ltr></TableCell>
+                    <TableCell className="text-center"><Badge variant="outline" className="text-[10px] py-0 px-1.5">{e.status || "—"}</Badge></TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        )}
+
+        {/* 9. كشف الصنف */}
+        {selectedReport === "product" && (
+          <Table>
+            <TableHeader className="bg-surface-2/60">
+              <TableRow>
+                <TableHead className="font-semibold text-xs">{ar ? "اسم الصنف" : "Product Name"}</TableHead>
+                <TableHead className="font-semibold text-xs">{ar ? "الباركود" : "Barcode"}</TableHead>
+                <TableHead className="font-semibold text-xs">{ar ? "الوحدة" : "Unit"}</TableHead>
+                <TableHead className="text-end font-semibold text-xs">{ar ? "المخزون الحالي" : "Current Stock"}</TableHead>
+                <TableHead className="text-end font-semibold text-xs">{ar ? "الحد الأدنى" : "Min Stock"}</TableHead>
+                <TableHead className="text-end font-semibold text-xs">{ar ? "سعر البيع" : "Sale Price"}</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {loading ? (
+                <TableRow><TableCell colSpan={6} className="py-12 text-center"><RefreshCw className="mx-auto h-5 w-5 animate-spin text-primary" /></TableCell></TableRow>
+              ) : productsList.length === 0 ? (
+                <TableRow><TableCell colSpan={6} className="py-12 text-center text-muted-foreground text-xs">{ar ? "لا توجد أصناف" : "No products found"}</TableCell></TableRow>
+              ) : (
+                productsList.map((p) => (
+                  <TableRow key={p.id} className="hover:bg-surface-2/50 transition-colors">
+                    <TableCell className="font-semibold text-xs text-foreground">{productName(p)}</TableCell>
+                    <TableCell className="font-mono text-xs text-muted-foreground">{p.barcode || "—"}</TableCell>
+                    <TableCell className="text-xs text-muted-foreground">{p.unit || "—"}</TableCell>
+                    <TableCell className="text-end font-mono text-xs font-bold text-primary"><Ltr>{p.stock}</Ltr></TableCell>
+                    <TableCell className="text-end font-mono text-xs text-muted-foreground"><Ltr>{p.min_stock ?? 0}</Ltr></TableCell>
+                    <TableCell className="text-end font-mono text-xs"><Ltr>{money(Number(p.sale_price || 0))}</Ltr></TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        )}
+
+        {/* 10. طرق الدفع */}
+        {selectedReport === "payments" && (
+          <div className="p-5 space-y-4">
+            <div className="text-xs text-muted-foreground font-medium">
+              {ar ? "توزيع المبالغ المحصلة والمبيعات بحسب قنوات وطرق الدفع" : "Payment methods breakdown"}
+            </div>
+            {Object.keys(byMethod).length === 0 ? (
+              <div className="py-8 text-center text-muted-foreground text-xs">{ar ? "لا توجد بيانات مسجلة" : "No data"}</div>
+            ) : (
+              Object.entries(byMethod).map(([method, amount]) => {
+                const total = Object.values(byMethod).reduce((a, b) => a + b, 0);
+                const pct = total > 0 ? (amount / total) * 100 : 0;
+                return (
+                  <div key={method} className="space-y-1.5 p-3 rounded-xl bg-surface-2/40 border border-border/50">
+                    <div className="flex items-center justify-between text-xs">
+                      <div className="flex items-center gap-2">
+                        <CreditCard className="h-3.5 w-3.5 text-primary" />
+                        <span className="font-semibold text-foreground uppercase">{method}</span>
+                      </div>
+                      <div className="font-mono font-bold text-foreground">
+                        <Ltr>{money(amount)} <span className="text-[11px] font-normal text-muted-foreground">({pct.toFixed(1)}%)</span></Ltr>
+                      </div>
+                    </div>
+                    <div className="h-2.5 w-full bg-surface-3 rounded-full overflow-hidden">
+                      <div className="h-full bg-primary transition-all duration-500 rounded-full" style={{ width: `${pct}%` }} />
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        )}
+
+        {/* 11. مخزون منخفض */}
+        {selectedReport === "low" && (
+          <Table>
+            <TableHeader className="bg-surface-2/60">
+              <TableRow>
+                <TableHead className="font-semibold text-xs">{ar ? "المنتج / الصنف" : "Product"}</TableHead>
+                <TableHead className="text-end font-semibold text-xs text-rose-500">{ar ? "المتاح حالياً" : "On hand"}</TableHead>
+                <TableHead className="text-end font-semibold text-xs">{ar ? "الحد الأدنى" : "Min"}</TableHead>
+                <TableHead className="text-end font-semibold text-xs">{ar ? "سعر البيع" : "Price"}</TableHead>
+                <TableHead className="text-center font-semibold text-xs">{ar ? "الحالة" : "Status"}</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {loading ? (
+                <TableRow><TableCell colSpan={5} className="py-12 text-center"><RefreshCw className="mx-auto h-5 w-5 animate-spin text-primary" /></TableCell></TableRow>
+              ) : lowStock.length === 0 ? (
+                <TableRow><TableCell colSpan={5} className="py-12 text-center text-emerald-500 text-xs font-semibold">✓ {ar ? "كل المخزون أعلى من الحد الأدنى" : "All stock above minimum"}</TableCell></TableRow>
+              ) : (
+                lowStock.map((p) => {
                   const isDepleted = p.stock <= 0;
                   return (
                     <TableRow key={p.id} className="hover:bg-surface-2/50 transition-colors">
-                      <TableCell>
-                        <div className="font-semibold text-xs text-foreground">
-                          {productName(p)}
-                        </div>
-                        {p.barcode && (
-                          <div className="font-mono text-[10px] text-muted-foreground">
-                            {p.barcode}
-                          </div>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-end font-mono text-xs font-bold text-rose-500">
-                        <Ltr>{p.stock.toLocaleString()}</Ltr>
-                      </TableCell>
-                      <TableCell className="text-end font-mono text-xs text-muted-foreground">
-                        <Ltr>{p.min_stock ?? 0}</Ltr>
-                      </TableCell>
-                      <TableCell className="text-end font-mono text-xs">
-                        <Ltr>{money(Number(p.sale_price ?? 0))}</Ltr>
-                      </TableCell>
+                      <TableCell className="font-semibold text-xs">{productName(p)}</TableCell>
+                      <TableCell className="text-end font-mono text-xs font-bold text-rose-500"><Ltr>{p.stock}</Ltr></TableCell>
+                      <TableCell className="text-end font-mono text-xs text-muted-foreground"><Ltr>{p.min_stock ?? 0}</Ltr></TableCell>
+                      <TableCell className="text-end font-mono text-xs"><Ltr>{money(Number(p.sale_price || 0))}</Ltr></TableCell>
                       <TableCell className="text-center">
-                        <Badge
-                          variant="destructive"
-                          className={cn(
-                            "text-[10px] py-0 px-2 font-medium",
-                            isDepleted ? "bg-rose-600" : "bg-amber-600",
-                          )}
-                        >
-                          {isDepleted
-                            ? ar ? "نفد المخزون" : "Out of stock"
-                            : ar ? "تحت الحد الأدنى" : "Low stock"}
+                        <Badge variant="destructive" className={cn("text-[10px] py-0 px-2 font-medium", isDepleted ? "bg-rose-600" : "bg-amber-600")}>
+                          {isDepleted ? (ar ? "نفد المخزون" : "Out of stock") : (ar ? "تحت الحد الأدنى" : "Low stock")}
                         </Badge>
                       </TableCell>
                     </TableRow>
