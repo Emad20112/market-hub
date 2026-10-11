@@ -193,11 +193,16 @@ export interface PrintJobItem {
 // empty string) that risked re-introducing a hard-coded product-owner name in
 // printed documents. Company Profile (name, logo, footer) is the single source
 // of identity — see src/lib/printing/company-profile.ts.
-export const DEFAULT_COMPANY_LOGO = "/inama-soft-logo.ico";
+export const DEFAULT_COMPANY_LOGO = "/vortex-erp-mark.png";
 
 export function getCompanyLogo(doc: UnifiedDocumentData): string {
   const logo = doc.company?.logo || (doc.company as Record<string, any>)?.logo_url;
-  if (logo && typeof logo === "string" && logo.trim().length > 0) {
+  if (
+    logo &&
+    typeof logo === "string" &&
+    logo.trim().length > 0 &&
+    !logo.includes("inama-soft-logo.ico")
+  ) {
     return logo.trim();
   }
   return DEFAULT_COMPANY_LOGO;

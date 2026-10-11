@@ -119,72 +119,105 @@ function themeCss(
       justify-content: space-between;
       min-height: ${isA5 ? "200mm" : "285mm"};
     }
-    header {
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-start;
-      gap: 12px;
+    header.invoice-header {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      align-items: center;
+      gap: ${isA5 ? "10px" : "18px"};
       padding-bottom: ${headerPadding};
       border-bottom: ${border};
       break-inside: avoid;
     }
-    .brand-section {
+    .header-side-right {
       display: flex;
-      align-items: center;
-      gap: 10px;
+      flex-direction: column;
+      gap: ${isA5 ? "2px" : "4px"};
+      text-align: right;
+      direction: rtl;
       min-width: 0;
-    }
-    .logo-container {
-      width: ${logoSize};
-      height: ${logoSize};
-      border-radius: var(--print-radius);
-      background: var(--print-accent-soft);
-      border: ${border};
-      display: flex;
-      align-items: center;
       justify-content: center;
-      overflow: hidden;
-      padding: 3px;
-      flex-shrink: 0;
-      box-shadow: ${isLuxury ? "0 2px 8px rgba(0,0,0,0.04)" : "none"};
     }
-    .company-logo-img {
-      width: 100%;
-      height: 100%;
-      object-fit: contain;
-    }
-    .company-title-group h1 {
+    .header-company-name {
       font-size: ${companyTitleSize};
       font-weight: 800;
       color: var(--print-ink);
       margin: 0;
       line-height: 1.25;
       letter-spacing: -0.2px;
+      word-break: break-word;
     }
-    .company-title-group .brand-sub {
+    .header-company-sub {
       color: var(--print-accent);
       font-size: ${isA5 ? "8.5px" : "10px"};
       font-weight: 700;
-      letter-spacing: 0.3px;
+      letter-spacing: 0.2px;
     }
-    .company-contacts {
-      display: flex;
-      flex-direction: column;
-      gap: 3px;
-      font-size: ${isA5 ? "9.5px" : "10.5px"};
-      color: var(--print-muted);
-      text-align: ${rtl ? "left" : "right"};
-      flex-shrink: 0;
-    }
-    .contact-item {
+    .header-meta-item {
       display: flex;
       align-items: center;
       gap: 5px;
-      justify-content: ${rtl ? "flex-end" : "flex-start"};
+      font-size: ${isA5 ? "9px" : "10.5px"};
+      color: var(--print-muted);
+      line-height: 1.35;
     }
-    .contact-item svg {
+    .header-side-right .header-meta-item {
+      justify-content: flex-start;
+    }
+    .header-side-left .header-meta-item {
+      justify-content: flex-end;
+      direction: ltr;
+    }
+    .header-meta-item svg {
       color: var(--print-accent);
       flex-shrink: 0;
+    }
+    .header-center-logo {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 0 4px;
+    }
+    .header-logo-container {
+      width: ${isA5 ? "54px" : "74px"};
+      height: ${isA5 ? "54px" : "74px"};
+      border-radius: ${isLuxury ? "14px" : "10px"};
+      background: var(--print-accent-soft);
+      border: ${border};
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      padding: 4px;
+      flex-shrink: 0;
+      box-shadow: ${isLuxury ? "0 4px 12px rgba(0,0,0,0.06)" : "0 2px 8px rgba(0,0,0,0.04)"};
+    }
+    .header-logo-img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      display: block;
+    }
+    .header-side-left {
+      display: flex;
+      flex-direction: column;
+      gap: ${isA5 ? "2px" : "4px"};
+      text-align: left;
+      direction: ltr;
+      min-width: 0;
+      justify-content: center;
+      align-items: flex-end;
+    }
+    .header-company-en {
+      font-size: ${isA5 ? "11px" : "13.5px"};
+      font-weight: 800;
+      color: var(--print-ink);
+      letter-spacing: 0.3px;
+      margin: 0;
+      line-height: 1.25;
+      text-transform: uppercase;
+      font-family: system-ui, -apple-system, sans-serif;
     }
     .invoice-title-banner {
       margin: ${isA5 ? "8px 0 10px" : "12px 0 14px"};
@@ -501,8 +534,16 @@ export function renderUnifiedLayout(
   const c = doc.currency ?? "";
   const esc = escapeHtml;
   const money = (n?: number) => formatMoney(n ?? 0, c);
-  const logoUrl = getCompanyLogo(doc);
   const company = options?.company ?? getCachedCompanyProfile();
+  const rawLogo =
+    doc.company?.logo || (doc.company as Record<string, any>)?.logo_url || company.logoUrl;
+  const logoUrl =
+    rawLogo &&
+    typeof rawLogo === "string" &&
+    rawLogo.trim().length > 0 &&
+    !rawLogo.includes("inama-soft-logo.ico")
+      ? rawLogo.trim()
+      : DEFAULT_COMPANY_LOGO;
 
   const opts = {
     showLogo: true,
@@ -538,9 +579,17 @@ export function renderUnifiedLayout(
   // The document may carry a snapshot, but the profile is authoritative when
   // the snapshot has no name of its own.
   const companyName = company.name || doc.company?.name || "";
-  const companyAddress = company.address || doc.company?.address || "";
-  const companyPhone = company.phone || company.contacts.join(" · ") || doc.company?.phone || "";
-  const companyVat = company.taxNumber || doc.company?.vat || "";
+  const arabicName = doc.company?.arabicName || company.arabicName || companyName;
+  const englishName = doc.company?.englishName || company.englishName || "";
+  const companyAddress = doc.company?.address || company.address || "";
+  const companyPhone =
+    doc.company?.phone ||
+    company.phone ||
+    (company.contacts && company.contacts.length > 0 ? company.contacts.join(" · ") : "") ||
+    "";
+  const companyVat = doc.company?.vat || company.taxNumber || "";
+  const companyEmail = doc.company?.email || company.email || "";
+  const companyWebsite = doc.company?.website || "";
 
   const rows = doc.lines
     .map((l, i) => {
@@ -578,57 +627,89 @@ export function renderUnifiedLayout(
 
 <div class="page-container">
   <div>
-    <header>
-      <div class="brand-section">
+    <header class="invoice-header">
+      <!-- 1. Right Side (اليمين): الاسم والموقع بشكل احترافي متناسق -->
+      <div class="header-side-right">
         ${
-          opts.showLogo
+          opts.showCompanyInfo
             ? `
-        <div class="logo-container">
-          <img
-            src="${esc(logoUrl)}"
-            alt="${esc(companyName)}"
-            class="company-logo-img"
-            onerror="this.onerror=null; this.src='${DEFAULT_COMPANY_LOGO}';"
-          />
-        </div>`
-            : ""
-        }
-        <div class="company-title-group">
-          <h1>${esc(companyName)}</h1>
-        </div>
-      </div>
-
-      ${
-        opts.showCompanyInfo
-          ? `
-      <div class="company-contacts">
+        <h1 class="header-company-name">${esc(arabicName || companyName || (rtl ? "المركز التجاري" : "Vortex Commercial"))}</h1>
         ${
           companyAddress
-            ? `<div class="contact-item">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+            ? `<div class="header-meta-item">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
           <span>${esc(companyAddress)}</span>
         </div>`
             : ""
         }
         ${
+          companyVat
+            ? `<div class="header-meta-item">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M7 7h10M7 12h10M7 17h6"/></svg>
+          <span>${rtl ? "الرقم الضريبي" : "Tax No"}: ${esc(companyVat)}</span>
+        </div>`
+            : ""
+        }`
+            : "<div></div>"
+        }
+      </div>
+
+      <!-- 2. Center (المنتصف): الشعار بشكل احترافي -->
+      <div class="header-center-logo">
+        ${
+          opts.showLogo
+            ? `
+        <div class="header-logo-container">
+          <img
+            src="${esc(logoUrl)}"
+            alt="${esc(companyName || "Logo")}"
+            class="header-logo-img"
+            onerror="this.onerror=null; this.src='${DEFAULT_COMPANY_LOGO}';"
+          />
+        </div>`
+            : "<div></div>"
+        }
+      </div>
+
+      <!-- 3. Left Side (اليسار): أرقام التواصل أو البيانات باللغة الإنجليزية -->
+      <div class="header-side-left">
+        ${
+          opts.showCompanyInfo
+            ? `
+        ${
+          englishName
+            ? `<div class="header-company-en">${esc(englishName)}</div>`
+            : `<div class="header-company-en">VORTEX ERP</div>`
+        }
+        ${
           companyPhone
-            ? `<div class="contact-item">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+            ? `<div class="header-meta-item">
           <span dir="ltr">${esc(companyPhone)}</span>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
         </div>`
             : ""
         }
         ${
-          companyVat
-            ? `<div class="contact-item">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M7 7h10M7 12h10M7 17h6"/></svg>
-          <span>${rtl ? "الرقم الضريبي" : "Tax ID"}: ${esc(companyVat)}</span>
+          companyEmail
+            ? `<div class="header-meta-item">
+          <span dir="ltr">${esc(companyEmail)}</span>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
         </div>`
-            : ""
+            : companyWebsite
+              ? `<div class="header-meta-item">
+          <span dir="ltr">${esc(companyWebsite)}</span>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg>
+        </div>`
+              : companyVat
+                ? `<div class="header-meta-item">
+          <span dir="ltr">VAT: ${esc(companyVat)}</span>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M7 7h10M7 12h10M7 17h6"/></svg>
+        </div>`
+                : ""
+        }`
+            : "<div></div>"
         }
-      </div>`
-          : "<div></div>"
-      }
+      </div>
     </header>
 
     <div class="invoice-title-banner">
