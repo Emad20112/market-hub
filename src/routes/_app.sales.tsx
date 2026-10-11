@@ -1166,8 +1166,8 @@ export function SalesPage() {
           value: search,
           onValueChange: setSearch,
           placeholder: isRtl
-            ? "ابحث برقم الفاتورة، العميل، الهاتف..."
-            : "Search invoice #, customer, phone...",
+            ? "ابحث برقم الفاتورة، العميل، الهاتف... (/)"
+            : "Search invoice #, customer, phone... (/)",
           resultCount: totalInvoiceCount ?? filteredRows.length,
         }}
         filters={{

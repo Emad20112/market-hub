@@ -121,14 +121,7 @@ export const VortexHeaderOmnisearch = memo(function VortexHeaderOmnisearch({
       const activeElement = document.activeElement;
       const isInput = activeElement && (activeElement.tagName === "INPUT" || activeElement.tagName === "TEXTAREA");
 
-      // زر '/' عندما لا يكون المستخدم داخل حقل إدخال آخر
-      if (e.key === "/" && !isInput && !e.ctrlKey && !e.metaKey) {
-        e.preventDefault();
-        setIsOpen(true);
-        setTimeout(() => inputRef.current?.focus(), 50);
-      }
-
-      // اختصار Ctrl+K أو Cmd+K
+      // اختصار البحث الرئيسي المخصص: Ctrl+K أو Cmd+K حصراً لمنع التعارض مع حقول بحث الصفحات المنفصلة
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
         e.preventDefault();
         setIsOpen(true);
@@ -413,7 +406,7 @@ export const VortexHeaderOmnisearch = memo(function VortexHeaderOmnisearch({
           placeholder={
             isMobile
               ? isAr ? "بحث..." : "Search..."
-              : isAr ? "ابحث عن فاتورة، عميل، منتج، مورد... (/)" : "Search invoices, products, customers... (/)"
+              : isAr ? "ابحث عن فاتورة، عميل، منتج، مورد... (Ctrl+K)" : "Search invoices, products, customers... (Ctrl+K)"
           }
           className="h-full flex-1 min-w-0 bg-transparent text-sm font-medium text-foreground placeholder:text-muted-foreground/75 placeholder:truncate focus:outline-none"
         />
@@ -446,10 +439,7 @@ export const VortexHeaderOmnisearch = memo(function VortexHeaderOmnisearch({
           </button>
         ) : (
           <div className="flex items-center gap-1.5">
-            <kbd className="hidden sm:inline-flex h-5 min-w-[20px] items-center justify-center rounded-md border border-border/80 bg-background/80 px-1.5 text-[10px] font-mono font-bold text-muted-foreground/90 shadow-sm">
-              /
-            </kbd>
-            <kbd className="hidden lg:inline-flex h-5 items-center gap-0.5 rounded-md border border-border/80 bg-background/80 px-1.5 text-[10px] font-mono font-medium text-muted-foreground shadow-sm">
+            <kbd className="hidden sm:inline-flex h-5 items-center gap-1 rounded-md border border-border/80 bg-background/80 px-2 text-[10px] font-mono font-medium text-muted-foreground shadow-sm">
               <CommandIcon className="h-3 w-3" /> K
             </kbd>
           </div>
