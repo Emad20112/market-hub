@@ -2,14 +2,10 @@
  * /account-statement — مركز الكشوفات والتقارير
  *
  * شاشة موحدة تجمع:
- *   1. تبويب الكشوفات (كشوف حسابات العملاء، الموردين، الصندوق/البنك، وكشوفات العمليات الأخرى).
- *   2. تبويب التقارير (الأكثر مبيعاً، المبيعات، طرق الدفع، مخزون منخفض).
- *
- * مع:
- *   - حقل البحث السريع والموحد مع اختصار '/'
- *   - خيار الفرز المرن للجدول والأعمدة التفاعلية
- *   - قوائم منسدلة منظمة ومكون "كشوفات أخرى" الخفيف والأنيق بأنيميشن التحميل
- *   - فلاتر متقدمة لكل قسم على حدة
+ *   1. تبويب الكشوفات: كشوف الحسابات الأساسية (العملاء، الموردون، الصندوق والبنك).
+ *   2. تبويب التقارير: جميع التقارير التشغيلية والتحليلية الموحدة بتصميم جدول موحد:
+ *      (الأكثر مبيعاً، المبيعات، طرق الدفع، مخزون منخفض، المشتريات، الديون والمستحقات،
+ *       فواتير العملاء، الأرباح والمبيعات، حركة المخزون، المرتجعات، المصروفات، كشف الصنف).
  */
 
 import { ModuleGuard } from "@/lib/modules";
@@ -31,7 +27,6 @@ import {
   ArrowUp,
   ArrowDown,
   ChevronsUpDown,
-  Search,
 } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { useI18n } from "@/lib/i18n";
@@ -88,22 +83,16 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { DocumentShareDialog } from "@/components/communication";
 import { statementToContext } from "@/lib/communication";
-import { PurchasesReport } from "@/components/statements/purchases-report";
-import { OperationalReports } from "@/components/statements/operational-reports";
-import { DebtsReport } from "@/components/statements/debts-report";
-import { ProfitSalesReport } from "@/components/statements/profit-sales-report";
 import {
   DEFAULT_REPORT_PREFERENCES,
   getReportPreferences,
   saveReportPreferences,
 } from "@/lib/statements/local-storage";
 import {
-  reportDefinition,
   reportTypeForEntity,
   type ReportType,
 } from "@/lib/statements/report-registry";
-import { OtherStatementsMenu } from "@/components/statements/other-statements-menu";
-import { ReportsHubTab } from "@/components/statements/reports-hub-tab";
+import { ReportsHubTab, type ReportCategory } from "@/components/statements/reports-hub-tab";
 import { SearchInput } from "@/components/ui/search-input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
@@ -112,7 +101,7 @@ const accountStatementSearchSchema = z.object({
   entityType: z.string().optional(),
   entityId: z.string().optional(),
   tab: z.enum(["statements", "reports"]).optional(),
-  reportSection: z.enum(["top", "sales", "payments", "low"]).optional(),
+  reportSection: z.string().optional(),
 });
 
 export const Route = createFileRoute("/_app/account-statement")({
@@ -132,7 +121,6 @@ interface PartyOption {
   balance?: number;
 }
 
-/** نطاقات جاهزة للفترة */
 function periodPresets() {
   const today = new Date();
   const iso = (d: Date) => d.toISOString().slice(0, 10);
@@ -162,15 +150,12 @@ export function AccountStatementPage() {
   const { settings } = useStatementSettings();
   const savedPreferences = useMemo(() => getReportPreferences(), []);
 
-  // ── التبويب الرئيسي: الكشوفات أو التقارير ──
+  // ── التبويب الرئيسي: [الكشوفات | التقارير] ──
   const [mainTab, setMainTab] = useState<MainTab>(
     searchParams.tab ?? "statements",
   );
 
-  // ── نوع الكشف والحساب والجهة ──
-  const [reportType, setReportType] = useState<ReportType>(
-    savedPreferences.reportType ?? DEFAULT_REPORT_PREFERENCES.reportType,
-  );
+  // ── كشوفات الحسابات الأساسية فقط في تبويب الكشوفات ──
   const [partyType, setPartyType] = useState<StatementEntityType>(
     (searchParams.entityType as StatementEntityType) || savedPreferences.entityType || "customer",
   );
@@ -182,7 +167,7 @@ export function AccountStatementPage() {
   const [detailEntry, setDetailEntry] = useState<StatementTransaction | null>(null);
   const [shareOpen, setShareOpen] = useState(false);
 
-  // ── البحث والفرز الداخلي لحركات الكشف ──
+  // ── البحث والفرز في جدول كشف الحساب ──
   const [tableSearch, setTableSearch] = useState("");
   const [sortField, setSortField] = useState<"date" | "debit" | "credit" | "balance">("date");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
@@ -208,10 +193,9 @@ export function AccountStatementPage() {
     ...savedPreferences.visibleColumns,
   });
 
-  // حفظ التفضيلات
   useEffect(() => {
     saveReportPreferences({
-      reportType,
+      reportType: reportTypeForEntity(partyType),
       entityType: partyType,
       entityId: partyId,
       from,
@@ -220,9 +204,8 @@ export function AccountStatementPage() {
       includeZeroRows: includeZero,
       visibleColumns,
     });
-  }, [reportType, partyType, partyId, from, to, activePreset, includeZero, visibleColumns]);
+  }, [partyType, partyId, from, to, activePreset, includeZero, visibleColumns]);
 
-  // تحديث الرابط عند تغيير التبويب
   const handleTabChange = (tab: MainTab) => {
     setMainTab(tab);
     void navigate({
@@ -231,7 +214,7 @@ export function AccountStatementPage() {
     });
   };
 
-  // ── جلب الجهات حسب النوع ──
+  // جلب أطراف الحسابات
   useEffect(() => {
     let cancelled = false;
 
@@ -272,7 +255,7 @@ export function AccountStatementPage() {
     };
   }, [partyType]);
 
-  // ── المحرّك الحسابي لكشف الحساب ──
+  // استدعاء محرك كشف الحساب
   const { result, layout, company, isLoading, hasSourceData, derived, refetch } = useStatement({
     entityType: partyType,
     entityId: partyId,
@@ -296,11 +279,10 @@ export function AccountStatementPage() {
   const closingBalance = result?.closingBalance ?? 0;
   const rawRows = result?.transactions ?? [];
 
-  // معالجة البحث والفرز على حركات الجدول
+  // تصفية وفرز الحركات
   const statementRows = useMemo(() => {
     let rows = [...rawRows];
 
-    // الفلترة بالبحث النصي الموحد
     if (tableSearch.trim()) {
       const q = tableSearch.toLowerCase().trim();
       rows = rows.filter((r) => {
@@ -321,7 +303,6 @@ export function AccountStatementPage() {
       });
     }
 
-    // الفرز
     rows.sort((a, b) => {
       if (sortField === "date") {
         const t1 = new Date(a.occurredAt).getTime();
@@ -354,7 +335,7 @@ export function AccountStatementPage() {
       setSortDirection(sortDirection === "asc" ? "desc" : "asc");
     } else {
       setSortField(field);
-      setSortDirection(field === "date" ? "desc" : "desc");
+      setSortDirection("desc");
     }
   };
 
@@ -441,19 +422,6 @@ export function AccountStatementPage() {
     setShareOpen(true);
   }
 
-  function handleOtherStatementSelect(nextType: ReportType) {
-    const definition = reportDefinition(nextType);
-    if (!definition.implemented || !definition.entityType) {
-      setReportType(nextType);
-      saveReportPreferences({ reportType: nextType });
-      return;
-    }
-    setReportType(nextType);
-    setPartyType(definition.entityType);
-    setDetailEntry(null);
-    saveReportPreferences({ reportType: nextType, entityType: definition.entityType });
-  }
-
   const alignClass = (align: "start" | "center" | "end") =>
     align === "end" ? "text-end" : align === "center" ? "text-center" : "text-start";
 
@@ -478,13 +446,13 @@ export function AccountStatementPage() {
           <span className="text-xs font-semibold">{kindLabel(row.kind, partyType, lang)}</span>
         );
       case "reference":
-        return <Ltr className="font-mono text-xs text-primary">{row.reference ?? "—"}</Ltr>;
+        return <Ltr className="font-mono text-xs text-primary font-medium">{row.reference ?? "—"}</Ltr>;
       case "description":
         return <span className="text-xs text-muted-foreground">{row.description ?? "—"}</span>;
       case "debit":
-        return <Ltr className="font-mono text-rose-500 font-medium">{fmtOrDash(row.debit)}</Ltr>;
+        return <Ltr className="font-mono text-rose-500 font-bold">{fmtOrDash(row.debit)}</Ltr>;
       case "credit":
-        return <Ltr className="font-mono text-emerald-500 font-medium">{fmtOrDash(row.credit)}</Ltr>;
+        return <Ltr className="font-mono text-emerald-500 font-bold">{fmtOrDash(row.credit)}</Ltr>;
       case "balance":
         return <Ltr className="font-mono font-bold text-foreground">{fmtAmount(row.runningBalance)}</Ltr>;
       case "paymentMethod": {
@@ -510,17 +478,6 @@ export function AccountStatementPage() {
     }
   };
 
-  const isOtherOperational = [
-    "purchases",
-    "debts",
-    "profit-sales",
-    "sales-invoices",
-    "returns",
-    "expenses",
-    "inventory-movements",
-    "product",
-  ].includes(reportType);
-
   return (
     <>
       <PageHeader
@@ -532,7 +489,7 @@ export function AccountStatementPage() {
         }
         actions={
           <div className="flex items-center gap-2">
-            {mainTab === "statements" && !isOtherOperational && (
+            {mainTab === "statements" && (
               <>
                 <Button
                   onClick={handleShareStatement}
@@ -569,7 +526,7 @@ export function AccountStatementPage() {
         }
       />
 
-      {/* ═══ Main Navigation Deck: [الكشوفات | التقارير] ═══ */}
+      {/* ═══ الشريط العلوي الموحد للتنقل بين [الكشوفات | التقارير] ═══ */}
       <div className="mb-4 flex items-center justify-between border-b border-border/70 pb-3">
         <div className="flex items-center gap-2 p-1 rounded-2xl bg-surface-2 border border-border/80 shadow-inner">
           <button
@@ -599,707 +556,505 @@ export function AccountStatementPage() {
             <BarChart3 className="h-4 w-4" />
             <span>{ar ? "التقارير" : "Reports"}</span>
             <span className="rounded-full bg-primary/10 px-1.5 text-[10px] text-primary">
-              4
+              12
             </span>
           </button>
         </div>
-
-        {mainTab === "statements" && isOtherOperational && (
-          <div className="flex items-center gap-2">
-            <OtherStatementsMenu
-              currentType={reportType}
-              onSelect={handleOtherStatementSelect}
-              isLoading={isLoading}
-              label={ar ? "تبديل الكشف" : "Switch statement"}
-              title={ar ? "اختيار كشف آخر" : "Select another statement"}
-            />
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => handleOtherStatementSelect("customer-account")}
-              className="h-8 text-xs text-primary border-primary/30 hover:bg-primary/10 rounded-xl"
-            >
-              ← {ar ? "كشف حساب تفصيلي" : "Detail statement"}
-            </Button>
-          </div>
-        )}
       </div>
 
       {/* ═══════════════════════════════════════════════════════════════
-          تبويب التقارير (الأكثر مبيعاً، المبيعات، طرق الدفع، مخزون منخفض)
+          تبويب التقارير الموحد: يضم جميع التقارير الـ 12 بتصميم جدول موحد
          ═══════════════════════════════════════════════════════════════ */}
       {mainTab === "reports" && (
         <ReportsHubTab
           ar={ar}
-          initialSubSection={
-            searchParams.reportSection ?? "top"
-          }
+          initialReport={(searchParams.reportSection as ReportCategory) ?? "top"}
         />
       )}
 
       {/* ═══════════════════════════════════════════════════════════════
-          تبويب الكشوفات (الحسابات، الصندوق، وكشوفات العمليات الأخرى)
+          تبويب الكشوفات: مخصص حصرياً لكشوفات الحسابات الأساسية النظيفة
          ═══════════════════════════════════════════════════════════════ */}
       {mainTab === "statements" && (
-        <>
-          {reportType === "purchases" ? (
-            <PurchasesReport
-              from={from}
-              to={to}
-              ar={ar}
-              onBack={() => handleOtherStatementSelect("customer-account")}
-              filterValues={filterValues}
-              filterPresets={filterPresets}
-              onFilterChange={updateFilterValues}
-              onFilterReset={resetOptions}
-            />
-          ) : reportType === "debts" ? (
-            <DebtsReport ar={ar} onBack={() => handleOtherStatementSelect("customer-account")} />
-          ) : reportType === "profit-sales" ? (
-            <ProfitSalesReport
-              from={from}
-              to={to}
-              ar={ar}
-              onBack={() => handleOtherStatementSelect("customer-account")}
-              filterValues={filterValues}
-              filterPresets={filterPresets}
-              onFilterChange={updateFilterValues}
-              onFilterReset={resetOptions}
-            />
-          ) : [
-              "sales-invoices",
-              "returns",
-              "expenses",
-              "inventory-movements",
-              "product",
-            ].includes(reportType) ? (
-            <OperationalReports
-              type={
-                reportType as
-                  | "sales-invoices"
-                  | "returns"
-                  | "expenses"
-                  | "inventory-movements"
-                  | "product"
-              }
-              from={from}
-              to={to}
-              ar={ar}
-              onBack={() => handleOtherStatementSelect("customer-account")}
-              filterValues={filterValues}
-              filterPresets={filterPresets}
-              onFilterChange={updateFilterValues}
-              onFilterReset={resetOptions}
-            />
-          ) : (
-            <div className="space-y-4">
-              {/* ═══ بطاقة الاختيار المنظمة: قوائم منسدلة أنيقة بدون هدر للمساحات ═══ */}
-              <div className="panel-elevated p-3.5 sm:p-4 flex flex-wrap items-center justify-between gap-3">
-                <div className="flex flex-wrap items-center gap-2.5">
-                  {/* قائمة منسدلة لنوع الحساب */}
-                  <div className="flex items-center gap-1.5">
-                    <Select
-                      value={partyType}
-                      onValueChange={(val) => {
-                        const nextType = val as StatementEntityType;
-                        setPartyType(nextType);
-                        setReportType(reportTypeForEntity(nextType));
-                      }}
-                    >
-                      <SelectTrigger className="h-9 w-40 sm:w-44 text-xs font-medium bg-surface rounded-xl border-border/80">
-                        <SelectValue placeholder={ar ? "نوع الحساب" : "Account type"} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="customer">
-                          <div className="flex items-center gap-2">
-                            <UserCheck className="h-3.5 w-3.5 text-primary" />
-                            <span>{ar ? "كشف حساب عميل" : "Customer account"}</span>
-                          </div>
-                        </SelectItem>
-                        <SelectItem value="supplier">
-                          <div className="flex items-center gap-2">
-                            <Building2 className="h-3.5 w-3.5 text-blue-500" />
-                            <span>{ar ? "كشف حساب مورد" : "Supplier account"}</span>
-                          </div>
-                        </SelectItem>
-                        <SelectItem value="cash">
-                          <div className="flex items-center gap-2">
-                            <Wallet className="h-3.5 w-3.5 text-emerald-500" />
-                            <span>{ar ? "الصندوق والبنك" : "Treasury / Bank"}</span>
-                          </div>
-                        </SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  {/* قائمة منسدلة لاختيار الطرف (عميل / مورد) */}
-                  {partyType !== "cash" && (
-                    <Select value={partyId} onValueChange={setPartyId}>
-                      <SelectTrigger className="h-9 w-48 sm:w-64 text-xs font-medium bg-surface rounded-xl border-border/80">
-                        <SelectValue
-                          placeholder={
-                            loadingParties
-                              ? t("common.loading")
-                              : ar
-                                ? "اختر الحساب..."
-                                : "Select account..."
-                          }
-                        />
-                      </SelectTrigger>
-                      <SelectContent className="max-h-[300px]">
-                        {partyList.map((p) => (
-                          <SelectItem key={p.id} value={p.id}>
-                            <div className="flex items-center justify-between gap-4 w-full text-xs">
-                              <span className="font-medium truncate">{p.name}</span>
-                              {p.balance !== undefined && (
-                                <span className="font-mono text-[11px] text-muted-foreground">
-                                  {money(Number(p.balance))}
-                                </span>
-                              )}
-                            </div>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  )}
-
-                  {/* مكون كشوفات أخرى الخفيف بنمط ColumnVisibilityMenu وأنيميشن المصروفات */}
-                  <OtherStatementsMenu
-                    currentType={reportType}
-                    onSelect={handleOtherStatementSelect}
-                    isLoading={isLoading}
-                    label={ar ? "كشوفات أخرى" : "Other statements"}
-                    title={ar ? "اختيار كشف آخر" : "Select another statement"}
-                  />
-                </div>
-
-                {/* المجاميع المالية المدمجة */}
-                {result && (
-                  <div className="flex flex-wrap items-center gap-4 sm:gap-6 bg-surface-2/60 px-3.5 py-1.5 rounded-xl border border-border/60">
-                    <div className="text-end">
-                      <span className="text-[10px] text-muted-foreground block">
-                        {ar ? "إجمالي المدين (له)" : "Total Debit"}
-                      </span>
-                      <span className="font-bold font-mono text-rose-500 text-xs sm:text-sm">
-                        <Ltr>{money(totalDebit)}</Ltr>
-                      </span>
+        <div className="space-y-4">
+          {/* بطاقة اختيار الحساب النظيفة والمرتبة بقوائم منسدلة */}
+          <div className="panel-elevated p-3.5 sm:p-4 flex flex-wrap items-center justify-between gap-3">
+            <div className="flex flex-wrap items-center gap-2.5">
+              {/* قائمة منسدلة لنوع الحساب */}
+              <Select
+                value={partyType}
+                onValueChange={(val) => {
+                  const nextType = val as StatementEntityType;
+                  setPartyType(nextType);
+                }}
+              >
+                <SelectTrigger className="h-9 w-40 sm:w-44 text-xs font-semibold bg-surface rounded-xl border-border/80 shadow-sm">
+                  <SelectValue placeholder={ar ? "نوع الحساب" : "Account type"} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="customer">
+                    <div className="flex items-center gap-2">
+                      <UserCheck className="h-3.5 w-3.5 text-primary" />
+                      <span>{ar ? "كشف حساب عميل" : "Customer account"}</span>
                     </div>
-
-                    <div className="h-6 w-px bg-border/60 hidden sm:block" />
-
-                    <div className="text-end">
-                      <span className="text-[10px] text-muted-foreground block">
-                        {ar ? "إجمالي الدائن (عليه)" : "Total Credit"}
-                      </span>
-                      <span className="font-bold font-mono text-emerald-500 text-xs sm:text-sm">
-                        <Ltr>{money(totalCredit)}</Ltr>
-                      </span>
+                  </SelectItem>
+                  <SelectItem value="supplier">
+                    <div className="flex items-center gap-2">
+                      <Building2 className="h-3.5 w-3.5 text-blue-500" />
+                      <span>{ar ? "كشف حساب مورد" : "Supplier account"}</span>
                     </div>
-
-                    <div className="h-6 w-px bg-border/60 hidden sm:block" />
-
-                    <div className="text-end">
-                      <span className="text-[10px] text-muted-foreground block">
-                        {ar ? "الرصيد المتبقي" : "Net Balance"}
-                      </span>
-                      <span className="font-bold font-mono text-primary text-sm sm:text-base">
-                        <Ltr>{money(closingBalance)}</Ltr>
-                      </span>
+                  </SelectItem>
+                  <SelectItem value="cash">
+                    <div className="flex items-center gap-2">
+                      <Wallet className="h-3.5 w-3.5 text-emerald-500" />
+                      <span>{ar ? "الصندوق والبنك" : "Treasury / Bank"}</span>
                     </div>
-                  </div>
-                )}
-              </div>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
 
-              {/* ═══ شريط الأدوات الموحد: البحث + الفرز + الفلاتر + الأعمدة ═══ */}
-              <div className="flex flex-wrap items-center justify-between gap-2.5">
-                {/* حقل البحث الموحد الداخلي مع اختصار '/' */}
-                <div className="flex-1 min-w-[220px] max-w-md">
-                  <SearchInput
-                    value={tableSearch}
-                    onValueChange={setTableSearch}
-                    placeholder={
-                      ar
-                        ? "ابحث في حركات الكشف (رقم الفاتورة، السند، البيان...) (/)"
-                        : "Search statement records... (/)"
-                    }
-                    resultCountText={
-                      statementRows.length !== rawRows.length
-                        ? `${statementRows.length}/${rawRows.length}`
-                        : String(statementRows.length)
-                    }
-                    enableSlashShortcut
-                    containerClassName="w-full"
-                  />
-                </div>
-
-                {/* أدوات الفرز والفلاتر والأعمدة */}
-                <div className="flex items-center gap-2">
-                  {/* قائمة منسدلة لفرز الجدول */}
-                  <Popover open={sortMenuOpen} onOpenChange={setSortMenuOpen}>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant={sortField !== "date" || sortDirection !== "desc" ? "default" : "outline"}
-                        size="sm"
-                        className={cn(
-                          "h-8 gap-1.5 px-2.5 text-xs rounded-xl",
-                          sortField !== "date" && "bg-primary text-primary-foreground",
-                        )}
-                      >
-                        <ArrowDownUp className="h-3.5 w-3.5" />
-                        <span>{ar ? "ترتيب" : "Sort"}</span>
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent align="end" className="w-[200px] p-1.5">
-                      <div className="border-b border-border/60 px-2 py-1.5 text-xs font-semibold">
-                        {ar ? "خيارات الترتيب" : "Sort options"}
-                      </div>
-                      <div className="space-y-0.5 pt-1 text-xs">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setSortField("date");
-                            setSortDirection("desc");
-                            setSortMenuOpen(false);
-                          }}
-                          className={cn(
-                            "flex w-full items-center justify-between rounded-md px-2 py-1.5 transition hover:bg-surface-2",
-                            sortField === "date" && sortDirection === "desc" && "font-semibold text-primary",
+              {/* قائمة منسدلة لاختيار الطرف */}
+              {partyType !== "cash" && (
+                <Select value={partyId} onValueChange={setPartyId}>
+                  <SelectTrigger className="h-9 w-48 sm:w-64 text-xs font-medium bg-surface rounded-xl border-border/80 shadow-sm">
+                    <SelectValue
+                      placeholder={
+                        loadingParties
+                          ? t("common.loading")
+                          : ar
+                            ? "اختر الحساب..."
+                            : "Select account..."
+                      }
+                    />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-[300px]">
+                    {partyList.map((p) => (
+                      <SelectItem key={p.id} value={p.id}>
+                        <div className="flex items-center justify-between gap-4 w-full text-xs">
+                          <span className="font-medium truncate">{p.name}</span>
+                          {p.balance !== undefined && (
+                            <span className="font-mono text-[11px] text-muted-foreground">
+                              {money(Number(p.balance))}
+                            </span>
                           )}
-                        >
-                          <span>{ar ? "التاريخ: الأحدث أولاً" : "Date: Newest"}</span>
-                          {sortField === "date" && sortDirection === "desc" && "✓"}
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setSortField("date");
-                            setSortDirection("asc");
-                            setSortMenuOpen(false);
-                          }}
-                          className={cn(
-                            "flex w-full items-center justify-between rounded-md px-2 py-1.5 transition hover:bg-surface-2",
-                            sortField === "date" && sortDirection === "asc" && "font-semibold text-primary",
-                          )}
-                        >
-                          <span>{ar ? "التاريخ: الأقدم أولاً" : "Date: Oldest"}</span>
-                          {sortField === "date" && sortDirection === "asc" && "✓"}
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setSortField("debit");
-                            setSortDirection("desc");
-                            setSortMenuOpen(false);
-                          }}
-                          className={cn(
-                            "flex w-full items-center justify-between rounded-md px-2 py-1.5 transition hover:bg-surface-2",
-                            sortField === "debit" && sortDirection === "desc" && "font-semibold text-primary",
-                          )}
-                        >
-                          <span>{ar ? "المدين: الأكبر أولاً" : "Debit: Highest"}</span>
-                          {sortField === "debit" && sortDirection === "desc" && "✓"}
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setSortField("credit");
-                            setSortDirection("desc");
-                            setSortMenuOpen(false);
-                          }}
-                          className={cn(
-                            "flex w-full items-center justify-between rounded-md px-2 py-1.5 transition hover:bg-surface-2",
-                            sortField === "credit" && sortDirection === "desc" && "font-semibold text-primary",
-                          )}
-                        >
-                          <span>{ar ? "الدائن: الأكبر أولاً" : "Credit: Highest"}</span>
-                          {sortField === "credit" && sortDirection === "desc" && "✓"}
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setSortField("balance");
-                            setSortDirection("desc");
-                            setSortMenuOpen(false);
-                          }}
-                          className={cn(
-                            "flex w-full items-center justify-between rounded-md px-2 py-1.5 transition hover:bg-surface-2",
-                            sortField === "balance" && sortDirection === "desc" && "font-semibold text-primary",
-                          )}
-                        >
-                          <span>{ar ? "الرصيد: الأكبر أولاً" : "Balance: Highest"}</span>
-                          {sortField === "balance" && sortDirection === "desc" && "✓"}
-                        </button>
-                      </div>
-                    </PopoverContent>
-                  </Popover>
-
-                  {/* قائمة فلترة الفترة والخيارات المتقدمة */}
-                  <ReportFilterMenu
-                    values={filterValues}
-                    presets={filterPresets}
-                    onChange={updateFilterValues}
-                    onReset={resetOptions}
-                    labels={{
-                      trigger: ar ? "تصفية الكشف" : "Filter statement",
-                      title: ar ? "تصفية الكشف" : "Statement filters",
-                      date: ar ? "التاريخ والفترة" : "Date and period",
-                      period: ar ? "الفترة" : "Period",
-                      options: ar ? "خيارات إضافية" : "More options",
-                      includeZeroRows: ar ? "إظهار الفواتير المسددة" : "Include settled",
-                      reset: ar ? "إعادة ضبط الفلاتر" : "Reset filters",
-                      back: ar ? "رجوع" : "Back",
-                      from: ar ? "من" : "From",
-                      to: ar ? "إلى" : "To",
-                    }}
-                  />
-
-                  {/* خيارات إظهار الأعمدة */}
-                  <ColumnVisibilityMenu
-                    columns={columnOptions}
-                    visible={visibleColumns}
-                    onChange={(key, value) =>
-                      setVisibleColumns((current) => ({ ...current, [key]: value }))
-                    }
-                    label={ar ? "الأعمدة" : "Columns"}
-                    title={ar ? "إظهار أعمدة الكشف" : "Visible columns"}
-                  />
-                </div>
-              </div>
-
-              {/* تنبيهات الفجوات والفترة */}
-              {result?.integrity.hasGap && (
-                <StatementIntegrityBadge integrity={result.integrity} variant="panel" />
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               )}
-              {from && to && from > to && (
-                <div className="rounded-xl border border-amber-500/40 bg-amber-500/5 px-3.5 py-2 text-[11px] text-amber-700">
-                  {ar
-                    ? "تاريخ البداية بعد تاريخ النهاية — سيظهر الكشف فارغًا."
-                    : "Start date is after end date — the statement will be empty."}
-                </div>
-              )}
+            </div>
 
-              {/* ═══ جدول حركات الكشف ═══ */}
-              <div className="panel-elevated p-4">
-                <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                  <div className="flex items-center gap-2">
-                    <SourceBadge derived={derived} hasSourceData={hasSourceData} />
-                    {result && (
-                      <span className="text-[11px] text-muted-foreground">
-                        {statementRows.length} {ar ? "حركة معروضة" : "entries shown"}
-                      </span>
-                    )}
-                  </div>
-                  <span className="text-[11px] text-muted-foreground">
-                    {result ? directionLabel(result.direction, result.entityType, lang) : ""}
+            {/* المجاميع المالية المدمجة */}
+            {result && (
+              <div className="flex flex-wrap items-center gap-4 sm:gap-6 bg-surface-2/60 px-3.5 py-1.5 rounded-xl border border-border/60">
+                <div className="text-end">
+                  <span className="text-[10px] text-muted-foreground block">
+                    {ar ? "إجمالي المدين (له)" : "Total Debit"}
+                  </span>
+                  <span className="font-bold font-mono text-rose-500 text-xs sm:text-sm">
+                    <Ltr>{money(totalDebit)}</Ltr>
                   </span>
                 </div>
 
-                <div className="flex flex-col">
-                  {/* الجدول على سطح المكتب */}
-                  <div className="order-2 hidden overflow-x-auto md:block">
-                    <Table>
-                      <TableHeader className="bg-surface-2/60">
-                        <TableRow>
-                          {columns.map((col) => {
-                            const isSortableCol = ["date", "debit", "credit", "balance"].includes(col.key);
-                            const isActiveSort = sortField === col.key;
+                <div className="h-6 w-px bg-border/60 hidden sm:block" />
 
+                <div className="text-end">
+                  <span className="text-[10px] text-muted-foreground block">
+                    {ar ? "إجمالي الدائن (عليه)" : "Total Credit"}
+                  </span>
+                  <span className="font-bold font-mono text-emerald-500 text-xs sm:text-sm">
+                    <Ltr>{money(totalCredit)}</Ltr>
+                  </span>
+                </div>
+
+                <div className="h-6 w-px bg-border/60 hidden sm:block" />
+
+                <div className="text-end">
+                  <span className="text-[10px] text-muted-foreground block">
+                    {ar ? "الرصيد المتبقي" : "Net Balance"}
+                  </span>
+                  <span className="font-bold font-mono text-primary text-sm sm:text-base">
+                    <Ltr>{money(closingBalance)}</Ltr>
+                  </span>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* شريط الأدوات الموحد: البحث + الفرز + الفلاتر + الأعمدة */}
+          <div className="flex flex-wrap items-center justify-between gap-2.5">
+            <div className="flex-1 min-w-[220px] max-w-md">
+              <SearchInput
+                value={tableSearch}
+                onValueChange={setTableSearch}
+                placeholder={
+                  ar
+                    ? "ابحث في حركات الكشف (رقم الفاتورة، السند، البيان...) (/)"
+                    : "Search statement records... (/)"
+                }
+                resultCountText={
+                  statementRows.length !== rawRows.length
+                    ? `${statementRows.length}/${rawRows.length}`
+                    : String(statementRows.length)
+                }
+                enableSlashShortcut
+                containerClassName="w-full"
+              />
+            </div>
+
+            <div className="flex items-center gap-2">
+              {/* قائمة الفرز المنسدلة */}
+              <Popover open={sortMenuOpen} onOpenChange={setSortMenuOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant={sortField !== "date" || sortDirection !== "desc" ? "default" : "outline"}
+                    size="sm"
+                    className={cn(
+                      "h-8 gap-1.5 px-2.5 text-xs rounded-xl",
+                      sortField !== "date" && "bg-primary text-primary-foreground",
+                    )}
+                  >
+                    <ArrowDownUp className="h-3.5 w-3.5" />
+                    <span>{ar ? "ترتيب" : "Sort"}</span>
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent align="end" className="w-[200px] p-1.5">
+                  <div className="border-b border-border/60 px-2 py-1.5 text-xs font-semibold">
+                    {ar ? "خيارات الترتيب" : "Sort options"}
+                  </div>
+                  <div className="space-y-0.5 pt-1 text-xs">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSortField("date");
+                        setSortDirection("desc");
+                        setSortMenuOpen(false);
+                      }}
+                      className={cn(
+                        "flex w-full items-center justify-between rounded-md px-2 py-1.5 transition hover:bg-surface-2",
+                        sortField === "date" && sortDirection === "desc" && "font-semibold text-primary",
+                      )}
+                    >
+                      <span>{ar ? "التاريخ: الأحدث أولاً" : "Date: Newest"}</span>
+                      {sortField === "date" && sortDirection === "desc" && "✓"}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSortField("date");
+                        setSortDirection("asc");
+                        setSortMenuOpen(false);
+                      }}
+                      className={cn(
+                        "flex w-full items-center justify-between rounded-md px-2 py-1.5 transition hover:bg-surface-2",
+                        sortField === "date" && sortDirection === "asc" && "font-semibold text-primary",
+                      )}
+                    >
+                      <span>{ar ? "التاريخ: الأقدم أولاً" : "Date: Oldest"}</span>
+                      {sortField === "date" && sortDirection === "asc" && "✓"}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSortField("debit");
+                        setSortDirection("desc");
+                        setSortMenuOpen(false);
+                      }}
+                      className={cn(
+                        "flex w-full items-center justify-between rounded-md px-2 py-1.5 transition hover:bg-surface-2",
+                        sortField === "debit" && sortDirection === "desc" && "font-semibold text-primary",
+                      )}
+                    >
+                      <span>{ar ? "المدين: الأكبر أولاً" : "Debit: Highest"}</span>
+                      {sortField === "debit" && sortDirection === "desc" && "✓"}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSortField("credit");
+                        setSortDirection("desc");
+                        setSortMenuOpen(false);
+                      }}
+                      className={cn(
+                        "flex w-full items-center justify-between rounded-md px-2 py-1.5 transition hover:bg-surface-2",
+                        sortField === "credit" && sortDirection === "desc" && "font-semibold text-primary",
+                      )}
+                    >
+                      <span>{ar ? "الدائن: الأكبر أولاً" : "Credit: Highest"}</span>
+                      {sortField === "credit" && sortDirection === "desc" && "✓"}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSortField("balance");
+                        setSortDirection("desc");
+                        setSortMenuOpen(false);
+                      }}
+                      className={cn(
+                        "flex w-full items-center justify-between rounded-md px-2 py-1.5 transition hover:bg-surface-2",
+                        sortField === "balance" && sortDirection === "desc" && "font-semibold text-primary",
+                      )}
+                    >
+                      <span>{ar ? "الرصيد: الأكبر أولاً" : "Balance: Highest"}</span>
+                      {sortField === "balance" && sortDirection === "desc" && "✓"}
+                    </button>
+                  </div>
+                </PopoverContent>
+              </Popover>
+
+              <ReportFilterMenu
+                values={filterValues}
+                presets={filterPresets}
+                onChange={updateFilterValues}
+                onReset={resetOptions}
+                labels={{
+                  trigger: ar ? "تصفية الكشف" : "Filter statement",
+                  title: ar ? "تصفية الكشف" : "Statement filters",
+                  date: ar ? "التاريخ والفترة" : "Date and period",
+                  period: ar ? "الفترة" : "Period",
+                  options: ar ? "خيارات إضافية" : "More options",
+                  includeZeroRows: ar ? "إظهار الفواتير المسددة" : "Include settled",
+                  reset: ar ? "إعادة ضبط الفلاتر" : "Reset filters",
+                  back: ar ? "رجوع" : "Back",
+                  from: ar ? "من" : "From",
+                  to: ar ? "إلى" : "To",
+                }}
+              />
+
+              <ColumnVisibilityMenu
+                columns={columnOptions}
+                visible={visibleColumns}
+                onChange={(key, value) =>
+                  setVisibleColumns((current) => ({ ...current, [key]: value }))
+                }
+                label={ar ? "الأعمدة" : "Columns"}
+                title={ar ? "إظهار أعمدة الكشف" : "Visible columns"}
+              />
+            </div>
+          </div>
+
+          {result?.integrity.hasGap && (
+            <StatementIntegrityBadge integrity={result.integrity} variant="panel" />
+          )}
+          {from && to && from > to && (
+            <div className="rounded-xl border border-amber-500/40 bg-amber-500/5 px-3.5 py-2 text-[11px] text-amber-700">
+              {ar
+                ? "تاريخ البداية بعد تاريخ النهاية — سيظهر الكشف فارغًا."
+                : "Start date is after end date — the statement will be empty."}
+            </div>
+          )}
+
+          {/* ═══ الجدول الموحد لكشف الحساب ═══ */}
+          <div className="panel-elevated p-0 overflow-hidden rounded-2xl border border-border/70 shadow-sm">
+            <div className="p-3.5 flex flex-wrap items-center justify-between gap-2 border-b border-border/60">
+              <div className="flex items-center gap-2">
+                <SourceBadge derived={derived} hasSourceData={hasSourceData} />
+                {result && (
+                  <span className="text-[11px] text-muted-foreground font-medium">
+                    {statementRows.length} {ar ? "حركة معروضة" : "entries shown"}
+                  </span>
+                )}
+              </div>
+              <span className="text-[11px] text-muted-foreground">
+                {result ? directionLabel(result.direction, result.entityType, lang) : ""}
+              </span>
+            </div>
+
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader className="bg-surface-2/60">
+                  <TableRow>
+                    {columns.map((col) => {
+                      const isSortableCol = ["date", "debit", "credit", "balance"].includes(col.key);
+                      const isActiveSort = sortField === col.key;
+
+                      return (
+                        <TableHead
+                          key={col.key}
+                          onClick={() => {
+                            if (isSortableCol) {
+                              toggleSort(col.key as "date" | "debit" | "credit" | "balance");
+                            }
+                          }}
+                          className={cn(
+                            col.key === "debit" && "text-end text-rose-500 font-semibold",
+                            col.key === "credit" && "text-end text-emerald-500 font-semibold",
+                            col.key === "balance" && "text-end font-semibold",
+                            isSortableCol && "cursor-pointer hover:bg-surface-3 transition-colors",
+                            alignClass(col.align),
+                          )}
+                          style={col.width ? { width: col.width } : undefined}
+                        >
+                          <div className={cn(
+                            "inline-flex items-center gap-1.5",
+                            col.align === "end" && "justify-end w-full",
+                          )}>
+                            <span>{col.label}</span>
+                            {isSortableCol && (
+                              isActiveSort ? (
+                                sortDirection === "asc" ? (
+                                  <ArrowUp className="h-3 w-3 text-primary" />
+                                ) : (
+                                  <ArrowDown className="h-3 w-3 text-primary" />
+                                )
+                              ) : (
+                                <ChevronsUpDown className="h-3 w-3 opacity-40" />
+                              )
+                            )}
+                          </div>
+                        </TableHead>
+                      );
+                    })}
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {isLoading ? (
+                    <TableRow>
+                      <TableCell
+                        colSpan={Math.max(columns.length, 1)}
+                        className="py-12 text-center"
+                      >
+                        <Loader2 className="mx-auto h-5 w-5 animate-spin text-muted-foreground" />
+                      </TableCell>
+                    </TableRow>
+                  ) : !partyId ? (
+                    <TableRow>
+                      <TableCell
+                        colSpan={Math.max(columns.length, 1)}
+                        className="py-12 text-center text-muted-foreground text-xs"
+                      >
+                        {ar ? "اختر حسابًا لعرض الكشف" : "Select an account to view the statement"}
+                      </TableCell>
+                    </TableRow>
+                  ) : statementRows.length === 0 ? (
+                    <TableRow>
+                      <TableCell
+                        colSpan={Math.max(columns.length, 1)}
+                        className="py-12 text-center text-muted-foreground text-xs"
+                      >
+                        {tableSearch
+                          ? ar
+                            ? "لا توجد نتائج مطابقة لبحثك في هذا الكشف"
+                            : "No matching records found"
+                          : ar
+                            ? "لا توجد حركات حسابية مسجلة لهذه الفترة"
+                            : "No statement records for this period"}
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    <>
+                      {layout?.showOpeningRow && !tableSearch && (
+                        <TableRow className="bg-surface/70 hover:bg-surface/70">
+                          {columns.map((col) => {
+                            let content: React.ReactNode = "—";
+                            if (col.key === "index")
+                              content = <span className="font-mono text-xs text-muted-foreground">—</span>;
+                            else if (col.key === "kind")
+                              content = (
+                                <span className="text-xs font-medium italic text-muted-foreground">
+                                  {kindLabel("opening", partyType, lang)}
+                                </span>
+                              );
+                            else if (col.key === "description")
+                              content = (
+                                <span className="text-xs italic text-muted-foreground">
+                                  {ar ? "رصيد ما قبل بداية الفترة" : "Balance before period start"}
+                                </span>
+                              );
+                            else if (col.key === "date")
+                              content = (
+                                <span className="font-mono text-xs text-muted-foreground">
+                                  <Ltr>{result?.period.from ?? "—"}</Ltr>
+                                </span>
+                              );
+                            else if (col.key === "balance")
+                              content = (
+                                <span className="font-mono text-xs font-bold">
+                                  <Ltr>{fmtAmount(result?.openingBalance ?? 0)}</Ltr>
+                                </span>
+                              );
                             return (
-                              <TableHead
-                                key={col.key}
-                                onClick={() => {
-                                  if (isSortableCol) {
-                                    toggleSort(col.key as "date" | "debit" | "credit" | "balance");
-                                  }
-                                }}
-                                className={cn(
-                                  col.key === "debit" && "text-end text-rose-500 font-semibold",
-                                  col.key === "credit" && "text-end text-emerald-500 font-semibold",
-                                  col.key === "balance" && "text-end font-semibold",
-                                  isSortableCol && "cursor-pointer hover:bg-surface-3 transition-colors",
-                                  alignClass(col.align),
-                                )}
-                                style={col.width ? { width: col.width } : undefined}
-                              >
-                                <div className={cn(
-                                  "inline-flex items-center gap-1.5",
-                                  col.align === "end" && "justify-end w-full",
-                                )}>
-                                  <span>{col.label}</span>
-                                  {isSortableCol && (
-                                    isActiveSort ? (
-                                      sortDirection === "asc" ? (
-                                        <ArrowUp className="h-3 w-3 text-primary" />
-                                      ) : (
-                                        <ArrowDown className="h-3 w-3 text-primary" />
-                                      )
-                                    ) : (
-                                      <ChevronsUpDown className="h-3 w-3 opacity-40" />
-                                    )
-                                  )}
-                                </div>
-                              </TableHead>
+                              <TableCell key={col.key} className={alignClass(col.align)}>
+                                {content}
+                              </TableCell>
                             );
                           })}
                         </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {isLoading ? (
-                          <TableRow>
-                            <TableCell
-                              colSpan={Math.max(columns.length, 1)}
-                              className="py-12 text-center"
-                            >
-                              <Loader2 className="mx-auto h-5 w-5 animate-spin text-muted-foreground" />
+                      )}
+
+                      {statementRows.map((row) => (
+                        <TableRow
+                          key={row.id}
+                          className="cursor-pointer hover:bg-surface-2/60 transition-colors"
+                          onClick={() => setDetailEntry(row)}
+                          title={ar ? "عرض تفاصيل القيد" : "View entry details"}
+                        >
+                          {columns.map((col) => (
+                            <TableCell key={col.key} className={alignClass(col.align)}>
+                              {renderCell(row, col.key)}
                             </TableCell>
-                          </TableRow>
-                        ) : !partyId ? (
-                          <TableRow>
-                            <TableCell
-                              colSpan={Math.max(columns.length, 1)}
-                              className="py-12 text-center text-muted-foreground text-xs"
-                            >
-                              {ar
-                                ? "اختر حسابًا لعرض الكشف"
-                                : "Select an account to view the statement"}
-                            </TableCell>
-                          </TableRow>
-                        ) : statementRows.length === 0 ? (
-                          <TableRow>
-                            <TableCell
-                              colSpan={Math.max(columns.length, 1)}
-                              className="py-12 text-center text-muted-foreground text-xs"
-                            >
-                              {tableSearch
-                                ? ar
-                                  ? "لا توجد نتائج مطابقة لبحثك في هذا الكشف"
-                                  : "No matching records found"
-                                : ar
-                                  ? "لا توجد حركات حسابية مسجلة لهذه الفترة"
-                                  : "No statement records for this period"}
-                            </TableCell>
-                          </TableRow>
-                        ) : (
-                          <>
-                            {/* سطر الرصيد الافتتاحي */}
-                            {layout?.showOpeningRow && !tableSearch && (
-                              <TableRow className="bg-surface/70 hover:bg-surface/70">
-                                {columns.map((col) => {
-                                  let content: React.ReactNode = "—";
-                                  if (col.key === "index")
-                                    content = <span className="font-mono text-xs text-muted-foreground">—</span>;
-                                  else if (col.key === "kind")
-                                    content = (
-                                      <span className="text-xs font-medium italic text-muted-foreground">
-                                        {kindLabel("opening", partyType, lang)}
-                                      </span>
-                                    );
-                                  else if (col.key === "description")
-                                    content = (
-                                      <span className="text-xs italic text-muted-foreground">
-                                        {ar ? "رصيد ما قبل بداية الفترة" : "Balance before period start"}
-                                      </span>
-                                    );
-                                  else if (col.key === "date")
-                                    content = (
-                                      <span className="font-mono text-xs text-muted-foreground">
-                                        <Ltr>{result?.period.from ?? "—"}</Ltr>
-                                      </span>
-                                    );
-                                  else if (col.key === "balance")
-                                    content = (
-                                      <span className="font-mono text-xs font-bold">
-                                        <Ltr>{fmtAmount(result?.openingBalance ?? 0)}</Ltr>
-                                      </span>
-                                    );
-                                  return (
-                                    <TableCell key={col.key} className={alignClass(col.align)}>
-                                      {content}
-                                    </TableCell>
-                                  );
-                                })}
-                              </TableRow>
-                            )}
+                          ))}
+                        </TableRow>
+                      ))}
+                    </>
+                  )}
 
-                            {/* صفوف الحركات */}
-                            {statementRows.map((row) => (
-                              <TableRow
-                                key={row.id}
-                                className="cursor-pointer hover:bg-surface-2/60 transition-colors"
-                                onClick={() => setDetailEntry(row)}
-                                title={ar ? "عرض تفاصيل القيد" : "View entry details"}
-                              >
-                                {columns.map((col) => (
-                                  <TableCell key={col.key} className={alignClass(col.align)}>
-                                    {renderCell(row, col.key)}
-                                  </TableCell>
-                                ))}
-                              </TableRow>
-                            ))}
-                          </>
-                        )}
-
-                        {/* سطر الإجماليات */}
-                        {statementRows.length > 0 && (
-                          <TableRow className="border-t-2 border-border font-bold bg-surface-2/50">
-                            {columns.map((col) => {
-                              let content: React.ReactNode = "";
-                              if (col.key === "kind")
-                                content = <span className="text-sm">{ar ? "الإجمالي الكلي:" : "Total:"}</span>;
-                              else if (col.key === "debit")
-                                content = (
-                                  <span className="font-mono text-rose-500">
-                                    <Ltr>{money(totalDebit)}</Ltr>
-                                  </span>
-                                );
-                              else if (col.key === "credit")
-                                content = (
-                                  <span className="font-mono text-emerald-500">
-                                    <Ltr>{fmtOrDash(totalCredit)}</Ltr>
-                                  </span>
-                                );
-                              else if (col.key === "balance")
-                                content = (
-                                  <span className="font-mono text-primary text-base">
-                                    <Ltr>{money(closingBalance)}</Ltr>
-                                  </span>
-                                );
-                              return (
-                                <TableCell key={col.key} className={cn(alignClass(col.align), "text-sm")}>
-                                  {content}
-                                </TableCell>
-                              );
-                            })}
-                          </TableRow>
-                        )}
-                      </TableBody>
-                    </Table>
-                  </div>
-
-                  {/* بطاقات الهاتف الذكي (< 768px) */}
-                  <div className="order-1 space-y-2.5 md:hidden">
-                    {isLoading ? (
-                      <div className="grid place-items-center rounded-xl border border-border/70 py-10">
-                        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-                      </div>
-                    ) : !partyId ? (
-                      <div className="rounded-xl border border-border/70 py-10 text-center text-xs text-muted-foreground">
-                        {ar ? "اختر حسابًا لعرض الكشف" : "Select an account to view the statement"}
-                      </div>
-                    ) : statementRows.length === 0 ? (
-                      <div className="rounded-xl border border-border/70 py-10 text-center text-xs text-muted-foreground">
-                        {ar ? "لا توجد حركات حسابية مسجلة لهذه الفترة" : "No statement records"}
-                      </div>
-                    ) : (
-                      <>
-                        {layout?.showOpeningRow && !tableSearch && (
-                          <div className="rounded-xl border border-primary/25 bg-primary/5 p-3.5">
-                            <div className="flex items-center justify-between gap-3">
-                              <div className="min-w-0">
-                                <div className="text-xs font-semibold text-foreground">
-                                  {ar ? "الرصيد الافتتاحي" : "Opening balance"}
-                                </div>
-                                <div className="mt-0.5 text-[11px] italic text-muted-foreground">
-                                  {ar ? "رصيد ما قبل بداية الفترة" : "Balance before period start"}
-                                </div>
-                              </div>
-                              <span className="shrink-0 font-mono text-sm font-bold text-primary">
-                                <Ltr>{fmtAmount(result?.openingBalance ?? 0)}</Ltr>
-                              </span>
-                            </div>
-                          </div>
-                        )}
-
-                        {statementRows.map((row) => (
-                          <button
-                            key={row.id}
-                            type="button"
-                            onClick={() => setDetailEntry(row)}
-                            className="w-full rounded-xl border border-border/80 bg-surface p-3.5 text-start transition active:bg-surface-2/60"
-                          >
-                            <div className="flex items-start justify-between gap-2">
-                              <div className="min-w-0">
-                                <div className="flex items-center gap-1.5">
-                                  <span className="truncate text-xs font-semibold text-foreground">
-                                    {kindLabel(row.kind, partyType, lang)}
-                                  </span>
-                                </div>
-                                <div className="mt-0.5 text-[11px] text-muted-foreground">
-                                  <Ltr>
-                                    {new Date(row.occurredAt).toLocaleString(ar ? "ar-YE" : "en-GB")}
-                                  </Ltr>
-                                </div>
-                              </div>
-                              {row.reference && (
-                                <span className="shrink-0 font-mono text-xs text-primary">
-                                  <Ltr>{row.reference}</Ltr>
-                                </span>
-                              )}
-                            </div>
-
-                            {row.description && (
-                              <div className="mt-2 line-clamp-2 text-[11px] text-muted-foreground">
-                                {row.description}
-                              </div>
-                            )}
-
-                            <div className="mt-2.5 grid grid-cols-2 gap-2 border-t border-border/60 pt-2.5">
-                              <div>
-                                <div className="text-[10px] text-muted-foreground">{ar ? "مدين" : "Debit"}</div>
-                                <div className="font-mono text-xs font-semibold text-rose-500">
-                                  <Ltr>{fmtOrDash(row.debit)}</Ltr>
-                                </div>
-                              </div>
-                              <div>
-                                <div className="text-[10px] text-muted-foreground">{ar ? "دائن" : "Credit"}</div>
-                                <div className="font-mono text-xs font-semibold text-emerald-500">
-                                  <Ltr>{fmtOrDash(row.credit)}</Ltr>
-                                </div>
-                              </div>
-                            </div>
-
-                            <div className="mt-2 flex items-center justify-between gap-2 rounded-lg bg-surface-2/50 px-2.5 py-1.5">
-                              <span className="text-[11px] text-muted-foreground">
-                                {ar ? "الرصيد الجاري" : "Running balance"}
-                              </span>
-                              <span className="font-mono text-xs font-bold text-foreground">
-                                <Ltr>{fmtAmount(row.runningBalance)}</Ltr>
-                              </span>
-                            </div>
-
-                            <div className="mt-2.5 flex items-center justify-end gap-1 text-[11px] font-medium text-primary border-t border-border/60 pt-2">
-                              <Eye className="h-3.5 w-3.5" />
-                              {ar ? "عرض التفاصيل" : "View details"}
-                            </div>
-                          </button>
-                        ))}
-                      </>
-                    )}
-                  </div>
-                </div>
-
-                {/* تذييل الجدول */}
-                {statementRows.length > 0 && (
-                  <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-border/60 pt-3 text-[11px] text-muted-foreground">
-                    <span>
-                      {ar ? "الرصيد الختامي" : "Closing balance"}:{" "}
-                      <b className="font-mono text-foreground">
-                        {money(closingBalance)} {currencySymbol}
-                      </b>
-                    </span>
-                    <button type="button" onClick={refetch} className="text-primary hover:underline">
-                      {ar ? "تحديث الحساب" : "Refresh"}
-                    </button>
-                  </div>
-                )}
-              </div>
+                  {statementRows.length > 0 && (
+                    <TableRow className="border-t-2 border-border font-bold bg-surface-2/50">
+                      {columns.map((col) => {
+                        let content: React.ReactNode = "";
+                        if (col.key === "kind")
+                          content = <span className="text-xs">{ar ? "الإجمالي الكلي:" : "Total:"}</span>;
+                        else if (col.key === "debit")
+                          content = (
+                            <span className="font-mono text-rose-500 font-bold">
+                              <Ltr>{money(totalDebit)}</Ltr>
+                            </span>
+                          );
+                        else if (col.key === "credit")
+                          content = (
+                            <span className="font-mono text-emerald-500 font-bold">
+                              <Ltr>{fmtOrDash(totalCredit)}</Ltr>
+                            </span>
+                          );
+                        else if (col.key === "balance")
+                          content = (
+                            <span className="font-mono text-primary text-sm font-bold">
+                              <Ltr>{money(closingBalance)}</Ltr>
+                            </span>
+                          );
+                        return (
+                          <TableCell key={col.key} className={cn(alignClass(col.align), "text-xs")}>
+                            {content}
+                          </TableCell>
+                        );
+                      })}
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
             </div>
-          )}
-        </>
+
+            {statementRows.length > 0 && (
+              <div className="p-3.5 flex flex-wrap items-center justify-between gap-2 border-t border-border/60 text-[11px] text-muted-foreground">
+                <span>
+                  {ar ? "الرصيد الختامي" : "Closing balance"}:{" "}
+                  <b className="font-mono text-foreground font-bold">
+                    {money(closingBalance)} {currencySymbol}
+                  </b>
+                </span>
+                <button type="button" onClick={refetch} className="text-primary hover:underline">
+                  {ar ? "تحديث الحساب" : "Refresh"}
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
       )}
 
       {/* تفاصيل القيد المنبثقة */}
