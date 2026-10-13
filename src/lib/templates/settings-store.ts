@@ -94,6 +94,20 @@ export function getPrintSettings(): PrintSettings {
       ...parsed,
     };
 
+    const v2Raw = localStorage.getItem("vortex_print_settings_v2");
+    if (v2Raw) {
+      try {
+        const v2Parsed = JSON.parse(v2Raw);
+        if (v2Parsed.standardAccentColor !== undefined)
+          merged.standardAccentColor = v2Parsed.standardAccentColor;
+        if (v2Parsed.luxuryAccentColor !== undefined)
+          merged.luxuryAccentColor = v2Parsed.luxuryAccentColor;
+      } catch (err) {
+        // Ignore JSON parse errors on corrupted local storage
+        void err;
+      }
+    }
+
     // If the unified store is stale but legacy keys changed elsewhere,
     // the legacy value wins (it is what older screens write on save).
     if (legacyTemplate && legacyTemplate !== merged.defaultCustomerTemplate) {
