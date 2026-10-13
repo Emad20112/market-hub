@@ -84,13 +84,22 @@ export function renderUnifiedDocument(request: PrintRequest): string {
   const rtl = request.rtl ?? true;
   const paperId = request.paperId ?? override?.paperId ?? settings.paperId;
   const orientation = request.orientation ?? override?.orientation ?? settings.orientation;
-  const theme = normalizeTheme(request.theme ?? override?.theme ?? settings.theme);
-  const profile = PRINT_PAPERS[paperId];
-  const labels = labelsFor(rtl, request.labels);
+  const effectiveTheme = normalizeTheme(request.theme ?? override?.theme ?? settings.theme);
   const effectiveTemplateId =
     request.templateId ??
     override?.templateId ??
-    (theme === "formal" ? "formal" : theme === "luxury" ? "elegant" : "standard");
+    (effectiveTheme === "formal" ? "formal" : effectiveTheme === "luxury" ? "elegant" : "standard");
+  const theme = normalizeTheme(
+    request.theme ??
+      override?.theme ??
+      (effectiveTemplateId === "elegant"
+        ? "luxury"
+        : effectiveTemplateId === "formal"
+          ? "formal"
+          : effectiveTheme),
+  );
+  const profile = PRINT_PAPERS[paperId];
+  const labels = labelsFor(rtl, request.labels);
 
   // تحديد اللون المعتمد للقالب:
   // 1. تجاوز صريح في الطلب
@@ -110,6 +119,9 @@ export function renderUnifiedDocument(request: PrintRequest): string {
     showFooter: settings.footerEnabled,
     showBarcode: override?.showBarcode ?? settings.showBarcode ?? true,
     showQrCode: override?.showQrCode ?? settings.showQrCode ?? true,
+    standardAccentColor: settings.standardAccentColor,
+    luxuryAccentColor: settings.luxuryAccentColor,
+    theme,
     ...request.doc.options,
     ...(request.showBarcode !== undefined ? { showBarcode: request.showBarcode } : {}),
     ...(request.showQrCode !== undefined ? { showQrCode: request.showQrCode } : {}),

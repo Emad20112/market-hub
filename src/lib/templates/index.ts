@@ -309,17 +309,26 @@ export function renderDocumentHTML(
   // Precedence: legacy settings (defaults) → document snapshot → explicit
   // caller options. The caller must always win, otherwise a preview that
   // disables the footer cannot honour its own request.
-  const mergedOptions: CustomFieldOptions = {
-    ...settings,
-    ...doc.options,
-    ...options,
-  };
-
   const profile = resolvePrintProfile(
     doc.docType || "customer_invoice",
     effectiveTemplateId,
     paperProfileId,
   );
+
+  const fallbackAccent =
+    profile.templateId === "elegant" ? settings.luxuryAccentColor : settings.standardAccentColor;
+
+  const mergedOptions: CustomFieldOptions = {
+    ...settings,
+    ...doc.options,
+    ...options,
+    ...(options?.accentColor
+      ? { accentColor: options.accentColor }
+      : fallbackAccent
+        ? { accentColor: fallbackAccent }
+        : {}),
+  };
+
   const renderer = getTemplateRenderer(profile.templateId, doc.docType);
   const html = renderer(doc, mergedLabels, rtl, {
     ...mergedOptions,

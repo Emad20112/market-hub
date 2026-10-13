@@ -195,12 +195,6 @@ function AuthPage() {
     if (inputMode === "unknown" && /\d/.test(converted)) setInputMode("phone");
   };
 
-  const fillQuickAdmin = () => {
-    setIdentifier("shoeabvv@gmail.com");
-    setPassword("Super#2004");
-    setInputMode("email");
-  };
-
   useEffect(() => {
     if (session) navigate({ to: "/dashboard", replace: true });
   }, [session, navigate]);
@@ -558,19 +552,6 @@ function AuthPage() {
                         ? "تسجيل الدخول"
                         : "Sign in"}
                   </Button>
-
-                  <button
-                    type="button"
-                    onClick={fillQuickAdmin}
-                    className="w-full mt-2.5 inline-flex items-center justify-center gap-2 rounded-xl border border-primary/25 bg-primary/10 py-2.5 px-3 text-xs font-bold text-primary hover:bg-primary/20 transition-colors shadow-sm cursor-pointer"
-                  >
-                    <ShieldCheck className="size-3.5" />
-                    <span>
-                      {isRtl
-                        ? "دخول سريع بحساب المشرف (يونس العفيف)"
-                        : "Quick Fill: Admin (Younis Al-Afif)"}
-                    </span>
-                  </button>
                 </form>
 
                 <div className="mt-7 flex items-start gap-2.5 border-t border-border/70 pt-5 text-[11px] leading-5 text-muted-foreground">

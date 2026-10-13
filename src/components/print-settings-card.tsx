@@ -31,6 +31,7 @@ import {
 import {
   getUnifiedPrintSettings,
   commitPrintSettings,
+  saveUnifiedPrintSettings,
   normalizePrintSettings,
   PRINT_PAPERS,
   DEFAULT_STANDARD_COLOR,
@@ -180,6 +181,44 @@ export function PrintSettingsCard({ canEdit = true }: PrintSettingsCardProps) {
     } finally {
       setIsSaving(false);
     }
+  }
+
+  function handleStandardColorChange(color: string | undefined) {
+    updateUnified({ standardAccentColor: color });
+    setSettings((cur) => ({ ...cur, standardAccentColor: color }));
+    saveUnifiedPrintSettings({ standardAccentColor: color });
+    savePrintSettings({ standardAccentColor: color });
+  }
+
+  function handleLuxuryColorChange(color: string | undefined) {
+    updateUnified({ luxuryAccentColor: color });
+    setSettings((cur) => ({ ...cur, luxuryAccentColor: color }));
+    saveUnifiedPrintSettings({ luxuryAccentColor: color });
+    savePrintSettings({ luxuryAccentColor: color });
+  }
+
+  function handleDefaultInvoiceTemplateChange(templateId: InvoiceTemplateId) {
+    const theme: PrintTheme =
+      templateId === "elegant" ? "luxury" : templateId === "formal" ? "formal" : "standard";
+    const nextOverrides = {
+      ...unified.overrides,
+      customer_invoice: {
+        ...unified.overrides.customer_invoice,
+        templateId,
+        theme,
+      },
+    };
+    updateUnified({ overrides: nextOverrides, theme });
+    setSettings((cur) => ({ ...cur, defaultCustomerTemplate: templateId }));
+    saveUnifiedPrintSettings({ overrides: nextOverrides, theme });
+    savePrintSettings({ defaultCustomerTemplate: templateId });
+    toast.success(
+      templateId === "elegant"
+        ? "تم تعيين القالب التنفيذي الفاخر كقالب افتراضي للفواتير"
+        : templateId === "standard"
+          ? "تم تعيين القالب القياسي المؤسسي كقالب افتراضي للفواتير"
+          : "تم تعيين الفاتورة الرسمية المبسطة كقالب افتراضي للفواتير",
+    );
   }
 
   // Handle department template & paper profile change
@@ -676,6 +715,83 @@ export function PrintSettingsCard({ canEdit = true }: PrintSettingsCardProps) {
           {/* ═════════════════════════════════════════════════════════════════ */}
           {activeTab === "colors" && (
             <div className="space-y-6">
+              {/* اختيار قالب وثيم الفاتورة الافتراضي */}
+              <div className="rounded-2xl border border-primary/30 bg-primary/5 p-4 space-y-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="space-y-0.5">
+                    <div className="text-xs font-bold text-foreground flex items-center gap-2">
+                      <Sparkles className="h-4 w-4 text-primary" />
+                      <span>قالب وثيم الفواتير الافتراضي المعتمد (النموذج النشط للطباعة)</span>
+                    </div>
+                    <div className="text-[11px] text-muted-foreground">
+                      اختر القالب والثيم الذي يُطبَّق تلقائياً على فواتير المبيعات ونقاط البيع
+                      والمعاينة
+                    </div>
+                  </div>
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={saveAllSettings}
+                    disabled={!canEdit}
+                    className="rounded-xl h-8 gap-1.5 text-xs font-bold shadow-xs"
+                  >
+                    <Check className="h-3.5 w-3.5" />
+                    <span>حفظ واعتماد الثيم فوراً</span>
+                  </Button>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-1">
+                  {[
+                    {
+                      id: "elegant" as InvoiceTemplateId,
+                      title: "✨ القالب التنفيذي الفاخر",
+                      sub: "ألوان كحلية وزرقاء ملكية وتصميم تنفيذي راقٍ",
+                      theme: "luxury" as PrintTheme,
+                    },
+                    {
+                      id: "standard" as InvoiceTemplateId,
+                      title: "📄 القالب القياسي المؤسسي",
+                      sub: "هيكل مؤسسي أنيق متزن للشركات والمؤسسات",
+                      theme: "standard" as PrintTheme,
+                    },
+                    {
+                      id: "milling-clean" as InvoiceTemplateId,
+                      title: "⭐ الفاتورة الرسمية المبسطة",
+                      sub: "تصميم مبسط وواضح للمطاحن ونقاط البيع",
+                      theme: "standard" as PrintTheme,
+                    },
+                  ].map((tpl) => {
+                    const currentCustomerTemplate =
+                      unified.overrides.customer_invoice?.templateId ||
+                      settings.defaultCustomerTemplate ||
+                      "milling-clean";
+                    const isSelected = currentCustomerTemplate === tpl.id;
+
+                    return (
+                      <button
+                        key={tpl.id}
+                        type="button"
+                        disabled={!canEdit}
+                        onClick={() => handleDefaultInvoiceTemplateChange(tpl.id)}
+                        className={`flex flex-col text-start p-3 rounded-xl border transition-all ${
+                          isSelected
+                            ? "border-primary bg-primary/10 shadow-xs ring-1 ring-primary/40 font-bold"
+                            : "border-border/70 bg-background hover:border-primary/40"
+                        }`}
+                      >
+                        <div className="text-xs font-bold text-foreground flex items-center justify-between">
+                          <span>{tpl.title}</span>
+                          {isSelected && <Check className="h-3.5 w-3.5 text-primary" />}
+                        </div>
+                        <div className="text-[10px] text-muted-foreground mt-1 leading-relaxed">
+                          {tpl.sub}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
               <div className="rounded-2xl border border-border/70 bg-muted/20 p-3.5 flex flex-wrap items-center justify-between gap-2">
                 <div className="space-y-0.5">
                   <div className="text-xs font-bold text-foreground">
@@ -692,15 +808,8 @@ export function PrintSettingsCard({ canEdit = true }: PrintSettingsCardProps) {
                   size="sm"
                   disabled={!canEdit}
                   onClick={() => {
-                    updateUnified({
-                      standardAccentColor: undefined,
-                      luxuryAccentColor: undefined,
-                    });
-                    setSettings((cur) => ({
-                      ...cur,
-                      standardAccentColor: undefined,
-                      luxuryAccentColor: undefined,
-                    }));
+                    handleStandardColorChange(undefined);
+                    handleLuxuryColorChange(undefined);
                     toast.info("تمت استعادة الألوان الافتراضية للقالبين");
                   }}
                   className="rounded-xl h-8 gap-1.5 text-xs text-muted-foreground hover:text-foreground border-border/80"
@@ -793,11 +902,7 @@ export function PrintSettingsCard({ canEdit = true }: PrintSettingsCardProps) {
                               type="color"
                               disabled={!canEdit}
                               value={currentColor}
-                              onChange={(e) => {
-                                const val = e.target.value;
-                                updateUnified({ standardAccentColor: val });
-                                setSettings((cur) => ({ ...cur, standardAccentColor: val }));
-                              }}
+                              onChange={(e) => handleStandardColorChange(e.target.value)}
                               className="w-10 h-10 rounded-lg cursor-pointer border-0 p-0 bg-transparent shrink-0"
                             />
                             <input
@@ -807,8 +912,7 @@ export function PrintSettingsCard({ canEdit = true }: PrintSettingsCardProps) {
                               onChange={(e) => {
                                 const val = e.target.value;
                                 if (/^#[0-9A-Fa-f]{0,6}$/.test(val)) {
-                                  updateUnified({ standardAccentColor: val });
-                                  setSettings((cur) => ({ ...cur, standardAccentColor: val }));
+                                  handleStandardColorChange(val);
                                 }
                               }}
                               placeholder="#1d4ed8"
@@ -819,10 +923,7 @@ export function PrintSettingsCard({ canEdit = true }: PrintSettingsCardProps) {
                               variant="ghost"
                               size="sm"
                               disabled={!canEdit || !unified.standardAccentColor}
-                              onClick={() => {
-                                updateUnified({ standardAccentColor: undefined });
-                                setSettings((cur) => ({ ...cur, standardAccentColor: undefined }));
-                              }}
+                              onClick={() => handleStandardColorChange(undefined)}
                               className="h-9 px-2 text-xs text-muted-foreground hover:text-foreground"
                             >
                               افتراضي
@@ -844,13 +945,7 @@ export function PrintSettingsCard({ canEdit = true }: PrintSettingsCardProps) {
                                   key={p.color}
                                   type="button"
                                   disabled={!canEdit}
-                                  onClick={() => {
-                                    updateUnified({ standardAccentColor: p.color });
-                                    setSettings((cur) => ({
-                                      ...cur,
-                                      standardAccentColor: p.color,
-                                    }));
-                                  }}
+                                  onClick={() => handleStandardColorChange(p.color)}
                                   title={p.labelAr}
                                   className={`group flex flex-col items-center gap-1.5 p-2 rounded-xl border transition-all ${
                                     isSelected
@@ -1012,11 +1107,7 @@ export function PrintSettingsCard({ canEdit = true }: PrintSettingsCardProps) {
                               type="color"
                               disabled={!canEdit}
                               value={currentColor}
-                              onChange={(e) => {
-                                const val = e.target.value;
-                                updateUnified({ luxuryAccentColor: val });
-                                setSettings((cur) => ({ ...cur, luxuryAccentColor: val }));
-                              }}
+                              onChange={(e) => handleLuxuryColorChange(e.target.value)}
                               className="w-10 h-10 rounded-lg cursor-pointer border-0 p-0 bg-transparent shrink-0"
                             />
                             <input
@@ -1026,8 +1117,7 @@ export function PrintSettingsCard({ canEdit = true }: PrintSettingsCardProps) {
                               onChange={(e) => {
                                 const val = e.target.value;
                                 if (/^#[0-9A-Fa-f]{0,6}$/.test(val)) {
-                                  updateUnified({ luxuryAccentColor: val });
-                                  setSettings((cur) => ({ ...cur, luxuryAccentColor: val }));
+                                  handleLuxuryColorChange(val);
                                 }
                               }}
                               placeholder="#0f2b5c"
@@ -1038,10 +1128,7 @@ export function PrintSettingsCard({ canEdit = true }: PrintSettingsCardProps) {
                               variant="ghost"
                               size="sm"
                               disabled={!canEdit || !unified.luxuryAccentColor}
-                              onClick={() => {
-                                updateUnified({ luxuryAccentColor: undefined });
-                                setSettings((cur) => ({ ...cur, luxuryAccentColor: undefined }));
-                              }}
+                              onClick={() => handleLuxuryColorChange(undefined)}
                               className="h-9 px-2 text-xs text-muted-foreground hover:text-foreground"
                             >
                               افتراضي
@@ -1063,10 +1150,7 @@ export function PrintSettingsCard({ canEdit = true }: PrintSettingsCardProps) {
                                   key={p.color}
                                   type="button"
                                   disabled={!canEdit}
-                                  onClick={() => {
-                                    updateUnified({ luxuryAccentColor: p.color });
-                                    setSettings((cur) => ({ ...cur, luxuryAccentColor: p.color }));
-                                  }}
+                                  onClick={() => handleLuxuryColorChange(p.color)}
                                   title={p.labelAr}
                                   className={`group flex flex-col items-center gap-1.5 p-2 rounded-xl border transition-all ${
                                     isSelected

@@ -22,6 +22,7 @@ import { PRINT_THEMES, deriveThemeTokens, type PrintTheme } from "@/lib/printing
 import { renderUniversalFooter, UNIVERSAL_FOOTER_CSS } from "@/lib/printing/footer";
 import { getCachedCompanyProfile, type CompanyProfile } from "@/lib/printing/company-profile";
 import { generateBarcodeSvg, generateQrCodeSvg } from "@/lib/printing/barcode-qr";
+import { getUnifiedPrintSettings } from "@/lib/printing/settings";
 import type { PaperProfileId } from "./paper-profiles";
 
 export interface UnifiedLayoutOptions extends CustomFieldOptions {
@@ -699,7 +700,14 @@ export function renderUnifiedLayout(
   const theme: PrintTheme = options?.theme ?? "standard";
   const isA5 = options?.paperProfileId === "a5";
   const isLuxury = theme === "luxury";
-  const customAccent = options?.accentColor ?? doc.options?.accentColor ?? null;
+  const unifiedSettings = getUnifiedPrintSettings();
+  const customAccent =
+    options?.accentColor ??
+    doc.options?.accentColor ??
+    (isLuxury
+      ? (options?.luxuryAccentColor ?? unifiedSettings.luxuryAccentColor)
+      : (options?.standardAccentColor ?? unifiedSettings.standardAccentColor)) ??
+    null;
   const c = doc.currency ?? "ر.ي";
   const esc = escapeHtml;
   const money = (n?: number) => formatMoney(n ?? 0, c);

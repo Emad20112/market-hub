@@ -33,17 +33,9 @@ export function renderUniversalFooter(
     company.footerContact ||
     "";
 
-  const hasSpecificMillPhone =
-    companyPhone && companyPhone !== SUPPORT_CONTACT_LINE && !companyPhone.includes("784795104");
-
   return `<footer class="universal-footer" dir="${rtl ? "rtl" : "ltr"}">
     ${company.name ? `<div class="footer-company">${esc(company.name)}</div>` : ""}
     ${company.footerText ? `<div class="footer-note">${esc(company.footerText)}</div>` : ""}
-    ${
-      hasSpecificMillPhone
-        ? `<div class="footer-contact"><span class="footer-phone-label">${rtl ? "أرقام التواصل:" : "Contact:"} </span><span dir="ltr" class="footer-phone-val">${esc(companyPhone)}</span></div>`
-        : `<div class="footer-contact">${esc(companyPhone || SUPPORT_CONTACT_LINE)}</div>`
-    }
     ${company.email ? `<div class="footer-email">${esc(company.email)}</div>` : ""}
     ${!compact && company.address ? `<div class="footer-address">${esc(company.address)}</div>` : ""}
     <div class="footer-credit">${esc(companyCreditLine())}</div>

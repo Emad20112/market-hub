@@ -20,6 +20,7 @@ import { WhatsAppIcon } from "@/components/whatsapp-icon";
 import {
   renderUnifiedDocument,
   printUnifiedDocument,
+  getUnifiedPrintSettings,
   PRINT_PAPERS,
   PRINTING_LABELS,
   type PrintRequest,
@@ -141,21 +142,36 @@ export function LuxuryPrintPreviewModal({
   // Initial template selection per method
   const initialTemplateId: InvoiceTemplateId = useMemo(() => {
     if (request?.templateId) return request.templateId;
+    const settings = request?.settings ?? getUnifiedPrintSettings();
+    const docType = documentType ?? request?.documentType ?? "customer_invoice";
+    const deptOverride = settings.overrides[docType];
+    if (deptOverride?.templateId) return deptOverride.templateId;
     if (initialMethod === "thermal") {
       return "thermal-milling"; // Default to the admired modern milling counter template
     }
     return "milling-clean"; // Default to the admired clean milling A4/A5 template
-  }, [request?.templateId, initialMethod]);
+  }, [request?.templateId, request?.settings, request?.documentType, documentType, initialMethod]);
 
   const [activeTemplate, setActiveTemplate] = useState<InvoiceTemplateId>(initialTemplateId);
 
   // Initial paper size per method
   const initialPaperId: PrintPaperId = useMemo(() => {
     if (request?.paperId) return request.paperId;
+    const settings = request?.settings ?? getUnifiedPrintSettings();
+    const docType = documentType ?? request?.documentType ?? "customer_invoice";
+    const deptOverride = settings.overrides[docType];
+    if (deptOverride?.paperId) return deptOverride.paperId;
     if (defaultFormat === "thermal-58") return "thermal-58";
     if (defaultFormat === "a5") return "a5";
     return initialMethod === "thermal" ? "thermal-80" : "a4";
-  }, [request?.paperId, defaultFormat, initialMethod]);
+  }, [
+    request?.paperId,
+    request?.settings,
+    request?.documentType,
+    documentType,
+    defaultFormat,
+    initialMethod,
+  ]);
 
   const [activePaper, setActivePaper] = useState<PrintPaperId>(initialPaperId);
   // الباركود/QR يتبعان إعدادات قسم المستند الفعلي، لا قيمة ثابتة. القيمة تصل
@@ -187,12 +203,30 @@ export function LuxuryPrintPreviewModal({
   // When switching method, adjust template and paper to match the method
   const handleMethodChange = (newMethod: PrintMethodType) => {
     setPrintMethod(newMethod);
+    const settings = request?.settings ?? getUnifiedPrintSettings();
+    const docType = documentType ?? request?.documentType ?? "customer_invoice";
+    const deptOverride = settings.overrides[docType];
+
     if (newMethod === "thermal") {
-      setActiveTemplate("thermal-milling");
-      setActivePaper("thermal-80");
+      setActiveTemplate(
+        deptOverride?.templateId?.startsWith("thermal")
+          ? deptOverride.templateId
+          : "thermal-milling",
+      );
+      setActivePaper(
+        deptOverride?.paperId?.startsWith("thermal") ? deptOverride.paperId : "thermal-80",
+      );
     } else {
-      setActiveTemplate("milling-clean");
-      setActivePaper("a4");
+      setActiveTemplate(
+        deptOverride?.templateId && !deptOverride.templateId.startsWith("thermal")
+          ? deptOverride.templateId
+          : "milling-clean",
+      );
+      setActivePaper(
+        deptOverride?.paperId && !deptOverride.paperId.startsWith("thermal")
+          ? deptOverride.paperId
+          : "a4",
+      );
     }
   };
 
@@ -210,11 +244,12 @@ export function LuxuryPrintPreviewModal({
 
   // Construct active print request
   const activeRequest: PrintRequest = useMemo(() => {
+    const unifiedSettings = request?.settings ?? getUnifiedPrintSettings();
     const customColor =
       request?.accentColor ??
       (activeTheme === "luxury"
-        ? request?.settings?.luxuryAccentColor
-        : request?.settings?.standardAccentColor) ??
+        ? unifiedSettings.luxuryAccentColor
+        : unifiedSettings.standardAccentColor) ??
       undefined;
 
     return {
@@ -233,6 +268,7 @@ export function LuxuryPrintPreviewModal({
       templateId: activeTemplate,
       theme: activeTheme,
       accentColor: customColor,
+      settings: unifiedSettings,
       // تجاوز صريح: القالب يطبّق `doc.options` بعد options المحرك، فتمرّر
       // القيمتين داخل اللقطة لتفوز دائماً في المعاينة والطباعة.
       showBarcode,
