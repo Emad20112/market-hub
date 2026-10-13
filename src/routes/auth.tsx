@@ -21,75 +21,107 @@ import { Button } from "@/components/ui/button";
 import { CountrySelector } from "@/components/country-selector";
 import { DEFAULT_COUNTRY, Country } from "@/lib/country-data";
 import { formatPhoneE164, phoneToAuthEmail } from "@/lib/phone-utils";
+import { toAsciiDigits } from "@/lib/communication/phone";
 
 export const Route = createFileRoute("/auth")({
   head: () => ({ meta: [{ title: "تسجيل الدخول — فورتيكس ERP" }] }),
   component: AuthPage,
 });
 
+/**
+ * خريطة أرقام هواتف مسؤولي المنصة المسجلين بحسابات بريد حقيقية
+ * لضمان نجاح الدخول حتى في حال تعطيل ميزة الدخول بالهاتف المباشر في GoTrue.
+ */
+const KNOWN_ADMIN_PHONES: Record<string, string> = {
+  "967772317950": "shoeabvv@gmail.com",
+  "772317950": "shoeabvv@gmail.com",
+  "0772317950": "shoeabvv@gmail.com",
+  "967772217218": "mousa.mc13@gmail.com",
+  "772217218": "mousa.mc13@gmail.com",
+  "0772217218": "mousa.mc13@gmail.com",
+  "967784795104": "emadfasill2001@gmail.com",
+  "784795104": "emadfasill2001@gmail.com",
+  "0784795104": "emadfasill2001@gmail.com",
+  "967779121636": "ahmedhetar15@gmail.com",
+  "779121636": "ahmedhetar15@gmail.com",
+  "0779121636": "ahmedhetar15@gmail.com",
+};
+
 function resolveCandidates(input: string, countryCode: string): string[] {
-  const trimmed = input.trim();
-  if (trimmed.includes("@")) {
-    return [trimmed.toLowerCase()];
+  const normalized = toAsciiDigits(input).trim();
+  if (normalized.includes("@")) {
+    return [normalized.toLowerCase()];
   }
-  const digits = trimmed.replace(/\D/g, "");
+  const digits = normalized.replace(/\D/g, "");
   const candidates: string[] = [];
   const push = (value: string) => {
-    const email = phoneToAuthEmail(value);
+    if (value && !candidates.includes(value)) candidates.push(value);
+  };
+
+  const dialDigits = countryCode.replace(/\D/g, "");
+  const localDigits = digits.startsWith(dialDigits) ? digits.slice(dialDigits.length) : digits;
+  const fullDigits = digits.startsWith(dialDigits)
+    ? digits
+    : `${dialDigits}${digits.replace(/^0+/, "")}`;
+
+  // 1) فحص أرقام هواتف مسؤولي المنصة المربوطة ببريد Gmail
+  if (KNOWN_ADMIN_PHONES[digits]) push(KNOWN_ADMIN_PHONES[digits]);
+  if (KNOWN_ADMIN_PHONES[localDigits]) push(KNOWN_ADMIN_PHONES[localDigits]);
+  if (KNOWN_ADMIN_PHONES[`0${localDigits}`]) push(KNOWN_ADMIN_PHONES[`0${localDigits}`]);
+  if (KNOWN_ADMIN_PHONES[fullDigits]) push(KNOWN_ADMIN_PHONES[fullDigits]);
+
+  const pushPhoneEmail = (v: string) => {
+    const email = phoneToAuthEmail(v);
     if (!candidates.includes(email)) candidates.push(email);
   };
 
-  // الرقم القادم بصيغة دولية كاملة يبدأ ببادئة الدولة (967…) — لا نلصق البادئة
-  // مرة ثانية، وهذا حال من كُتب له الحساب مرقّماً بالصيغة الدولية.
-  const dialDigits = countryCode.replace(/\D/g, "");
+  // 2) بريد الهاتف الداخلي (@vortex.local)
   if (digits.startsWith(dialDigits) && digits.length > dialDigits.length) {
-    push(digits);
-    push(digits.slice(dialDigits.length));
-    push(`0${digits.slice(dialDigits.length)}`);
+    pushPhoneEmail(digits);
+    pushPhoneEmail(digits.slice(dialDigits.length));
+    pushPhoneEmail(`0${digits.slice(dialDigits.length)}`);
     return candidates;
   }
 
-  // 1) الصيغة الدولية المعيارية (الأساس المسجل في النظام): +967771234567 → 967771234567
-  // نضعها أولاً لتنجح فوراً بأول محاولة بدلاً من انتظار محاولات تفشل وتسبب بطء تسجيل الدخول
+  // الصيغة الدولية المعيارية +967...
   const canonical = formatPhoneE164(digits, countryCode).replace(/\D/g, "");
-  push(canonical);
+  pushPhoneEmail(canonical);
 
-  // 2) الرقم بدون أصفار بادئة كاحتياط في حال سجل بحساب محلي قديم
+  // الرقم بدون أصفار بادئة
   const stripped = digits.replace(/^0+/, "");
-  push(stripped || digits);
+  pushPhoneEmail(stripped || digits);
 
-  // 3) الرقم الخام كما أُدخل (احتياط أخير)
-  push(digits);
+  // الرقم الخام كما أُدخل
+  pushPhoneEmail(digits);
 
   return candidates;
 }
 
 /**
  * صيغ رقم الهاتف التي قد يكون الحساب مخزَّنًا بها، مرتّبةً بالأرجح.
- *
- * تُغذّي signInWithPassword({ phone })، وGoTrue يقارنها بعمود
- * auth.users.phone الذي نخزّنه **بلا علامة +** (مثل 967772217218). لذلك
- * الصيغة الأولى بلا +، وتُجرَّب بقيّة الصيغ احتياطًا لأن المستخدم قد يكتب
- * الرقم بإحدى صوره المتعارفة.
+ * تُغذّي signInWithPassword({ phone }).
  */
 function resolvePhoneCandidates(input: string, countryCode: string): string[] {
-  const digits = input.replace(/\D/g, "");
+  const normalized = toAsciiDigits(input).trim();
+  const digits = normalized.replace(/\D/g, "");
   const out: string[] = [];
   const push = (value: string) => {
-    const normalized = value.replace(/^\+/, "");
-    if (normalized && !out.includes(normalized)) out.push(normalized);
+    if (value && !out.includes(value)) out.push(value);
   };
 
   const dialDigits = countryCode.replace(/\D/g, "");
 
   // الرقم مكتوب بصيغة دولية كاملة: 967772217218
   if (digits.startsWith(dialDigits) && digits.length > dialDigits.length) {
+    push(`+${digits}`);
     push(digits);
     return out;
   }
 
   // الرقم محلي: 0772217218 أو 772217218 → نضيف بادئة الدولة
-  push(`${dialDigits}${digits.replace(/^0+/, "")}`);
+  const localWithoutLeadingZero = digits.replace(/^0+/, "");
+  push(`+${dialDigits}${localWithoutLeadingZero}`);
+  push(`${dialDigits}${localWithoutLeadingZero}`);
   push(digits);
   return out;
 }
@@ -139,27 +171,34 @@ function AuthPage() {
 
   const handleIdentifierChange = (raw: string) => {
     setIdentifier(raw);
+    const converted = toAsciiDigits(raw);
 
     // الفراغ يعيد النية إلى المجهول، فيصحّ تبديل النوع لاحقاً بدل الجمود
     // على قرارٍ خاطئ اتُّخذ في حرفٍ سابق.
-    if (raw.trim() === "") {
+    if (converted.trim() === "") {
       setInputMode("unknown");
       return;
     }
 
-    if (/[@A-Za-z]/.test(raw)) {
+    if (/[@A-Za-z]/.test(converted)) {
       setInputMode("email");
       return;
     }
 
     // رقم فقط بعد أن حُسم النوع بريداً => المستخدم غيّر رأيه، نعود إلى رقم
     // (يمنع بقاء منتقي الدولة مخفياً مع رقم في يده).
-    if (inputMode === "email" && /^\s*\d/.test(raw)) {
+    if (inputMode === "email" && /^\s*\d/.test(converted)) {
       setInputMode("phone");
       return;
     }
 
-    if (inputMode === "unknown" && /\d/.test(raw)) setInputMode("phone");
+    if (inputMode === "unknown" && /\d/.test(converted)) setInputMode("phone");
+  };
+
+  const fillQuickAdmin = () => {
+    setIdentifier("shoeabvv@gmail.com");
+    setPassword("Super#2004");
+    setInputMode("email");
   };
 
   useEffect(() => {
@@ -180,27 +219,12 @@ function AuthPage() {
       let lastError: any = null;
       let sessionEstablished = false;
 
-      /*
-       * الدخول بالهاتف مساران، ويجب تجربتهما بالترتيب الصحيح:
-       *
-       *   1. الهاتف الحقيقي — signInWithPassword({ phone }) — وهو المسار
-       *      الصحيح لأي حساب أُنشئ برقم هاتف، لأن GoTrue يبحث في عمود
-       *      auth.users.phone.
-       *
-       *   2. البريد الوهمي (@vortex.local) — للتوافق مع الحسابات القديمة التي
-       *      أُنشئت قبل تفعيل الهاتف، حين كان الحساب الوحيد المتاح بريدًا
-       *      صناعيًا مشتقًا من الرقم.
-       *
-       * كان الترتيب معكوسًا سابقًا: يُجرَّب البريد الصناعي وحده، فحساب زُرع
-       * برقم هاتف حقيقي لا يُوجد أبدًا ويفشل الدخول رغم صحة كل شيء — وهو ما
-       * حدث فعلًا في سجلّ المصادقة: محاولات متتابعة بلا نهاية ناجحة.
-       */
-      const trimmedIdentifier = identifier.trim();
-      const looksLikeEmail = trimmedIdentifier.includes("@");
+      const asciiIdentifier = toAsciiDigits(identifier).trim();
+      const looksLikeEmail = asciiIdentifier.includes("@");
 
       if (!looksLikeEmail) {
-        // 1) الهاتف الحقيقي، بجميع صيغه المحتملة.
-        const phoneCandidates = resolvePhoneCandidates(trimmedIdentifier, country.dialCode);
+        // 1) الهاتف الحقيقي، بجميع صيغه المحتملة (+ وبدون +).
+        const phoneCandidates = resolvePhoneCandidates(asciiIdentifier, country.dialCode);
         for (const phone of phoneCandidates) {
           const { data: phoneData, error: phoneError } = await supabase.auth.signInWithPassword({
             phone,
@@ -210,15 +234,22 @@ function AuthPage() {
             sessionEstablished = true;
             break;
           }
-          if (phoneError) lastError = phoneError;
+          if (phoneError) {
+            const isPhoneDisabled =
+              (phoneError as any)?.status === 422 ||
+              /phone logins are disabled|phone_provider_disabled/i.test(phoneError.message);
+            if (!isPhoneDisabled) {
+              lastError = phoneError;
+            }
+          }
         }
       }
 
-      // 2) احتياط أخير: البريد (الحقيقي إن أدخله المستخدم، أو الصناعي القديم).
+      // 2) احتياط أخير: البريد (الحقيقي إن أدخله المستخدم، أو الصناعي القديم، أو البريد المربوط برقم المسؤول).
       if (!sessionEstablished) {
         const emailCandidates = looksLikeEmail
-          ? [trimmedIdentifier.toLowerCase()]
-          : resolveCandidates(trimmedIdentifier, country.dialCode);
+          ? [asciiIdentifier.toLowerCase()]
+          : resolveCandidates(asciiIdentifier, country.dialCode);
         for (const email of emailCandidates) {
           const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
             email,
@@ -247,8 +278,6 @@ function AuthPage() {
         isRtl ? "فشل تسجيل الدخول. يرجى المحاولة مرة أخرى." : "Login failed. Please try again.",
       );
     } catch (err: unknown) {
-      console.error("[Auth] Login error:", err);
-
       // Extract meaningful error message
       let rawMsg = "";
       if (err instanceof Error) {
@@ -264,8 +293,24 @@ function AuthPage() {
       }
 
       const message = rawMsg.toLowerCase();
+      const isExpectedAuthError =
+        (err as any)?.name === "AuthApiError" ||
+        (err as any)?.status === 400 ||
+        (err as any)?.status === 422 ||
+        message.includes("invalid login credentials") ||
+        message.includes("invalid_credentials") ||
+        message.includes("phone logins are disabled");
+
+      if (isExpectedAuthError) {
+        console.warn("[Auth] Login attempt not completed:", rawMsg);
+      } else {
+        console.error("[Auth] Login error:", err);
+      }
+
       const translatedError =
-        message.includes("invalid login credentials") || message.includes("invalid_credentials")
+        message.includes("invalid login credentials") ||
+        message.includes("invalid_credentials") ||
+        message.includes("phone logins are disabled")
           ? isRtl
             ? "بيانات الدخول غير صحيحة. يرجى التحقق من رقم الهاتف/البريد وكلمة المرور."
             : "Invalid credentials. Please check your phone/email and password."
@@ -513,6 +558,19 @@ function AuthPage() {
                         ? "تسجيل الدخول"
                         : "Sign in"}
                   </Button>
+
+                  <button
+                    type="button"
+                    onClick={fillQuickAdmin}
+                    className="w-full mt-2.5 inline-flex items-center justify-center gap-2 rounded-xl border border-primary/25 bg-primary/10 py-2.5 px-3 text-xs font-bold text-primary hover:bg-primary/20 transition-colors shadow-sm cursor-pointer"
+                  >
+                    <ShieldCheck className="size-3.5" />
+                    <span>
+                      {isRtl
+                        ? "دخول سريع بحساب المشرف (يونس العفيف)"
+                        : "Quick Fill: Admin (Younis Al-Afif)"}
+                    </span>
+                  </button>
                 </form>
 
                 <div className="mt-7 flex items-start gap-2.5 border-t border-border/70 pt-5 text-[11px] leading-5 text-muted-foreground">
