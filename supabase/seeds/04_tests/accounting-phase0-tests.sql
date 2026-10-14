@@ -112,9 +112,9 @@ BEGIN
     v_invoice  uuid;
   BEGIN
     -- عميل اختباري مؤقت
-    INSERT INTO public.customers (id, name, phone, balance, is_active, company_id)
+    INSERT INTO public.customers (id, name, phone, balance, is_active)
     VALUES ('22222222-2222-2222-2222-222222222222', 'اختبار ترحيل',
-            '000', 0, true, 1)
+            '000', 0, true)
     ON CONFLICT (id) DO NOTHING
     RETURNING id INTO v_customer;
 
