@@ -68,7 +68,7 @@ export const REPORT_SALES_PRODUCT: ReportDefinition = {
       defaultVisible: true,
       align: 'left',
       aggregate: 'sum',
-      unit: 'ر.س',
+      
     },
     {
       key: 'discounts',
@@ -78,7 +78,7 @@ export const REPORT_SALES_PRODUCT: ReportDefinition = {
       defaultVisible: true,
       align: 'left',
       aggregate: 'sum',
-      unit: 'ر.س',
+      
     },
     {
       key: 'net_sales',
@@ -89,7 +89,7 @@ export const REPORT_SALES_PRODUCT: ReportDefinition = {
       defaultVisible: true,
       align: 'left',
       aggregate: 'sum',
-      unit: 'ر.س',
+      
     },
     {
       key: 'total_cost',
@@ -99,7 +99,7 @@ export const REPORT_SALES_PRODUCT: ReportDefinition = {
       defaultVisible: true,
       align: 'left',
       aggregate: 'sum',
-      unit: 'ر.س',
+      
     },
     {
       key: 'gross_margin',
@@ -109,7 +109,7 @@ export const REPORT_SALES_PRODUCT: ReportDefinition = {
       defaultVisible: true,
       align: 'left',
       aggregate: 'sum',
-      unit: 'ر.س',
+      
     },
     {
       key: 'margin_percentage',
@@ -334,7 +334,7 @@ export const REPORT_INVENTORY_LOW_STOCK: ReportDefinition = {
     { key: 'item_name_ar', labelAr: 'الصنف', labelEn: 'Item', dataType: 'text', essential: true, defaultVisible: true },
     { key: 'warehouse_name', labelAr: 'المستودع', labelEn: 'Warehouse', dataType: 'text', defaultVisible: true },
     { key: 'quantity', labelAr: 'الرصيد الحالي', labelEn: 'On Hand', dataType: 'quantity', essential: true, defaultVisible: true, aggregate: 'sum' },
-    { key: 'reference_valuation', labelAr: 'القيمة المرجعية', labelEn: 'Reference Value', dataType: 'money', defaultVisible: true, aggregate: 'sum', unit: 'ر.س' },
+    { key: 'reference_valuation', labelAr: 'القيمة المرجعية', labelEn: 'Reference Value', dataType: 'money', defaultVisible: true, aggregate: 'sum' },
   ],
   metrics: [
     { key: 'exceptionCount', labelAr: 'عدد الأصناف المتأثرة', labelEn: 'Affected Items', format: 'integer', calculationRuleAr: 'عدد الأرصدة الصفرية أو السالبة' },
@@ -363,7 +363,7 @@ export const REPORT_INVENTORY_SLOW_MOVING: ReportDefinition = {
     { key: 'item_name_ar', labelAr: 'الصنف', labelEn: 'Item', dataType: 'text', essential: true, defaultVisible: true },
     { key: 'warehouse_name', labelAr: 'المستودع', labelEn: 'Warehouse', dataType: 'text', defaultVisible: true },
     { key: 'quantity', labelAr: 'الرصيد', labelEn: 'On Hand', dataType: 'quantity', defaultVisible: true, aggregate: 'sum' },
-    { key: 'reference_valuation', labelAr: 'قيمة الرصيد', labelEn: 'Stock Value', dataType: 'money', essential: true, defaultVisible: true, aggregate: 'sum', unit: 'ر.س' },
+    { key: 'reference_valuation', labelAr: 'قيمة الرصيد', labelEn: 'Stock Value', dataType: 'money', essential: true, defaultVisible: true, aggregate: 'sum' },
   ],
   metrics: [
     { key: 'exceptionCount', labelAr: 'الأصناف الراكدة', labelEn: 'Slow Items', format: 'integer', calculationRuleAr: 'عدد الأصناف دون حركة صرف ضمن الفترة' },
@@ -425,7 +425,7 @@ export const REPORT_SALES_DAILY_SUMMARY: ReportDefinition = {
     { key: 'created_at', labelAr: 'وقت التنفيذ', labelEn: 'Created At', dataType: 'datetime', essential: true, defaultVisible: true, align: 'right' },
     { key: 'payment_method', labelAr: 'طريقة الدفع', labelEn: 'Payment Method', dataType: 'text', defaultVisible: true, align: 'center' },
     { key: 'quantity', labelAr: 'الكمية', labelEn: 'Quantity', dataType: 'quantity', defaultVisible: true, align: 'left', aggregate: 'sum' },
-    { key: 'total', labelAr: 'صافي البند', labelEn: 'Net Line Total', dataType: 'money', essential: true, defaultVisible: true, align: 'left', aggregate: 'sum', unit: 'ر.س' },
+    { key: 'total', labelAr: 'صافي البند', labelEn: 'Net Line Total', dataType: 'money', essential: true, defaultVisible: true, align: 'left', aggregate: 'sum' },
   ],
   metrics: [
     { key: 'totalRowCount', labelAr: 'عدد البنود', labelEn: 'Line Count', format: 'integer', calculationRuleAr: 'عدد بنود المبيعات المطابقة للفلاتر' },
@@ -460,7 +460,7 @@ export const REPORT_SALES_PERIOD_COMPARISON: ReportDefinition = {
     { key: 'created_at', labelAr: 'تاريخ العملية', labelEn: 'Date', dataType: 'datetime', defaultVisible: true, align: 'right' },
     { key: 'item_name_ar', labelAr: 'الصنف', labelEn: 'Item', dataType: 'text', defaultVisible: true, align: 'right' },
     { key: 'quantity', labelAr: 'الكمية', labelEn: 'Quantity', dataType: 'quantity', defaultVisible: true, align: 'left', aggregate: 'sum' },
-    { key: 'total', labelAr: 'صافي البند', labelEn: 'Net Total', dataType: 'money', essential: true, defaultVisible: true, align: 'left', aggregate: 'sum', unit: 'ر.س' },
+    { key: 'total', labelAr: 'صافي البند', labelEn: 'Net Total', dataType: 'money', essential: true, defaultVisible: true, align: 'left', aggregate: 'sum' },
   ],
   metrics: [
     { key: 'netSales', labelAr: 'صافي المبيعات الحالية', labelEn: 'Current Net Sales', format: 'money', calculationRuleAr: 'صافي مبيعات الفترة المختارة' },
@@ -489,7 +489,7 @@ export const REPORT_OPERATIONS_EXCEPTIONS: ReportDefinition = {
     { key: 'created_at', labelAr: 'وقت العملية', labelEn: 'Timestamp', dataType: 'datetime', essential: true, defaultVisible: true, align: 'right' },
     { key: 'status', labelAr: 'الحالة', labelEn: 'Status', dataType: 'status_badge', essential: true, defaultVisible: true, align: 'center' },
     { key: 'item_name_ar', labelAr: 'الصنف', labelEn: 'Item', dataType: 'text', defaultVisible: true, align: 'right' },
-    { key: 'total', labelAr: 'قيمة البند', labelEn: 'Line Value', dataType: 'money', defaultVisible: true, align: 'left', aggregate: 'sum', unit: 'ر.س' },
+    { key: 'total', labelAr: 'قيمة البند', labelEn: 'Line Value', dataType: 'money', defaultVisible: true, align: 'left', aggregate: 'sum' },
   ],
   metrics: [
     { key: 'exceptionCount', labelAr: 'إجمالي الاستثناءات', labelEn: 'Exceptions', format: 'integer', calculationRuleAr: 'عدد البنود ذات الحالات غير الاعتيادية' },
@@ -527,8 +527,8 @@ export const REPORT_PURCHASES_REGISTER: ReportDefinition = {
     { key: 'sku', labelAr: 'رمز الصنف', labelEn: 'SKU', dataType: 'code', defaultVisible: true, align: 'right' },
     { key: 'item_name_ar', labelAr: 'اسم الصنف', labelEn: 'Item Name', dataType: 'text', defaultVisible: true, align: 'right' },
     { key: 'quantity', labelAr: 'الكمية', labelEn: 'Quantity', dataType: 'quantity', defaultVisible: true, align: 'left', aggregate: 'sum' },
-    { key: 'unit_cost', labelAr: 'تكلفة الوحدة', labelEn: 'Unit Cost', dataType: 'money', defaultVisible: true, align: 'left', unit: 'ر.س' },
-    { key: 'total', labelAr: 'إجمالي البند', labelEn: 'Total', dataType: 'money', essential: true, defaultVisible: true, align: 'left', aggregate: 'sum', unit: 'ر.س' },
+    { key: 'unit_cost', labelAr: 'تكلفة الوحدة', labelEn: 'Unit Cost', dataType: 'money', defaultVisible: true, align: 'left' },
+    { key: 'total', labelAr: 'إجمالي البند', labelEn: 'Total', dataType: 'money', essential: true, defaultVisible: true, align: 'left', aggregate: 'sum' },
   ],
 
   metrics: [
@@ -569,7 +569,7 @@ export const REPORT_CUSTOMERS_TURNOVER: ReportDefinition = {
     { key: 'customer_name', labelAr: 'العميل', labelEn: 'Customer', dataType: 'text', essential: true, defaultVisible: true, align: 'right' },
     { key: 'invoice_count', labelAr: 'عدد الفواتير', labelEn: 'Invoice Count', dataType: 'quantity', defaultVisible: true, align: 'left', aggregate: 'sum' },
     { key: 'quantity', labelAr: 'الكمية', labelEn: 'Quantity', dataType: 'quantity', defaultVisible: true, align: 'left', aggregate: 'sum' },
-    { key: 'net_sales', labelAr: 'إجمالي المبيعات', labelEn: 'Net Sales', dataType: 'money', essential: true, defaultVisible: true, align: 'left', aggregate: 'sum', unit: 'ر.س' },
+    { key: 'net_sales', labelAr: 'إجمالي المبيعات', labelEn: 'Net Sales', dataType: 'money', essential: true, defaultVisible: true, align: 'left', aggregate: 'sum' },
   ],
 
   metrics: [
@@ -609,7 +609,7 @@ export const REPORT_SUPPLIERS_PAYABLES: ReportDefinition = {
     { key: 'created_at', labelAr: 'التاريخ', labelEn: 'Date', dataType: 'date', defaultVisible: true, align: 'right' },
     { key: 'item_name_ar', labelAr: 'الصنف المورد', labelEn: 'Supplied Item', dataType: 'text', defaultVisible: true, align: 'right' },
     { key: 'quantity', labelAr: 'الكمية المستلمة', labelEn: 'Quantity', dataType: 'quantity', defaultVisible: true, align: 'left', aggregate: 'sum' },
-    { key: 'total', labelAr: 'قيمة المستحق', labelEn: 'Payable Amount', dataType: 'money', essential: true, defaultVisible: true, align: 'left', aggregate: 'sum', unit: 'ر.س' },
+    { key: 'total', labelAr: 'قيمة المستحق', labelEn: 'Payable Amount', dataType: 'money', essential: true, defaultVisible: true, align: 'left', aggregate: 'sum' },
   ],
 
   metrics: [
@@ -649,7 +649,7 @@ export const REPORT_OPERATIONS_DAILY_AUDIT: ReportDefinition = {
     { key: 'created_at', labelAr: 'وقت التنفيذ', labelEn: 'Timestamp', dataType: 'datetime', essential: true, defaultVisible: true, align: 'right' },
     { key: 'status', labelAr: 'حالة السند', labelEn: 'Status', dataType: 'status_badge', essential: true, defaultVisible: true, align: 'center' },
     { key: 'payment_method', labelAr: 'طريقة الدفع', labelEn: 'Method', dataType: 'text', defaultVisible: true, align: 'center' },
-    { key: 'total', labelAr: 'المبلغ الإجمالي', labelEn: 'Total', dataType: 'money', essential: true, defaultVisible: true, align: 'left', aggregate: 'sum', unit: 'ر.س' },
+    { key: 'total', labelAr: 'المبلغ الإجمالي', labelEn: 'Total', dataType: 'money', essential: true, defaultVisible: true, align: 'left', aggregate: 'sum' },
   ],
 
   metrics: [

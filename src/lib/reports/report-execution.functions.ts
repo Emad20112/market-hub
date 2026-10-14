@@ -126,7 +126,7 @@ export const executeSalesRegisterReport = createServerFn({ method: 'POST' })
       meta: {
         appliedFilters: filters,
         costBasisNotice: classifyCostBasis(actualCostRows, false),
-        currencySymbol: 'ر.س', page, pageSize, totalPages: Math.ceil(totalRowCount / pageSize) || 1,
+        currencySymbol: 'ر.ي', page, pageSize, totalPages: Math.ceil(totalRowCount / pageSize) || 1,
       },
     };
   });
@@ -180,7 +180,7 @@ export const executePurchaseRegisterReport = createServerFn({ method: 'POST' })
         totalRowCount, totalQuantity: round2(totalQuantity), grossPurchases: round2(grossPurchases),
         itemDiscounts: round2(itemDiscounts), netPurchases: round2(netPurchases), totalTax: round2(totalTax),
       },
-      meta: { appliedFilters: filters, currencySymbol: 'ر.س', page, pageSize, totalPages: Math.ceil(totalRowCount / pageSize) || 1 },
+      meta: { appliedFilters: filters, currencySymbol: 'ر.ي', page, pageSize, totalPages: Math.ceil(totalRowCount / pageSize) || 1 },
     };
   });
 
@@ -289,7 +289,7 @@ export const executeSalesGroupedReport = createServerFn({ method: 'POST' })
         totalCost: roundedTotalCost, grossMargin, marginPercentage: calculateMarginPercentage(grossMargin, roundedNetSales),
       },
       meta: {
-        appliedFilters: filters, costBasisNotice: classifyCostBasis(actualCostRows, false), currencySymbol: 'ر.س',
+        appliedFilters: filters, costBasisNotice: classifyCostBasis(actualCostRows, false), currencySymbol: 'ر.ي',
         page, pageSize, totalPages: Math.ceil(totalRowCount / pageSize) || 1,
       },
     };
@@ -346,7 +346,7 @@ export const executeInventoryMovementsReport = createServerFn({ method: 'POST' }
       reportId: data.reportId, executedAt: new Date().toISOString(), totalRowCount,
       rows: rows.slice((page - 1) * pageSize, page * pageSize),
       metrics: { openingBalance: round3(openingBalance), totalInbound: round3(totalInbound), totalOutbound: round3(totalOutbound), closingBalance: rows.at(-1)?.running_balance ?? round3(openingBalance), totalRowCount },
-      meta: { appliedFilters: filters, currencySymbol: 'ر.س', page, pageSize, totalPages: Math.ceil(totalRowCount / pageSize) || 1 },
+      meta: { appliedFilters: filters, currencySymbol: 'ر.ي', page, pageSize, totalPages: Math.ceil(totalRowCount / pageSize) || 1 },
     };
   });
 
@@ -564,7 +564,7 @@ export const executeExceptionsReport = createServerFn({ method: 'POST' })
         metrics: { totalRowCount, gapCount: totalRowCount },
         meta: {
           appliedFilters: filters,
-          currencySymbol: 'ر.س',
+          currencySymbol: 'ر.ي',
           page,
           pageSize,
           totalPages: Math.ceil(totalRowCount / pageSize) || 1,
@@ -629,7 +629,7 @@ export const executeExceptionsReport = createServerFn({ method: 'POST' })
         metrics: { totalRowCount, totalValue, exceptionCount: totalRowCount },
         meta: {
           appliedFilters: filters,
-          currencySymbol: 'ر.س',
+          currencySymbol: 'ر.ي',
           page,
           pageSize,
           totalPages: Math.ceil(totalRowCount / pageSize) || 1,
@@ -691,7 +691,7 @@ export const executeExceptionsReport = createServerFn({ method: 'POST' })
       },
       meta: {
         appliedFilters: filters,
-        currencySymbol: 'ر.س',
+        currencySymbol: 'ر.ي',
         page,
         pageSize,
         totalPages: Math.ceil(totalRowCount / pageSize) || 1,

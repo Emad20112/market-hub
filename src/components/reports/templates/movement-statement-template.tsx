@@ -1,31 +1,31 @@
-import React, { useState, useMemo, useEffect } from 'react';
-import { Package } from 'lucide-react';
-import type { ReportDefinition } from '@/lib/reports/types';
+import React, { useState, useMemo, useEffect } from "react";
+import { Package } from "lucide-react";
+import type { ReportDefinition } from "@/lib/reports/types";
 import {
   InventoryMovementsDataProvider,
   type InventoryMovementRow,
-} from '@/lib/reports/data-providers/inventory-movements';
-import { ReportHeader } from '../shared/report-header';
-import { ReportSummaryDeck } from '../shared/report-summary-deck';
-import { ReportFiltersBar } from '../shared/report-filters-bar';
-import { ReportDataTable } from '../shared/report-data-table';
-import { ReportPagination } from '../shared/report-pagination';
-import { ReportEmptyState, ReportErrorState } from '../shared/report-states';
-import { createReportColumnRegistry } from '@/lib/reports/registry/column-bridge';
-import { defaultVisibility, resolveVisibility } from '@/lib/records/column-registry';
-import { RecordsColumnPicker } from '@/components/ui/records-column-picker';
-import { searchReportProducts } from '@/lib/reports/report-execution.functions';
-import { Input } from '@/components/ui/input';
+} from "@/lib/reports/data-providers/inventory-movements";
+import { ReportHeader } from "../shared/report-header";
+import { ReportSummaryDeck } from "../shared/report-summary-deck";
+import { ReportFiltersBar } from "../shared/report-filters-bar";
+import { ReportDataTable } from "../shared/report-data-table";
+import { ReportPagination } from "../shared/report-pagination";
+import { ReportEmptyState, ReportErrorState } from "../shared/report-states";
+import { createReportColumnRegistry } from "@/lib/reports/registry/column-bridge";
+import { defaultVisibility, resolveVisibility } from "@/lib/records/column-registry";
+import { RecordsColumnPicker } from "@/components/ui/records-column-picker";
+import { searchReportProducts } from "@/lib/reports/report-execution.functions";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
-
-import { ReportExportDialog } from '../shared/report-export-dialog';
-import type { ReportExportPayload } from '@/lib/reports/export/types';
+} from "@/components/ui/select";
+import { ReportExportDialog } from "../shared/report-export-dialog";
+import type { ReportExportPayload } from "@/lib/reports/export/types";
+import { useReportCompanyInfo } from "@/hooks/use-report-company-info";
 
 interface MovementStatementTemplateProps {
   definition: ReportDefinition;
@@ -38,44 +38,42 @@ export function MovementStatementTemplate({
   onPrint,
   onExport,
 }: MovementStatementTemplateProps) {
-  // 1. الفلاتر وحالة الصفحة
+  const { companyName, currencySymbol } = useReportCompanyInfo();
+
   const [filters, setFilters] = useState<Record<string, any>>({
     startDate: new Date(new Date().getFullYear(), new Date().getMonth(), 1)
       .toISOString()
-      .split('T')[0],
-    endDate: new Date().toISOString().split('T')[0],
+      .split("T")[0],
+    endDate: new Date().toISOString().split("T")[0],
   });
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(50);
 
-  // البحث في الأصناف ينفذ على الخادم؛ لا نحمل كتالوج المنتجات كاملاً للمتصفح.
   const [productsList, setProductsList] = useState<
     { id: string; name?: string | null; name_ar?: string | null; sku?: string | null }[]
   >([]);
-  const [productSearch, setProductSearch] = useState('');
+  const [productSearch, setProductSearch] = useState("");
   const [productsLoading, setProductsLoading] = useState(false);
 
-  // 2. حالة جلب البيانات
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [rows, setRows] = useState<InventoryMovementRow[]>([]);
   const [metrics, setMetrics] = useState<Record<string, number>>({});
 
-  // 3. حالة إظهار الأعمدة والحوارات
   const [isColumnPickerOpen, setIsColumnPickerOpen] = useState(false);
   const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
-  const [exportDialogMode, setExportDialogMode] = useState<'print' | 'export'>('print');
+  const [exportDialogMode, setExportDialogMode] = useState<"print" | "export">("print");
+
   const columnRegistry = useMemo(
     () => createReportColumnRegistry(definition.id, definition.columns),
-    [definition.id, definition.columns]
+    [definition.id, definition.columns],
   );
   const [columnVisibility, setColumnVisibility] = useState<Record<string, boolean>>(() =>
-    defaultVisibility(columnRegistry)
+    defaultVisibility(columnRegistry),
   );
 
   const dataProvider = useMemo(() => new InventoryMovementsDataProvider(), []);
 
-  // جلب قائمة أصناف محدودة وقابلة للبحث من دالة الخادم.
   useEffect(() => {
     let active = true;
     const timeout = window.setTimeout(async () => {
@@ -96,13 +94,10 @@ export function MovementStatementTemplate({
 
   const selectedProduct = useMemo(
     () => productsList.find((product) => product.id === filters.productId),
-    [productsList, filters.productId]
+    [productsList, filters.productId],
   );
 
-  // جلب كشف حركة الصنف
   async function fetchData() {
-    if (!filters.productId) return;
-
     setLoading(true);
     setError(null);
     try {
@@ -115,20 +110,15 @@ export function MovementStatementTemplate({
       setRows(result.rows);
       setMetrics(result.metrics);
     } catch (err: any) {
-      setError(err?.message || 'حدث خطأ أثناء تحميل كشف حركة الصنف');
+      setError(err?.message || "تعذر تحميل بيانات كشف الحركة");
     } finally {
       setLoading(false);
     }
   }
 
   useEffect(() => {
-    if (filters.productId) {
-      fetchData();
-    }
+    fetchData();
   }, [filters, page, pageSize]);
-
-  const totalRowCount = metrics.totalRowCount || rows.length;
-  const totalPages = Math.ceil(totalRowCount / pageSize) || 1;
 
   const exportPayload: ReportExportPayload = useMemo(
     () => ({
@@ -136,15 +126,15 @@ export function MovementStatementTemplate({
       rows,
       metrics,
       appliedFilters: filters,
-      currencySymbol: 'ر.س',
+      currencySymbol,
     }),
-    [definition, rows, metrics, filters]
+    [definition, rows, metrics, filters, currencySymbol],
   );
 
   const handleOpenPrint = () => {
     if (onPrint) onPrint();
     else {
-      setExportDialogMode('print');
+      setExportDialogMode("print");
       setIsExportDialogOpen(true);
     }
   };
@@ -152,49 +142,46 @@ export function MovementStatementTemplate({
   const handleOpenExport = () => {
     if (onExport) onExport();
     else {
-      setExportDialogMode('export');
+      setExportDialogMode("export");
       setIsExportDialogOpen(true);
     }
   };
 
   return (
-    <div className="flex flex-col rounded-xl border border-border bg-card shadow-xs overflow-hidden">
-      {/* 1. ترويسة التقرير */}
+    <div className="flex flex-col gap-3 rounded-2xl border border-cyan-500/25 bg-slate-950/90 shadow-2xl shadow-cyan-950/20 p-2 sm:p-3 overflow-hidden backdrop-blur-md">
       <ReportHeader
         definition={definition}
-        loading={loading}
-        onRefresh={fetchData}
-        onPrint={handleOpenPrint}
-        onExport={handleOpenExport}
+        companyName={companyName}
+        costBasisNotice={definition.costBasisNotice}
       />
 
-      {/* شريط اختيار الصنف الأساسي */}
-      <div className="flex flex-wrap items-center gap-3 border-b border-border bg-muted/15 px-4 py-3">
-        <div className="flex items-center gap-2 text-xs font-semibold text-foreground">
-          <Package className="h-4 w-4 text-primary" />
-          <span>الصنف المستهدف:</span>
+      {/* Target Product Selection Strip with luxury dark styling */}
+      <div className="flex flex-wrap items-center gap-3 rounded-xl border border-cyan-500/20 bg-slate-900/60 p-3 shadow-inner">
+        <div className="flex items-center gap-2 text-xs font-bold text-cyan-300">
+          <Package className="h-4 w-4 text-cyan-400" />
+          <span>الصنف المستهدف للتقرير:</span>
         </div>
-        <div className="w-full sm:w-72">
+        <div className="flex-1 min-w-[200px] max-w-sm flex items-center gap-2">
           <Input
             value={productSearch}
             onChange={(event) => setProductSearch(event.target.value)}
             placeholder="ابحث بالاسم أو رمز الصنف..."
-            className="mb-2 h-8 text-xs"
+            className="h-7 text-xs border-slate-700 bg-slate-950 text-slate-200"
           />
           <Select
-            value={filters.productId || ''}
+            value={filters.productId || ""}
             onValueChange={(val) => {
               setPage(1);
               setFilters((prev) => ({ ...prev, productId: val }));
             }}
           >
-            <SelectTrigger className="h-8 text-xs bg-background">
-              <SelectValue placeholder={productsLoading ? 'جارٍ البحث...' : 'اختر الصنف...'} />
+            <SelectTrigger className="h-7 text-xs bg-slate-950 border-slate-700 text-slate-200">
+              <SelectValue placeholder={productsLoading ? "جارٍ البحث..." : "اختر الصنف..."} />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className="bg-slate-900 border-slate-700 text-xs">
               {productsList.map((p) => (
                 <SelectItem key={p.id} value={p.id} className="text-xs">
-                  {p.name_ar || p.name || 'صنف بلا اسم'} {p.sku ? `(${p.sku})` : ''}
+                  {p.name_ar || p.name || "صنف بلا اسم"} {p.sku ? `(${p.sku})` : ""}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -202,13 +189,13 @@ export function MovementStatementTemplate({
         </div>
         {selectedProduct && (
           <span className="text-xs text-muted-foreground font-mono">
-            SKU: {selectedProduct.sku || '—'}
+            SKU: {selectedProduct.sku || "—"}
           </span>
         )}
       </div>
 
-      {/* 2. شريط الفلاتر الديناميكي */}
       <ReportFiltersBar
+        definition={definition}
         filters={definition.filters}
         values={filters}
         onChange={(k, v) => {
@@ -216,16 +203,20 @@ export function MovementStatementTemplate({
           setFilters((prev) => ({ ...prev, [k]: v }));
         }}
         onReset={() => setFilters({ productId: filters.productId })}
+        onPreview={fetchData}
         onOpenColumnPicker={() => setIsColumnPickerOpen(true)}
+        onPrint={handleOpenPrint}
+        onExport={handleOpenExport}
+        currentTemplate={definition.viewTemplate}
+        loading={loading}
       />
 
-      {/* 3. بطاقات المؤشرات (الافتتاحي، الوارد، الصادر، الختامي) */}
       <ReportSummaryDeck
         metricsDefinitions={definition.metrics}
         metricsValues={metrics}
+        currencySymbol={currencySymbol}
       />
 
-      {/* 4. جدول البيانات وحالات الخطأ والعدم */}
       {error ? (
         <ReportErrorState error={error} onRetry={fetchData} />
       ) : rows.length === 0 && !loading ? (
@@ -233,6 +224,11 @@ export function MovementStatementTemplate({
           title="لا توجد حركات مخزنية لهذا الصنف في الفترة المحددة"
           description="تأكد من تاريخ البداية والنهاية أو اختر صنفاً آخر."
           onResetFilters={() => setFilters((prev) => ({ productId: prev.productId }))}
+          context={{
+            hasAnyFilters: Boolean(filters.productId),
+            hasRequiredFilter: Boolean(filters.productId),
+            requiredFilterLabel: "الصنف المستهدف",
+          }}
         />
       ) : (
         <ReportDataTable
@@ -240,16 +236,17 @@ export function MovementStatementTemplate({
           rows={rows}
           loading={loading}
           columnVisibility={columnVisibility}
+          currencySymbol={currencySymbol}
+          companyName={companyName}
         />
       )}
 
-      {/* 5. شريط الترقيم */}
-      {totalRowCount > 0 && (
+      {rows.length > 0 && (
         <ReportPagination
           page={page}
           pageSize={pageSize}
-          totalPages={totalPages}
-          totalRowCount={totalRowCount}
+          totalPages={Math.ceil(rows.length / pageSize) || 1}
+          totalRowCount={rows.length}
           onPageChange={setPage}
           onPageSizeChange={(newSize) => {
             setPageSize(newSize);
@@ -258,7 +255,6 @@ export function MovementStatementTemplate({
         />
       )}
 
-      {/* نافذة تخصيص الأعمدة */}
       <RecordsColumnPicker
         open={isColumnPickerOpen}
         onOpenChange={setIsColumnPickerOpen}
@@ -269,7 +265,6 @@ export function MovementStatementTemplate({
         }
       />
 
-      {/* نافذة خيارات الطباعة والتصدير الموحدة */}
       <ReportExportDialog
         open={isExportDialogOpen}
         onOpenChange={setIsExportDialogOpen}
