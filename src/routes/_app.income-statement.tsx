@@ -11,7 +11,15 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Printer, FileSpreadsheet } from "lucide-react";
-import { fetchUnifiedExpenseStats } from "@/lib/expenses/financial-bridge";
+
+/**
+ * T-14: قائمة الدخل من دفتر الأستاذ.
+ *
+ * المصدر الوحيد: سطور journal_lines للقيود POSTED مجمّعة حسب حسابات الدليل
+ * الحقيقية (الإيرادات 4xxx، تكلفة المبيعات 5111، المصروفات 5xxx الأخرى).
+ * المرتجعات مخصومة تلقائيًا لأن قيودها العكسية تُجمّع في نفس الحسابات.
+ * الفترة تُفلتر على entry_date.
+ */
 
 export const Route = createFileRoute("/_app/income-statement")({
   head: () => ({ meta: [{ title: "قائمة الدخل والأرباح — Vortex ERP" }] }),
@@ -29,23 +37,25 @@ function defaultRange() {
   return { from: from.toISOString().slice(0, 10), to: to.toISOString().slice(0, 10) };
 }
 
+interface LedgerAccountLine {
+  code: string;
+  name_ar: string;
+  account_type: string;
+  debit: number;
+  credit: number;
+}
+
 function IncomeStatementPage() {
   const { t, lang } = useI18n();
   const [range, setRange] = useState(defaultRange());
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [pnl, setPnl] = useState({
-    salesTotal: 0,
-    salesDiscounts: 0,
-    netRevenue: 0,
+    revenue: 0,
     cogs: 0,
     grossProfit: 0,
     operatingExpenses: 0,
     netProfit: 0,
-    /*
-     * Lines whose real cost could not be established. Reported explicitly so a
-     * reader knows the margin excludes them rather than assuming it is exact.
-     */
-    missingCostLines: 0,
   });
 
   useEffect(() => {
@@ -55,83 +65,73 @@ function IncomeStatementPage() {
 
   async function loadIncomeStatement() {
     setLoading(true);
-    const fromTs = `${range.from}T00:00:00`;
-    const toTs = `${range.to}T23:59:59`;
-
-    const [salesRes, itemsRes, expenseStats] = await Promise.all([
-      supabase
-        .from("sales_invoices")
-        .select("total,subtotal,discount,tax")
-        .gte("created_at", fromTs)
-        .lte("created_at", toTs),
-      supabase
-        .from("sales_invoice_items")
-        .select("quantity,unit_price,product_id,invoice_id,sales_invoices!inner(created_at)")
-        .gte("sales_invoices.created_at", fromTs)
-        .lte("sales_invoices.created_at", toTs),
-      fetchUnifiedExpenseStats({ dateFrom: range.from, dateTo: range.to }),
-    ]);
-
-    const sales = salesRes.data ?? [];
-    const salesTotal = sales.reduce((a, r) => a + Number(r.subtotal), 0);
-    const salesDiscounts = sales.reduce((a, r) => a + Number(r.discount), 0);
-    const netRevenue = salesTotal - salesDiscounts;
+    setError(null);
 
     /*
-     * Cost of goods sold is taken from the real cost recorded on each stock
-     * issue, not from the catalogue's reference cost. Using `cost_price` here
-     * would present an estimate the user typed once as if it were the actual
-     * cost of everything sold — and it would charge a cost to service lines,
-     * which have none.
-     *
-     * Lines whose true cost cannot be established are counted separately as
-     * `missingCostLines`, so the margin is never silently overstated.
+     * سطور القيود المرحّلة داخل الفترة، مع الحساب. استعلام واحد على journal_lines
+     * مع انضمام accounts وjournal_entries — بدل نداء RPC لكل بند مبيع (كان
+     * Promise.all بمئات النداءات).
      */
-    const soldLines = (itemsRes.data ?? []) as unknown as Array<{
-      quantity: number | null;
-      product_id: string | null;
-      invoice_id: string;
-    }>;
+    const { data, error: qErr } = await supabase
+      .from("journal_lines" as never)
+      .select(
+        "debit,credit,accounts!inner(code,name_ar,account_type),journal_entries!inner(status,entry_date)",
+      )
+      .eq("journal_entries.status", "POSTED")
+      .gte("journal_entries.entry_date", range.from)
+      .lte("journal_entries.entry_date", range.to);
 
-    const costs = await Promise.all(
-      soldLines.map(async (line) => {
-        const { data } = await supabase.rpc(
-          "sales_line_cost" as never,
-          {
-            p_item_id: line.product_id,
-            p_invoice_id: line.invoice_id,
-            p_quantity: Number(line.quantity ?? 0),
-            p_line_type: null,
-          } as never,
-        );
-        return data as number | null;
-      }),
-    );
-
-    let cogs = 0;
-    let missingCostLines = 0;
-    for (const cost of costs) {
-      if (cost === null || cost === undefined) {
-        missingCostLines += 1;
-      } else {
-        cogs += Number(cost);
-      }
+    if (qErr) {
+      setError(qErr.message);
+      setPnl({ revenue: 0, cogs: 0, grossProfit: 0, operatingExpenses: 0, netProfit: 0 });
+      setLoading(false);
+      return;
     }
 
-    const grossProfit = netRevenue - cogs;
-    const operatingExpenses = expenseStats.postedTotal;
+    const byAccount = new Map<string, LedgerAccountLine>();
+    for (const line of (data ?? []) as unknown as Array<{
+      debit: number | null;
+      credit: number | null;
+      accounts: { code: string; name_ar: string; account_type: string };
+    }>) {
+      const code = line.accounts.code;
+      const prev = byAccount.get(code) ?? {
+        code,
+        name_ar: line.accounts.name_ar,
+        account_type: line.accounts.account_type,
+        debit: 0,
+        credit: 0,
+      };
+      prev.debit += Number(line.debit ?? 0);
+      prev.credit += Number(line.credit ?? 0);
+      byAccount.set(code, prev);
+    }
+
+    /*
+     * الرصيد الطبيعي: الإيراد = الدائن − المدين؛ المصروف = المدين − الدائن.
+     * 5111 تكلفة المبيعات تُفصَل عن باقي المصروفات (تشغيلية).
+     */
+    let revenue = 0;
+    let cogs = 0;
+    let operatingExpenses = 0;
+    for (const acc of byAccount.values()) {
+      if (acc.account_type === "REVENUE") {
+        revenue += acc.credit - acc.debit;
+      } else if (acc.account_type === "EXPENSE") {
+        if (acc.code === "5111") {
+          cogs += acc.debit - acc.credit;
+        } else {
+          operatingExpenses += acc.debit - acc.credit;
+        }
+      }
+    }
+    revenue = Math.round(revenue * 100) / 100;
+    cogs = Math.round(cogs * 100) / 100;
+    operatingExpenses = Math.round(operatingExpenses * 100) / 100;
+    const grossProfit = revenue - cogs;
     const netProfit = grossProfit - operatingExpenses;
 
-    setPnl({
-      salesTotal,
-      salesDiscounts,
-      netRevenue,
-      cogs,
-      grossProfit,
-      operatingExpenses,
-      netProfit,
-      missingCostLines,
-    });
+    setPnl({ revenue, cogs, grossProfit, operatingExpenses, netProfit });
     setLoading(false);
   }
 
@@ -149,48 +149,32 @@ function IncomeStatementPage() {
       currency: getCompanyCurrencySymbol(),
       sections: [
         {
-          title: lang === "ar" ? "1. إيرادات المبيعات والنشاط" : "1. Sales Revenue",
-          items: [
-            {
-              label: lang === "ar" ? "إجمالي إيرادات المبيعات" : "Gross Sales",
-              value: pnl.salesTotal,
-            },
-            {
-              label: lang === "ar" ? "يخصم: الخصومات الممنوحة" : "Less: Sales Discounts",
-              value: pnl.salesDiscounts,
-              color: "#f43f5e",
-            },
-          ],
+          title: lang === "ar" ? "1. الإيرادات" : "1. Revenue",
+          items: [],
           total: {
-            label: lang === "ar" ? "صافي إيرادات المبيعات (Net Revenue)" : "Net Sales Revenue",
-            value: pnl.netRevenue,
+            label:
+              lang === "ar" ? "صافي الإيرادات (بعد المرتجعات)" : "Net Revenue (returns deducted)",
+            value: pnl.revenue,
             color: "#b8935a",
           },
         },
         {
           title: lang === "ar" ? "2. تكلفة البضاعة المباعة (COGS)" : "2. Cost of Goods Sold",
-          items: [
-            {
-              label: lang === "ar" ? "تكلفة شراء المنتجات المباعة" : "Cost of Products Sold",
-              value: pnl.cogs,
-              color: "#f43f5e",
-            },
-          ],
+          items: [],
           total: {
-            label: lang === "ar" ? "إجمالي الربح التشغيلي (Gross Profit)" : "Gross Profit",
+            label: lang === "ar" ? "إجمالي الربح" : "Gross Profit",
             value: pnl.grossProfit,
             color: "#10b981",
           },
         },
         {
-          title: lang === "ar" ? "3. المصروفات التشغيلية الإدارية" : "3. Operating Expenses",
-          items: [
-            {
-              label: lang === "ar" ? "إجمالي المصروفات والنفقات" : "Operating Expenses",
-              value: pnl.operatingExpenses,
-              color: "#f43f5e",
-            },
-          ],
+          title: lang === "ar" ? "3. المصروفات التشغيلية" : "3. Operating Expenses",
+          items: [],
+          total: {
+            label: lang === "ar" ? "إجمالي المصروفات" : "Total Operating Expenses",
+            value: pnl.operatingExpenses,
+            color: "#f43f5e",
+          },
         },
       ],
       grandTotal: {
@@ -213,15 +197,23 @@ function IncomeStatementPage() {
         { key: "amount", header: "المبلغ بالعملة المحددة", format: "money" },
       ],
       rows: [
-        { item: "إجمالي إيرادات المبيعات", amount: pnl.salesTotal },
-        { item: "يخصم: الخصومات الممنوحة", amount: pnl.salesDiscounts },
-        { item: "صافي إيرادات المبيعات (Net Revenue)", amount: pnl.netRevenue },
-        { item: "تكلفة شراء المنتجات المباعة (COGS)", amount: pnl.cogs },
-        { item: "إجمالي الربح التشغيلي (Gross Profit)", amount: pnl.grossProfit },
-        { item: "إجمالي المصروفات والنفقات التشغيلية", amount: pnl.operatingExpenses },
+        {
+          item: lang === "ar" ? "صافي الإيرادات (بعد المرتجعات)" : "Net Revenue",
+          amount: pnl.revenue,
+        },
+        {
+          item: lang === "ar" ? "تكلفة البضاعة المباعة (COGS)" : "Cost of Goods Sold",
+          amount: pnl.cogs,
+        },
+        { item: lang === "ar" ? "إجمالي الربح" : "Gross Profit", amount: pnl.grossProfit },
+        {
+          item: lang === "ar" ? "المصروفات التشغيلية" : "Operating Expenses",
+          amount: pnl.operatingExpenses,
+        },
       ],
       totalsRow: {
-        item: "صافي الربح / الخسارة النهائي (Net Profit)",
+        item:
+          lang === "ar" ? "صافي الربح / الخسارة النهائي (Net Profit)" : "Final Net Profit / Loss",
         amount: pnl.netProfit,
       },
       rtl: lang === "ar",
@@ -312,18 +304,12 @@ function IncomeStatementPage() {
               {lang === "ar" ? "1. الإيرادات والمبيعات" : "1. Sales & Revenues"}
             </div>
             <div className="flex justify-between py-1.5 border-b border-border/40">
-              <span>{lang === "ar" ? "إجمالي إيرادات المبيعات" : "Gross Sales Revenue"}</span>
-              <span className="font-mono">{money(pnl.salesTotal)}</span>
-            </div>
-            <div className="flex justify-between py-1.5 border-b border-border/40 text-muted-foreground">
-              <span>{lang === "ar" ? "يخصم: الخصومات الممنوحة" : "Less: Sales Discounts"}</span>
-              <span className="font-mono text-rose-400">({money(pnl.salesDiscounts)})</span>
-            </div>
-            <div className="flex justify-between py-2 font-bold bg-surface-2/40 px-2 rounded-md">
               <span>
-                {lang === "ar" ? "صافي إيرادات المبيعات (Net Revenue)" : "Net Sales Revenue"}
+                {lang === "ar"
+                  ? "صافي الإيرادات (بعد المرتجعات)"
+                  : "Net Revenue (returns deducted)"}
               </span>
-              <span className="font-mono text-primary text-base">{money(pnl.netRevenue)}</span>
+              <span className="font-mono">{money(pnl.revenue)}</span>
             </div>
 
             {/* Section 2: COGS */}
@@ -331,25 +317,21 @@ function IncomeStatementPage() {
               {lang === "ar" ? "2. تكلفة البضاعة المباعة" : "2. Cost of Goods Sold"}
             </div>
             <div className="flex justify-between py-1.5 border-b border-border/40 text-rose-400">
-              <span>
-                {lang === "ar" ? "تكلفة شراء المنتجات المباعة (COGS)" : "Cost of Products Sold"}
-              </span>
+              <span>{lang === "ar" ? "تكلفة البضاعة المباعة (COGS)" : "Cost of Goods Sold"}</span>
               <span className="font-mono">({money(pnl.cogs)})</span>
             </div>
             <div className="flex justify-between py-2 font-bold bg-emerald-500/10 text-emerald-400 px-2 rounded-md border border-emerald-500/20">
-              <span>
-                {lang === "ar" ? "إجمالي الربح التشغيلي (Gross Profit)" : "Gross Operating Profit"}
-              </span>
+              <span>{lang === "ar" ? "إجمالي الربح (Gross Profit)" : "Gross Profit"}</span>
               <span className="font-mono text-base">{money(pnl.grossProfit)}</span>
             </div>
 
             {/* Section 3: Operating Expenses */}
             <div className="pt-3 font-semibold text-xs text-muted-foreground uppercase tracking-wider">
-              {lang === "ar" ? "3. المصروفات التشغيلية الإدارية" : "3. Operating Expenses"}
+              {lang === "ar" ? "3. المصروفات التشغيلية" : "3. Operating Expenses"}
             </div>
             <div className="flex justify-between py-1.5 border-b border-border/40 text-rose-400">
               <span>
-                {lang === "ar" ? "إجمالي المصروفات والنفقات" : "Total Operating Expenses"}
+                {lang === "ar" ? "إجمالي المصروفات التشغيلية" : "Total Operating Expenses"}
               </span>
               <span className="font-mono">({money(pnl.operatingExpenses)})</span>
             </div>

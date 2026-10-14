@@ -122,11 +122,16 @@ BEGIN
     RAISE EXCEPTION 'Not authenticated';
   END IF;
 
-  -- T-03: فحص الدور — محرك القيود للمحاسبة، لا لأي موظف مصادَق.
-  IF NOT (public.has_role(v_user, 'owner')
-          OR public.has_role(v_user, 'manager')
-          OR public.has_role(v_user, 'accountant')) THEN
-    RAISE EXCEPTION 'Only an owner, manager or accountant may create journal entries';
+  -- T-03: فحص الدور — القيد اليدوي (p_is_system=false) للمحاسبة فقط.
+  -- القيد النظامي (من دوال الترحيل SECURITY DEFINER) مسموح لأي موظف مصادق:
+  -- فالكاشير يبيع عبر create_sale، وترحيل فاتورته جزء من نفس العملية
+  -- (قرار T-06-b المعتمد: مسار POS يستمر مع الترحيل التلقائي).
+  IF NOT coalesce(p_is_system, false) THEN
+    IF NOT (public.has_role(v_user, 'owner')
+            OR public.has_role(v_user, 'manager')
+            OR public.has_role(v_user, 'accountant')) THEN
+      RAISE EXCEPTION 'Only an owner, manager or accountant may create manual journal entries';
+    END IF;
   END IF;
 
   IF p_memo IS NULL OR btrim(p_memo) = '' THEN
@@ -325,8 +330,11 @@ BEGIN
     RAISE EXCEPTION 'Not authenticated';
   END IF;
   IF NOT (public.has_role(v_user,'owner') OR public.has_role(v_user,'manager')
-          OR public.has_role(v_user,'accountant')) THEN
-    RAISE EXCEPTION 'Only an owner, manager or accountant may post an invoice';
+          OR public.has_role(v_user,'accountant')
+          -- T-06-b (المعتمد): الكاشير يبيع عبر create_sale التي تستدعي هذه
+          -- الدالة في نفس المعاملة؛ الترحيل جزء من البيع لا عملية منفصلة.
+          OR public.has_role(v_user,'cashier')) THEN
+    RAISE EXCEPTION 'Only an owner, manager, accountant or the cashier''s own sale may post a sales invoice';
   END IF;
 
   SELECT * INTO v_inv FROM public.sales_invoices WHERE id = p_invoice_id FOR UPDATE;

@@ -17,7 +17,14 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Printer, Scale, FileSpreadsheet } from "lucide-react";
-import { fetchUnifiedExpenseStats } from "@/lib/expenses/financial-bridge";
+
+/**
+ * T-13: ميزان المراجعة من دفتر الأستاذ — لا من جداول تشغيلية.
+ *
+ * المصدر الوحيد: عرض `trial_balance` في القاعدة، وهو مشتق من سطور
+ * journal_lines للقيود POSTED/REVERSED (العكس يقابل الأصل فيتصافران).
+ * الأكواد هي أكواد دليل الحسابات الحقيقية (1101، 1211، 1311…) لا أكواد مُختلقة.
+ */
 
 export const Route = createFileRoute("/_app/trial-balance")({
   head: () => ({ meta: [{ title: "ميزان المراجعة — Vortex ERP" }] }),
@@ -28,137 +35,50 @@ export const Route = createFileRoute("/_app/trial-balance")({
   ),
 });
 
-interface TrialBalanceAccount {
-  accountCode: string;
-  accountName: string;
-  type: "asset" | "liability" | "equity" | "revenue" | "expense";
-  debit: number;
-  credit: number;
+interface TrialBalanceRow {
+  code: string;
+  name_ar: string;
+  account_type: string;
+  total_debit: number;
+  total_credit: number;
+  balance: number;
+  natural_balance: number;
 }
 
 function TrialBalancePage() {
   const { t, lang } = useI18n();
-  const [accounts, setAccounts] = useState<TrialBalanceAccount[]>([]);
+  const [rows, setRows] = useState<TrialBalanceRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const loadTrialBalance = useCallback(async () => {
     setLoading(true);
-    const [sales, purchases, expenseStats, customers, suppliers, inv] = await Promise.all([
-      supabase.from("sales_invoices").select("total,paid").limit(3000),
-      supabase.from("purchase_invoices").select("total,paid").limit(3000),
-      fetchUnifiedExpenseStats(),
-      supabase.from("customers").select("balance").limit(2000),
-      supabase.from("suppliers").select("balance").limit(2000),
-      /*
-       * Inventory valuation comes from the owner-aware view, so it counts
-       * company-owned TRACKED goods only — never customer-owned material, an
-       * untracked good, or a service.
-       */
-      supabase
-        .from("inventory_valuation" as never)
-        .select("quantity,reference_valuation")
-        .limit(3000),
-    ]);
+    setError(null);
 
-    const salesTotal = (sales.data ?? []).reduce((a, r) => a + Number(r.total), 0);
-    const salesPaidCash = (sales.data ?? []).reduce((a, r) => a + Number(r.paid), 0);
+    const { data, error: qErr } = await supabase
+      .from("trial_balance" as never)
+      .select("code,name_ar,account_type,total_debit,total_credit,balance,natural_balance")
+      .order("code", { ascending: true });
 
-    const purchaseTotal = (purchases.data ?? []).reduce((a, r) => a + Number(r.total), 0);
-    const purchasePaidCash = (purchases.data ?? []).reduce((a, r) => a + Number(r.paid), 0);
-
-    const expensesTotal = expenseStats.postedTotal;
-    const expenseCashPaid = expenseStats.paidCashOut;
-    const expensePayables = expenseStats.outstandingTotal;
-
-    const receivables = (customers.data ?? []).reduce(
-      (a, c) => a + Math.max(0, Number(c.balance || 0)),
-      0,
-    );
-    const payables = (suppliers.data ?? []).reduce(
-      (a, s) => a + Math.max(0, Number(s.balance || 0)),
-      0,
-    );
-    const inventoryValuation = (inv.data ?? []).reduce(
-      (a, row: { reference_valuation?: number | null }) => a + Number(row.reference_valuation ?? 0),
-      0,
-    );
-    const netCashOnHand = Math.max(0, salesPaidCash - purchasePaidCash - expenseCashPaid);
-
-    const result: TrialBalanceAccount[] = [
-      {
-        accountCode: "1010",
-        accountName: lang === "ar" ? "حساب النقدية والصندوق" : "Cash & Treasury Fund",
-        type: "asset",
-        debit: netCashOnHand,
-        credit: 0,
-      },
-      {
-        accountCode: "1020",
-        accountName:
-          lang === "ar" ? "حساب الذمم المدينة (العملاء)" : "Accounts Receivable (Customers)",
-        type: "asset",
-        debit: receivables,
-        credit: 0,
-      },
-      {
-        accountCode: "1030",
-        accountName: lang === "ar" ? "حساب تقييم المخزون السلعي" : "Merchandise Inventory",
-        type: "asset",
-        debit: inventoryValuation,
-        credit: 0,
-      },
-      {
-        accountCode: "2010",
-        accountName:
-          lang === "ar" ? "حساب الذمم الدائنة (الموردون)" : "Accounts Payable (Suppliers)",
-        type: "liability",
-        debit: 0,
-        credit: payables,
-      },
-      {
-        accountCode: "2020",
-        accountName: lang === "ar" ? "ذمم مصروفات مستحقة الدفع" : "Accrued Expenses Payable",
-        type: "liability",
-        debit: 0,
-        credit: expensePayables,
-      },
-      {
-        accountCode: "4010",
-        accountName: lang === "ar" ? "إجمالي إيرادات المبيعات" : "Total Sales Revenue",
-        type: "revenue",
-        debit: 0,
-        credit: salesTotal,
-      },
-      {
-        accountCode: "5010",
-        accountName: lang === "ar" ? "تكلفة المشتريات والبضاعة" : "Cost of Purchases & Goods",
-        type: "expense",
-        debit: purchaseTotal,
-        credit: 0,
-      },
-      {
-        accountCode: "5020",
-        accountName: lang === "ar" ? "المصروفات التشغيلية والإدارية" : "Operating & Admin Expenses",
-        type: "expense",
-        debit: expensesTotal,
-        credit: 0,
-      },
-    ];
-
-    setAccounts(result);
+    if (qErr) {
+      setError(qErr.message);
+      setRows([]);
+    } else {
+      setRows((data ?? []) as unknown as TrialBalanceRow[]);
+    }
     setLoading(false);
-  }, [lang]);
+  }, []);
 
   useEffect(() => {
     void loadTrialBalance();
   }, [loadTrialBalance]);
 
   const totals = useMemo(() => {
-    const totalDebit = accounts.reduce((a, r) => a + r.debit, 0);
-    const totalCredit = accounts.reduce((a, r) => a + r.credit, 0);
+    const totalDebit = rows.reduce((a, r) => a + Number(r.total_debit), 0);
+    const totalCredit = rows.reduce((a, r) => a + Number(r.total_credit), 0);
     const difference = Math.abs(totalDebit - totalCredit);
-    return { totalDebit, totalCredit, difference, isBalanced: difference < 1 };
-  }, [accounts]);
+    return { totalDebit, totalCredit, difference, isBalanced: difference < 0.005 };
+  }, [rows]);
 
   function handlePrintPDF() {
     printReport({
@@ -171,7 +91,8 @@ function TrialBalancePage() {
           ? "يوجد فارق تسوية في الأرصدة"
           : "Variance Detected",
       date: new Date().toLocaleDateString(lang === "ar" ? "ar-YE" : "en-US"),
-      periodLabel: lang === "ar" ? "مطابقة أرصدة الشجرة الحسابية" : "General Ledger Verification",
+      periodLabel:
+        lang === "ar" ? "من دفتر الأستاذ — تراكمي" : "From the general ledger — cumulative",
       currency: getCompanyCurrencySymbol(),
       summaryCards: [
         {
@@ -191,29 +112,42 @@ function TrialBalancePage() {
         },
       ],
       columns: [
-        { key: "accountCode", header: lang === "ar" ? "رمز الحساب" : "Code" },
-        { key: "accountName", header: lang === "ar" ? "اسم الحساب المحاسبي" : "Account Name" },
-        { key: "type", header: lang === "ar" ? "التصنيف" : "Type" },
+        { key: "code", header: lang === "ar" ? "رمز الحساب" : "Code" },
+        { key: "name_ar", header: lang === "ar" ? "اسم الحساب المحاسبي" : "Account Name" },
+        { key: "account_type", header: lang === "ar" ? "التصنيف" : "Type" },
         {
-          key: "debit",
+          key: "total_debit",
           header: lang === "ar" ? "أرصدة مدينة (Debit)" : "Debit",
           align: "right",
           format: "money",
         },
         {
-          key: "credit",
+          key: "total_credit",
           header: lang === "ar" ? "أرصدة دائنة (Credit)" : "Credit",
           align: "right",
           format: "money",
         },
+        {
+          key: "natural_balance",
+          header: lang === "ar" ? "الرصيد الطبيعي" : "Balance",
+          align: "right",
+          format: "money",
+        },
       ],
-      rows: accounts as any,
+      rows: rows.map((r) => ({
+        code: r.code,
+        name_ar: r.name_ar,
+        account_type: typeLabel(r.account_type),
+        total_debit: Number(r.total_debit),
+        total_credit: Number(r.total_credit),
+        natural_balance: Number(r.natural_balance),
+      })) as any,
       totalsRow: {
-        accountCode: "",
-        accountName: lang === "ar" ? "الإجمالي الكلي لميزان المراجعة" : "Grand Total",
-        type: "",
-        debit: totals.totalDebit,
-        credit: totals.totalCredit,
+        code: "",
+        name_ar: lang === "ar" ? "الإجمالي الكلي لميزان المراجعة" : "Grand Total",
+        account_type: "",
+        total_debit: totals.totalDebit,
+        total_credit: totals.totalCredit,
       } as any,
       rtl: lang === "ar",
     });
@@ -225,23 +159,48 @@ function TrialBalancePage() {
       title: "ميزان المراجعة المحاسبي العام",
       currency: getCompanyCurrencySymbol(),
       columns: [
-        { key: "accountCode", header: "رمز الحساب" },
-        { key: "accountName", header: "اسم الحساب المحاسبي" },
-        { key: "type", header: "تصنيف الحساب" },
-        { key: "debit", header: "أرصدة مدينة (Debit)", format: "money" },
-        { key: "credit", header: "أرصدة دائنة (Credit)", format: "money" },
+        { key: "code", header: "رمز الحساب" },
+        { key: "name_ar", header: "اسم الحساب المحاسبي" },
+        { key: "account_type", header: "تصنيف الحساب" },
+        { key: "total_debit", header: "أرصدة مدينة (Debit)", format: "money" },
+        { key: "total_credit", header: "أرصدة دائنة (Credit)", format: "money" },
+        { key: "natural_balance", header: "الرصيد الطبيعي", format: "money" },
       ],
-      rows: accounts as any,
+      rows: rows.map((r) => ({
+        code: r.code,
+        name_ar: r.name_ar,
+        account_type: typeLabel(r.account_type),
+        total_debit: Number(r.total_debit),
+        total_credit: Number(r.total_credit),
+        natural_balance: Number(r.natural_balance),
+      })) as any,
       totalsRow: {
-        accountCode: "",
-        accountName: "الإجمالي الكلي لميزان المراجعة",
-        type: "",
-        debit: totals.totalDebit,
-        credit: totals.totalCredit,
+        code: "",
+        name_ar: "الإجمالي الكلي لميزان المراجعة",
+        account_type: "",
+        total_debit: totals.totalDebit,
+        total_credit: totals.totalCredit,
       } as any,
       rtl: lang === "ar",
     });
   }
+
+  const typeLabel = (type: string) => {
+    switch (type) {
+      case "ASSET":
+        return lang === "ar" ? "أصول" : "Asset";
+      case "LIABILITY":
+        return lang === "ar" ? "خصوم" : "Liability";
+      case "EQUITY":
+        return lang === "ar" ? "حقوق ملكية" : "Equity";
+      case "REVENUE":
+        return lang === "ar" ? "إيرادات" : "Revenue";
+      case "EXPENSE":
+        return lang === "ar" ? "مصروفات" : "Expense";
+      default:
+        return type;
+    }
+  };
 
   return (
     <>
@@ -249,8 +208,8 @@ function TrialBalancePage() {
         title={lang === "ar" ? "ميزان المراجعة المحاسبي" : "Trial Balance"}
         subtitle={
           lang === "ar"
-            ? "مطابقة وتوازن الحسابات والذمم والأرصدة المدينة والدائنة"
-            : "General ledger accounts verification & debit/credit balance statement"
+            ? "مبني على القيود المرحّلة في دفتر الأستاذ — مصدر واحد للحقيقة"
+            : "Built from posted journal entries — single source of truth"
         }
         actions={
           <div className="flex items-center gap-2">
@@ -321,30 +280,48 @@ function TrialBalancePage() {
                   <TableHead className="text-end text-emerald-500 font-semibold">
                     {lang === "ar" ? "أرصدة دائنة (Credit)" : "Credit"}
                   </TableHead>
+                  <TableHead className="text-end">{lang === "ar" ? "الرصيد" : "Balance"}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {loading ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="py-8 text-center text-muted-foreground">
+                    <TableCell colSpan={6} className="py-8 text-center text-muted-foreground">
                       {t("common.loading")}
                     </TableCell>
                   </TableRow>
+                ) : error ? (
+                  <TableRow>
+                    <TableCell colSpan={6} className="py-8 text-center text-rose-500 text-sm">
+                      {error}
+                    </TableCell>
+                  </TableRow>
+                ) : rows.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={6} className="py-8 text-center text-muted-foreground">
+                      {lang === "ar"
+                        ? "لا قيود مرحّلة بعد — الميزان فارغ لأن الدفتر فارغ"
+                        : "No posted entries yet — the ledger is empty"}
+                    </TableCell>
+                  </TableRow>
                 ) : (
-                  accounts.map((acc) => (
-                    <TableRow key={acc.accountCode} className="hover:bg-surface-2/60">
+                  rows.map((r) => (
+                    <TableRow key={r.code} className="hover:bg-surface-2/60">
                       <TableCell className="font-mono text-xs font-bold text-primary">
-                        {acc.accountCode}
+                        {r.code}
                       </TableCell>
-                      <TableCell className="font-medium text-xs">{acc.accountName}</TableCell>
-                      <TableCell className="text-xs text-muted-foreground capitalize">
-                        {acc.type}
+                      <TableCell className="font-medium text-xs">{r.name_ar}</TableCell>
+                      <TableCell className="text-xs text-muted-foreground">
+                        {typeLabel(r.account_type)}
                       </TableCell>
                       <TableCell className="text-end font-mono text-rose-400">
-                        {acc.debit > 0 ? money(acc.debit) : "—"}
+                        {Number(r.total_debit) !== 0 ? money(Number(r.total_debit)) : "—"}
                       </TableCell>
                       <TableCell className="text-end font-mono text-emerald-400">
-                        {acc.credit > 0 ? money(acc.credit) : "—"}
+                        {Number(r.total_credit) !== 0 ? money(Number(r.total_credit)) : "—"}
+                      </TableCell>
+                      <TableCell className="text-end font-mono">
+                        {money(Number(r.natural_balance))}
                       </TableCell>
                     </TableRow>
                   ))
@@ -359,6 +336,7 @@ function TrialBalancePage() {
                   <TableCell className="text-end font-mono text-emerald-500 text-base">
                     {money(totals.totalCredit)}
                   </TableCell>
+                  <TableCell />
                 </TableRow>
               </TableBody>
             </Table>

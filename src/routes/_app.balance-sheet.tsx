@@ -9,7 +9,17 @@ import { printFinancialStatement } from "@/lib/pdf";
 import { exportToCSV } from "@/lib/excel-export";
 import { Button } from "@/components/ui/button";
 import { Printer, Landmark, Wallet, FileSpreadsheet } from "lucide-react";
-import { fetchUnifiedExpenseStats } from "@/lib/expenses/financial-bridge";
+
+/**
+ * T-15: الميزانية العمومية من دفتر الأستاذ.
+ *
+ * المصدر الوحيد: عرض trial_balance (من journal_lines للقيود POSTED).
+ * حقوق الملكية **مجموع فعلي من حسابات EQUITY في الدليل** (3111، 3911، 3921…)
+ * لا الطرح المُشتق `assets − liabilities` الذي كان يجعل الميزانية متوازنة
+ * بالتعريف. الفارق بين الطرفين يظهر كسطر «فارق غير مطابق» يحتاج تدقيقًا —
+ * لا يُدفن في حقوق الملكية.
+ * النقدية من الحسابات الفعلية (1101، 1111، 1131-1139) لا Math.max(0,...).
+ */
 
 export const Route = createFileRoute("/_app/balance-sheet")({
   head: () => ({ meta: [{ title: "الميزانية العمومية — Vortex ERP" }] }),
@@ -23,15 +33,22 @@ export const Route = createFileRoute("/_app/balance-sheet")({
 function BalanceSheetPage() {
   const { t, lang } = useI18n();
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [bs, setBs] = useState({
     cashOnHand: 0,
     receivables: 0,
     inventoryValue: 0,
+    fixedAssets: 0,
     totalAssets: 0,
     payables: 0,
+    accruedLiabilities: 0,
+    vatPayable: 0,
     totalLiabilities: 0,
+    capital: 0,
+    retainedEarnings: 0,
     equity: 0,
     totalLiabilitiesAndEquity: 0,
+    difference: 0,
   });
 
   useEffect(() => {
@@ -40,67 +57,71 @@ function BalanceSheetPage() {
 
   async function loadBalanceSheet() {
     setLoading(true);
-    const [sales, purchases, expenseStats, customers, suppliers, inv] = await Promise.all([
-      supabase
-        .from("sales_invoices")
-        .select("total,paid")
-        .order("created_at", { ascending: false })
-        .limit(3000),
-      supabase
-        .from("purchase_invoices")
-        .select("total,paid")
-        .order("created_at", { ascending: false })
-        .limit(3000),
-      fetchUnifiedExpenseStats(),
-      supabase.from("customers").select("balance").limit(2000),
-      supabase.from("suppliers").select("balance").limit(2000),
-      /*
-       * Inventory is read from public.inventory_valuation, which is built on the
-       * owner-aware stock positions. That means the figure covers company-owned
-       * TRACKED goods only: services, untracked goods and customer-owned
-       * material are excluded, which is what makes it a balance-sheet number
-       * rather than a sum of everything on the shelves.
-       */
-      supabase
-        .from("inventory_valuation" as never)
-        .select("quantity,reference_valuation,valuation_is_reference_based")
-        .limit(3000),
-    ]);
+    setError(null);
 
-    const salesPaidCash = (sales.data ?? []).reduce((a, r) => a + Number(r.paid), 0);
-    const purchasePaidCash = (purchases.data ?? []).reduce((a, r) => a + Number(r.paid), 0);
-    const expenseCashPaid = expenseStats.paidCashOut;
-    const expensePayables = expenseStats.outstandingTotal;
+    /* سطور القيود المرحّلة مجمّعة حسب الحساب — استعلام واحد. */
+    const { data, error: qErr } = await supabase
+      .from("trial_balance" as never)
+      .select("code,name_ar,account_type,balance,natural_balance")
+      .order("code");
 
-    const cashOnHand = Math.max(0, salesPaidCash - purchasePaidCash - expenseCashPaid);
-    const receivables = (customers.data ?? []).reduce(
-      (a, c) => a + Math.max(0, Number(c.balance || 0)),
-      0,
+    if (qErr) {
+      setError(qErr.message);
+      setLoading(false);
+      return;
+    }
+
+    const rows = (data ?? []) as unknown as Array<{
+      code: string;
+      name_ar: string;
+      account_type: string;
+      balance: number;
+      natural_balance: number;
+    }>;
+
+    const sumBy = (fn: (r: (typeof rows)[number]) => boolean) =>
+      Math.round(rows.filter(fn).reduce((a, r) => a + Number(r.natural_balance), 0) * 100) / 100;
+
+    /* الرصيد الطبيعي (natural_balance) موجب للأصول في الطرف المدين. */
+    const cashOnHand = sumBy(
+      (r) => r.account_type === "ASSET" && r.code >= "1101" && r.code <= "1139",
     );
-    const inventoryValue = (inv.data ?? []).reduce(
-      (a, row: { reference_valuation?: number | null }) => a + Number(row.reference_valuation ?? 0),
-      0,
+    const receivables = sumBy((r) => r.code === "1211");
+    const inventoryValue = sumBy(
+      (r) => r.account_type === "ASSET" && r.code >= "1311" && r.code <= "1321",
     );
-    const totalAssets = cashOnHand + receivables + inventoryValue;
-
-    const supplierPayables = (suppliers.data ?? []).reduce(
-      (a, s) => a + Math.max(0, Number(s.balance || 0)),
-      0,
+    const fixedAssets = sumBy(
+      (r) => r.account_type === "ASSET" && r.code >= "1411" && r.code <= "1512",
     );
-    const totalLiabilities = supplierPayables + expensePayables;
+    const totalAssets = cashOnHand + receivables + inventoryValue + fixedAssets;
 
-    const equity = totalAssets - totalLiabilities;
+    const payables = sumBy((r) => r.code === "2111");
+    const accruedLiabilities = sumBy((r) => r.code >= "2211" && r.code <= "2231");
+    const vatPayable = sumBy((r) => r.code >= "2311" && r.code <= "2321");
+    const totalLiabilities = payables + accruedLiabilities + vatPayable;
+
+    /* حقوق الملكية: مجموع فعلي من حسابات EQUITY — لا مشتق. */
+    const capital = sumBy((r) => r.code === "3111" || r.code === "3211");
+    const retainedEarnings = sumBy((r) => r.code === "3911" || r.code === "3921");
+    const equity = capital + retainedEarnings;
     const totalLiabilitiesAndEquity = totalLiabilities + equity;
+    const difference = Math.round((totalAssets - totalLiabilitiesAndEquity) * 100) / 100;
 
     setBs({
       cashOnHand,
       receivables,
       inventoryValue,
+      fixedAssets,
       totalAssets,
-      payables: totalLiabilities,
+      payables,
+      accruedLiabilities,
+      vatPayable,
       totalLiabilities,
+      capital,
+      retainedEarnings,
       equity,
       totalLiabilitiesAndEquity,
+      difference,
     });
     setLoading(false);
   }
@@ -127,16 +148,20 @@ function BalanceSheetPage() {
           title: lang === "ar" ? "الأصول المتداولة" : "Current Assets",
           items: [
             {
-              label: lang === "ar" ? "النقدية بالصندوق والبنك" : "Cash & Bank Balances",
+              label: lang === "ar" ? "النقدية بالصندوق والبنوك والمحافظ" : "Cash, Banks & Wallets",
               value: bs.cashOnHand,
             },
             {
-              label: lang === "ar" ? "ذمم مدينة (حقوق لدى العملاء)" : "Accounts Receivable",
+              label: lang === "ar" ? "ذمم مدينة (العملاء)" : "Accounts Receivable",
               value: bs.receivables,
             },
             {
-              label: lang === "ar" ? "مخزون البضائع والسلع (بالتكلفة)" : "Merchandise Inventory",
+              label: lang === "ar" ? "المخزون" : "Inventory",
               value: bs.inventoryValue,
+            },
+            {
+              label: lang === "ar" ? "الأصول الثابتة والمؤجلة" : "Fixed & Deferred Assets",
+              value: bs.fixedAssets,
             },
           ],
           total: {
@@ -149,9 +174,17 @@ function BalanceSheetPage() {
           title: lang === "ar" ? "أولاً: الخصوم (الالتزامات)" : "1. Liabilities",
           items: [
             {
-              label: lang === "ar" ? "ذمم دائنة (مستحقات للموردين)" : "Accounts Payable",
+              label: lang === "ar" ? "ذمم الموردين" : "Accounts Payable",
               value: bs.payables,
               color: "#f43f5e",
+            },
+            {
+              label: lang === "ar" ? "قروض ومصروفات مستحقة" : "Loans & Accrued Liabilities",
+              value: bs.accruedLiabilities,
+            },
+            {
+              label: lang === "ar" ? "ضريبة القيمة المضافة المستحقة" : "VAT Payable",
+              value: bs.vatPayable,
             },
           ],
         },
@@ -159,9 +192,13 @@ function BalanceSheetPage() {
           title: lang === "ar" ? "ثانياً: حقوق الملكية" : "2. Owner's Equity",
           items: [
             {
-              label: lang === "ar" ? "صافي حقوق الملكية ورأس المال" : "Owner's Net Equity",
-              value: bs.equity,
+              label: lang === "ar" ? "رأس المال (ومسحوباته)" : "Capital (net of drawings)",
+              value: bs.capital,
               color: "#10b981",
+            },
+            {
+              label: lang === "ar" ? "الأرباح المحتجزة ونتيجة النشاط" : "Retained Earnings",
+              value: bs.retainedEarnings,
             },
           ],
           total: {
@@ -186,19 +223,26 @@ function BalanceSheetPage() {
         { key: "amount", header: "القيمة المالية بالعملة المحددة", format: "money" },
       ],
       rows: [
-        { category: "الأصول", item: "النقدية بالصندوق والبنك", amount: bs.cashOnHand },
-        { category: "الأصول", item: "ذمم مدينة (حقوق لدى العملاء)", amount: bs.receivables },
-        { category: "الأصول", item: "مخزون البضائع والسلع (بالتكلفة)", amount: bs.inventoryValue },
-        { category: "الخصوم", item: "ذمم دائنة (مستحقات للموردين)", amount: bs.payables },
+        { category: "الأصول", item: "النقدية بالصندوق والبنوك والمحافظ", amount: bs.cashOnHand },
+        { category: "الأصول", item: "ذمم مدينة (العملاء)", amount: bs.receivables },
+        { category: "الأصول", item: "المخزون", amount: bs.inventoryValue },
+        { category: "الأصول", item: "الأصول الثابتة والمؤجلة", amount: bs.fixedAssets },
+        { category: "الخصوم", item: "ذمم الموردين", amount: bs.payables },
+        { category: "الخصوم", item: "قروض ومصروفات مستحقة", amount: bs.accruedLiabilities },
+        { category: "الخصوم", item: "ضريبة القيمة المضافة المستحقة", amount: bs.vatPayable },
+        { category: "حقوق الملكية", item: "رأس المال (ومسحوباته)", amount: bs.capital },
         {
           category: "حقوق الملكية",
-          item: "صافي حقوق الملكية ورأس المال الأسمي",
-          amount: bs.equity,
+          item: "الأرباح المحتجزة ونتيجة النشاط",
+          amount: bs.retainedEarnings,
         },
       ],
       totalsRow: {
         category: "التوازن",
-        item: "إجمالي الأصول / إجمالي الخصوم وحقوق الملكية",
+        item:
+          bs.difference === 0
+            ? "متوازنة — إجمالي الأصول = إجمالي الخصوم وحقوق الملكية"
+            : `فارق غير مطابق: ${bs.difference} — يحتاج تدقيقًا`,
         amount: bs.totalAssets,
       },
       rtl: lang === "ar",
@@ -249,22 +293,24 @@ function BalanceSheetPage() {
 
             <div className="space-y-3 text-sm">
               <div className="flex justify-between py-2 border-b border-border/40">
-                <span>{lang === "ar" ? "النقدية بالصندوق والبنك" : "Cash & Bank Balances"}</span>
+                <span>
+                  {lang === "ar" ? "النقدية بالصندوق والبنوك والمحافظ" : "Cash, Banks & Wallets"}
+                </span>
                 <span className="font-mono font-semibold">{money(bs.cashOnHand)}</span>
               </div>
               <div className="flex justify-between py-2 border-b border-border/40">
                 <span>
-                  {lang === "ar"
-                    ? "ذمم مدينة (حقوق لدى العملاء)"
-                    : "Accounts Receivable (Customers)"}
+                  {lang === "ar" ? "ذمم مدينة (العملاء)" : "Accounts Receivable (Customers)"}
                 </span>
                 <span className="font-mono font-semibold">{money(bs.receivables)}</span>
               </div>
               <div className="flex justify-between py-2 border-b border-border/40">
-                <span>
-                  {lang === "ar" ? "مخزون البضائع والسلع (بالتكلفة)" : "Merchandise Inventory"}
-                </span>
+                <span>{lang === "ar" ? "المخزون" : "Inventory"}</span>
                 <span className="font-mono font-semibold">{money(bs.inventoryValue)}</span>
+              </div>
+              <div className="flex justify-between py-2 border-b border-border/40">
+                <span>{lang === "ar" ? "الأصول الثابتة والمؤجلة" : "Fixed & Deferred Assets"}</span>
+                <span className="font-mono font-semibold">{money(bs.fixedAssets)}</span>
               </div>
 
               <div className="pt-4">
@@ -295,20 +341,32 @@ function BalanceSheetPage() {
                 {lang === "ar" ? "أولاً: الخصوم (الالتزامات)" : "1. Liabilities"}
               </div>
               <div className="flex justify-between py-2 border-b border-border/40 text-rose-400">
-                <span>
-                  {lang === "ar" ? "ذمم دائنة (مستحقات للموردين)" : "Accounts Payable (Suppliers)"}
-                </span>
+                <span>{lang === "ar" ? "ذمم الموردين" : "Accounts Payable (Suppliers)"}</span>
                 <span className="font-mono font-semibold">{money(bs.payables)}</span>
+              </div>
+              <div className="flex justify-between py-2 border-b border-border/40 text-rose-400">
+                <span>
+                  {lang === "ar" ? "قروض ومصروفات مستحقة" : "Loans & Accrued Liabilities"}
+                </span>
+                <span className="font-mono font-semibold">{money(bs.accruedLiabilities)}</span>
+              </div>
+              <div className="flex justify-between py-2 border-b border-border/40 text-rose-400">
+                <span>{lang === "ar" ? "ضريبة القيمة المضافة المستحقة" : "VAT Payable"}</span>
+                <span className="font-mono font-semibold">{money(bs.vatPayable)}</span>
               </div>
 
               <div className="pt-2 font-semibold text-xs text-muted-foreground uppercase">
                 {lang === "ar" ? "ثانياً: حقوق الملكية" : "2. Owner's Equity"}
               </div>
               <div className="flex justify-between py-2 border-b border-border/40 text-emerald-400">
+                <span>{lang === "ar" ? "رأس المال (ومسحوباته)" : "Capital (net of drawings)"}</span>
+                <span className="font-mono font-semibold">{money(bs.capital)}</span>
+              </div>
+              <div className="flex justify-between py-2 border-b border-border/40 text-emerald-400">
                 <span>
-                  {lang === "ar" ? "صافي حقوق الملكية ورأس المال الأسمي" : "Owner's Net Equity"}
+                  {lang === "ar" ? "الأرباح المحتجزة ونتيجة النشاط" : "Retained Earnings"}
                 </span>
-                <span className="font-mono font-semibold">{money(bs.equity)}</span>
+                <span className="font-mono font-semibold">{money(bs.retainedEarnings)}</span>
               </div>
 
               <div className="pt-4">
@@ -319,6 +377,19 @@ function BalanceSheetPage() {
                   <span className="font-mono">{money(bs.totalLiabilitiesAndEquity)}</span>
                 </div>
               </div>
+
+              {bs.difference !== 0 && (
+                <div className="pt-2">
+                  <div className="flex justify-between py-3 px-4 rounded-xl bg-rose-500/15 border border-rose-500/40 font-bold text-sm text-rose-400">
+                    <span>
+                      {lang === "ar"
+                        ? "⚠️ فارق غير مطابق — الأصول لا تساوي الخصوم وحقوق الملكية"
+                        : "⚠️ Unbalanced — assets ≠ liabilities + equity"}
+                    </span>
+                    <span className="font-mono">{money(bs.difference)}</span>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
