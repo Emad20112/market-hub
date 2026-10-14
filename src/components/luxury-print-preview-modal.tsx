@@ -149,7 +149,7 @@ export function LuxuryPrintPreviewModal({
     if (initialMethod === "thermal") {
       return "thermal-milling"; // Default to the admired modern milling counter template
     }
-    return "milling-clean"; // Default to the admired clean milling A4/A5 template
+    return "elegant"; // Default to executive luxury A4/A5 template
   }, [request?.templateId, request?.settings, request?.documentType, documentType, initialMethod]);
 
   const [activeTemplate, setActiveTemplate] = useState<InvoiceTemplateId>(initialTemplateId);
@@ -220,7 +220,7 @@ export function LuxuryPrintPreviewModal({
       setActiveTemplate(
         deptOverride?.templateId && !deptOverride.templateId.startsWith("thermal")
           ? deptOverride.templateId
-          : "milling-clean",
+          : "elegant",
       );
       setActivePaper(
         deptOverride?.paperId && !deptOverride.paperId.startsWith("thermal")
@@ -509,31 +509,6 @@ export function LuxuryPrintPreviewModal({
                   <>
                     <button
                       type="button"
-                      onClick={() => setActiveTemplate("milling-clean")}
-                      className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
-                        activeTemplate === "milling-clean"
-                          ? "bg-primary text-primary-foreground shadow-xs"
-                          : "text-muted-foreground hover:text-foreground hover:bg-surface"
-                      }`}
-                    >
-                      <Scale className="h-3 w-3 text-amber-300" />
-                      <span>الفاتورة الرسمية المبسطة</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => setActiveTemplate("standard")}
-                      className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
-                        activeTemplate === "standard"
-                          ? "bg-primary text-primary-foreground shadow-xs"
-                          : "text-muted-foreground hover:text-foreground hover:bg-surface"
-                      }`}
-                    >
-                      <span>قياسي مؤسسي</span>
-                    </button>
-
-                    <button
-                      type="button"
                       onClick={() => setActiveTemplate("elegant")}
                       className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
                         activeTemplate === "elegant"
@@ -547,15 +522,27 @@ export function LuxuryPrintPreviewModal({
 
                     <button
                       type="button"
-                      onClick={() => setActiveTemplate("formal")}
+                      onClick={() => setActiveTemplate("standard")}
                       className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
-                        activeTemplate === "formal"
+                        activeTemplate === "standard"
                           ? "bg-primary text-primary-foreground shadow-xs"
                           : "text-muted-foreground hover:text-foreground hover:bg-surface"
                       }`}
                     >
-                      <ShieldCheck className="h-3 w-3 text-sky-400" />
-                      <span>رسمي معتمد</span>
+                      <span>قياسي مضغوط</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setActiveTemplate("milling-clean")}
+                      className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                        activeTemplate === "milling-clean"
+                          ? "bg-primary text-primary-foreground shadow-xs"
+                          : "text-muted-foreground hover:text-foreground hover:bg-surface"
+                      }`}
+                    >
+                      <Scale className="h-3 w-3 text-amber-300" />
+                      <span>مبسط كلاسيكي</span>
                     </button>
                   </>
                 )}
