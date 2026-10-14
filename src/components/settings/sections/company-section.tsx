@@ -138,23 +138,6 @@ export function CompanySection({ form, setForm, canEdit, lang }: CompanySectionP
           </div>
         </div>
 
-        <div className="grid gap-1.5">
-          <Label className="text-xs font-semibold">
-            {isAr ? "بيانات التواصل في الفوتر (ثابتة)" : "Footer contact (locked)"}
-          </Label>
-          <Input
-            value={COMPANY_SUPPORT_CONTACTS.join(" · ")}
-            readOnly
-            disabled
-            className="rounded-2xl font-mono"
-            aria-readonly="true"
-          />
-          <span className="text-[11px] text-muted-foreground">
-            {isAr
-              ? "محمية — تُطبع كما هي في نهاية كل مستند ولا يمكن تعديلها."
-              : "Locked — printed as-is at the end of every document."}
-          </span>
-        </div>
 
         <div className="grid gap-1.5">
           <Label className="text-xs font-semibold">{isAr ? "نص الفوتر" : "Footer note"}</Label>

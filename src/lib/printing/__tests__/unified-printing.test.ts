@@ -447,6 +447,15 @@ const a5LayoutHtml = renderUnifiedDocument({
 });
 check("A5 paper profile applies A5 container min-height", a5LayoutHtml.includes("200mm"));
 
+/* ── Invoice Redesign & Architectural Audit Tests ── */
+/* ── Invoice Redesign & Architectural Audit Tests ── */
+check("luxury template has 3-zone balanced header", luxHtml.includes("class=\"luxury-header-wrap\"") && luxHtml.includes("class=\"luxury-header-grid\""));
+check("luxury template has dedicated QR box in metadata corner", luxHtml.includes("class=\"luxury-qr-box\""));
+check("luxury template does not have fake simulated signature svgs", !luxHtml.includes("M10 32 C 30 10"));
+check("luxury template has official stamp area", luxHtml.includes("class=\"stamp-box-area\""));
+check("standard template has compact high-density party ribbon", stdHtml.includes("class=\"party-info-compact-bar\""));
+check("standard template is structurally distinct from luxury", !stdHtml.includes("<header class=\"luxury-header-wrap\">") && stdHtml.includes("<header class=\"corporate-header-wrap\">"));
+check("footer renders company phone when available", stdHtml.includes("footer-contact") || stdHtml.includes("footer-company"));
 if (failures.length > 0) {
   throw new Error(`Unified printing tests failed:\n - ${failures.join("\n - ")}`);
 }
