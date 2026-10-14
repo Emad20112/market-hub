@@ -83,6 +83,7 @@ const ICONS: Record<string, LucideIcon> = {
   expenses: Receipt,
   finance: Wallet,
   "daily-journal": BookOpen,
+  "general-ledger": BookOpen,
   "trial-balance": Scale,
   "income-statement": PieChart,
   "balance-sheet": Landmark,

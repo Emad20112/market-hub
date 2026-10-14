@@ -19,6 +19,12 @@ import { Printer, Landmark, Wallet, FileSpreadsheet } from "lucide-react";
  * بالتعريف. الفارق بين الطرفين يظهر كسطر «فارق غير مطابق» يحتاج تدقيقًا —
  * لا يُدفن في حقوق الملكية.
  * النقدية من الحسابات الفعلية (1101، 1111، 1131-1139) لا Math.max(0,...).
+ *
+ * T-18: أساس تقييم المخزون معروض صراحةً في الميزانية.
+ * قيد المخزون في الدفتر يقابل 131x بالتكلفة التي رُحّل بها البيع/التسوية
+ * (الطبقات الفعلية `item_cost_layers` عبر عرض `item_valuation`).
+ * الفرق بين القيمة الدفترية وقيمة الطبقات الفعلية يُعرض كبند مطابقة منفصل
+ * بدل أن يُدفن، وبجانبه أساس التقييم ACTUAL/REFERENCE_ONLY لكل صنف.
  */
 
 export const Route = createFileRoute("/_app/balance-sheet")({
@@ -30,10 +36,21 @@ export const Route = createFileRoute("/_app/balance-sheet")({
   ),
 });
 
+interface ValuationRow {
+  product_id: string;
+  sku: string | null;
+  name_ar: string | null;
+  on_hand_qty: number;
+  valuation: number;
+  actual_unit_cost: number;
+  valuation_basis: string;
+}
+
 function BalanceSheetPage() {
   const { t, lang } = useI18n();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [valuation, setValuation] = useState<ValuationRow[]>([]);
   const [bs, setBs] = useState({
     cashOnHand: 0,
     receivables: 0,
@@ -49,6 +66,10 @@ function BalanceSheetPage() {
     equity: 0,
     totalLiabilitiesAndEquity: 0,
     difference: 0,
+    inventoryActualValue: 0,
+    inventoryActualCount: 0,
+    inventoryReferenceCount: 0,
+    inventoryValuationGap: 0,
   });
 
   useEffect(() => {
@@ -60,16 +81,25 @@ function BalanceSheetPage() {
     setError(null);
 
     /* سطور القيود المرحّلة مجمّعة حسب الحساب — استعلام واحد. */
-    const { data, error: qErr } = await supabase
-      .from("trial_balance" as never)
-      .select("code,name_ar,account_type,balance,natural_balance")
-      .order("code");
+    const [{ data, error: qErr }, { data: valData }] = await Promise.all([
+      supabase
+        .from("trial_balance" as never)
+        .select("code,name_ar,account_type,balance,natural_balance")
+        .order("code"),
+      /* T-18: طبقات التكلفة الفعلية لكل صنف — أساس التقييم وقيمته. */
+      supabase
+        .from("item_valuation" as never)
+        .select("product_id,sku,name_ar,on_hand_qty,valuation,actual_unit_cost,valuation_basis")
+        .gt("on_hand_qty", 0),
+    ]);
 
     if (qErr) {
       setError(qErr.message);
       setLoading(false);
       return;
     }
+
+    setValuation((valData ?? []) as unknown as ValuationRow[]);
 
     const rows = (data ?? []) as unknown as Array<{
       code: string;
@@ -107,6 +137,19 @@ function BalanceSheetPage() {
     const totalLiabilitiesAndEquity = totalLiabilities + equity;
     const difference = Math.round((totalAssets - totalLiabilitiesAndEquity) * 100) / 100;
 
+    /* T-18: قيمة الطبقات الفعلية وأساس التقييم — تُعرض صراحةً لا تُدفن. */
+    const valuationRows = (valData ?? []) as unknown as ValuationRow[];
+    const inventoryActualValue =
+      Math.round(
+        valuationRows
+          .filter((v) => v.valuation_basis === "ACTUAL")
+          .reduce((a, v) => a + Number(v.valuation), 0) * 100,
+      ) / 100;
+    const inventoryActualCount = valuationRows.filter((v) => v.valuation_basis === "ACTUAL").length;
+    const inventoryReferenceCount = valuationRows.filter(
+      (v) => v.valuation_basis !== "ACTUAL",
+    ).length;
+
     setBs({
       cashOnHand,
       receivables,
@@ -122,6 +165,10 @@ function BalanceSheetPage() {
       equity,
       totalLiabilitiesAndEquity,
       difference,
+      inventoryActualValue,
+      inventoryActualCount,
+      inventoryReferenceCount,
+      inventoryValuationGap: Math.round((inventoryValue - inventoryActualValue) * 100) / 100,
     });
     setLoading(false);
   }
@@ -392,6 +439,63 @@ function BalanceSheetPage() {
               )}
             </div>
           </div>
+        </div>
+
+        {/* T-18: أساس تقييم المخزون — معروض صراحةً */}
+        <div className="panel-elevated p-4 space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border pb-2">
+            <h3 className="font-semibold text-sm">
+              {lang === "ar"
+                ? "أساس تقييم المخزون (الطبقات الفعلية مقابل المرجعي)"
+                : "Inventory valuation basis (actual layers vs reference)"}
+            </h3>
+            <span className="text-xs text-muted-foreground">
+              {lang === "ar"
+                ? "قيمة المخزون الدفترية مشتقة من قيود 131x المرحّلة"
+                : "Book inventory value is derived from posted 131x entries"}
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm">
+            <div className="rounded-xl border border-border/60 p-3">
+              <div className="text-xs text-muted-foreground">
+                {lang === "ar" ? "قيمة الطبقات الفعلية (ACTUAL)" : "Actual layer value (ACTUAL)"}
+              </div>
+              <div className="font-mono font-bold text-emerald-400">
+                {money(bs.inventoryActualValue)}
+              </div>
+            </div>
+            <div className="rounded-xl border border-border/60 p-3">
+              <div className="text-xs text-muted-foreground">
+                {lang === "ar" ? "الفارق عن القيمة الدفترية" : "Gap vs book value"}
+              </div>
+              <div
+                className={`font-mono font-bold ${bs.inventoryValuationGap === 0 ? "text-emerald-400" : "text-amber-400"}`}
+              >
+                {money(bs.inventoryValuationGap)}
+              </div>
+            </div>
+            <div className="rounded-xl border border-border/60 p-3">
+              <div className="text-xs text-muted-foreground">
+                {lang === "ar"
+                  ? "أصناف بطبقات فعلية / مرجعية"
+                  : "Items with actual / reference basis"}
+              </div>
+              <div className="font-mono font-bold">
+                {bs.inventoryActualCount} / {bs.inventoryReferenceCount}
+              </div>
+            </div>
+          </div>
+
+          <p className="text-xs text-muted-foreground">
+            {lang === "ar"
+              ? bs.inventoryReferenceCount > 0
+                ? `يوجد ${bs.inventoryReferenceCount} صنف بلا طبقات تكلفة فعلية (أساس REFERENCE_ONLY) — تُقيَّد بالتكلفة المرجعية حتى تنتج حركة تكلفة حقيقية، وتظهر هنا شفافيةً لا تُخفى.`
+                : "كل الأصناف ذات رصيد لها طبقات تكلفة فعلية (ACTUAL) — لا فرق تقييم مفتوح."
+              : bs.inventoryReferenceCount > 0
+                ? `${bs.inventoryReferenceCount} item(s) have no actual cost layer yet (REFERENCE_ONLY basis) — valued at reference cost until a real cost movement occurs; shown here for transparency.`
+                : "Every stocked item has actual cost layers (ACTUAL) — no open valuation gap."}
+          </p>
         </div>
       </div>
     </>

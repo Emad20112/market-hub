@@ -25,6 +25,7 @@ import { Route as AppDashboardRouteImport } from './routes/_app.dashboard'
 import { Route as AppDebtsRouteImport } from './routes/_app.debts'
 import { Route as AppExpensesRouteImport } from './routes/_app.expenses'
 import { Route as AppFinanceRouteImport } from './routes/_app.finance'
+import { Route as AppGeneralLedgerRouteImport } from './routes/_app.general-ledger'
 import { Route as AppIncomeStatementRouteImport } from './routes/_app.income-statement'
 import { Route as AppInventoryRouteImport } from './routes/_app.inventory'
 import { Route as AppLoyaltyRouteImport } from './routes/_app.loyalty'
@@ -166,6 +167,11 @@ const AppMillingCounterRoute = AppMillingCounterRouteImport.update({
   getParentRoute: () => AppRoute,
 } as any)
 const AppNotificationsRoute = AppNotificationsRouteImport.update({
+const AppGeneralLedgerRoute = AppGeneralLedgerRouteImport.update({
+  id: '/general-ledger',
+  path: '/general-ledger',
+  getParentRoute: () => AppRoute,
+} as any)
   id: '/notifications',
   path: '/notifications',
   getParentRoute: () => AppRoute,
@@ -334,6 +340,7 @@ export interface FileRoutesByFullPath {
   '/debts': typeof AppDebtsRoute
   '/expenses': typeof AppExpensesRoute
   '/finance': typeof AppFinanceRoute
+  '/general-ledger': typeof AppGeneralLedgerRoute
   '/income-statement': typeof AppIncomeStatementRoute
   '/inventory': typeof AppInventoryRoute
   '/loyalty': typeof AppLoyaltyRoute
@@ -440,6 +447,7 @@ export interface FileRoutesById {
   '/_app/debts': typeof AppDebtsRoute
   '/_app/expenses': typeof AppExpensesRoute
   '/_app/finance': typeof AppFinanceRoute
+  '/_app/general-ledger': typeof AppGeneralLedgerRoute
   '/_app/income-statement': typeof AppIncomeStatementRoute
   '/_app/inventory': typeof AppInventoryRoute
   '/_app/loyalty': typeof AppLoyaltyRoute
@@ -494,6 +502,7 @@ export interface FileRouteTypes {
     | '/debts'
     | '/expenses'
     | '/finance'
+    | '/general-ledger'
     | '/income-statement'
     | '/inventory'
     | '/loyalty'
@@ -599,6 +608,7 @@ export interface FileRouteTypes {
     | '/_app/debts'
     | '/_app/expenses'
     | '/_app/finance'
+    | '/_app/general-ledger'
     | '/_app/income-statement'
     | '/_app/inventory'
     | '/_app/loyalty'
@@ -750,10 +760,18 @@ declare module '@tanstack/react-router' {
       parentRoute: typeof AppRoute
     }
     '/_app/finance': {
+    '/_app/general-ledger': {
+      id: '/_app/general-ledger',
+      path: '/general-ledger',
+      fullPath: '/general-ledger',
+      preLoaderRoute: typeof AppGeneralLedgerRouteImport,
+      parentRoute: typeof AppRoute
+    }
       id: '/_app/finance'
       path: '/finance'
       fullPath: '/finance'
       preLoaderRoute: typeof AppFinanceRouteImport
+      preLoaderRoute: typeof AppGeneralLedgerRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/income-statement': {
@@ -1040,6 +1058,7 @@ interface AppRouteChildren {
   AppDebtsRoute: typeof AppDebtsRoute
   AppExpensesRoute: typeof AppExpensesRoute
   AppFinanceRoute: typeof AppFinanceRoute
+  AppGeneralLedgerRoute: typeof AppGeneralLedgerRoute
   AppIncomeStatementRoute: typeof AppIncomeStatementRoute
   AppInventoryRoute: typeof AppInventoryRoute
   AppLoyaltyRoute: typeof AppLoyaltyRoute
@@ -1085,6 +1104,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppDebtsRoute: AppDebtsRoute,
   AppExpensesRoute: AppExpensesRoute,
   AppFinanceRoute: AppFinanceRoute,
+  AppGeneralLedgerRoute: AppGeneralLedgerRoute,
   AppIncomeStatementRoute: AppIncomeStatementRoute,
   AppInventoryRoute: AppInventoryRoute,
   AppLoyaltyRoute: AppLoyaltyRoute,
