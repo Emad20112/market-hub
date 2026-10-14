@@ -29,8 +29,7 @@ CREATE TABLE public.sales_invoices (
   note text,
   created_by uuid,
   created_at timestamp with time zone DEFAULT now() NOT NULL,
-  updated_at timestamp with time zone DEFAULT now() NOT NULL,
-  milling_job_id uuid
+  updated_at timestamp with time zone DEFAULT now() NOT NULL
 );
 
 CREATE TABLE public.sales_invoice_items (
@@ -132,8 +131,6 @@ ALTER TABLE public.customer_payment_splits ADD CONSTRAINT "customer_payment_spli
 ALTER TABLE public.customer_payment_splits ADD CONSTRAINT "customer_payment_splits_pkey" PRIMARY KEY (id);
 
 -- ── INDEXES ───────────────────────────────────────────────────────────────
-CREATE INDEX idx_sales_invoices_milling_job ON public.sales_invoices USING btree (milling_job_id) WHERE (milling_job_id IS NOT NULL);
-CREATE UNIQUE INDEX sales_invoices_milling_job_unique ON public.sales_invoices USING btree (milling_job_id) WHERE (milling_job_id IS NOT NULL);
 CREATE INDEX idx_sales_invoice_items_product ON public.sales_invoice_items USING btree (product_id);
 CREATE INDEX idx_ad_hoc_service_lines_invoice ON public.ad_hoc_service_lines USING btree (invoice_id);
 CREATE INDEX idx_sales_return_items_product ON public.sales_return_items USING btree (product_id);

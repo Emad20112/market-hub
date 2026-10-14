@@ -21,6 +21,7 @@ export type ProductFieldKey =
   | "unit"
   | "cost"
   | "minStock"
+  | "packageWeight"
   | "tax"
   | "status";
 
@@ -46,6 +47,7 @@ export const PRODUCT_FIELDS: ProductFieldOption[] = [
   { key: "unit", labelAr: "وحدة القياس", labelEn: "Unit" },
   { key: "cost", labelAr: "سعر التكلفة", labelEn: "Cost price" },
   { key: "minStock", labelAr: "حد الطلب الأدنى", labelEn: "Min stock" },
+  { key: "packageWeight", labelAr: "سعة العبوة (كجم)", labelEn: "Package size (kg)" },
   { key: "tax", labelAr: "نسبة الضريبة", labelEn: "Tax rate" },
   { key: "status", labelAr: "الحالة", labelEn: "Status" },
 ];
@@ -71,6 +73,7 @@ export const DEFAULT_PRODUCT_FIELD_VISIBILITY: Record<ProductFieldSurface, Produ
       unit: true,
       cost: true,
       minStock: true,
+      packageWeight: true,
       tax: false,
       status: true,
     },
@@ -86,6 +89,7 @@ export const DEFAULT_PRODUCT_FIELD_VISIBILITY: Record<ProductFieldSurface, Produ
       unit: true,
       cost: true,
       minStock: true,
+      packageWeight: true,
       tax: true,
       status: true,
     },
@@ -101,6 +105,7 @@ export const DEFAULT_PRODUCT_FIELD_VISIBILITY: Record<ProductFieldSurface, Produ
       unit: true,
       cost: true,
       minStock: true,
+      packageWeight: true,
       tax: true,
       status: true,
     },

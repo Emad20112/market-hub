@@ -233,6 +233,32 @@ ON CONFLICT (user_id) DO UPDATE
       is_active    = true,
       mfa_required = EXCLUDED.mfa_required;
 
+-- ── 5) public.user_roles — دور المتجر ────────────────────────────────────────
+--
+-- ⚠️ هذا القسم هو الإصلاح الحاسم (2026-10-13):
+--
+-- كانت البذرة تزرع دور المنصة (platform_admins) وتترك دور المتجر فارغاً —
+-- والنتيجة: مستخدم يدخل بنجاح ورؤية صفر في كل الشاشات. كل سياسات RLS
+-- للتطبيق (prod_view · can_read_finance · can_operate_milling ·
+-- expense policies …) تعتمد على is_staff() / has_role() — وهما يقرآن
+-- هذا الجدول. بلا صف هنا: is_staff = false، فكل سياسة تُخفي كل شيء.
+--
+-- دور 'owner' هو الأوسع: يرى كل الشاشات ويدير كل شيء — وهو الدور الصحيح
+-- لصاحب المنشأة. ملاحظة على المستخدم الرابع: صف auth.users له يوجد في
+-- قسم 1 (أُضيف لاحقاً) لكن بقية جداوله في القوائم أعلاه — أزرع دوره هنا
+-- كذلك حتى لا يكون لدينا حساب يستطيع الدخول ولا يرى شيئاً.
+--
+WITH seed(user_id, role) AS (VALUES
+  ('a0000000-0000-4000-a000-000000000001'::uuid, 'owner'),
+  ('a0000000-0000-4000-a000-000000000002'::uuid, 'owner'),
+  ('a0000000-0000-4000-a000-000000000003'::uuid, 'owner'),
+  ('a0000000-0000-4000-a000-000000000004'::uuid, 'owner')
+)
+INSERT INTO public.user_roles (user_id, role)
+SELECT s.user_id, s.role::public.app_role
+FROM seed s
+ON CONFLICT DO NOTHING;
+
 -- ── التحقق الذاتي ───────────────────────────────────────────────────────────
 -- لا نسكت عن بذرة ناقصة: كل مسؤول يجب أن يوجد في الجداول الأربعة، وإلا كان
 -- لدينا حساب لا يستطيع الدخول أو صلاحية بلا صاحب.
@@ -249,6 +275,9 @@ BEGIN
     IF NOT EXISTS (SELECT 1 FROM auth.users u             WHERE u.id = v_id)
     OR NOT EXISTS (SELECT 1 FROM public.profiles p        WHERE p.id = v_id)
     OR NOT EXISTS (SELECT 1 FROM public.platform_admins a WHERE a.user_id = v_id)
+    -- دور المتجر إلزامي أيضًا — بدونه كل سياسات RLS للتطبيق تخفي كل شيء
+    -- رغم نجاح الدخول (إصلاح 2026-10-13)
+    OR NOT EXISTS (SELECT 1 FROM public.user_roles r WHERE r.user_id = v_id)
     -- هوية البريد إلزالية — بدونها لا يعمل الدخول بالبريد
     OR NOT EXISTS (SELECT 1 FROM auth.identities i
                    WHERE i.user_id = v_id AND i.provider = 'email')

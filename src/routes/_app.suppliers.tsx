@@ -109,6 +109,12 @@ function SuppliersPage() {
         .order("name")
         .limit(1000);
       if (error) throw error;
+      /*
+       * «مورد نقدي» شريك نظامي حقيقي (Essential Reference) تزرعه
+       * seeds/01_system/09_essential_partners.sql — يظهر هنا كأي مورد لأن
+       * النظام واحد: المشتريات الفورية المدفوعة حالاً تُسجَّل عليه فعلاً.
+       * (ب1 في 05_خطة_التكامل_الشامل.md)
+       */
       return (data ?? []) as Supplier[];
     },
     staleTime: 60_000,

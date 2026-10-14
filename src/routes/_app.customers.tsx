@@ -34,6 +34,7 @@ import {
   DollarSign,
   TrendingUp,
   ShieldCheck,
+  Wheat,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/page-header";
@@ -63,6 +64,12 @@ import { useBreakpoint } from "@/design/breakpoints";
 import { useRealtimeTable } from "@/lib/realtime";
 import { QUERY_KEYS } from "@/lib/query-keys";
 import { CustomerFormDialog } from "@/components/contacts/customer-form-dialog";
+import {
+  fetchCustodyBalances,
+  fetchCustodyServiceMoney,
+  type CustodyBalance,
+  type CustodyMoneyRow,
+} from "@/lib/milling";
 
 export const Route = createFileRoute("/_app/customers")({
   head: () => ({ meta: [{ title: "العملاء — فورتيكس ERP" }] }),
@@ -133,6 +140,8 @@ function CustomersPage() {
   const [menuOpen, setMenuOpen] = useState<string | null>(null);
   const [hoveredRow, setHoveredRow] = useState<string | null>(null);
   const [detailTab, setDetailTab] = useState<"all" | "invoices" | "payments">("all");
+  const [custodyBalances, setCustodyBalances] = useState<CustodyBalance[]>([]);
+  const [custodyMoney, setCustodyMoney] = useState<CustodyMoneyRow[]>([]);
   const menuRef = useRef<HTMLDivElement>(null);
 
   // أرصدة مؤكَّدة من الدفتر
@@ -151,6 +160,12 @@ function CustomersPage() {
         .order("name")
         .limit(1000);
       if (error) throw error;
+      /*
+       * «عميل نقدي» شريك نظامي حقيقي (Essential Reference) تزرعه
+       * seeds/01_system/09_essential_partners.sql — يظهر هنا كأي عميل لأن
+       * النظام واحد: بيع نقطة البيع الفوري يُسجَّل عليه فعلاً، وإخفاؤه كان
+       * سيقطع تتبعه في كشف الحساب. (ب1 في 05_خطة_التكامل_الشامل.md)
+       */
       return (data ?? []) as Customer[];
     },
     staleTime: 60_000,
@@ -625,6 +640,17 @@ function CustomersPage() {
         })),
       ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()),
     );
+
+    // أمانات المطحنة: الرصيد العيني + فواتير الأجور — تظهر في التفاصيل فقط
+    // لمن يملك وحدة الطحن (مصدرها views الأمانات المشتقة — لا حساب محلي).
+    if (isModuleEnabled("milling_operations")) {
+      const [bal, money] = await Promise.all([
+        fetchCustodyBalances(customer.id),
+        fetchCustodyServiceMoney(customer.id),
+      ]);
+      setCustodyBalances(bal.filter((b) => b.bags_balance > 0 || b.kg_balance > 0));
+      setCustodyMoney(money.slice(0, 5));
+    }
   }
 
   // ─── Quick actions navigation ───
@@ -1419,6 +1445,83 @@ function CustomersPage() {
                 onClick={() => goPOS(selected)}
               />
             </div>
+
+            {/* ─── أمانات المطحنة (عند تفعيل الوحدة) ─── */}
+            {isModuleEnabled("milling_operations") &&
+              (custodyBalances.length > 0 || custodyMoney.length > 0) && (
+                <div className="mt-6 rounded-2xl border border-amber-500/25 bg-amber-500/5 p-4">
+                  <div className="mb-3 flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <Wheat className="h-4 w-4 text-amber-500" />
+                      <p className="text-xs font-bold text-foreground">أمانات الطحن</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        void navigate({
+                          to: "/milling/customer-statement" as never,
+                          search: { customerId: selected.id } as never,
+                        })
+                      }
+                      className="rounded-full border border-amber-500/30 bg-amber-500/10 px-3 py-1 text-[11px] font-bold text-amber-600 hover:bg-amber-500/20 dark:text-amber-300"
+                    >
+                      {lang === "ar" ? "كشف الأمانات الكامل" : "Full custody statement"}
+                    </button>
+                  </div>
+                  {custodyBalances.length > 0 && (
+                    <div className="space-y-1.5">
+                      {custodyBalances.map((b) => (
+                        <div
+                          key={`${b.item_id}-${b.warehouse_id}`}
+                          className="flex items-center justify-between rounded-xl border border-border/60 bg-surface/60 px-3 py-2 text-xs"
+                        >
+                          <span className="font-bold text-foreground">{b.name_ar}</span>
+                          <span className="flex items-center gap-2 font-mono text-[11px]">
+                            {b.bags_balance > 0 && (
+                              <span className="text-foreground">
+                                {b.bags_balance.toLocaleString("ar-EG")} كيس
+                              </span>
+                            )}
+                            {b.kg_balance > 0 && (
+                              <span className="text-muted-foreground">
+                                {b.kg_balance.toLocaleString("ar-EG")} كجم
+                              </span>
+                            )}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {custodyMoney.length > 0 && (
+                    <div className="mt-2 space-y-1.5">
+                      <p className="text-[11px] font-semibold text-muted-foreground">
+                        {lang === "ar" ? "أحدث فواتير الأجور" : "Latest service invoices"}
+                      </p>
+                      {custodyMoney.map((m) => (
+                        <div
+                          key={m.custody_entry_id}
+                          className="flex items-center justify-between rounded-xl border border-border/60 bg-surface/60 px-3 py-2 text-xs"
+                        >
+                          <span className="font-bold text-foreground">
+                            {m.invoice_number}
+                            <span className="ms-2 text-[10px] font-normal text-muted-foreground">
+                              {m.status}
+                            </span>
+                          </span>
+                          <span className="font-mono text-[11px] text-foreground">
+                            {Number(m.total).toLocaleString("ar-EG")}
+                            {m.outstanding > 0 && (
+                              <span className="ms-2 text-amber-600 dark:text-amber-300">
+                                ({Number(m.outstanding).toLocaleString("ar-EG")} متبقٍ)
+                              </span>
+                            )}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
 
             {/* Activity Tabs */}
             <div className="mt-6 flex items-center gap-1 border-b border-border/80 pb-2">

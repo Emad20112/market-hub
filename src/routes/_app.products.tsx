@@ -129,6 +129,12 @@ type ProductRow = {
   cost_price: number;
   tax_rate: number;
   min_stock: number;
+  /**
+   * سعة العبوة الافتراضية بالكيلوجرام (مثال 50 أو 25).
+   * تُستخدم فقط لتعبئة "الوزن الافتراضي" في شاشات الطحن والتسليم —
+   * لا تدخل في أي حساب مخزون أو تكلفة.
+   */
+  package_weight_kg: number | null;
   shelf_location: string | null;
   origin_id: string | null;
   quality_grade_id: string | null;
@@ -321,7 +327,7 @@ function ProductsPage() {
       // disappear from the grid.
       const { data: page, error: productError } = await (supabase.from("products") as any)
         .select(
-          "id, name, name_ar, sku, barcode, sale_price, cost_price, tax_rate, min_stock, is_active, category_id, brand_id, unit_id, item_nature, item_class, inventory_policy, tracking, costing_method, is_sellable, is_purchasable",
+          "id, name, name_ar, sku, barcode, sale_price, cost_price, tax_rate, min_stock, package_weight_kg, is_active, category_id, brand_id, unit_id, item_nature, item_class, inventory_policy, tracking, costing_method, is_sellable, is_purchasable",
         )
         // `created_at` alone is not a total order: two products inserted in the
         // same millisecond (a bulk import, a sync) have no defined relative
@@ -2277,6 +2283,7 @@ function ProductDialog({
     sale_price: initial?.sale_price != null ? String(initial.sale_price) : "",
     tax_rate: initial?.tax_rate != null ? String(initial.tax_rate) : "",
     min_stock: initial?.min_stock != null ? String(initial.min_stock) : "",
+    package_weight_kg: initial?.package_weight_kg != null ? String(initial.package_weight_kg) : "",
     shelf_location: initial?.shelf_location ?? "",
     origin_id: initial?.origin_id ?? "",
     quality_grade_id: initial?.quality_grade_id ?? "",
@@ -2348,6 +2355,8 @@ function ProductDialog({
         sale_price: Number(form.sale_price) || 0,
         tax_rate: Number(form.tax_rate) || 0,
         min_stock: Number(form.min_stock) || 1,
+        package_weight_kg:
+          form.package_weight_kg.trim() === "" ? null : Number(form.package_weight_kg) || null,
         shelf_location: form.shelf_location.trim() || null,
         origin_id: config.enableOrigins ? form.origin_id || null : null,
         quality_grade_id: config.enableQualityGrades ? form.quality_grade_id || null : null,
@@ -2864,6 +2873,30 @@ function ProductDialog({
                       min={0}
                       decimal={false}
                       placeholder="1"
+                    />
+                  )}
+                </FormField>
+              )}
+
+              {showForm("packageWeight") && (
+                <FormField
+                  label={lang === "ar" ? "سعة العبوة (كجم)" : "Package size (kg)"}
+                  hint={
+                    lang === "ar"
+                      ? "الوزن الافتراضي للكيس (مثال 50 أو 25). يُستخدم لتعبئة الوزن في شاشات الطحن والتسليم فقط."
+                      : "Default bag weight (e.g. 50 or 25). Used to prefill the weight on milling and delivery screens only."
+                  }
+                >
+                  {(p) => (
+                    <NumberInput
+                      {...p}
+                      value={form.package_weight_kg === "" ? null : Number(form.package_weight_kg)}
+                      onValueChange={(v) =>
+                        setForm({ ...form, package_weight_kg: v == null ? "" : String(v) })
+                      }
+                      min={0}
+                      decimal
+                      placeholder={lang === "ar" ? "مثال: 50" : "e.g. 50"}
                     />
                   )}
                 </FormField>

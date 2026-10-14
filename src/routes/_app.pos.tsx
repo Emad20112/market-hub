@@ -526,6 +526,9 @@ function POSPage() {
         compatsRes,
       ] = await Promise.allSettled([
         supabase.from("warehouses").select("id,name,name_ar").eq("is_active", true).order("name"),
+        // «عميل نقدي» المزروع (seeds/01_system/09_essential_partners) يظهر هنا
+        // كأي عميل — النظام واحد، والبيع الفوري يُسجَّل عليه فعلاً بدل NULL.
+        // (بند 5 في 05_خطة_التكامل_الشامل.md)
         supabase.from("customers").select("id,name,phone,balance,credit_limit").order("name"),
         (supabase.from("products") as any)
           .select(

@@ -123,13 +123,13 @@ VALUES
    true),
 
   ('milling_operations',
-   '{"ar":"إدارة المطاحن والأمانات","en":"Flour Mill & Toll Processing"}'::jsonb,
-   '{"ar":"استلام حبوب العملاء كأمانات، أوامر الطحن، توزيع النواتج على الأكياس، فواتير أجور الطحن، وإذونات التسليم — بفصل تام عن المخزون التجاري","en":"Customer grain custody, milling jobs, bag output distribution, service invoices and delivery notes — separated from commercial stock"}'::jsonb,
-   'enterprise',
-   '{"core"}'::text[],
-   '{"/milling","/milling/intake","/milling/jobs","/milling/delivery","/milling/customer-statement"}'::text[],
-   '{"/_app/milling","/_app/milling/intake","/_app/milling/jobs","/_app/milling/delivery","/_app/milling/customer-statement"}'::text[],
-   true),
+  '{"ar":"إدارة المطاحن والأمانات","en":"Flour Mill & Toll Processing"}'::jsonb,
+  '{"ar":"أمانات العملاء المبسطة: استلام، طحن، تسليم، وكشف حساب — بجدول واحد سطر لكل حركة وفواتير أجور بسطر واحد، بفصل تام عن المخزون التجاري","en":"Simplified customer custody: intake, milling, delivery and statement — one ledger line per movement, single-line fee invoices, fully separated from commercial stock"}'::jsonb,
+  'enterprise',
+  '{"core"}'::text[],
+  '{"/milling","/milling/intake","/milling/milling","/milling/delivery","/milling/customer-statement"}'::text[],
+  '{"/_app/milling","/_app/milling/intake","/_app/milling/milling","/_app/milling/delivery","/_app/milling/customer-statement"}'::text[],
+  true),
 
   -- ═══ إضافات اختيارية ═══════════════════════════════════════════════════════
   ('multi_warehouse',

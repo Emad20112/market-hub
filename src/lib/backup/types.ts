@@ -80,16 +80,8 @@ export interface BackupDataPayload {
     customer_ledger?: any[];
     loyalty_transactions?: any[];
 
-    // 4) Industrial Flour Milling Module (مطاحن الدقيق والمعالجة)
-    milling_intake_receipts?: any[];
-    milling_jobs?: any[];
-    milling_job_inputs?: any[];
-    milling_job_outputs?: any[];
-    milling_delivery_notes?: any[];
-    milling_delivery_items?: any[];
-    milling_byproduct_rates?: any[];
-    milling_grain_grades?: any[];
-    milling_service_agreements?: any[];
+    // 4) Simplified Mill Custody (أمانات المطحنة المبسطة)
+    custody_ledger?: any[];
 
     // 5) Expense ERP Module (المصروفات والإصدارات)
     expenses?: any[];

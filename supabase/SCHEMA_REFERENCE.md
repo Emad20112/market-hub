@@ -179,33 +179,32 @@ REJECTED  CANCELLED  REVERSED
 | `due_date` | تاريخ الاستحقاق |
 | `posting_date` | تاريخ الترحيل المحاسبي |
 
-### المجال 9 — الطحن والإنتاج
-**الملف:** `10_milling_and_production.sql` — 14 جدولًا
+### المجال 9 — الطحن المبسط (أمانات العملاء)
+**الملف:** `10_milling_custody.sql` — جدول واحد + تسلسلات
 
-**الطحن (أمانات العملاء):**
+**الفكرة الحاكمة (docs/milling/00):** سطر واحد لكل حركة، والرصيد مشتق دائماً —
+لا رصيد مخزَّن، لا أوامر، لا فاقد مدخل، لا صوامع، لا أوزان عبوات.
 
-| الجدول | الغرض |
+| الكائن | الغرض |
 |---|---|
-| `milling_grain_grades` | درجات الحبوب: الرطوبة، الشوائب، وزن العبوة |
-| `milling_intake_receipts` | استلام الحبوب كأمانة |
-| `milling_jobs` | أوامر الطحن |
-| `milling_job_outputs` | النواتج الموزّعة على الأكياس |
-| `milling_delivery_notes` / `_items` | إذون تسليم النواتج |
-| `milling_service_agreements` | اتفاقات أجور الطحن |
-| `milling_unit_conversions` | معامل تحويل الوحدة إلى كيلوجرام |
+| `custody_ledger` | سجل الأمانات: `INTAKE/MILLING/DELIVERY/ADJUSTMENT` — أكياس وكجم وارد/صادر، وبند مالي اختياري مرتبط بفاتورة |
+| `custody_entry_type` (enum) | أنواع الحركة الأربعة |
+| `custody_balances` (view) | الرصيد لكل عميل/صنف/مخزن = `sum(bags_in − bags_out)` — مشتق |
+| `custody_intake` (RPC) | استلام: حبوب خام (RAW_MATERIAL) → رصيد العميل |
+| `custody_milling` (RPC) | طحن: صادر حبوب + وارد نواتج (FINISHED_GOOD/BY_PRODUCT) في معاملة واحدة |
+| `custody_delivery` (RPC) | تسليم: يرفض لو الرصيد يصير سالباً |
+| `custody_adjustment` (RPC) | تسوية جردي بسبب إلزامي |
+| `custody_link_invoice` (RPC) | ربط سطر الطحن بفاتورة الأجور (فاتورة مبيعات عادية بسطر واحد «أجور طحن وتجهيز») |
+| `smart_manufacture` (RPC) | زر التصنيع الذكي: قمح ملكنا يُنقص، نواتج تدخل بتكلفة موزعة حسب أسعار البيع النسبية |
+| `consume_internal_supplies` (RPC) | صرف مستهلكات داخلي (NON_STOCK_ITEM/PACKAGING) — تُنقص من مخزن المستهلكات بدقة |
+| sequences | `milling_intake_seq` (CI) · `milling_service_seq` (CM/CA/SM) · `milling_delivery_seq` (CD) — مملوكة هنا |
 
-**الإنتاج (تصنيع داخلي):**
-
-| الجدول | الغرض |
-|---|---|
-| `production_boms` / `production_bom_lines` | قوائم المكوّنات |
-| `production_orders` | أوامر الإنتاج |
-| `production_order_materials` | المواد المصروفة |
-| `production_order_outputs` | النواتج |
-| `production_order_losses` | **الفاقد** — يُقيَّد في `5911` |
-
-> **فصل مقصود:** الطحن يعالج **أمانات** (مال العملاء، لا تُحتسب في أصولنا)،
-> والإنتاج يعالج **تصنيعًا داخليًا** (مالنا). لذلك جدولان منفصلان.
+**أُزيل نهائياً من هذا المجال:** `milling_jobs`, `milling_job_outputs`,
+`milling_intake_receipts`, `milling_delivery_notes/_items`,
+`milling_service_agreements`, `milling_grain_grades`, `milling_unit_conversions`,
+وكل جداول `production_*` (BOM/أوامر/مواد/نواتج/فاقد) — التعليل في
+`docs/milling/01_التحليل_المعمق_وحذف_التعقيد.md`. الرابط المالي الوحيد
+للفواتير: `custody_ledger.service_invoice_id` (عمود `sales_invoices.milling_job_id` أُزيل).
 
 ### المجال 10 — المنصة والتدقيق
 **الملف:** `11_platform_and_audit.sql` — 5 جداول
@@ -285,10 +284,8 @@ REJECTED  CANCELLED  REVERSED
 
 ### دوال الطحن والإنتاج (الملف 10) — 24 دالة
 
-`create_milling_intake` · `create_milling_job` · `complete_milling_job` ·
-`add_milling_output` · `process_milling_delivery` · `issue_milling_service_invoice_v2` ·
-`create_production_order` · `complete_production_order` · `post_production_order` ·
-`record_production_loss`
+`custody_intake` · `custody_milling` · `custody_delivery` · `custody_adjustment` ·
+`custody_link_invoice` · `smart_manufacture` · `consume_internal_supplies`
 
 ---
 
@@ -317,18 +314,14 @@ REJECTED  CANCELLED  REVERSED
 | `customer_balance_reconciliation` | فرق بين الدفتر والعمود المخزَّن |
 | `invoice_ledger_status` | فواتير لم تُرحَّل للأستاذ |
 | `purchase_ledger_status` | مشتريات لم تُرحَّل |
-| `production_ledger_status` | أوامر إنتاج بلا قيد + قيمة الفاقد بالريال |
 | `expense_legacy_reconciliation` | فروق المصروفات القديمة |
 | `item_classification_gaps` | أصناف بلا تصنيف نوع |
 | `standard_cost_readiness` | أصناف بلا تكلفة معيارية |
 
 ### عروض الطحن — 12 عرضًا
 
-`milling_customer_custody` · `milling_output_balances` · `milling_efficiency_report` ·
-`milling_margin_report` · `milling_revenue_report` · `milling_service_money` ·
-`milling_jobs_without_agreement` · `milling_pricing_diagnostics` ·
-`milling_intake_health` · `milling_agreements_view` · `milling_grain_grades_view` ·
-`milling_inventory_report`
+`custody_balances` · `custody_customer_statement` · `custody_service_money` ·
+`custody_detected_loss` · `milling_margin_report` · `milling_inventory_report`
 
 ---
 
@@ -386,8 +379,7 @@ REJECTED  CANCELLED  REVERSED
 | `stock_adjustment_seq` | أرقام التسويات |
 | `opening_balance_seq` | أرقام المستندات الافتتاحية |
 | `expense_reference_seq` | المراجع `EXP-YYYYMM-00001` |
-| `milling_intake_seq` · `milling_job_seq` · `milling_delivery_seq` | مستندات الطحن |
-| `production_order_seq` | أوامر الإنتاج |
+| `milling_intake_seq` · `milling_service_seq` · `milling_delivery_seq` | مستندات الأمانات (CI/CM/CD/CA/SM) |
 
 ---
 

@@ -68,6 +68,10 @@ export function GuidedItemDialog({ onClose, onCreated, units, categories }: Guid
   const [referenceCost, setReferenceCost] = useState("");
   const [taxRate, setTaxRate] = useState("");
   const [baseUomId, setBaseUomId] = useState("");
+  // سعة العبوة الرسمية بالكجم (package_weight_kg) — نفس الحقل الذي يعرّفه
+  // فهرس مستلزمات التعبئة. يُعرض هنا فقط لصنف مخزني، ويغذّي الوزن الإجمالي
+  // التلقائي في الطحن. (G16 في 04_القرارات_التكميلية)
+  const [packageWeightKg, setPackageWeightKg] = useState("");
   const [tracking, setTracking] = useState<ItemTracking>("NONE");
   const [costingMethod, setCostingMethod] = useState<CostingMethod>("MOVING_AVERAGE");
 
@@ -150,6 +154,7 @@ export function GuidedItemDialog({ onClose, onCreated, units, categories }: Guid
           base_uom_id: baseUomId || null,
           sales_uom_id: baseUomId || null,
           purchase_uom_id: baseUomId || null,
+          package_weight_kg: packageWeightKg.trim() !== "" ? Number(packageWeightKg) : null,
 
           // Kept in sync so any legacy reader still sees a truthful value.
           is_service: finalPolicy.item_nature === "SERVICE",
@@ -481,6 +486,26 @@ export function GuidedItemDialog({ onClose, onCreated, units, categories }: Guid
                         </option>
                       ))}
                     </select>
+                  </Field>
+                  {/* سعة العبوة الرسمية بالكجم — نفس حقل فهرس مستلزمات التعبئة،
+                        وتغذّي الوزن الإجمالي التلقائي في الطحن (أكياس × السعة). */}
+                  <Field
+                    label={ar ? "سعة العبوة (كجم)" : "Packaging capacity (kg)"}
+                    hint={
+                      ar
+                        ? "اختياري — مثل 50 لكيس 50 كجم. يُستخدم لحساب الوزن الإجمالي في الطحن."
+                        : "Optional — e.g. 50 for a 50 kg bag. Used to compute milling total weight."
+                    }
+                  >
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.001"
+                      value={packageWeightKg}
+                      onChange={(event) => setPackageWeightKg(event.target.value)}
+                      className={inputClass}
+                      placeholder={ar ? "مثال: 50" : "e.g. 50"}
+                    />
                   </Field>
                 </div>
               )}

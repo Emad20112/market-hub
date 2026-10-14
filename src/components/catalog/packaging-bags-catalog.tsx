@@ -28,6 +28,8 @@ export interface PackagingBagItem {
   cost_price: number;
   is_active: boolean;
   unit_id: string | null;
+  /** سعة العبوة بالكيلوجرام (مثال: كيس 50 كجم) — مصدرها هنا فقط. */
+  package_weight_kg: number | null;
   unit?: { id: string; name: string; name_ar: string | null; short_name: string } | null;
 }
 
@@ -53,6 +55,7 @@ export function PackagingBagsCatalogView() {
   const [formCostPrice, setFormCostPrice] = useState(350);
   const [formIsActive, setFormIsActive] = useState(true);
   const [formUnitId, setFormUnitId] = useState("");
+  const [formWeightKg, setFormWeightKg] = useState("");
 
   // A packaging item is a real stock item: without a unit its balance has no
   // meaning, and the form used to allow saving one anyway.
@@ -75,7 +78,7 @@ export function PackagingBagsCatalogView() {
       const { data, error } = await db
         .from("products")
         .select(
-          "id, sku, name, name_ar, sale_price, cost_price, is_active, unit_id, unit:units!products_unit_id_fkey(id, name, name_ar, short_name)",
+          "id, sku, name, name_ar, sale_price, cost_price, is_active, unit_id, package_weight_kg, unit:units!products_unit_id_fkey(id, name, name_ar, short_name)",
         )
         .ilike("sku", "PKG-%")
         .order("sku");
@@ -122,6 +125,7 @@ export function PackagingBagsCatalogView() {
     setFormCostPrice(Number(b.cost_price) || 0);
     setFormIsActive(b.is_active);
     setFormUnitId(b.unit_id ?? "");
+    setFormWeightKg(b.package_weight_kg != null ? String(b.package_weight_kg) : "");
     setDialogOpen(true);
   };
 
@@ -134,6 +138,7 @@ export function PackagingBagsCatalogView() {
     setFormIsActive(true);
     // كيس جديد؛ وحدة القياس مطلوبة، لذا نُعِدّ أول وحدة.
     setFormUnitId(units[0]?.id ?? "");
+    setFormWeightKg("");
     setDialogOpen(true);
   };
 
@@ -161,6 +166,10 @@ export function PackagingBagsCatalogView() {
         is_active: formIsActive,
         category_id: cat?.id || null,
         unit_id: formUnitId,
+        // سعة العبوة الرسمية بالكجم — تُستخدم في الطحن لاحتساب الوزن الإجمالي
+        // تلقائياً (أكياس × السعة)، ولا تُدخل في أي مكان آخر.
+        package_weight_kg:
+          formWeightKg.trim() !== "" && Number(formWeightKg) > 0 ? Number(formWeightKg) : null,
         // مادة تعبئة مخزنية (المواصفة §8): تُشترى وتُخزَّن وتُستهلك، لكنها
         // ليست منتجاً نهائياً للبيع في نقاط البيع. NON_STOCK_ITEM كان يوهم
         // النظام بأنها تُستهلك بلا رصيد — والرصيد الحقيقي موجود للمخزون.
@@ -278,6 +287,7 @@ export function PackagingBagsCatalogView() {
                 <th className="px-4 py-3.5">المستلزم</th>
                 <th className="px-4 py-3.5">كود الصنف (SKU)</th>
                 <th className="px-4 py-3.5">الوحدة</th>
+                <th className="px-4 py-3.5">سعة العبوة (كجم)</th>
                 <th className="px-4 py-3.5">سعر البيع للزبون</th>
                 <th className="px-4 py-3.5">سعر التكلفة</th>
                 <th className="px-4 py-3.5">هامش الربح</th>
@@ -288,7 +298,7 @@ export function PackagingBagsCatalogView() {
             <tbody className="divide-y divide-border/60">
               {isLoading && (
                 <tr>
-                  <td colSpan={8} className="px-4 py-12 text-center text-muted-foreground">
+                  <td colSpan={9} className="px-4 py-12 text-center text-muted-foreground">
                     جارٍ التحميل...
                   </td>
                 </tr>
@@ -296,7 +306,7 @@ export function PackagingBagsCatalogView() {
 
               {!isLoading && filtered.length === 0 && (
                 <tr>
-                  <td colSpan={8} className="px-4 py-12 text-center text-muted-foreground">
+                  <td colSpan={9} className="px-4 py-12 text-center text-muted-foreground">
                     لا توجد مستلزمات مسجلة.
                   </td>
                 </tr>
@@ -325,6 +335,16 @@ export function PackagingBagsCatalogView() {
                       <span className="inline-flex items-center gap-1 rounded-lg border border-border/80 bg-muted/50 px-2 py-0.5 text-[11px] font-bold text-foreground">
                         {b.unit?.short_name || <span className="text-amber-600">غير محدّدة</span>}
                       </span>
+                    </td>
+
+                    <td className="px-4 py-3.5">
+                      {b.package_weight_kg ? (
+                        <span className="inline-flex rounded-lg border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 font-mono text-[11px] font-bold text-amber-600">
+                          {b.package_weight_kg} كجم
+                        </span>
+                      ) : (
+                        <span className="text-[11px] text-muted-foreground">—</span>
+                      )}
                     </td>
 
                     <td className="px-4 py-3.5 font-bold font-mono text-foreground">
@@ -426,6 +446,23 @@ export function PackagingBagsCatalogView() {
             </select>
             <p className="text-[10px] text-muted-foreground">
               بدون وحدة لا معنى لرصيد المخزون، ولا يمكن تسجيل حركة على هذا الصنف.
+            </p>
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="font-bold text-foreground">سعة العبوة (كجم)</label>
+            <input
+              type="number"
+              min={0}
+              step="0.001"
+              value={formWeightKg}
+              onChange={(e) => setFormWeightKg(e.target.value)}
+              placeholder="مثال: 50 أو 25"
+              className="w-full rounded-xl border border-border bg-background px-3 py-2 font-mono"
+            />
+            <p className="text-[10px] text-muted-foreground">
+              تُستخدم في شاشات الطحن لاحتساب الوزن الإجمالي تلقائياً (عدد الأكياس × السعة). اتركها
+              فارغة للصنف غير المعبأ (خيط، زيت…).
             </p>
           </div>
 

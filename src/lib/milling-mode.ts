@@ -13,7 +13,9 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
-export type MillingMode = "none" | "simplified" | "manufacturing" | "hybrid";
+export type MillingMode = "none" | "simplified";
+/** @deprecated الأوضاع القديمة — تُقرأ كـ 'simplified' للتوافق فقط. */
+export type LegacyMillingMode = "manufacturing" | "hybrid";
 
 export interface MillingModeConfig {
   mode: MillingMode;
@@ -59,48 +61,28 @@ export const MILLING_MODES: {
     suitableForAr:
       "أغلب المطاحن التجارية، مطاحن الحبوب المحلية، واستقبال الزبائن لطحن أكياسهم نقداً وتخزين أمانات التجار.",
   },
-  {
-    id: "manufacturing",
-    titleAr: "مطحنة — خطة الإنتاج والتصنيع الموسعة (تحويلي وصناعي)",
-    titleEn: "Flour Mill — Industrial Manufacturing (BOM & Joint Costing)",
-    badgeAr: "للمصانع وخطوط الإنتاج",
-    badgeEn: "Industrial Flour Mill",
-    descriptionAr:
-      "أوامر إنتاج كاملة، وصفات الخلطات (BOM)، توزيع التكاليف المشتركة (دقيق ونخالة)، حساب التشغيل WIP، وترحيل الأستاذ العام.",
-    descriptionEn:
-      "Full production orders, BOM recipes, joint cost allocation (flour & bran), WIP accounting, and shrinkage tracking.",
-    suitableForAr:
-      "مصانع الدقيق الكبرى، خطوط الطحن الآلية، والشركات التي تطحن حبوبها الخاصة وتبيعها باسم علامتها التجارية.",
-  },
-  {
-    id: "hybrid",
-    titleAr: "مطحنة — الوضع الشامل والهجين (الخطة المبسطة + التصنيع معاً)",
-    titleEn: "Flour Mill — Comprehensive Hybrid Suite (Dual-Track)",
-    badgeAr: "شامل المسارين",
-    badgeEn: "Full Hybrid Suite",
-    descriptionAr:
-      "تفعيل الواجهة الموحدة السريعة في الواجهة الأمامية، مع صالة أوامر الإنتاج والتصنيع الصناعي في الخلف في نفس الوقت.",
-    descriptionEn:
-      "Enables both the simplified express counter for customer grain and the industrial production engine for own goods.",
-    suitableForAr:
-      "المطاحن المتكاملة التي تقدم خدمة طحن سريعة للزبائن في الصالة وتدير مصنع طحن لحسابها في المستودعات.",
-  },
 ];
 
 export function getMillingMode(): MillingMode {
   if (typeof window === "undefined") return "simplified";
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (
-      raw &&
-      (raw === "none" || raw === "simplified" || raw === "manufacturing" || raw === "hybrid")
-    ) {
-      return raw as MillingMode;
+    const mode = (raw && normalizeMode(raw)) || null;
+    if (mode) {
+      return mode;
     }
     return "simplified";
   } catch {
     return "simplified";
   }
+}
+
+/** القيم القديمة (قبل التبسيط) تُطابَق على الوضع المبسط. */
+function normalizeMode(raw: string): MillingMode | null {
+  if (raw === "none" || raw === "simplified") return raw;
+  // 'manufacturing' و'hybrid' — أوضاع أُلغيت: تُقرأ كـ 'simplified'.
+  if (raw === "manufacturing" || raw === "hybrid") return "simplified";
+  return null;
 }
 
 export function saveMillingMode(mode: MillingMode): void {
@@ -143,14 +125,8 @@ export function useMillingMode() {
       .eq("id", 1)
       .maybeSingle()
       .then(({ data }: any) => {
-        const remoteMode = (data?.catalog_modules as any)?.millingMode;
-        if (
-          remoteMode &&
-          (remoteMode === "none" ||
-            remoteMode === "simplified" ||
-            remoteMode === "manufacturing" ||
-            remoteMode === "hybrid")
-        ) {
+        const remoteMode = normalizeMode((data?.catalog_modules as any)?.millingMode);
+        if (remoteMode) {
           if (remoteMode !== mode) {
             localStorage.setItem(STORAGE_KEY, remoteMode);
             setModeState(remoteMode);
@@ -172,60 +148,27 @@ export function useMillingMode() {
     return () => window.removeEventListener(EVENT_NAME, handler);
   }, []);
 
-  const isMillingActive = mode !== "none";
-  const isSimplifiedActive = mode === "simplified" || mode === "hybrid";
-  const isManufacturingActive = mode === "manufacturing" || mode === "hybrid";
+  const isMillingActive = mode === "simplified";
 
   return {
     mode,
     setMode: saveMillingMode,
     isMillingActive,
-    isSimplifiedActive,
-    isManufacturingActive,
   };
 }
 
 /**
  * Checks if a specific path or nav item is allowed under the current milling mode.
+ * بعد التبسيط: سؤال واحد فقط — هل المطحنة مفعّلة؟ (ق7)
  */
 export function isRouteVisibleByMillingMode(pathname: string, mode: MillingMode): boolean {
   const clean = pathname.replace(/^\/_app/, "").replace(/\/$/, "");
 
-  // If general business (no mill), hide all milling & production screens
   if (mode === "none") {
-    if (
-      clean === "/milling" ||
-      clean.startsWith("/milling/") ||
-      clean === "/production" ||
-      clean.startsWith("/production/")
-    ) {
-      return false;
-    }
+    if (clean === "/milling" || clean.startsWith("/milling/")) return false;
     return true;
   }
 
-  // If simplified mill:
-  if (mode === "simplified") {
-    // Hide industrial production and multi-screen jobs/intake/delivery
-    if (clean === "/production" || clean.startsWith("/production/")) return false;
-    if (
-      clean === "/milling/jobs" ||
-      clean === "/milling/intake" ||
-      clean === "/milling/delivery" ||
-      clean === "/milling/reports"
-    ) {
-      return false;
-    }
-    // Allow simplified unified desk, customer statement, operations guide
-    return true;
-  }
-
-  // If manufacturing mill:
-  if (mode === "manufacturing") {
-    // Show industrial production and advanced job routes
-    return true;
-  }
-
-  // Hybrid: allow everything
+  // simplified: كل شاشات المطحنة المبسطة ظاهرة.
   return true;
 }
