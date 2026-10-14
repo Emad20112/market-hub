@@ -254,3 +254,60 @@ export function isDateWithinRange(
   const { startIso, endIso } = resolveDateRangeBoundaries(from, to);
   return isoDate >= startIso && isoDate <= endIso;
 }
+
+/* ------------------------------------------------------------------ */
+/*  قواعد المقارنة بين الفترات (Period Comparison)                    */
+/* ------------------------------------------------------------------ */
+
+export interface ComparisonPeriod {
+  startIso: string;
+  endIso: string;
+  startDate: string;
+  endDate: string;
+}
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+function toDateKey(date: Date): string {
+  return date.toISOString().split('T')[0];
+}
+
+/**
+ * اشتقاق الفترة المقارنة السابقة من نطاق الفترة الحالية.
+ *
+ * - previous_period: نفس عدد الأيام مباشرة قبل بداية الفترة الحالية.
+ * - previous_year: نفس النطاق الزمني مطروحاً منه سنة كاملة.
+ */
+export function resolvePreviousPeriodBoundaries(
+  from: string | null | undefined,
+  to: string | null | undefined,
+  mode: 'previous_period' | 'previous_year' = 'previous_period',
+): ComparisonPeriod {
+  const current = resolveDateRangeBoundaries(from, to);
+
+  if (mode === 'previous_year') {
+    const start = new Date(current.startIso);
+    const end = new Date(current.endIso);
+    start.setUTCFullYear(start.getUTCFullYear() - 1);
+    end.setUTCFullYear(end.getUTCFullYear() - 1);
+    return {
+      startIso: start.toISOString(),
+      endIso: end.toISOString(),
+      startDate: toDateKey(start),
+      endDate: toDateKey(end),
+    };
+  }
+
+  const start = new Date(current.startIso);
+  const end = new Date(current.endIso);
+  const spanDays = Math.max(1, Math.round((end.getTime() - start.getTime()) / DAY_MS) + 1);
+  const previousEnd = new Date(start.getTime() - 1);
+  const previousStart = new Date(previousEnd.getTime() - (spanDays - 1) * DAY_MS);
+
+  return {
+    startIso: previousStart.toISOString(),
+    endIso: previousEnd.toISOString(),
+    startDate: toDateKey(previousStart),
+    endDate: toDateKey(previousEnd),
+  };
+}

@@ -9,6 +9,9 @@ import {
   generateReportExcelXml,
   generateReportPrintHtml,
   generateThermalSlipHtml,
+  generateReportCSVChunked,
+  ExportAbortedError,
+  runChunkedExport,
   type ReportExportPayload,
 } from '../export';
 
@@ -79,6 +82,16 @@ console.log('▶ [REP-027] اختبارات محرك CSV الآمن وتوافق
   assert(csv.includes('7400'), 'تضمين القيمة الرقمية لصافي المبيعات');
   assert(csv.includes('ملخص ومؤشرات الأداء'), 'تضمين قسم ملخص المؤشرات');
   assert(csv.includes('الإجمالي العام'), 'تضمين سطر الإجماليات الختامي');
+  const dangerousPayload = generateReportCSV({
+    ...mockSalesPayload,
+    rows: [
+      { ...mockSalesPayload.rows[0], item_name_ar: '=HYPERLINK("https://unsafe.example")' },
+    ],
+  });
+  assert(
+    dangerousPayload.includes("'=HYPERLINK"),
+    'تعطيل صيغ Excel الضارة في الحقول النصية (CSV Injection)',
+  );
 }
 
 // 2. اختبار محرك Excel المتعدد المصنفات (REP-028, REP-029)
@@ -123,3 +136,43 @@ console.log('\n▶ [REP-026] اختبارات الطباعة الحرارية ا
 console.log('\n════════════════════════════════════════════════════════');
 console.log('  🎉 نجاح جميع اختبارات محركات التصدير والطباعة 100%!');
 console.log('════════════════════════════════════════════════════════\n');
+
+async function testChunkedExport() {
+  console.log('▶ [REP-030] اختبارات التصدير الآمن على دفعات:');
+  let completedChunks = 0;
+  const csv = await generateReportCSVChunked(
+    {
+      ...mockSalesPayload,
+      rows: [
+        { ...mockSalesPayload.rows[0], item_name_ar: '=HYPERLINK("https://unsafe.example")' },
+        mockSalesPayload.rows[1],
+      ],
+    },
+    {
+      chunkSize: 1,
+      onProgress: (progress, processedRows, totalRows) => {
+        completedChunks += 1;
+        assert(progress === processedRows / totalRows, 'نسبة التقدم تطابق عدد الصفوف المعالجة');
+      },
+    },
+  );
+  assert(csv.startsWith('\uFEFF'), 'التصدير المجزأ يتضمن UTF-8 BOM');
+  assert(csv.includes("'=HYPERLINK"), 'التصدير المجزأ يحمي CSV Injection');
+  assert(csv.includes('الإجمالي العام'), 'التصدير المجزأ يحافظ على صف الإجماليات');
+  assert(completedChunks === 2, 'معالجة الصفوف على دفعات بالحجم المحدد');
+
+  const controller = new AbortController();
+  controller.abort();
+  let aborted = false;
+  try {
+    await runChunkedExport([1, 2], () => undefined, { signal: controller.signal });
+  } catch (error) {
+    aborted = error instanceof ExportAbortedError;
+  }
+  assert(aborted, 'إلغاء عملية التصدير يوقف الدفعة ويعيد خطأ الإلغاء المتوقع');
+}
+
+void testChunkedExport().catch((error) => {
+  console.error('❌ فشل اختبار التصدير المجزأ:', error);
+  process.exitCode = 1;
+});

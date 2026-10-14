@@ -14,4 +14,11 @@ export interface ReportExportPayload {
   currencySymbol?: string;
   dateRangeText?: string;
   titleAr?: string;
+  comparison?: {
+    metricLabelAr: string;
+    currentValue: number;
+    previousValue: number;
+    absoluteDelta: number;
+    percentChange: number | null;
+  };
 }

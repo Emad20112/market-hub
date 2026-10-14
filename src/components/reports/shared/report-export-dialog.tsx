@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef, useState } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { FileSpreadsheet, FileText, Printer, Receipt } from 'lucide-react';
 import type { ReportExportPayload } from '@/lib/reports/export/types';
 import {
-  downloadReportCSV,
+  downloadReportCSVChunked,
   downloadReportExcel,
   printReportDocument,
   printThermalSlipDocument,
@@ -29,6 +29,9 @@ export function ReportExportDialog({
   payload,
   defaultMode = 'print',
 }: ReportExportDialogProps) {
+  const [csvProgress, setCsvProgress] = useState<number | null>(null);
+  const [csvError, setCsvError] = useState<string | null>(null);
+  const csvAbortController = useRef<AbortController | null>(null);
   const { definition } = payload;
   const caps = definition.exportCapabilities;
 
@@ -47,9 +50,25 @@ export function ReportExportDialog({
     onOpenChange(false);
   };
 
-  const handleExportCSV = () => {
-    downloadReportCSV(payload);
-    onOpenChange(false);
+  const handleExportCSV = async () => {
+    const controller = new AbortController();
+    csvAbortController.current = controller;
+    setCsvError(null);
+    setCsvProgress(0);
+    try {
+      await downloadReportCSVChunked(payload, undefined, {
+        signal: controller.signal,
+        onProgress: (progress) => setCsvProgress(progress),
+      });
+      onOpenChange(false);
+    } catch (error) {
+      if (!(error instanceof Error && error.name === 'ExportAbortedError')) {
+        setCsvError(error instanceof Error ? error.message : 'تعذر إنشاء ملف CSV');
+      }
+    } finally {
+      csvAbortController.current = null;
+      setCsvProgress(null);
+    }
   };
 
   return (
@@ -116,17 +135,35 @@ export function ReportExportDialog({
           <Button
             variant="outline"
             onClick={handleExportCSV}
+            disabled={csvProgress !== null}
             className="flex h-auto flex-col items-start gap-1 p-3 text-right hover:border-blue-500/50 hover:bg-blue-500/5"
           >
             <div className="flex items-center gap-2 text-xs font-semibold text-foreground">
               <FileText className="h-4 w-4 text-blue-600" />
-              <span>ملف CSV آمن (UTF-8 BOM)</span>
+              <span>{csvProgress === null ? 'ملف CSV آمن (UTF-8 BOM)' : 'جارٍ تجهيز ملف CSV...'}</span>
             </div>
             <span className="text-[10px] text-muted-foreground">
-              متوافق مع كل برامج الجداول دون تشوه الأحرف
+              تصدير السجلات المحمّلة حاليًا على دفعات، مع حماية صيغ Excel
             </span>
           </Button>
         </div>
+        {csvProgress !== null && (
+          <div className="flex items-center gap-2 border-t border-border pt-3">
+            <progress className="h-2 flex-1 accent-primary" max={1} value={csvProgress} />
+            <span className="min-w-10 text-left text-xs tabular-nums">
+              {Math.round(csvProgress * 100)}%
+            </span>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => csvAbortController.current?.abort()}
+              className="h-7 text-xs"
+            >
+              إلغاء
+            </Button>
+          </div>
+        )}
+        {csvError && <p role="alert" className="text-xs text-destructive">{csvError}</p>}
       </DialogContent>
     </Dialog>
   );

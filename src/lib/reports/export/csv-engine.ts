@@ -12,9 +12,18 @@
 import type { ReportExportPayload } from './types';
 import type { ReportColumnDefinition } from '../types';
 
-function escapeCsvCell(val: any): string {
+/**
+ * Excel treats cells that begin with these characters as formulas.  Reports
+ * contain user-entered names, notes and document references, so preserving the
+ * text verbatim would allow a CSV formula to execute when the file is opened.
+ */
+function protectCsvFormula(value: string): string {
+  return /^[\t\r\n ]*[=+\-@]/.test(value) ? `'${value}` : value;
+}
+
+function escapeCsvCell(val: unknown): string {
   if (val === undefined || val === null) return '""';
-  const str = String(val);
+  const str = protectCsvFormula(String(val));
   if (str.includes(',') || str.includes('"') || str.includes('\n') || str.includes('\r')) {
     return `"${str.replace(/"/g, '""')}"`;
   }
@@ -70,7 +79,8 @@ export function generateReportCSV(payload: ReportExportPayload): string {
       .map((col) => {
         const val = row[col.key];
         if (col.dataType === 'money' || col.dataType === 'quantity' || col.dataType === 'percentage') {
-          return val !== undefined && val !== null ? String(val) : '0';
+          const numeric = Number(val);
+          return Number.isFinite(numeric) ? String(numeric) : '0';
         }
         return escapeCsvCell(val);
       })

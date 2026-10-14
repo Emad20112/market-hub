@@ -14,7 +14,8 @@ import { ReportEmptyState, ReportErrorState } from '../shared/report-states';
 import { createReportColumnRegistry } from '@/lib/reports/registry/column-bridge';
 import { defaultVisibility, resolveVisibility } from '@/lib/records/column-registry';
 import { RecordsColumnPicker } from '@/components/ui/records-column-picker';
-import { supabase } from '@/integrations/supabase/client';
+import { searchReportProducts } from '@/lib/reports/report-execution.functions';
+import { Input } from '@/components/ui/input';
 import {
   Select,
   SelectContent,
@@ -47,10 +48,12 @@ export function MovementStatementTemplate({
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(50);
 
-  // قائمة المنتجات لاختيار الصنف
-  const [productsList, setProductsList] = useState<{ id: string; name_ar: string; sku: string }[]>(
-    []
-  );
+  // البحث في الأصناف ينفذ على الخادم؛ لا نحمل كتالوج المنتجات كاملاً للمتصفح.
+  const [productsList, setProductsList] = useState<
+    { id: string; name?: string | null; name_ar?: string | null; sku?: string | null }[]
+  >([]);
+  const [productSearch, setProductSearch] = useState('');
+  const [productsLoading, setProductsLoading] = useState(false);
 
   // 2. حالة جلب البيانات
   const [loading, setLoading] = useState(false);
@@ -72,23 +75,29 @@ export function MovementStatementTemplate({
 
   const dataProvider = useMemo(() => new InventoryMovementsDataProvider(), []);
 
-  // جلب قائمة المنتجات للاختيار السريع
+  // جلب قائمة أصناف محدودة وقابلة للبحث من دالة الخادم.
   useEffect(() => {
-    async function fetchProducts() {
-      const { data } = await supabase
-        .from('products')
-        .select('id, name_ar, sku')
-        .order('name_ar');
-      if (data) {
-        setProductsList(data as any);
-        // اختيار أول صنف تلقائياً إذا لم يتم الاختيار
-        if (data.length > 0 && !filters.productId) {
-          setFilters((prev) => ({ ...prev, productId: data[0].id }));
-        }
+    let active = true;
+    const timeout = window.setTimeout(async () => {
+      setProductsLoading(true);
+      try {
+        const products = await searchReportProducts({ data: { search: productSearch } });
+        if (active) setProductsList(products);
+      } finally {
+        if (active) setProductsLoading(false);
       }
-    }
-    fetchProducts();
-  }, []);
+    }, 250);
+
+    return () => {
+      active = false;
+      window.clearTimeout(timeout);
+    };
+  }, [productSearch]);
+
+  const selectedProduct = useMemo(
+    () => productsList.find((product) => product.id === filters.productId),
+    [productsList, filters.productId]
+  );
 
   // جلب كشف حركة الصنف
   async function fetchData() {
@@ -160,23 +169,32 @@ export function MovementStatementTemplate({
       />
 
       {/* شريط اختيار الصنف الأساسي */}
-      <div className="flex flex-wrap items-center gap-3 border-b border-border bg-muted/15 px-4 py-2.5">
+      <div className="flex flex-wrap items-center gap-3 border-b border-border bg-muted/15 px-4 py-3">
         <div className="flex items-center gap-2 text-xs font-semibold text-foreground">
           <Package className="h-4 w-4 text-primary" />
           <span>الصنف المستهدف:</span>
         </div>
-        <div className="w-72">
+        <div className="w-full sm:w-72">
+          <Input
+            value={productSearch}
+            onChange={(event) => setProductSearch(event.target.value)}
+            placeholder="ابحث بالاسم أو رمز الصنف..."
+            className="mb-2 h-8 text-xs"
+          />
           <Select
             value={filters.productId || ''}
-            onValueChange={(val) => setFilters((prev) => ({ ...prev, productId: val }))}
+            onValueChange={(val) => {
+              setPage(1);
+              setFilters((prev) => ({ ...prev, productId: val }));
+            }}
           >
             <SelectTrigger className="h-8 text-xs bg-background">
-              <SelectValue placeholder="اختر الصنف..." />
+              <SelectValue placeholder={productsLoading ? 'جارٍ البحث...' : 'اختر الصنف...'} />
             </SelectTrigger>
             <SelectContent>
               {productsList.map((p) => (
                 <SelectItem key={p.id} value={p.id} className="text-xs">
-                  {p.name_ar} {p.sku ? `(${p.sku})` : ''}
+                  {p.name_ar || p.name || 'صنف بلا اسم'} {p.sku ? `(${p.sku})` : ''}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -193,8 +211,11 @@ export function MovementStatementTemplate({
       <ReportFiltersBar
         filters={definition.filters}
         values={filters}
-        onChange={(k, v) => setFilters((prev) => ({ ...prev, [k]: v }))}
-        onReset={() => setFilters({ productId: prev => prev.productId })}
+        onChange={(k, v) => {
+          setPage(1);
+          setFilters((prev) => ({ ...prev, [k]: v }));
+        }}
+        onReset={() => setFilters({ productId: filters.productId })}
         onOpenColumnPicker={() => setIsColumnPickerOpen(true)}
       />
 
@@ -217,6 +238,7 @@ export function MovementStatementTemplate({
         <ReportDataTable
           columns={definition.columns}
           rows={rows}
+          loading={loading}
           columnVisibility={columnVisibility}
         />
       )}

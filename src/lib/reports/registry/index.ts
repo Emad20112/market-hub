@@ -315,10 +315,370 @@ export const REPORT_INVENTORY_ITEM_CARD: ReportDefinition = {
   },
 };
 
+/** أصناف نفدت أو وصلت إلى رصيد صفري؛ الفحص والتنقيح يتمان داخل الخادم. */
+export const REPORT_INVENTORY_LOW_STOCK: ReportDefinition = {
+  id: 'rep-inventory-low-stock',
+  domain: 'inventory',
+  viewTemplate: 'status_exceptions',
+  titleAr: 'الأصناف المنتهية والمنخفضة',
+  titleEn: 'Low & Out-of-Stock Items',
+  descriptionAr: 'يعرض الأصناف ذات الرصيد الصفري أو السالب التي تحتاج إلى إجراء مخزني.',
+  dataProviderId: 'dp-inventory-valuation',
+  dataSourceName: 'inventory_valuation',
+  rowGrainAr: 'رصيد صنف في مستودع',
+  defaultSortField: 'quantity',
+  defaultSortOrder: 'asc',
+  filters: [COMMON_REPORT_FILTERS.warehouse, COMMON_REPORT_FILTERS.search],
+  columns: [
+    { key: 'sku', labelAr: 'رمز الصنف', labelEn: 'SKU', dataType: 'code', essential: true, defaultVisible: true },
+    { key: 'item_name_ar', labelAr: 'الصنف', labelEn: 'Item', dataType: 'text', essential: true, defaultVisible: true },
+    { key: 'warehouse_name', labelAr: 'المستودع', labelEn: 'Warehouse', dataType: 'text', defaultVisible: true },
+    { key: 'quantity', labelAr: 'الرصيد الحالي', labelEn: 'On Hand', dataType: 'quantity', essential: true, defaultVisible: true, aggregate: 'sum' },
+    { key: 'reference_valuation', labelAr: 'القيمة المرجعية', labelEn: 'Reference Value', dataType: 'money', defaultVisible: true, aggregate: 'sum', unit: 'ر.س' },
+  ],
+  metrics: [
+    { key: 'exceptionCount', labelAr: 'عدد الأصناف المتأثرة', labelEn: 'Affected Items', format: 'integer', calculationRuleAr: 'عدد الأرصدة الصفرية أو السالبة' },
+    { key: 'totalValue', labelAr: 'القيمة المرجعية', labelEn: 'Reference Value', format: 'money', calculationRuleAr: 'مجموع القيمة المرجعية للأصناف المعروضة' },
+  ],
+  exceptionSource: 'inventory_low_stock',
+  exportCapabilities: { pdfTemplate: 'detailed', excelMultiSheet: true, csvSupported: true, directPrintSlip: false },
+};
+
+/** أصناف لها رصيد قائم دون حركة صرف ضمن الفترة المختارة. */
+export const REPORT_INVENTORY_SLOW_MOVING: ReportDefinition = {
+  id: 'rep-inventory-slow-moving',
+  domain: 'inventory',
+  viewTemplate: 'status_exceptions',
+  titleAr: 'الأصناف الراكدة',
+  titleEn: 'Slow-Moving Inventory',
+  descriptionAr: 'يرصد الأصناف ذات الرصيد القائم التي لم تسجل حركة صرف خلال الفترة المختارة.',
+  dataProviderId: 'dp-inventory-valuation',
+  dataSourceName: 'inventory_valuation',
+  rowGrainAr: 'رصيد صنف راكد',
+  defaultSortField: 'reference_valuation',
+  defaultSortOrder: 'desc',
+  filters: [COMMON_REPORT_FILTERS.dateRange, COMMON_REPORT_FILTERS.search],
+  columns: [
+    { key: 'sku', labelAr: 'رمز الصنف', labelEn: 'SKU', dataType: 'code', essential: true, defaultVisible: true },
+    { key: 'item_name_ar', labelAr: 'الصنف', labelEn: 'Item', dataType: 'text', essential: true, defaultVisible: true },
+    { key: 'warehouse_name', labelAr: 'المستودع', labelEn: 'Warehouse', dataType: 'text', defaultVisible: true },
+    { key: 'quantity', labelAr: 'الرصيد', labelEn: 'On Hand', dataType: 'quantity', defaultVisible: true, aggregate: 'sum' },
+    { key: 'reference_valuation', labelAr: 'قيمة الرصيد', labelEn: 'Stock Value', dataType: 'money', essential: true, defaultVisible: true, aggregate: 'sum', unit: 'ر.س' },
+  ],
+  metrics: [
+    { key: 'exceptionCount', labelAr: 'الأصناف الراكدة', labelEn: 'Slow Items', format: 'integer', calculationRuleAr: 'عدد الأصناف دون حركة صرف ضمن الفترة' },
+    { key: 'totalValue', labelAr: 'قيمة المخزون الراكد', labelEn: 'Slow Stock Value', format: 'money', calculationRuleAr: 'مجموع القيم المرجعية للأصناف الراكدة' },
+  ],
+  exceptionSource: 'inventory_slow_moving',
+  exportCapabilities: { pdfTemplate: 'detailed', excelMultiSheet: true, csvSupported: true, directPrintSlip: false },
+};
+
+/** فجوات تصنيف المنتجات وسياسة المخزون، من عرض الخادم المخصص. */
+export const REPORT_ITEM_CLASSIFICATION_GAPS: ReportDefinition = {
+  id: 'rep-item-classification-gaps',
+  domain: 'operations_audit',
+  viewTemplate: 'status_exceptions',
+  titleAr: 'فجوات تصنيف المنتجات',
+  titleEn: 'Item Classification Gaps',
+  descriptionAr: 'يكشف المنتجات التي تحتاج استكمال التصنيف أو سياسة المخزون قبل أن تؤثر في التقارير.',
+  dataProviderId: 'dp-item-classification-gaps',
+  dataSourceName: 'item_classification_gaps',
+  rowGrainAr: 'منتج به فجوة تصنيف',
+  defaultSortField: 'sku',
+  defaultSortOrder: 'asc',
+  filters: [],
+  columns: [
+    { key: 'sku', labelAr: 'رمز الصنف', labelEn: 'SKU', dataType: 'code', essential: true, defaultVisible: true },
+    { key: 'name_ar', labelAr: 'اسم الصنف', labelEn: 'Item', dataType: 'text', essential: true, defaultVisible: true },
+    { key: 'item_nature', labelAr: 'طبيعة الصنف', labelEn: 'Item Nature', dataType: 'text', defaultVisible: true },
+    { key: 'item_class', labelAr: 'التصنيف', labelEn: 'Classification', dataType: 'text', defaultVisible: true },
+    { key: 'inventory_policy', labelAr: 'سياسة المخزون', labelEn: 'Inventory Policy', dataType: 'text', defaultVisible: true },
+    { key: 'reason', labelAr: 'سبب المراجعة', labelEn: 'Reason', dataType: 'text', essential: true, defaultVisible: true },
+  ],
+  metrics: [
+    { key: 'gapCount', labelAr: 'فجوات تحتاج استكمالاً', labelEn: 'Open Gaps', format: 'integer', calculationRuleAr: 'عدد المنتجات ذات الفجوات المسجلة في العرض' },
+  ],
+  exceptionSource: 'item_classification_gaps',
+  exportCapabilities: { pdfTemplate: 'detailed', excelMultiSheet: true, csvSupported: true, directPrintSlip: false },
+};
+
+/** ملخص تشغيلي يومي يستفيد من قالب الملخص ومصدر سجل المبيعات القائم. */
+export const REPORT_SALES_DAILY_SUMMARY: ReportDefinition = {
+  id: 'rep-sales-daily-summary',
+  domain: 'sales',
+  viewTemplate: 'summary',
+  titleAr: 'الملخص اليومي للمبيعات',
+  titleEn: 'Daily Sales Summary',
+  descriptionAr: 'ملخص مؤشرات المبيعات اليومية مع سجل مختصر للفواتير والبنود المنفذة.',
+  dataProviderId: 'dp-sales-register',
+  dataSourceName: 'sales_register',
+  rowGrainAr: 'بند مبيعات ضمن الفترة المحددة',
+  defaultSortField: 'created_at',
+  defaultSortOrder: 'desc',
+  filters: [
+    COMMON_REPORT_FILTERS.dateRange,
+    COMMON_REPORT_FILTERS.paymentMethod,
+    COMMON_REPORT_FILTERS.search,
+  ],
+  columns: [
+    { key: 'invoice_number', labelAr: 'رقم الفاتورة', labelEn: 'Invoice', dataType: 'code', essential: true, defaultVisible: true, align: 'right' },
+    { key: 'created_at', labelAr: 'وقت التنفيذ', labelEn: 'Created At', dataType: 'datetime', essential: true, defaultVisible: true, align: 'right' },
+    { key: 'payment_method', labelAr: 'طريقة الدفع', labelEn: 'Payment Method', dataType: 'text', defaultVisible: true, align: 'center' },
+    { key: 'quantity', labelAr: 'الكمية', labelEn: 'Quantity', dataType: 'quantity', defaultVisible: true, align: 'left', aggregate: 'sum' },
+    { key: 'total', labelAr: 'صافي البند', labelEn: 'Net Line Total', dataType: 'money', essential: true, defaultVisible: true, align: 'left', aggregate: 'sum', unit: 'ر.س' },
+  ],
+  metrics: [
+    { key: 'totalRowCount', labelAr: 'عدد البنود', labelEn: 'Line Count', format: 'integer', calculationRuleAr: 'عدد بنود المبيعات المطابقة للفلاتر' },
+    { key: 'totalQuantity', labelAr: 'إجمالي الكميات', labelEn: 'Quantity', format: 'quantity', calculationRuleAr: 'مجموع كميات البنود' },
+    { key: 'netSales', labelAr: 'صافي المبيعات', labelEn: 'Net Sales', format: 'money', calculationRuleAr: 'مجموع صافي بنود المبيعات' },
+    { key: 'grossMargin', labelAr: 'هامش الربح', labelEn: 'Gross Margin', format: 'money', calculationRuleAr: 'صافي المبيعات ناقص تكلفة البنود' },
+  ],
+  exportCapabilities: { pdfTemplate: 'summary', excelMultiSheet: true, csvSupported: true, directPrintSlip: true },
+};
+
+/** مقارنة المبيعات مع الفترة السابقة؛ كل الحسابات تتم في دالة الخادم. */
+export const REPORT_SALES_PERIOD_COMPARISON: ReportDefinition = {
+  id: 'rep-sales-period-comparison',
+  domain: 'sales',
+  viewTemplate: 'comparison',
+  titleAr: 'مقارنة أداء المبيعات بالفترة السابقة',
+  titleEn: 'Sales Period Comparison',
+  descriptionAr: 'يقارن صافي المبيعات للفترة المحددة بالفترة السابقة المتساوية زمنيًا.',
+  dataProviderId: 'dp-sales-register',
+  dataSourceName: 'sales_register',
+  rowGrainAr: 'بند مبيعات في الفترة الحالية',
+  defaultSortField: 'created_at',
+  defaultSortOrder: 'desc',
+  filters: [
+    COMMON_REPORT_FILTERS.dateRange,
+    COMMON_REPORT_FILTERS.customer,
+    COMMON_REPORT_FILTERS.product,
+    COMMON_REPORT_FILTERS.paymentMethod,
+  ],
+  columns: [
+    { key: 'invoice_number', labelAr: 'رقم الفاتورة', labelEn: 'Invoice', dataType: 'code', essential: true, defaultVisible: true, align: 'right' },
+    { key: 'created_at', labelAr: 'تاريخ العملية', labelEn: 'Date', dataType: 'datetime', defaultVisible: true, align: 'right' },
+    { key: 'item_name_ar', labelAr: 'الصنف', labelEn: 'Item', dataType: 'text', defaultVisible: true, align: 'right' },
+    { key: 'quantity', labelAr: 'الكمية', labelEn: 'Quantity', dataType: 'quantity', defaultVisible: true, align: 'left', aggregate: 'sum' },
+    { key: 'total', labelAr: 'صافي البند', labelEn: 'Net Total', dataType: 'money', essential: true, defaultVisible: true, align: 'left', aggregate: 'sum', unit: 'ر.س' },
+  ],
+  metrics: [
+    { key: 'netSales', labelAr: 'صافي المبيعات الحالية', labelEn: 'Current Net Sales', format: 'money', calculationRuleAr: 'صافي مبيعات الفترة المختارة' },
+    { key: 'grossMargin', labelAr: 'هامش الربح الحالي', labelEn: 'Current Gross Margin', format: 'money', calculationRuleAr: 'صافي المبيعات ناقص تكلفة البنود' },
+  ],
+  comparison: { metricKey: 'netSales', metricLabelAr: 'صافي المبيعات', metricFormat: 'money', comparisonMode: 'previous_period' },
+  exportCapabilities: { pdfTemplate: 'summary', excelMultiSheet: true, csvSupported: true, directPrintSlip: false },
+};
+
+/** الحالات التي تستلزم مراجعة تشغيلية: الملغاة والمرتجعة والمسودات. */
+export const REPORT_OPERATIONS_EXCEPTIONS: ReportDefinition = {
+  id: 'rep-operations-exceptions',
+  domain: 'operations_audit',
+  viewTemplate: 'status_exceptions',
+  titleAr: 'استثناءات المبيعات والعمليات',
+  titleEn: 'Sales & Operations Exceptions',
+  descriptionAr: 'يعرض السندات الملغاة والمرتجعة والمسودات التي تحتاج مراجعة تشغيلية.',
+  dataProviderId: 'dp-sales-register',
+  dataSourceName: 'sales_register',
+  rowGrainAr: 'بند عملية استثنائية',
+  defaultSortField: 'created_at',
+  defaultSortOrder: 'desc',
+  filters: [COMMON_REPORT_FILTERS.dateRange, COMMON_REPORT_FILTERS.customer, COMMON_REPORT_FILTERS.search],
+  columns: [
+    { key: 'invoice_number', labelAr: 'رقم السند', labelEn: 'Document Number', dataType: 'code', essential: true, defaultVisible: true, align: 'right' },
+    { key: 'created_at', labelAr: 'وقت العملية', labelEn: 'Timestamp', dataType: 'datetime', essential: true, defaultVisible: true, align: 'right' },
+    { key: 'status', labelAr: 'الحالة', labelEn: 'Status', dataType: 'status_badge', essential: true, defaultVisible: true, align: 'center' },
+    { key: 'item_name_ar', labelAr: 'الصنف', labelEn: 'Item', dataType: 'text', defaultVisible: true, align: 'right' },
+    { key: 'total', labelAr: 'قيمة البند', labelEn: 'Line Value', dataType: 'money', defaultVisible: true, align: 'left', aggregate: 'sum', unit: 'ر.س' },
+  ],
+  metrics: [
+    { key: 'exceptionCount', labelAr: 'إجمالي الاستثناءات', labelEn: 'Exceptions', format: 'integer', calculationRuleAr: 'عدد البنود ذات الحالات غير الاعتيادية' },
+    { key: 'cancelledCount', labelAr: 'الملغاة', labelEn: 'Cancelled', format: 'integer', calculationRuleAr: 'عدد البنود الملغاة المطابقة للفلاتر' },
+    { key: 'returnedCount', labelAr: 'المرتجعة', labelEn: 'Returned', format: 'integer', calculationRuleAr: 'عدد البنود المرتجعة المطابقة للفلاتر' },
+    { key: 'exceptionValue', labelAr: 'قيمة الاستثناءات', labelEn: 'Exception Value', format: 'money', calculationRuleAr: 'مجموع قيم جميع الاستثناءات المطابقة للفلاتر' },
+  ],
+  exceptionSource: 'sales_register',
+  exportCapabilities: { pdfTemplate: 'detailed', excelMultiSheet: true, csvSupported: true, directPrintSlip: false },
+};
+
+export const REPORT_PURCHASES_REGISTER: ReportDefinition = {
+  id: 'rep-purchases-register',
+  domain: 'purchases',
+  viewTemplate: 'detailed_table',
+  titleAr: 'سجل فواتير المشتريات والتوريد',
+  titleEn: 'Purchases Register Report',
+  descriptionAr: 'كشف تفصيلي بمشتريات البضائع والمدخلات مع الموردين ومقارنة الأسعار والكميات.',
+  dataProviderId: 'dp-purchase-register',
+  dataSourceName: 'purchase_register',
+  rowGrainAr: 'بند فاتورة شراء مؤكدة',
+  defaultSortField: 'created_at',
+  defaultSortOrder: 'desc',
+
+  filters: [
+    COMMON_REPORT_FILTERS.dateRange,
+    COMMON_REPORT_FILTERS.supplier,
+    COMMON_REPORT_FILTERS.product,
+    COMMON_REPORT_FILTERS.search,
+  ],
+
+  columns: [
+    { key: 'invoice_number', labelAr: 'رقم الفاتورة', labelEn: 'Invoice No', dataType: 'code', essential: true, defaultVisible: true, align: 'right' },
+    { key: 'created_at', labelAr: 'التاريخ', labelEn: 'Date', dataType: 'date', essential: true, defaultVisible: true, align: 'right' },
+    { key: 'sku', labelAr: 'رمز الصنف', labelEn: 'SKU', dataType: 'code', defaultVisible: true, align: 'right' },
+    { key: 'item_name_ar', labelAr: 'اسم الصنف', labelEn: 'Item Name', dataType: 'text', defaultVisible: true, align: 'right' },
+    { key: 'quantity', labelAr: 'الكمية', labelEn: 'Quantity', dataType: 'quantity', defaultVisible: true, align: 'left', aggregate: 'sum' },
+    { key: 'unit_cost', labelAr: 'تكلفة الوحدة', labelEn: 'Unit Cost', dataType: 'money', defaultVisible: true, align: 'left', unit: 'ر.س' },
+    { key: 'total', labelAr: 'إجمالي البند', labelEn: 'Total', dataType: 'money', essential: true, defaultVisible: true, align: 'left', aggregate: 'sum', unit: 'ر.س' },
+  ],
+
+  metrics: [
+    { key: 'totalRowCount', labelAr: 'عدد البنود', labelEn: 'Total Lines', format: 'integer', calculationRuleAr: 'إجمالي بنود فواتير الشراء' },
+    { key: 'totalQuantity', labelAr: 'إجمالي الكميات المشتراة', labelEn: 'Total Quantity', format: 'quantity', calculationRuleAr: 'مجموع الكميات الموردة' },
+    { key: 'grossPurchases', labelAr: 'إجمالي المشتريات الخام', labelEn: 'Gross Purchases', format: 'money', calculationRuleAr: 'الكمية × تكلفة الوحدة' },
+    { key: 'netPurchases', labelAr: 'صافي المشتريات', labelEn: 'Net Purchases', format: 'money', calculationRuleAr: 'إجمالي المشتريات بعد الخصم' },
+  ],
+
+  exportCapabilities: {
+    pdfTemplate: 'detailed',
+    excelMultiSheet: true,
+    csvSupported: true,
+    directPrintSlip: false,
+  },
+};
+
+export const REPORT_CUSTOMERS_TURNOVER: ReportDefinition = {
+  id: 'rep-customers-sales-turnover',
+  domain: 'customers',
+  viewTemplate: 'grouped_ranking',
+  titleAr: 'كشف مبيعات ومتحصلات العملاء',
+  titleEn: 'Customer Sales & Collections',
+  descriptionAr: 'تحليل مبيعات العملاء وإجمالي المبالغ المسددة والمتبقية لكل عميل.',
+  dataProviderId: 'dp-sales-register',
+  dataSourceName: 'sales_register',
+  rowGrainAr: 'عميل مجمّع خلال الفترة',
+  defaultSortField: 'net_sales',
+  defaultSortOrder: 'desc',
+
+  filters: [
+    COMMON_REPORT_FILTERS.dateRange,
+    COMMON_REPORT_FILTERS.customer,
+    COMMON_REPORT_FILTERS.search,
+  ],
+
+  columns: [
+    { key: 'customer_name', labelAr: 'العميل', labelEn: 'Customer', dataType: 'text', essential: true, defaultVisible: true, align: 'right' },
+    { key: 'invoice_count', labelAr: 'عدد الفواتير', labelEn: 'Invoice Count', dataType: 'quantity', defaultVisible: true, align: 'left', aggregate: 'sum' },
+    { key: 'quantity', labelAr: 'الكمية', labelEn: 'Quantity', dataType: 'quantity', defaultVisible: true, align: 'left', aggregate: 'sum' },
+    { key: 'net_sales', labelAr: 'إجمالي المبيعات', labelEn: 'Net Sales', dataType: 'money', essential: true, defaultVisible: true, align: 'left', aggregate: 'sum', unit: 'ر.س' },
+  ],
+
+  metrics: [
+    { key: 'totalRowCount', labelAr: 'عدد الحركات', labelEn: 'Total Moves', format: 'integer', calculationRuleAr: 'إجمالي الحركات للعملاء' },
+    { key: 'netSales', labelAr: 'إجمالي المبيعات', labelEn: 'Total Sales', format: 'money', calculationRuleAr: 'صافي مبيعات العملاء' },
+  ],
+
+  exportCapabilities: {
+    pdfTemplate: 'summary',
+    excelMultiSheet: true,
+    csvSupported: true,
+    directPrintSlip: false,
+  },
+};
+
+export const REPORT_SUPPLIERS_PAYABLES: ReportDefinition = {
+  id: 'rep-suppliers-payables',
+  domain: 'suppliers',
+  viewTemplate: 'detailed_table',
+  titleAr: 'كشف مستحقات والتزامات الموردين',
+  titleEn: 'Supplier Payables & Invoices',
+  descriptionAr: 'متابعة التزامات التوريد وفواتير المشتريات المؤكدة لكل مورد.',
+  dataProviderId: 'dp-purchase-register',
+  dataSourceName: 'purchase_register',
+  rowGrainAr: 'فاتورة شراء وتوريد',
+  defaultSortField: 'created_at',
+  defaultSortOrder: 'desc',
+
+  filters: [
+    COMMON_REPORT_FILTERS.dateRange,
+    COMMON_REPORT_FILTERS.supplier,
+    COMMON_REPORT_FILTERS.search,
+  ],
+
+  columns: [
+    { key: 'invoice_number', labelAr: 'رقم الفاتورة', labelEn: 'Invoice No', dataType: 'code', essential: true, defaultVisible: true, align: 'right' },
+    { key: 'created_at', labelAr: 'التاريخ', labelEn: 'Date', dataType: 'date', defaultVisible: true, align: 'right' },
+    { key: 'item_name_ar', labelAr: 'الصنف المورد', labelEn: 'Supplied Item', dataType: 'text', defaultVisible: true, align: 'right' },
+    { key: 'quantity', labelAr: 'الكمية المستلمة', labelEn: 'Quantity', dataType: 'quantity', defaultVisible: true, align: 'left', aggregate: 'sum' },
+    { key: 'total', labelAr: 'قيمة المستحق', labelEn: 'Payable Amount', dataType: 'money', essential: true, defaultVisible: true, align: 'left', aggregate: 'sum', unit: 'ر.س' },
+  ],
+
+  metrics: [
+    { key: 'totalRowCount', labelAr: 'عدد الفواتير', labelEn: 'Invoice Count', format: 'integer', calculationRuleAr: 'إجمالي فواتير التوريد' },
+    { key: 'netPurchases', labelAr: 'إجمالي المستحقات', labelEn: 'Total Payables', format: 'money', calculationRuleAr: 'صافي التزامات التوريد' },
+  ],
+
+  exportCapabilities: {
+    pdfTemplate: 'detailed',
+    excelMultiSheet: true,
+    csvSupported: true,
+    directPrintSlip: false,
+  },
+};
+
+export const REPORT_OPERATIONS_DAILY_AUDIT: ReportDefinition = {
+  id: 'rep-operations-daily-audit',
+  domain: 'operations_audit',
+  viewTemplate: 'detailed_table',
+  titleAr: 'سجل التدقيق والرقابة اليومية للعمليات',
+  titleEn: 'Daily Operations & Audit Log',
+  descriptionAr: 'تدقيق العمليات وسجلات الحركات والتحقق من سلامة المبيعات والإلغاءات.',
+  dataProviderId: 'dp-sales-register',
+  dataSourceName: 'sales_register',
+  rowGrainAr: 'عملية أو حركة مسجلة بالنظام',
+  defaultSortField: 'created_at',
+  defaultSortOrder: 'desc',
+
+  filters: [
+    COMMON_REPORT_FILTERS.dateRange,
+    COMMON_REPORT_FILTERS.paymentMethod,
+    COMMON_REPORT_FILTERS.search,
+  ],
+
+  columns: [
+    { key: 'invoice_number', labelAr: 'رقم السند/الفاتورة', labelEn: 'Doc No', dataType: 'code', essential: true, defaultVisible: true, align: 'right' },
+    { key: 'created_at', labelAr: 'وقت التنفيذ', labelEn: 'Timestamp', dataType: 'datetime', essential: true, defaultVisible: true, align: 'right' },
+    { key: 'status', labelAr: 'حالة السند', labelEn: 'Status', dataType: 'status_badge', essential: true, defaultVisible: true, align: 'center' },
+    { key: 'payment_method', labelAr: 'طريقة الدفع', labelEn: 'Method', dataType: 'text', defaultVisible: true, align: 'center' },
+    { key: 'total', labelAr: 'المبلغ الإجمالي', labelEn: 'Total', dataType: 'money', essential: true, defaultVisible: true, align: 'left', aggregate: 'sum', unit: 'ر.س' },
+  ],
+
+  metrics: [
+    { key: 'totalRowCount', labelAr: 'إجمالي العمليات', labelEn: 'Total Actions', format: 'integer', calculationRuleAr: 'عدد الحركات المسجلة' },
+    { key: 'netSales', labelAr: 'إجمالي المبالغ المنفذة', labelEn: 'Total Executed', format: 'money', calculationRuleAr: 'مجموع مبالغ العمليات' },
+  ],
+
+  exportCapabilities: {
+    pdfTemplate: 'detailed',
+    excelMultiSheet: true,
+    csvSupported: true,
+    directPrintSlip: true,
+  },
+};
+
 // السجل المركزي لجميع التقارير
 const REPORT_DEFINITIONS: ReportDefinition[] = [
   REPORT_SALES_PRODUCT,
+  REPORT_SALES_DAILY_SUMMARY,
+  REPORT_SALES_PERIOD_COMPARISON,
   REPORT_INVENTORY_ITEM_CARD,
+  REPORT_INVENTORY_LOW_STOCK,
+  REPORT_INVENTORY_SLOW_MOVING,
+  REPORT_PURCHASES_REGISTER,
+  REPORT_CUSTOMERS_TURNOVER,
+  REPORT_SUPPLIERS_PAYABLES,
+  REPORT_OPERATIONS_DAILY_AUDIT,
+  REPORT_OPERATIONS_EXCEPTIONS,
+  REPORT_ITEM_CLASSIFICATION_GAPS,
 ];
 
 export class ReportRegistry {

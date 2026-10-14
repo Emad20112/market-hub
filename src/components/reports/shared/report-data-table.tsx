@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { ArrowDown, ArrowUp, ArrowUpDown } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import type { ReportColumnDefinition } from '@/lib/reports/types';
@@ -11,7 +11,17 @@ interface ReportDataTableProps {
   sortOrder?: 'asc' | 'desc';
   onSort?: (field: string) => void;
   currencySymbol?: string;
+  loading?: boolean;
 }
+
+const moneyFormatter = new Intl.NumberFormat('en-US', {
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+});
+const quantityFormatter = new Intl.NumberFormat('en-US', {
+  minimumFractionDigits: 0,
+  maximumFractionDigits: 3,
+});
 
 export function ReportDataTable({
   columns,
@@ -21,31 +31,26 @@ export function ReportDataTable({
   sortOrder,
   onSort,
   currencySymbol = 'ر.س',
+  loading = false,
 }: ReportDataTableProps) {
-  // تصفية الأعمدة المرئية فقط
-  const visibleColumns = columns.filter((col) => {
+  // لا نعيد حساب الأعمدة وإجمالياتها البصرية إلا عند تغير مصدرها فعلياً.
+  const visibleColumns = useMemo(() => columns.filter((col) => {
     if (col.essential) return true;
     if (columnVisibility && columnVisibility[col.key] !== undefined) {
       return columnVisibility[col.key];
     }
     return col.defaultVisible;
-  });
+  }), [columns, columnVisibility]);
 
   function formatCellValue(val: any, col: ReportColumnDefinition) {
     if (val === undefined || val === null || val === '') return '—';
 
     switch (col.dataType) {
       case 'money':
-        return `${Number(val || 0).toLocaleString('en-US', {
-          minimumFractionDigits: 2,
-          maximumFractionDigits: 2,
-        })} ${col.unit || currencySymbol}`;
+        return `${moneyFormatter.format(Number(val || 0))} ${col.unit || currencySymbol}`;
 
       case 'quantity':
-        return Number(val || 0).toLocaleString('en-US', {
-          minimumFractionDigits: 0,
-          maximumFractionDigits: 3,
-        });
+        return quantityFormatter.format(Number(val || 0));
 
       case 'percentage':
         return `${Number(val || 0).toFixed(2)}%`;
@@ -63,6 +68,7 @@ export function ReportDataTable({
       case 'datetime':
         try {
           const d = new Date(val);
+          if (Number.isNaN(d.getTime())) return String(val);
           return d.toLocaleString('ar-SA', {
             year: 'numeric',
             month: '2-digit',
@@ -77,6 +83,7 @@ export function ReportDataTable({
       case 'date':
         try {
           const d = new Date(val);
+          if (Number.isNaN(d.getTime())) return String(val);
           return d.toLocaleDateString('ar-SA');
         } catch {
           return String(val);
@@ -104,15 +111,9 @@ export function ReportDataTable({
 
     if (col.aggregate === 'sum') {
       if (col.dataType === 'money') {
-        return `${sum.toLocaleString('en-US', {
-          minimumFractionDigits: 2,
-          maximumFractionDigits: 2,
-        })} ${col.unit || currencySymbol}`;
+        return `${moneyFormatter.format(sum)} ${col.unit || currencySymbol}`;
       }
-      return sum.toLocaleString('en-US', {
-        minimumFractionDigits: 0,
-        maximumFractionDigits: 3,
-      });
+      return quantityFormatter.format(sum);
     }
 
     if (col.aggregate === 'avg') {
@@ -124,9 +125,9 @@ export function ReportDataTable({
   }
 
   return (
-    <div className="relative w-full overflow-auto">
-      <table className="w-full text-right text-xs border-collapse">
-        <thead>
+    <div className="relative w-full overflow-auto overscroll-contain" role="region" aria-label="بيانات التقرير" tabIndex={0}>
+      <table className="w-full min-w-max text-right text-xs border-collapse">
+        <thead className="sticky top-0 z-10 shadow-[0_1px_0_hsl(var(--border))]">
           <tr className="border-b border-border bg-muted/40 font-semibold text-muted-foreground">
             {visibleColumns.map((col) => {
               const isSorted = sortField === col.key;
@@ -141,6 +142,7 @@ export function ReportDataTable({
                 <th
                   key={col.key}
                   onClick={() => onSort?.(col.key)}
+                  aria-sort={isSorted ? (sortOrder === 'asc' ? 'ascending' : 'descending') : 'none'}
                   className={`p-3 whitespace-nowrap select-none ${alignClass} ${
                     onSort ? 'cursor-pointer hover:text-foreground' : ''
                   }`}
@@ -169,10 +171,19 @@ export function ReportDataTable({
           </tr>
         </thead>
         <tbody className="divide-y divide-border/60">
+          {loading && rows.length === 0 && Array.from({ length: 6 }).map((_, rowIndex) => (
+            <tr key={`skeleton-${rowIndex}`} className="animate-pulse">
+              {visibleColumns.map((column) => (
+                <td key={column.key} className="p-3">
+                  <div className="h-3.5 min-w-20 rounded bg-muted/70" />
+                </td>
+              ))}
+            </tr>
+          ))}
           {rows.map((row, rIdx) => (
             <tr
               key={row.id || row.invoice_item_id || row.invoice_id || rIdx}
-              className="hover:bg-muted/30 transition-colors"
+              className="odd:bg-muted/[0.02] hover:bg-primary/[0.045] transition-colors"
             >
               {visibleColumns.map((col) => {
                 const alignClass =
@@ -183,7 +194,7 @@ export function ReportDataTable({
                     : 'text-right';
 
                 return (
-                  <td key={col.key} className={`p-3 whitespace-nowrap ${alignClass}`}>
+                  <td key={col.key} className={`p-3 whitespace-nowrap tabular-nums ${alignClass}`}>
                     {formatCellValue(row[col.key], col)}
                   </td>
                 );

@@ -84,6 +84,39 @@ export interface ReportExportCapabilities {
   directPrintSlip: boolean;
 }
 
+/** مصدر فرز الاستثناءات المدعوم في الخادم. */
+export type ReportExceptionSource =
+  | 'sales_register'
+  | 'purchase_register'
+  | 'inventory_low_stock'
+  | 'inventory_slow_moving'
+  | 'item_classification_gaps';
+
+/**
+ * عقد كتلة المقارنة بين فترتين.
+ *
+ * يُحسب الفارق المطلق ونسبة التغير داخل الخادم، ولا يُعاد أي تجميع خام للواجهة.
+ */
+export interface ReportComparisonContract {
+  metricKey: string;
+  metricLabelAr: string;
+  metricFormat: 'money' | 'quantity' | 'percentage' | 'integer';
+  comparisonMode?: 'previous_period' | 'previous_year';
+}
+
+/** كتلة المقارنة الجاهزة القادمة من الخادم. */
+export interface ReportComparisonResult {
+  metricKey: string;
+  metricLabelAr: string;
+  currentValue: number;
+  previousValue: number;
+  absoluteDelta: number;
+  percentChange: number | null;
+  previousStartDate: string | null;
+  previousEndDate: string | null;
+  format: 'money' | 'quantity' | 'percentage' | 'integer';
+}
+
 export interface ReportDefinition {
   id: string; // مثال: 'rep-sales-product'
   domain: ReportDomain;
@@ -106,6 +139,12 @@ export interface ReportDefinition {
 
   // إمكانات التصدير
   exportCapabilities: ReportExportCapabilities;
+
+  // عقد كتلة المقارنة (مطلوب فقط لقوالب "comparison")
+  comparison?: ReportComparisonContract;
+
+  // مصدر فرز الاستثناءات (مطلوب فقط لقوالب "status_exceptions")
+  exceptionSource?: ReportExceptionSource;
 
   // الصلاحيات (اختياري)
   requiredPermission?: string;

@@ -5,6 +5,7 @@
 
 export * from './types';
 export * from './csv-engine';
+export * from './chunked-export';
 export * from './excel-engine';
 export * from './print-engine';
 export * from './thermal-slip-engine';
