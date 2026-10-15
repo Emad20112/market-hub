@@ -13,21 +13,23 @@ import { defaultVisibility, resolveVisibility } from "@/lib/records/column-regis
 import { RecordsColumnPicker } from "@/components/ui/records-column-picker";
 import { ReportExportDialog } from "../shared/report-export-dialog";
 import type { ReportExportPayload } from "@/lib/reports/export/types";
+import { useReportCompanyInfo } from "@/hooks/use-report-company-info";
 
 interface SummaryTemplateProps {
   definition: ReportDefinition;
   onPrint?: () => void;
   onExport?: () => void;
+  onSelectReport?: (reportId: string) => void;
 }
 
-/**
- * قالب التقرير الملخص (Summary Report Template) — المرحلة 5.
- *
- * نمط عرض يركز على بطاقات المؤشرات (KPIs) المكثفة مع جدول ملخص موجز.
- * لا يُحمّل أي بيانات تجميعية في المتصفح: الإجماليات تُحسب في الخادم وتصل
- * عبر `metrics` جاهزة، والصفوف تصل مرقّمة من الخادم.
- */
-export function SummaryTemplate({ definition, onPrint, onExport }: SummaryTemplateProps) {
+export function SummaryTemplate({
+  definition,
+  onPrint,
+  onExport,
+  onSelectReport,
+}: SummaryTemplateProps) {
+  const { companyName, currencySymbol } = useReportCompanyInfo();
+
   const [filters, setFilters] = useState<Record<string, any>>({
     startDate: new Date(new Date().getFullYear(), new Date().getMonth(), 1)
       .toISOString()
@@ -106,9 +108,9 @@ export function SummaryTemplate({ definition, onPrint, onExport }: SummaryTempla
       rows,
       metrics,
       appliedFilters: filters,
-      currencySymbol: "ر.س",
+      currencySymbol,
     }),
-    [definition, rows, metrics, filters],
+    [definition, rows, metrics, filters, currencySymbol],
   );
 
   const handleOpenPrint = () => {
@@ -128,16 +130,15 @@ export function SummaryTemplate({ definition, onPrint, onExport }: SummaryTempla
   };
 
   return (
-    <div className="flex flex-col rounded-xl border border-border bg-card shadow-xs overflow-hidden">
+    <div className="flex flex-col gap-3 rounded-xl border border-border bg-card shadow-xs p-2 sm:p-3 overflow-hidden">
       <ReportHeader
         definition={definition}
-        loading={loading}
-        onRefresh={fetchData}
-        onPrint={handleOpenPrint}
-        onExport={handleOpenExport}
+        companyName={companyName}
+        costBasisNotice={definition.costBasisNotice}
       />
 
       <ReportFiltersBar
+        definition={definition}
         filters={definition.filters}
         values={filters}
         onChange={(k, v) => {
@@ -145,15 +146,35 @@ export function SummaryTemplate({ definition, onPrint, onExport }: SummaryTempla
           setFilters((prev) => ({ ...prev, [k]: v }));
         }}
         onReset={() => setFilters({})}
+        onPreview={fetchData}
         onOpenColumnPicker={() => setIsColumnPickerOpen(true)}
+        onPrint={handleOpenPrint}
+        onExport={handleOpenExport}
+        currentTemplate={definition.viewTemplate}
+        loading={loading}
+        onSelectReport={onSelectReport}
+        totalColumnsCount={definition.columns.length}
+        visibleColumnsCount={
+          definition.columns.filter((c) => columnVisibility[c.key] !== false).length
+        }
       />
 
-      <ReportSummaryDeck metricsDefinitions={definition.metrics} metricsValues={metrics} />
+      <ReportSummaryDeck
+        metricsDefinitions={definition.metrics}
+        metricsValues={metrics}
+        currencySymbol={currencySymbol}
+      />
 
       {error ? (
         <ReportErrorState error={error} onRetry={fetchData} />
       ) : rows.length === 0 && !loading ? (
-        <ReportEmptyState onResetFilters={() => setFilters({})} />
+        <ReportEmptyState
+          onResetFilters={() => setFilters({})}
+          context={{
+            hasAnyFilters: Object.keys(filters).some((k) => Boolean(filters[k])),
+            hasRequiredFilter: true,
+          }}
+        />
       ) : (
         <ReportDataTable
           columns={definition.columns}
@@ -163,6 +184,8 @@ export function SummaryTemplate({ definition, onPrint, onExport }: SummaryTempla
           sortField={sortField}
           sortOrder={sortOrder}
           onSort={handleSort}
+          currencySymbol={currencySymbol}
+          companyName={companyName}
         />
       )}
 

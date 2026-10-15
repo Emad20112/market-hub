@@ -1,40 +1,45 @@
-import React, { useState, useMemo, useEffect } from 'react';
-import type { ReportDefinition } from '@/lib/reports/types';
-import { SalesRegisterDataProvider } from '@/lib/reports/data-providers/sales-register';
-import { PurchaseRegisterDataProvider } from '@/lib/reports/data-providers/purchase-register';
-import { ReportHeader } from '../shared/report-header';
-import { ReportSummaryDeck } from '../shared/report-summary-deck';
-import { ReportFiltersBar } from '../shared/report-filters-bar';
-import { ReportDataTable } from '../shared/report-data-table';
-import { ReportPagination } from '../shared/report-pagination';
-import { ReportEmptyState, ReportErrorState } from '../shared/report-states';
-import { createReportColumnRegistry } from '@/lib/reports/registry/column-bridge';
-import { defaultVisibility, resolveVisibility } from '@/lib/records/column-registry';
-import { RecordsColumnPicker } from '@/components/ui/records-column-picker';
-import { ReportExportDialog } from '../shared/report-export-dialog';
-import type { ReportExportPayload } from '@/lib/reports/export/types';
+import React, { useState, useMemo, useEffect } from "react";
+import type { ReportDefinition } from "@/lib/reports/types";
+import { SalesRegisterDataProvider } from "@/lib/reports/data-providers/sales-register";
+import { PurchaseRegisterDataProvider } from "@/lib/reports/data-providers/purchase-register";
+import { ReportHeader } from "../shared/report-header";
+import { ReportSummaryDeck } from "../shared/report-summary-deck";
+import { ReportFiltersBar } from "../shared/report-filters-bar";
+import { ReportDataTable } from "../shared/report-data-table";
+import { ReportPagination } from "../shared/report-pagination";
+import { ReportEmptyState, ReportErrorState } from "../shared/report-states";
+import { createReportColumnRegistry } from "@/lib/reports/registry/column-bridge";
+import { defaultVisibility, resolveVisibility } from "@/lib/records/column-registry";
+import { RecordsColumnPicker } from "@/components/ui/records-column-picker";
+import { ReportExportDialog } from "../shared/report-export-dialog";
+import type { ReportExportPayload } from "@/lib/reports/export/types";
+import { useReportCompanyInfo } from "@/hooks/use-report-company-info";
 
 interface DetailedTableTemplateProps {
   definition: ReportDefinition;
   onPrint?: () => void;
   onExport?: () => void;
+  onSelectReport?: (reportId: string) => void;
 }
 
 export function DetailedTableTemplate({
   definition,
   onPrint,
   onExport,
+  onSelectReport,
 }: DetailedTableTemplateProps) {
+  const { companyName, currencySymbol } = useReportCompanyInfo();
+
   const [filters, setFilters] = useState<Record<string, any>>({
     startDate: new Date(new Date().getFullYear(), new Date().getMonth(), 1)
       .toISOString()
-      .split('T')[0],
-    endDate: new Date().toISOString().split('T')[0],
+      .split("T")[0],
+    endDate: new Date().toISOString().split("T")[0],
   });
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(50);
-  const [sortField, setSortField] = useState(definition.defaultSortField || 'created_at');
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>(definition.defaultSortOrder || 'desc');
+  const [sortField, setSortField] = useState(definition.defaultSortField || "created_at");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">(definition.defaultSortOrder || "desc");
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -44,18 +49,18 @@ export function DetailedTableTemplate({
 
   const [isColumnPickerOpen, setIsColumnPickerOpen] = useState(false);
   const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
-  const [exportDialogMode, setExportDialogMode] = useState<'print' | 'export'>('print');
+  const [exportDialogMode, setExportDialogMode] = useState<"print" | "export">("print");
 
   const columnRegistry = useMemo(
     () => createReportColumnRegistry(definition.id, definition.columns),
-    [definition.id, definition.columns]
+    [definition.id, definition.columns],
   );
   const [columnVisibility, setColumnVisibility] = useState<Record<string, boolean>>(() =>
-    defaultVisibility(columnRegistry)
+    defaultVisibility(columnRegistry),
   );
 
   const dataProvider = useMemo(() => {
-    if (definition.dataProviderId === 'dp-purchase-register') {
+    if (definition.dataProviderId === "dp-purchase-register") {
       return new PurchaseRegisterDataProvider();
     }
     return new SalesRegisterDataProvider();
@@ -76,7 +81,7 @@ export function DetailedTableTemplate({
       setMetrics(result.metrics);
       setTotalRowCount(result.totalRowCount);
     } catch (err: any) {
-      setError(err?.message || 'تعذر تحميل بيانات التقرير');
+      setError(err?.message || "تعذر تحميل بيانات التقرير");
     } finally {
       setLoading(false);
     }
@@ -90,10 +95,10 @@ export function DetailedTableTemplate({
 
   function handleSort(field: string) {
     if (sortField === field) {
-      setSortOrder((prev) => (prev === 'asc' ? 'desc' : 'asc'));
+      setSortOrder((prev) => (prev === "asc" ? "desc" : "asc"));
     } else {
       setSortField(field);
-      setSortOrder('desc');
+      setSortOrder("desc");
     }
   }
 
@@ -103,15 +108,15 @@ export function DetailedTableTemplate({
       rows,
       metrics,
       appliedFilters: filters,
-      currencySymbol: 'ر.س',
+      currencySymbol,
     }),
-    [definition, rows, metrics, filters]
+    [definition, rows, metrics, filters, currencySymbol],
   );
 
   const handleOpenPrint = () => {
     if (onPrint) onPrint();
     else {
-      setExportDialogMode('print');
+      setExportDialogMode("print");
       setIsExportDialogOpen(true);
     }
   };
@@ -119,22 +124,21 @@ export function DetailedTableTemplate({
   const handleOpenExport = () => {
     if (onExport) onExport();
     else {
-      setExportDialogMode('export');
+      setExportDialogMode("export");
       setIsExportDialogOpen(true);
     }
   };
 
   return (
-    <div className="flex flex-col rounded-xl border border-border bg-card shadow-xs overflow-hidden">
+    <div className="flex flex-col gap-3 rounded-xl border border-border bg-card shadow-xs p-2 sm:p-3 overflow-hidden">
       <ReportHeader
         definition={definition}
-        loading={loading}
-        onRefresh={fetchData}
-        onPrint={handleOpenPrint}
-        onExport={handleOpenExport}
+        companyName={companyName}
+        costBasisNotice={definition.costBasisNotice}
       />
 
       <ReportFiltersBar
+        definition={definition}
         filters={definition.filters}
         values={filters}
         onChange={(k, v) => {
@@ -142,18 +146,35 @@ export function DetailedTableTemplate({
           setFilters((prev) => ({ ...prev, [k]: v }));
         }}
         onReset={() => setFilters({})}
+        onPreview={fetchData}
         onOpenColumnPicker={() => setIsColumnPickerOpen(true)}
+        onPrint={handleOpenPrint}
+        onExport={handleOpenExport}
+        currentTemplate={definition.viewTemplate}
+        loading={loading}
+        onSelectReport={onSelectReport}
+        totalColumnsCount={definition.columns.length}
+        visibleColumnsCount={
+          definition.columns.filter((c) => columnVisibility[c.key] !== false).length
+        }
       />
 
       <ReportSummaryDeck
         metricsDefinitions={definition.metrics}
         metricsValues={metrics}
+        currencySymbol={currencySymbol}
       />
 
       {error ? (
         <ReportErrorState error={error} onRetry={fetchData} />
       ) : rows.length === 0 && !loading ? (
-        <ReportEmptyState onResetFilters={() => setFilters({})} />
+        <ReportEmptyState
+          onResetFilters={() => setFilters({})}
+          context={{
+            hasAnyFilters: Object.keys(filters).some((k) => Boolean(filters[k])),
+            hasRequiredFilter: true,
+          }}
+        />
       ) : (
         <ReportDataTable
           columns={definition.columns}
@@ -163,6 +184,8 @@ export function DetailedTableTemplate({
           sortField={sortField}
           sortOrder={sortOrder}
           onSort={handleSort}
+          currencySymbol={currencySymbol}
+          companyName={companyName}
         />
       )}
 

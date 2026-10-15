@@ -1,85 +1,99 @@
-import React, { useState, useMemo, useEffect } from 'react';
-import type { ReportDefinition } from '@/lib/reports/types';
-import { executeSalesGroupedReport } from '@/lib/reports/report-execution.functions';
-import { ReportHeader } from '../shared/report-header';
-import { ReportSummaryDeck } from '../shared/report-summary-deck';
-import { ReportFiltersBar } from '../shared/report-filters-bar';
-import { ReportDataTable } from '../shared/report-data-table';
-import { ReportPagination } from '../shared/report-pagination';
-import { ReportEmptyState, ReportErrorState } from '../shared/report-states';
-import { createReportColumnRegistry } from '@/lib/reports/registry/column-bridge';
-import { defaultVisibility, resolveVisibility } from '@/lib/records/column-registry';
-import { RecordsColumnPicker } from '@/components/ui/records-column-picker';
-
-import { ReportExportDialog } from '../shared/report-export-dialog';
-import type { ReportExportPayload } from '@/lib/reports/export/types';
+import React, { useState, useMemo, useEffect } from "react";
+import type { ReportDefinition } from "@/lib/reports/types";
+import { executeSalesGroupedReport } from "@/lib/reports/report-execution.functions";
+import { ReportHeader } from "../shared/report-header";
+import { ReportSummaryDeck } from "../shared/report-summary-deck";
+import { ReportFiltersBar } from "../shared/report-filters-bar";
+import { ReportDataTable } from "../shared/report-data-table";
+import { ReportPagination } from "../shared/report-pagination";
+import { ReportEmptyState, ReportErrorState } from "../shared/report-states";
+import { createReportColumnRegistry } from "@/lib/reports/registry/column-bridge";
+import { defaultVisibility, resolveVisibility } from "@/lib/records/column-registry";
+import { RecordsColumnPicker } from "@/components/ui/records-column-picker";
+import { ReportExportDialog } from "../shared/report-export-dialog";
+import type { ReportExportPayload } from "@/lib/reports/export/types";
+import { useReportCompanyInfo } from "@/hooks/use-report-company-info";
 
 interface GroupedRankingTemplateProps {
   definition: ReportDefinition;
   onPrint?: () => void;
   onExport?: () => void;
+  onSelectReport?: (reportId: string) => void;
 }
 
 export function GroupedRankingTemplate({
   definition,
   onPrint,
   onExport,
+  onSelectReport,
 }: GroupedRankingTemplateProps) {
-  // 1. الفلاتر وحالة الصفحة
+  const { companyName, currencySymbol } = useReportCompanyInfo();
+
   const [filters, setFilters] = useState<Record<string, any>>({
     startDate: new Date(new Date().getFullYear(), new Date().getMonth(), 1)
       .toISOString()
-      .split('T')[0],
-    endDate: new Date().toISOString().split('T')[0],
+      .split("T")[0],
+    endDate: new Date().toISOString().split("T")[0],
   });
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(50);
-  const [sortField, setSortField] = useState(definition.defaultSortField || 'net_sales');
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>(definition.defaultSortOrder || 'desc');
+  const [sortField, setSortField] = useState(definition.defaultSortField || "net_sales");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">(definition.defaultSortOrder || "desc");
 
-  // 2. حالة جلب البيانات
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [rows, setRows] = useState<Record<string, any>[]>([]);
   const [metrics, setMetrics] = useState<Record<string, number>>({});
   const [totalRowCount, setTotalRowCount] = useState(0);
-  const [costBasisNotice, setCostBasisNotice] = useState<'ACTUAL' | 'REFERENCE_ONLY' | 'MIXED'>('ACTUAL');
+  const [costBasisNotice, setCostBasisNotice] = useState<"ACTUAL" | "REFERENCE_ONLY" | "MIXED">(
+    "ACTUAL",
+  );
 
-  // 3. حالة إظهار الأعمدة والحوارات
   const [isColumnPickerOpen, setIsColumnPickerOpen] = useState(false);
   const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
-  const [exportDialogMode, setExportDialogMode] = useState<'print' | 'export'>('print');
+  const [exportDialogMode, setExportDialogMode] = useState<"print" | "export">("print");
+
   const columnRegistry = useMemo(
     () => createReportColumnRegistry(definition.id, definition.columns),
-    [definition.id, definition.columns]
+    [definition.id, definition.columns],
   );
   const [columnVisibility, setColumnVisibility] = useState<Record<string, boolean>>(() =>
-    defaultVisibility(columnRegistry)
+    defaultVisibility(columnRegistry),
   );
 
-  const groupBy = definition.id === 'rep-customers-sales-turnover' ? 'customer' : 'product';
+  const groupBy =
+    definition.id === "rep-customers-sales-turnover" || definition.id === "rep-sales-customer"
+      ? "customer"
+      : definition.id === "rep-sales-branch"
+        ? "branch"
+        : definition.id === "rep-sales-warehouse"
+          ? "warehouse"
+          : definition.id === "rep-sales-payment-method"
+            ? "payment_method"
+            : (definition as any).customGroupBy || "product";
 
-  // التجميع والترتيب والترقيم كلها تنفذ داخل الخادم؛ لا تنقل البنود الخام للواجهة.
   async function fetchData() {
     setLoading(true);
     setError(null);
     try {
-      const result = await executeSalesGroupedReport({ data: {
-        reportId: definition.id,
-        filters,
-        pagination: { page, pageSize },
-        sort: { field: sortField, order: sortOrder },
-        groupBy,
-      }});
+      const result = await executeSalesGroupedReport({
+        data: {
+          reportId: definition.id,
+          filters,
+          pagination: { page, pageSize },
+          sort: { field: sortField, order: sortOrder },
+          groupBy,
+        },
+      });
 
       setRows(result.rows);
       setMetrics(result.metrics);
       setTotalRowCount(result.totalRowCount);
-      if (result.meta.costBasisNotice) {
-        setCostBasisNotice(result.meta.costBasisNotice);
+      if (result.costBasisNotice) {
+        setCostBasisNotice(result.costBasisNotice);
       }
     } catch (err: any) {
-      setError(err?.message || 'حدث خطأ أثناء تحميل بيانات التقرير');
+      setError(err?.message || "تعذر تحميل بيانات التقرير التجميعي");
     } finally {
       setLoading(false);
     }
@@ -87,16 +101,16 @@ export function GroupedRankingTemplate({
 
   useEffect(() => {
     fetchData();
-  }, [filters, page, pageSize, sortField, sortOrder, groupBy]);
+  }, [filters, page, pageSize, sortField, sortOrder]);
 
   const totalPages = Math.ceil(totalRowCount / pageSize) || 1;
 
   function handleSort(field: string) {
     if (sortField === field) {
-      setSortOrder((prev) => (prev === 'asc' ? 'desc' : 'asc'));
+      setSortOrder((prev) => (prev === "asc" ? "desc" : "asc"));
     } else {
       setSortField(field);
-      setSortOrder('desc');
+      setSortOrder("desc");
     }
   }
 
@@ -106,16 +120,15 @@ export function GroupedRankingTemplate({
       rows,
       metrics,
       appliedFilters: filters,
-      costBasisNotice,
-      currencySymbol: 'ر.س',
+      currencySymbol,
     }),
-    [definition, rows, metrics, filters, costBasisNotice]
+    [definition, rows, metrics, filters, currencySymbol],
   );
 
   const handleOpenPrint = () => {
     if (onPrint) onPrint();
     else {
-      setExportDialogMode('print');
+      setExportDialogMode("print");
       setIsExportDialogOpen(true);
     }
   };
@@ -123,25 +136,21 @@ export function GroupedRankingTemplate({
   const handleOpenExport = () => {
     if (onExport) onExport();
     else {
-      setExportDialogMode('export');
+      setExportDialogMode("export");
       setIsExportDialogOpen(true);
     }
   };
 
   return (
-    <div className="flex flex-col rounded-xl border border-border bg-card shadow-xs overflow-hidden">
-      {/* 1. ترويسة التقرير */}
+    <div className="flex flex-col gap-3 rounded-xl border border-border bg-card shadow-xs p-2 sm:p-3 overflow-hidden">
       <ReportHeader
         definition={definition}
+        companyName={companyName}
         costBasisNotice={costBasisNotice}
-        loading={loading}
-        onRefresh={fetchData}
-        onPrint={handleOpenPrint}
-        onExport={handleOpenExport}
       />
 
-      {/* 2. شريط الفلاتر الديناميكي */}
       <ReportFiltersBar
+        definition={definition}
         filters={definition.filters}
         values={filters}
         onChange={(k, v) => {
@@ -149,20 +158,35 @@ export function GroupedRankingTemplate({
           setFilters((prev) => ({ ...prev, [k]: v }));
         }}
         onReset={() => setFilters({})}
+        onPreview={fetchData}
         onOpenColumnPicker={() => setIsColumnPickerOpen(true)}
+        onPrint={handleOpenPrint}
+        onExport={handleOpenExport}
+        currentTemplate={definition.viewTemplate}
+        loading={loading}
+        onSelectReport={onSelectReport}
+        totalColumnsCount={definition.columns.length}
+        visibleColumnsCount={
+          definition.columns.filter((c) => columnVisibility[c.key] !== false).length
+        }
       />
 
-      {/* 3. بطاقات المؤشرات والإجماليات */}
       <ReportSummaryDeck
         metricsDefinitions={definition.metrics}
         metricsValues={metrics}
+        currencySymbol={currencySymbol}
       />
 
-      {/* 4. جدول البيانات أو حالات الخطأ والعدم */}
       {error ? (
         <ReportErrorState error={error} onRetry={fetchData} />
       ) : rows.length === 0 && !loading ? (
-        <ReportEmptyState onResetFilters={() => setFilters({})} />
+        <ReportEmptyState
+          onResetFilters={() => setFilters({})}
+          context={{
+            hasAnyFilters: Object.keys(filters).some((k) => Boolean(filters[k])),
+            hasRequiredFilter: true,
+          }}
+        />
       ) : (
         <ReportDataTable
           columns={definition.columns}
@@ -172,10 +196,11 @@ export function GroupedRankingTemplate({
           sortField={sortField}
           sortOrder={sortOrder}
           onSort={handleSort}
+          currencySymbol={currencySymbol}
+          companyName={companyName}
         />
       )}
 
-      {/* 5. شريط الترقيم */}
       {totalRowCount > 0 && (
         <ReportPagination
           page={page}
@@ -190,7 +215,6 @@ export function GroupedRankingTemplate({
         />
       )}
 
-      {/* نافذة تخصيص الأعمدة */}
       <RecordsColumnPicker
         open={isColumnPickerOpen}
         onOpenChange={setIsColumnPickerOpen}
@@ -201,7 +225,6 @@ export function GroupedRankingTemplate({
         }
       />
 
-      {/* نافذة خيارات الطباعة والتصدير الموحدة */}
       <ReportExportDialog
         open={isExportDialogOpen}
         onOpenChange={setIsExportDialogOpen}

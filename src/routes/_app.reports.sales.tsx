@@ -27,7 +27,7 @@ function ReportsSalesPage() {
       activeReportId={activeReportId}
       onSelectReport={selectReport}
     >
-      <ReportTemplateRenderer definition={reportDef} />
+      <ReportTemplateRenderer definition={reportDef} onSelectReport={selectReport} />
     </DomainReportShell>
   );
 }

@@ -13,24 +13,23 @@ import { defaultVisibility, resolveVisibility } from "@/lib/records/column-regis
 import { RecordsColumnPicker } from "@/components/ui/records-column-picker";
 import { ReportExportDialog } from "../shared/report-export-dialog";
 import type { ReportExportPayload } from "@/lib/reports/export/types";
+import { useReportCompanyInfo } from "@/hooks/use-report-company-info";
 
 interface StatusExceptionsTemplateProps {
   definition: ReportDefinition;
   onPrint?: () => void;
   onExport?: () => void;
+  onSelectReport?: (reportId: string) => void;
 }
 
-/**
- * قالب تقرير الحالات والاستثناءات (Status & Exceptions Template) — المرحلة 5.
- *
- * يفرز العمليات غير الطبيعية التي تتطلب تدخلاً (نواقص، أصناف راكدة، فجوات تصنيف).
- * التصنيف والعدّ والفرز يحدث في الخادم عبر `executeExceptionsReport`.
- */
 export function StatusExceptionsTemplate({
   definition,
   onPrint,
   onExport,
+  onSelectReport,
 }: StatusExceptionsTemplateProps) {
+  const { companyName, currencySymbol } = useReportCompanyInfo();
+
   const [filters, setFilters] = useState<Record<string, any>>({
     startDate: new Date(new Date().getFullYear(), new Date().getMonth(), 1)
       .toISOString()
@@ -107,9 +106,9 @@ export function StatusExceptionsTemplate({
       rows,
       metrics,
       appliedFilters: filters,
-      currencySymbol: "ر.س",
+      currencySymbol,
     }),
-    [definition, rows, metrics, filters],
+    [definition, rows, metrics, filters, currencySymbol],
   );
 
   const handleOpenPrint = () => {
@@ -131,16 +130,15 @@ export function StatusExceptionsTemplate({
   const hasExceptions = totalRowCount > 0;
 
   return (
-    <div className="flex flex-col rounded-xl border border-border bg-card shadow-xs overflow-hidden">
+    <div className="flex flex-col gap-3 rounded-xl border border-border bg-card shadow-xs p-2 sm:p-3 overflow-hidden">
       <ReportHeader
         definition={definition}
-        loading={loading}
-        onRefresh={fetchData}
-        onPrint={handleOpenPrint}
-        onExport={handleOpenExport}
+        companyName={companyName}
+        costBasisNotice={definition.costBasisNotice}
       />
 
       <ReportFiltersBar
+        definition={definition}
         filters={definition.filters}
         values={filters}
         onChange={(k, v) => {
@@ -148,34 +146,48 @@ export function StatusExceptionsTemplate({
           setFilters((prev) => ({ ...prev, [k]: v }));
         }}
         onReset={() => setFilters({})}
+        onPreview={fetchData}
         onOpenColumnPicker={() => setIsColumnPickerOpen(true)}
+        onPrint={handleOpenPrint}
+        onExport={handleOpenExport}
+        currentTemplate={definition.viewTemplate}
+        loading={loading}
+        onSelectReport={onSelectReport}
+        totalColumnsCount={definition.columns.length}
+        visibleColumnsCount={
+          definition.columns.filter((c) => columnVisibility[c.key] !== false).length
+        }
       />
 
-      {/* شارة حالة الاستثناءات: تُبرز ما إذا كانت هناك حالات تحتاج تدخلاً */}
+      {/* Exception Status Banner with system styling */}
       <div
-        className={`flex items-center gap-2 border-b px-4 py-2.5 text-xs font-semibold ${
+        className={`flex items-center gap-2 rounded-lg border px-4 py-2.5 text-xs font-semibold ${
           hasExceptions
             ? "border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-400"
             : "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
         }`}
       >
         {loading ? (
-          <ShieldAlert className="h-3.5 w-3.5" />
+          <ShieldAlert className="h-4 w-4 animate-pulse text-muted-foreground" />
         ) : hasExceptions ? (
-          <AlertTriangle className="h-3.5 w-3.5" />
+          <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400" />
         ) : (
-          <CheckCircle2 className="h-3.5 w-3.5" />
+          <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
         )}
         <span>
           {loading
-            ? "جارٍ فحص الحالات والاستثناءات..."
+            ? "جارٍ فحص الحالات والاستثناءات وتدقيق السجلات..."
             : hasExceptions
-              ? `تم رصد ${totalRowCount.toLocaleString("en-US")} حالة تتطلب المراجعة`
-              : "لا توجد حالات استثناء — جميع السجلات سليمة"}
+              ? `تم رصد ${totalRowCount.toLocaleString("en-US")} حالة تتطلب المراجعة الفورية`
+              : "لا توجد حالات استثناء — جميع السجلات سليمة ومطابقة للمحددات"}
         </span>
       </div>
 
-      <ReportSummaryDeck metricsDefinitions={definition.metrics} metricsValues={metrics} />
+      <ReportSummaryDeck
+        metricsDefinitions={definition.metrics}
+        metricsValues={metrics}
+        currencySymbol={currencySymbol}
+      />
 
       {error ? (
         <ReportErrorState error={error} onRetry={fetchData} />
@@ -184,6 +196,10 @@ export function StatusExceptionsTemplate({
           title="لا توجد استثناءات مطابقة"
           description="لم تُرصد أي حالات غير طبيعية ضمن الفلاتر المحددة."
           onResetFilters={() => setFilters({})}
+          context={{
+            hasAnyFilters: Object.keys(filters).some((k) => Boolean(filters[k])),
+            hasRequiredFilter: true,
+          }}
         />
       ) : (
         <ReportDataTable
@@ -194,6 +210,8 @@ export function StatusExceptionsTemplate({
           sortField={sortField}
           sortOrder={sortOrder}
           onSort={handleSort}
+          currencySymbol={currencySymbol}
+          companyName={companyName}
         />
       )}
 

@@ -15,11 +15,13 @@ import { defaultVisibility, resolveVisibility } from "@/lib/records/column-regis
 import { RecordsColumnPicker } from "@/components/ui/records-column-picker";
 import { ReportExportDialog } from "../shared/report-export-dialog";
 import type { ReportExportPayload } from "@/lib/reports/export/types";
+import { useReportCompanyInfo } from "@/hooks/use-report-company-info";
 
 interface ComparisonTemplateProps {
   definition: ReportDefinition;
   onPrint?: () => void;
   onExport?: () => void;
+  onSelectReport?: (reportId: string) => void;
 }
 
 function formatPercent(value: number | undefined) {
@@ -27,14 +29,14 @@ function formatPercent(value: number | undefined) {
   return `${value > 0 ? "+" : ""}${Number(value).toFixed(2)}%`;
 }
 
-/**
- * قالب تقرير المقارنة والتحليل (Comparison Template) — المرحلة 5.
- *
- * يقارن مقياسًا بين فترتين زمنيتين ويبرز الفارق المطلق ونسبة التغير.
- * كتلة المقارنة تُحسب بالكامل في الخادم عبر `executeComparisonReport`،
- * فلا يُنقل أي تجميع خام إلى المتصفح.
- */
-export function ComparisonTemplate({ definition, onPrint, onExport }: ComparisonTemplateProps) {
+export function ComparisonTemplate({
+  definition,
+  onPrint,
+  onExport,
+  onSelectReport,
+}: ComparisonTemplateProps) {
+  const { companyName, currencySymbol } = useReportCompanyInfo();
+
   const [filters, setFilters] = useState<Record<string, any>>({
     startDate: new Date(new Date().getFullYear(), new Date().getMonth(), 1)
       .toISOString()
@@ -43,6 +45,8 @@ export function ComparisonTemplate({ definition, onPrint, onExport }: Comparison
   });
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(50);
+  const [sortField, setSortField] = useState(definition.defaultSortField || "created_at");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">(definition.defaultSortOrder || "desc");
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -73,7 +77,6 @@ export function ComparisonTemplate({ definition, onPrint, onExport }: Comparison
     defaultVisibility(columnRegistry),
   );
 
-  // مزود الصفوف التفصيلية يبقى كما هو؛ كتلة المقارنة تأتي من دالة خادمية مخصصة.
   const detailProvider = useMemo(() => {
     if (definition.dataProviderId === "dp-purchase-register") {
       return new PurchaseRegisterDataProvider();
@@ -93,8 +96,8 @@ export function ComparisonTemplate({ definition, onPrint, onExport }: Comparison
           filters,
           pagination: { page, pageSize },
           sort: {
-            field: definition.defaultSortField || "created_at",
-            order: definition.defaultSortOrder || "desc",
+            field: sortField,
+            order: sortOrder,
           },
         }),
         executeComparisonReport({
@@ -109,9 +112,9 @@ export function ComparisonTemplate({ definition, onPrint, onExport }: Comparison
       setRows(detailResult.rows);
       setMetrics(detailResult.metrics);
       setTotalRowCount(detailResult.totalRowCount);
-      setComparison(comparisonResult.comparison);
+      setComparison(comparisonResult);
     } catch (err: any) {
-      setError(err?.message || "تعذر تحميل بيانات تقرير المقارنة");
+      setError(err?.message || "تعذر تحميل بيانات المقارنة");
     } finally {
       setLoading(false);
     }
@@ -119,9 +122,18 @@ export function ComparisonTemplate({ definition, onPrint, onExport }: Comparison
 
   useEffect(() => {
     fetchData();
-  }, [filters, page, pageSize]);
+  }, [filters, page, pageSize, sortField, sortOrder]);
 
   const totalPages = Math.ceil(totalRowCount / pageSize) || 1;
+
+  function handleSort(field: string) {
+    if (sortField === field) {
+      setSortOrder((prev) => (prev === "asc" ? "desc" : "asc"));
+    } else {
+      setSortField(field);
+      setSortOrder("desc");
+    }
+  }
 
   const exportPayload: ReportExportPayload = useMemo(
     () => ({
@@ -129,18 +141,9 @@ export function ComparisonTemplate({ definition, onPrint, onExport }: Comparison
       rows,
       metrics,
       appliedFilters: filters,
-      currencySymbol: "ر.س",
-      comparison: comparison
-        ? {
-            metricLabelAr: comparison.metricLabelAr,
-            currentValue: comparison.currentValue,
-            previousValue: comparison.previousValue,
-            absoluteDelta: comparison.absoluteDelta,
-            percentChange: comparison.percentChange,
-          }
-        : undefined,
+      currencySymbol,
     }),
-    [definition, rows, metrics, filters, comparison],
+    [definition, rows, metrics, filters, currencySymbol],
   );
 
   const handleOpenPrint = () => {
@@ -161,19 +164,18 @@ export function ComparisonTemplate({ definition, onPrint, onExport }: Comparison
 
   const deltaIsUp = (comparison?.absoluteDelta ?? 0) > 0;
   const deltaIsFlat = (comparison?.absoluteDelta ?? 0) === 0;
-  const favorable = comparison ? comparison.percentChange !== null : false;
+  const favorable = definition.comparison?.favorableDirection === "down" ? !deltaIsUp : deltaIsUp;
 
   return (
-    <div className="flex flex-col rounded-xl border border-border bg-card shadow-xs overflow-hidden">
+    <div className="flex flex-col gap-3 rounded-xl border border-border bg-card shadow-xs p-2 sm:p-3 overflow-hidden">
       <ReportHeader
         definition={definition}
-        loading={loading}
-        onRefresh={fetchData}
-        onPrint={handleOpenPrint}
-        onExport={handleOpenExport}
+        companyName={companyName}
+        costBasisNotice={definition.costBasisNotice}
       />
 
       <ReportFiltersBar
+        definition={definition}
         filters={definition.filters}
         values={filters}
         onChange={(k, v) => {
@@ -181,14 +183,26 @@ export function ComparisonTemplate({ definition, onPrint, onExport }: Comparison
           setFilters((prev) => ({ ...prev, [k]: v }));
         }}
         onReset={() => setFilters({})}
+        onPreview={fetchData}
         onOpenColumnPicker={() => setIsColumnPickerOpen(true)}
+        onPrint={handleOpenPrint}
+        onExport={handleOpenExport}
+        currentTemplate={definition.viewTemplate}
+        loading={loading}
+        onSelectReport={onSelectReport}
+        totalColumnsCount={definition.columns.length}
+        visibleColumnsCount={
+          definition.columns.filter((c) => columnVisibility[c.key] !== false).length
+        }
       />
 
-      {/* كتلة المقارنة: الفارق المطلق ونسبة التغير محسوبان في الخادم */}
       {comparison && (
-        <div className="border-b border-border bg-muted/20 p-4">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-stretch sm:gap-4">
-            <div className="flex-1 rounded-lg border border-border/60 bg-card/60 p-3">
+        <div className="rounded-xl border border-border bg-muted/20 p-3 shadow-xs">
+          <div className="text-xs font-semibold text-foreground mb-2">
+            مقارنة الأداء والنمو: {comparison.metricLabelAr}
+          </div>
+          <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
+            <div className="rounded-lg border border-border bg-card p-3">
               <div className="text-[11px] font-medium text-muted-foreground">
                 {comparison.metricLabelAr} — الفترة الحالية
               </div>
@@ -196,41 +210,37 @@ export function ComparisonTemplate({ definition, onPrint, onExport }: Comparison
                 {Number(comparison.currentValue).toLocaleString("en-US", {
                   minimumFractionDigits: comparison.format === "money" ? 2 : 0,
                   maximumFractionDigits: comparison.format === "money" ? 2 : 3,
-                })}
+                })}{" "}
+                {comparison.format === "money" ? currencySymbol : ""}
               </div>
             </div>
 
-            <div className="flex-1 rounded-lg border border-border/60 bg-card/60 p-3">
-              <div className="text-[11px] font-medium text-muted-foreground">
+            <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-3">
+              <div className="text-[11px] font-medium text-slate-400">
                 {comparison.metricLabelAr} — الفترة السابقة
               </div>
               <div className="mt-1 font-mono text-base font-bold text-foreground">
                 {Number(comparison.previousValue).toLocaleString("en-US", {
                   minimumFractionDigits: comparison.format === "money" ? 2 : 0,
                   maximumFractionDigits: comparison.format === "money" ? 2 : 3,
-                })}
+                })}{" "}
+                {comparison.format === "money" ? currencySymbol : ""}
               </div>
             </div>
 
             <div
-              className={`flex-1 rounded-lg border p-3 ${
+              className={`rounded-xl border p-3 ${
                 deltaIsFlat
-                  ? "border-border/60 bg-card/60"
+                  ? "border-slate-800 bg-slate-950/60"
                   : deltaIsUp
                     ? "border-emerald-500/30 bg-emerald-500/10"
                     : "border-rose-500/30 bg-rose-500/10"
               }`}
             >
-              <div className="text-[11px] font-medium text-muted-foreground">
-                الفارق ونسبة التغير
-              </div>
+              <div className="text-[11px] font-medium text-slate-400">الفارق ونسبة التغير</div>
               <div
                 className={`mt-1 flex items-center gap-2 font-mono text-base font-bold ${
-                  deltaIsFlat
-                    ? "text-foreground"
-                    : deltaIsUp
-                      ? "text-emerald-600 dark:text-emerald-400"
-                      : "text-rose-600 dark:text-rose-400"
+                  deltaIsFlat ? "text-foreground" : deltaIsUp ? "text-emerald-400" : "text-rose-400"
                 }`}
               >
                 {deltaIsFlat ? (
@@ -244,34 +254,45 @@ export function ComparisonTemplate({ definition, onPrint, onExport }: Comparison
                   {Number(comparison.absoluteDelta).toLocaleString("en-US", {
                     minimumFractionDigits: comparison.format === "money" ? 2 : 0,
                     maximumFractionDigits: comparison.format === "money" ? 2 : 3,
-                  })}
+                  })}{" "}
+                  {comparison.format === "money" ? currencySymbol : ""}
                 </span>
                 <span className="text-xs">
                   ({favorable ? formatPercent(comparison.percentChange ?? undefined) : "—"})
                 </span>
               </div>
-              {comparison.previousStartDate && comparison.previousEndDate && (
-                <div className="mt-1 text-[9px] text-muted-foreground/80">
-                  الفترة المقارنة: {comparison.previousStartDate} → {comparison.previousEndDate}
-                </div>
-              )}
             </div>
           </div>
         </div>
       )}
 
-      <ReportSummaryDeck metricsDefinitions={definition.metrics} metricsValues={metrics} />
+      <ReportSummaryDeck
+        metricsDefinitions={definition.metrics}
+        metricsValues={metrics}
+        currencySymbol={currencySymbol}
+      />
 
       {error ? (
         <ReportErrorState error={error} onRetry={fetchData} />
       ) : rows.length === 0 && !loading ? (
-        <ReportEmptyState onResetFilters={() => setFilters({})} />
+        <ReportEmptyState
+          onResetFilters={() => setFilters({})}
+          context={{
+            hasAnyFilters: Object.keys(filters).some((k) => Boolean(filters[k])),
+            hasRequiredFilter: true,
+          }}
+        />
       ) : (
         <ReportDataTable
           columns={definition.columns}
           rows={rows}
           loading={loading}
           columnVisibility={columnVisibility}
+          sortField={sortField}
+          sortOrder={sortOrder}
+          onSort={handleSort}
+          currencySymbol={currencySymbol}
+          companyName={companyName}
         />
       )}
 

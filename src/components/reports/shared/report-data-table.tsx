@@ -1,230 +1,237 @@
-import React, { useMemo } from 'react';
-import { ArrowDown, ArrowUp, ArrowUpDown } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
-import type { ReportColumnDefinition } from '@/lib/reports/types';
+import { ArrowUpDown, ArrowUp, ArrowDown, Table2, Building2 } from "lucide-react";
+import type { ReportColumnDefinition } from "@/lib/reports/types";
+import { Ltr } from "@/components/ltr-value";
+import { useReportCompanyInfo } from "@/hooks/use-report-company-info";
 
 interface ReportDataTableProps {
   columns: ReportColumnDefinition[];
   rows: Record<string, any>[];
-  columnVisibility?: Record<string, boolean>;
   sortField?: string;
-  sortOrder?: 'asc' | 'desc';
+  sortOrder?: "asc" | "desc";
   onSort?: (field: string) => void;
-  currencySymbol?: string;
   loading?: boolean;
+  currencySymbol?: string;
 }
-
-const moneyFormatter = new Intl.NumberFormat('en-US', {
-  minimumFractionDigits: 2,
-  maximumFractionDigits: 2,
-});
-const quantityFormatter = new Intl.NumberFormat('en-US', {
-  minimumFractionDigits: 0,
-  maximumFractionDigits: 3,
-});
 
 export function ReportDataTable({
   columns,
   rows,
-  columnVisibility,
   sortField,
   sortOrder,
   onSort,
-  currencySymbol = 'ر.س',
-  loading = false,
+  loading,
+  currencySymbol = "ر.ي",
 }: ReportDataTableProps) {
-  // لا نعيد حساب الأعمدة وإجمالياتها البصرية إلا عند تغير مصدرها فعلياً.
-  const visibleColumns = useMemo(() => columns.filter((col) => {
-    if (col.essential) return true;
-    if (columnVisibility && columnVisibility[col.key] !== undefined) {
-      return columnVisibility[col.key];
-    }
-    return col.defaultVisible;
-  }), [columns, columnVisibility]);
+  const { companyName } = useReportCompanyInfo();
+  const visibleColumns = columns.filter((col) => col.defaultVisible !== false);
+  const hasAggregates = visibleColumns.some((col) => col.aggregate);
 
   function formatCellValue(val: any, col: ReportColumnDefinition) {
-    if (val === undefined || val === null || val === '') return '—';
+    if (val === undefined || val === null || val === "") {
+      return <span className="text-muted-foreground/50">—</span>;
+    }
+
+    const unit = col.unit || currencySymbol;
 
     switch (col.dataType) {
-      case 'money':
-        return `${moneyFormatter.format(Number(val || 0))} ${col.unit || currencySymbol}`;
-
-      case 'quantity':
-        return quantityFormatter.format(Number(val || 0));
-
-      case 'percentage':
-        return `${Number(val || 0).toFixed(2)}%`;
-
-      case 'code':
-        return <span className="font-mono text-xs font-semibold">{String(val)}</span>;
-
-      case 'status_badge':
+      case "money": {
+        const num = Number(val);
+        if (isNaN(num)) return String(val);
         return (
-          <Badge variant="secondary" className="font-medium text-[11px]">
-            {String(val)}
-          </Badge>
+          <Ltr>
+            <span className="font-mono font-medium">
+              {num.toLocaleString("en-US", {
+                minimumFractionDigits: 0,
+                maximumFractionDigits: 2,
+              })}
+            </span>{" "}
+            <span className="text-[10px] text-muted-foreground">{unit}</span>
+          </Ltr>
         );
-
-      case 'datetime':
-        try {
-          const d = new Date(val);
-          if (Number.isNaN(d.getTime())) return String(val);
-          return d.toLocaleString('ar-SA', {
-            year: 'numeric',
-            month: '2-digit',
-            day: '2-digit',
-            hour: '2-digit',
-            minute: '2-digit',
-          });
-        } catch {
-          return String(val);
-        }
-
-      case 'date':
-        try {
-          const d = new Date(val);
-          if (Number.isNaN(d.getTime())) return String(val);
-          return d.toLocaleDateString('ar-SA');
-        } catch {
-          return String(val);
-        }
-
+      }
+      case "percentage": {
+        const num = Number(val);
+        if (isNaN(num)) return String(val);
+        return <Ltr className="font-mono">{num.toFixed(2)}%</Ltr>;
+      }
+      case "quantity": {
+        const num = Number(val);
+        if (isNaN(num)) return String(val);
+        return (
+          <Ltr>
+            <span className="font-mono">{num.toLocaleString("en-US")}</span>{" "}
+            {col.unit && <span className="text-[10px] text-muted-foreground">{col.unit}</span>}
+          </Ltr>
+        );
+      }
+      case "date": {
+        const str = String(val);
+        if (str.includes("T")) return str.split("T")[0];
+        return str;
+      }
+      case "code":
+        return <span className="font-mono text-xs">{String(val)}</span>;
       default:
         return String(val);
     }
   }
 
-  // احتساب السطر الختامي للإجماليات (Footer Aggregates)
-  const hasAggregates = visibleColumns.some((col) => col.aggregate && col.aggregate !== 'none');
-
   function calculateAggregate(col: ReportColumnDefinition) {
-    if (!col.aggregate || col.aggregate === 'none' || rows.length === 0) return '';
+    if (!col.aggregate) return "";
 
-    if (col.aggregate === 'count') {
-      return rows.length.toLocaleString('en-US');
+    const nums = rows.map((r) => Number(r[col.key]) || 0);
+
+    if (col.aggregate === "sum") {
+      const sum = nums.reduce((a, b) => a + b, 0);
+      return formatCellValue(sum, col);
+    }
+    if (col.aggregate === "avg") {
+      const avg = nums.length > 0 ? nums.reduce((a, b) => a + b, 0) / nums.length : 0;
+      return formatCellValue(avg, col);
+    }
+    if (col.aggregate === "count") {
+      return (
+        <Ltr className="font-mono">
+          {nums.length} <span className="text-[10px] text-muted-foreground">سجل</span>
+        </Ltr>
+      );
     }
 
-    let sum = 0;
-    for (const r of rows) {
-      sum += Number(r[col.key]) || 0;
-    }
-
-    if (col.aggregate === 'sum') {
-      if (col.dataType === 'money') {
-        return `${moneyFormatter.format(sum)} ${col.unit || currencySymbol}`;
-      }
-      return quantityFormatter.format(sum);
-    }
-
-    if (col.aggregate === 'avg') {
-      const avg = sum / rows.length;
-      return avg.toFixed(2);
-    }
-
-    return '';
+    return "";
   }
 
   return (
-    <div className="relative w-full overflow-auto overscroll-contain" role="region" aria-label="بيانات التقرير" tabIndex={0}>
-      <table className="w-full min-w-max text-right text-xs border-collapse">
-        <thead className="sticky top-0 z-10 shadow-[0_1px_0_hsl(var(--border))]">
-          <tr className="border-b border-border bg-muted/40 font-semibold text-muted-foreground">
-            {visibleColumns.map((col) => {
-              const isSorted = sortField === col.key;
-              const alignClass =
-                col.align === 'left'
-                  ? 'text-left'
-                  : col.align === 'center'
-                  ? 'text-center'
-                  : 'text-right';
+    <div className="w-full overflow-hidden rounded-xl border border-border bg-card shadow-xs">
+      {/* ── Table Top Bar بتنسيق ألوان النظام ── */}
+      <div className="flex items-center justify-between border-b border-border bg-muted/40 px-4 py-2.5">
+        <div className="flex items-center gap-2">
+          <Table2 className="h-4 w-4 text-primary" />
+          <span className="text-xs sm:text-sm font-semibold tracking-tight text-foreground font-mono">
+            جدول البيانات التفصيلية
+          </span>
+          <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] text-muted-foreground font-mono">
+            {rows.length} سجل
+          </span>
+        </div>
 
-              return (
-                <th
-                  key={col.key}
-                  onClick={() => onSort?.(col.key)}
-                  aria-sort={isSorted ? (sortOrder === 'asc' ? 'ascending' : 'descending') : 'none'}
-                  className={`p-3 whitespace-nowrap select-none ${alignClass} ${
-                    onSort ? 'cursor-pointer hover:text-foreground' : ''
-                  }`}
-                >
-                  <div className={`inline-flex items-center gap-1.5 ${
-                    col.align === 'left' ? 'flex-row-reverse' : ''
-                  }`}>
-                    <span>{col.labelAr}</span>
-                    {onSort && (
-                      <span className="text-muted-foreground/60">
-                        {isSorted ? (
-                          sortOrder === 'asc' ? (
-                            <ArrowUp className="h-3 w-3 text-primary" />
-                          ) : (
-                            <ArrowDown className="h-3 w-3 text-primary" />
-                          )
-                        ) : (
-                          <ArrowUpDown className="h-3 w-3" />
-                        )}
-                      </span>
-                    )}
-                  </div>
-                </th>
-              );
-            })}
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-border/60">
-          {loading && rows.length === 0 && Array.from({ length: 6 }).map((_, rowIndex) => (
-            <tr key={`skeleton-${rowIndex}`} className="animate-pulse">
-              {visibleColumns.map((column) => (
-                <td key={column.key} className="p-3">
-                  <div className="h-3.5 min-w-20 rounded bg-muted/70" />
-                </td>
-              ))}
-            </tr>
-          ))}
-          {rows.map((row, rIdx) => (
-            <tr
-              key={row.id || row.invoice_item_id || row.invoice_id || rIdx}
-              className="odd:bg-muted/[0.02] hover:bg-primary/[0.045] transition-colors"
-            >
+        <div className="flex items-center gap-2">
+          <Building2 className="h-4 w-4 text-primary" />
+          <span className="text-xs sm:text-sm font-semibold text-foreground">{companyName}</span>
+        </div>
+      </div>
+
+      {/* ── Responsive Table ── */}
+      <div className="overflow-x-auto [scrollbar-width:thin]">
+        <table className="w-full text-xs text-right border-collapse">
+          <thead>
+            <tr className="border-b border-border bg-muted/30 font-semibold text-foreground">
               {visibleColumns.map((col) => {
+                const isSorted = sortField === col.key;
                 const alignClass =
-                  col.align === 'left'
-                    ? 'text-left font-mono'
-                    : col.align === 'center'
-                    ? 'text-center'
-                    : 'text-right';
+                  col.align === "left"
+                    ? "text-left"
+                    : col.align === "center"
+                      ? "text-center"
+                      : "text-right";
 
                 return (
-                  <td key={col.key} className={`p-3 whitespace-nowrap tabular-nums ${alignClass}`}>
-                    {formatCellValue(row[col.key], col)}
-                  </td>
+                  <th
+                    key={col.key}
+                    onClick={() => onSort?.(col.key)}
+                    aria-sort={
+                      isSorted ? (sortOrder === "asc" ? "ascending" : "descending") : "none"
+                    }
+                    className={`py-2.5 px-3 whitespace-nowrap select-none ${alignClass} ${
+                      onSort ? "cursor-pointer hover:text-foreground transition-colors" : ""
+                    }`}
+                  >
+                    <div
+                      className={`inline-flex items-center gap-1.5 ${
+                        col.align === "left" ? "flex-row-reverse" : ""
+                      }`}
+                    >
+                      <span>{col.labelAr}</span>
+                      {onSort && (
+                        <span className="text-muted-foreground">
+                          {isSorted ? (
+                            sortOrder === "asc" ? (
+                              <ArrowUp className="h-3 w-3 text-primary" />
+                            ) : (
+                              <ArrowDown className="h-3 w-3 text-primary" />
+                            )
+                          ) : (
+                            <ArrowUpDown className="h-3 w-3 opacity-40" />
+                          )}
+                        </span>
+                      )}
+                    </div>
+                  </th>
                 );
               })}
             </tr>
-          ))}
-        </tbody>
-        {hasAggregates && rows.length > 0 && (
-          <tfoot>
-            <tr className="border-t-2 border-border bg-muted/50 font-bold text-foreground">
-              {visibleColumns.map((col, idx) => {
-                const alignClass =
-                  col.align === 'left'
-                    ? 'text-left font-mono'
-                    : col.align === 'center'
-                    ? 'text-center'
-                    : 'text-right';
+          </thead>
 
-                return (
-                  <td key={col.key} className={`p-3 whitespace-nowrap ${alignClass}`}>
-                    {idx === 0 && !col.aggregate
-                      ? 'الإجمالي'
-                      : calculateAggregate(col)}
-                  </td>
-                );
-              })}
-            </tr>
-          </tfoot>
-        )}
-      </table>
+          <tbody className="divide-y divide-border">
+            {loading &&
+              rows.length === 0 &&
+              Array.from({ length: 6 }).map((_, rowIndex) => (
+                <tr key={`skeleton-${rowIndex}`} className="animate-pulse">
+                  {visibleColumns.map((column) => (
+                    <td key={column.key} className="p-3">
+                      <div className="h-4 min-w-20 rounded bg-muted" />
+                    </td>
+                  ))}
+                </tr>
+              ))}
+
+            {rows.map((row, rIdx) => (
+              <tr
+                key={row.id || row.invoice_item_id || row.invoice_id || rIdx}
+                className="hover:bg-muted/40 transition-colors"
+              >
+                {visibleColumns.map((col) => {
+                  const alignClass =
+                    col.align === "left"
+                      ? "text-left font-mono"
+                      : col.align === "center"
+                        ? "text-center"
+                        : "text-right";
+
+                  return (
+                    <td
+                      key={col.key}
+                      className={`py-2.5 px-3 whitespace-nowrap tabular-nums ${alignClass}`}
+                    >
+                      {formatCellValue(row[col.key], col)}
+                    </td>
+                  );
+                })}
+              </tr>
+            ))}
+          </tbody>
+
+          {hasAggregates && rows.length > 0 && (
+            <tfoot>
+              <tr className="border-t-2 border-border bg-muted/40 font-bold text-foreground">
+                {visibleColumns.map((col, idx) => {
+                  const alignClass =
+                    col.align === "left"
+                      ? "text-left font-mono"
+                      : col.align === "center"
+                        ? "text-center"
+                        : "text-right";
+
+                  return (
+                    <td key={col.key} className={`py-2.5 px-3 whitespace-nowrap ${alignClass}`}>
+                      {idx === 0 && !col.aggregate ? "الإجمالي" : calculateAggregate(col)}
+                    </td>
+                  );
+                })}
+              </tr>
+            </tfoot>
+          )}
+        </table>
+      </div>
     </div>
   );
 }
