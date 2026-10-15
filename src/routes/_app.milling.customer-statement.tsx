@@ -10,7 +10,7 @@
 import { createFileRoute, useSearch } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { FileText, Scale, Wallet, TriangleAlert, Link2 } from "lucide-react";
+import { FileText, Scale, Wallet, TriangleAlert, Link2, Receipt } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/page-header";
 import { ModuleGuard } from "@/lib/modules";
@@ -185,6 +185,15 @@ function CustomerStatementPage() {
                     icon={<FileText className="h-4 w-4" />}
                     title={list[0].customer_name_ar || "عميل"}
                     subtitle={`المخزن: ${list[0].warehouse_name_ar || "—"}`}
+                    action={
+                      <a
+                        href={`/sales?customerId=${encodeURIComponent(customerId)}`}
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-primary/40 bg-primary/10 px-3 py-1.5 text-[11px] font-bold text-primary transition hover:bg-primary/20"
+                      >
+                        <Receipt className="h-3.5 w-3.5" />
+                        فاتورة أجور لهذا العميل
+                      </a>
+                    }
                   />
                   <div className="overflow-x-auto">
                     <table className="w-full text-xs">

@@ -63,7 +63,8 @@ export type ReportCategory =
   | "inventory-movements"
   | "returns"
   | "expenses"
-  | "product";
+  | "product"
+  | "milling-loss";
 
 interface ReportsHubTabProps {
   ar: boolean;
@@ -88,6 +89,8 @@ export function ReportsHubTab({ ar, initialReport = "top" }: ReportsHubTabProps)
 
   // Raw fetched datasets
   const [rawTopProducts, setRawTopProducts] = useState<any[]>([]);
+  /** فاقد المطحنة المكتشف (view مشتق) — يُكتشف لا يُدخل (06 §م3). */
+  const [rawMillingLoss, setRawMillingLoss] = useState<any[]>([]);
   const [rawSales, setRawSales] = useState<any[]>([]);
   const [rawPurchases, setRawPurchases] = useState<any[]>([]);
   const [rawDebts, setRawDebts] = useState<any[]>([]);
@@ -97,6 +100,11 @@ export function ReportsHubTab({ ar, initialReport = "top" }: ReportsHubTabProps)
   const [rawProductsList, setRawProductsList] = useState<any[]>([]);
   const [profitSummary, setProfitSummary] = useState({
     salesTotal: 0,
+    /*
+     * إيراد الخدمة (أجور طحن) — مشتق من نفس بنود المبيعات (06 §م1).
+     * عرضي فقط: إيراد البضاعة = salesTotal − serviceRevenue.
+     */
+    serviceRevenueTotal: 0,
     costTotal: 0,
     grossProfit: 0,
     marginPct: 0,
@@ -153,7 +161,7 @@ export function ReportsHubTab({ ar, initialReport = "top" }: ReportsHubTabProps)
           supabase
             .from("sales_invoice_items")
             .select(
-              "product_id,quantity,total,cost_price,invoice_id,sales_invoices!inner(created_at)",
+              "product_id,quantity,total,cost_price,invoice_id,products(item_class),sales_invoices!inner(created_at)",
             )
             .gte("sales_invoices.created_at", fromTs)
             .lte("sales_invoices.created_at", toTs),
@@ -166,6 +174,13 @@ export function ReportsHubTab({ ar, initialReport = "top" }: ReportsHubTabProps)
         const salesData = salesRes.data ?? [];
         setRawSales(salesData);
 
+        /*
+         * فصل إيراد الخدمة عن إيراد البضاعة (06 §م1 / 05 §بند 3): أجور الطحن
+         * سطر عادي صنفه `item_class = SERVICE` — يُحسب من نفس البنود
+         * فيُعرض مستقلاً في التقرير ويتطابق مجموعاهما مع المبيعات.
+         */
+        let serviceRevenueTotal = 0;
+
         // Aggregate top products & profit data
         const itemMap = new Map<string, { qty: number; total: number; cost: number }>();
         let totalCost = 0;
@@ -173,6 +188,9 @@ export function ReportsHubTab({ ar, initialReport = "top" }: ReportsHubTabProps)
         let totalItemsSold = 0;
 
         (itemsRes.data ?? []).forEach((item: any) => {
+          if (item.products?.item_class === "SERVICE") {
+            serviceRevenueTotal += Number(item.total || 0);
+          }
           const prev = itemMap.get(item.product_id) || { qty: 0, total: 0, cost: 0 };
           const qty = Number(item.quantity || 0);
           const lineTotal = Number(item.total || 0);
@@ -208,6 +226,7 @@ export function ReportsHubTab({ ar, initialReport = "top" }: ReportsHubTabProps)
         const marginPct = totalRev > 0 ? (grossProfit / totalRev) * 100 : 0;
         setProfitSummary({
           salesTotal: totalRev,
+          serviceRevenueTotal,
           costTotal: totalCost,
           grossProfit,
           marginPct,
@@ -351,6 +370,18 @@ export function ReportsHubTab({ ar, initialReport = "top" }: ReportsHubTabProps)
             : e.expense_lines?.[0]?.expense_categories?.name || "General",
         }));
         setRawExpensesList(mapped);
+      }
+
+      /*
+       * تقرير الفاقد المكتشف (06 §م3): يُقرأ من view المطحنة المشتق
+       * — عرض فقط بلا إدخال (ق2). يظهر للمالك دون فتح كشف الأمانات.
+       */
+      if (selectedReport === "milling-loss") {
+        const lossRes = await (supabase as any)
+          .from("custody_detected_loss")
+          .select("*")
+          .order("customer_name_ar");
+        setRawMillingLoss(lossRes.data ?? []);
       }
     } catch (e) {
       console.error("Error loading report data:", e);
@@ -1110,6 +1141,12 @@ export function ReportsHubTab({ ar, initialReport = "top" }: ReportsHubTabProps)
                   <div className="flex items-center gap-2">
                     <PackageSearch className="h-3.5 w-3.5 text-blue-600" />
                     <span>{ar ? "كشف الصنف" : "Product Statement"}</span>
+                  </div>
+                </SelectItem>
+                <SelectItem value="milling-loss">
+                  <div className="flex items-center gap-2">
+                    <AlertTriangle className="h-3.5 w-3.5 text-amber-600" />
+                    <span>{ar ? "فاقد المطحنة المكتشف" : "Milling Detected Loss"}</span>
                   </div>
                 </SelectItem>
               </SelectGroup>
@@ -2030,6 +2067,52 @@ export function ReportsHubTab({ ar, initialReport = "top" }: ReportsHubTabProps)
                 </TableCell>
               </TableRow>
 
+              {/* فصل إيراد الخدمة عن البضاعة (06 §م1) — سطرا تمييز لصاحب المطحنة. */}
+              <TableRow className="hover:bg-surface-2/50 transition-colors">
+                <TableCell className="text-center font-mono text-xs text-muted-foreground">
+                  —
+                </TableCell>
+                <TableCell className="font-semibold text-xs text-muted-foreground">
+                  {ar ? "منها: إيراد الخدمة (أجور طحن…)" : "Of which: Service revenue"}
+                </TableCell>
+                <TableCell className="text-center font-mono text-xs text-muted-foreground">
+                  —
+                </TableCell>
+                <TableCell className="text-end font-mono text-xs font-bold text-foreground">
+                  <Ltr>{money(profitSummary.serviceRevenueTotal)}</Ltr>
+                </TableCell>
+                <TableCell className="text-end font-mono text-xs text-muted-foreground">
+                  —
+                </TableCell>
+                <TableCell className="text-center">
+                  <Badge variant="outline" className="text-[10px] py-0 px-2 font-medium">
+                    {ar ? "خدمة" : "Service"}
+                  </Badge>
+                </TableCell>
+              </TableRow>
+              <TableRow className="hover:bg-surface-2/50 transition-colors">
+                <TableCell className="text-center font-mono text-xs text-muted-foreground">
+                  —
+                </TableCell>
+                <TableCell className="font-semibold text-xs text-muted-foreground">
+                  {ar ? "منها: إيراد البضاعة" : "Of which: Goods revenue"}
+                </TableCell>
+                <TableCell className="text-center font-mono text-xs text-muted-foreground">
+                  —
+                </TableCell>
+                <TableCell className="text-end font-mono text-xs font-bold text-foreground">
+                  <Ltr>{money(profitSummary.salesTotal - profitSummary.serviceRevenueTotal)}</Ltr>
+                </TableCell>
+                <TableCell className="text-end font-mono text-xs text-muted-foreground">
+                  —
+                </TableCell>
+                <TableCell className="text-center">
+                  <Badge variant="outline" className="text-[10px] py-0 px-2 font-medium">
+                    {ar ? "بضاعة" : "Goods"}
+                  </Badge>
+                </TableCell>
+              </TableRow>
+
               <TableRow className="hover:bg-surface-2/50 transition-colors">
                 <TableCell className="text-center font-mono text-xs text-muted-foreground">
                   2
@@ -2374,6 +2457,99 @@ export function ReportsHubTab({ ar, initialReport = "top" }: ReportsHubTabProps)
                   <TableCell className="text-end font-mono text-xs font-bold text-rose-500">
                     <Ltr>
                       {money(expensesList.reduce((sum, e) => sum + Number(e.total_amount || 0), 0))}
+                    </Ltr>
+                  </TableCell>
+                  <TableCell />
+                </TableRow>
+              </TableFooter>
+            )}
+          </Table>
+        )}
+
+        {/* تقرير الفاقد المكتشف (06 §م3) — من view المطحنة المشتق، عرض فقط بلا إدخال (ق2). */}
+        {selectedReport === "milling-loss" && (
+          <Table>
+            <TableHeader className="bg-surface-2/60">
+              <TableRow>
+                <TableHead className="w-12 text-center font-semibold text-xs">#</TableHead>
+                <TableHead className="font-semibold text-xs">
+                  {ar ? "العميل" : "Customer"}
+                </TableHead>
+                <TableHead className="font-semibold text-xs">
+                  {ar ? "الحبوب المطحونة" : "Grain"}
+                </TableHead>
+                <TableHead className="text-center font-semibold text-xs">
+                  {ar ? "مطحون (كجم)" : "Milled (kg)"}
+                </TableHead>
+                <TableHead className="text-center font-semibold text-xs">
+                  {ar ? "نواتج (كجم)" : "Outputs (kg)"}
+                </TableHead>
+                <TableHead className="text-end font-semibold text-xs">
+                  {ar ? "الفاقد المكتشف (كجم)" : "Detected loss (kg)"}
+                </TableHead>
+                <TableHead className="text-center font-semibold text-xs">
+                  {ar ? "الحالة" : "Status"}
+                </TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {loading
+                ? renderLoadingRow(7)
+                : rawMillingLoss.length === 0
+                  ? renderEmptyRow(7)
+                  : rawMillingLoss.map((l, idx) => (
+                      <TableRow
+                        key={`${l.customer_id}-${l.item_id}-${l.warehouse_id}`}
+                        className="hover:bg-surface-2/50 transition-colors"
+                      >
+                        <TableCell className="text-center font-mono text-xs text-muted-foreground">
+                          {idx + 1}
+                        </TableCell>
+                        <TableCell className="text-xs font-bold text-foreground">
+                          {l.customer_name_ar || "—"}
+                        </TableCell>
+                        <TableCell className="text-xs text-foreground">
+                          {l.grain_name_ar || "—"}
+                        </TableCell>
+                        <TableCell className="text-center font-mono text-xs">
+                          <Ltr>{Number(l.milled_kg || 0).toLocaleString()}</Ltr>
+                        </TableCell>
+                        <TableCell className="text-center font-mono text-xs">
+                          <Ltr>{Number(l.produced_kg || 0).toLocaleString()}</Ltr>
+                        </TableCell>
+                        <TableCell className="text-end font-mono text-xs font-bold text-amber-600">
+                          <Ltr>{Number(l.detected_loss_kg || 0).toLocaleString()}</Ltr>
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <Badge
+                            variant={l.loss_status === "REVIEW" ? "secondary" : "outline"}
+                            className="text-[10px] py-0 px-1.5"
+                          >
+                            {l.loss_status === "REVIEW"
+                              ? ar
+                                ? "للمراجعة"
+                                : "Review"
+                              : ar
+                                ? "طبيعي"
+                                : "OK"}
+                          </Badge>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+            </TableBody>
+            {rawMillingLoss.length > 0 && (
+              <TableFooter className="bg-surface-2/80 font-semibold text-xs">
+                <TableRow>
+                  <TableCell colSpan={5} className="py-2.5">
+                    {ar
+                      ? `إجمالي الفاقد المكتشف (${rawMillingLoss.length} سطر) — يُكتشف من السجل ولا يُدخل`
+                      : `Total detected loss (${rawMillingLoss.length} rows) — derived, never entered`}
+                  </TableCell>
+                  <TableCell className="text-end font-mono text-xs font-bold text-amber-600">
+                    <Ltr>
+                      {money(
+                        rawMillingLoss.reduce((s, l) => s + Number(l.detected_loss_kg || 0), 0),
+                      )}
                     </Ltr>
                   </TableCell>
                   <TableCell />

@@ -201,8 +201,12 @@ export const SYSTEM_MODULES: PlatformModule[] = [
     },
     category: "enterprise",
     dependencies: ["core"],
+    /*
+     * The `/milling` overview dashboard was dropped (05 §بند 4) — the five
+     * operational screens below are the module's face. `/milling` stays a
+     * route only as the layout parent; it redirects to intake.
+     */
     navItems: [
-      "/milling",
       "/milling/intake",
       "/milling/milling",
       "/milling/delivery",

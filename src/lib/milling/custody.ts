@@ -227,6 +227,17 @@ export async function custodyIntake(input: CustodyIntakeInput): Promise<OpResult
   return { ok: true, id: data as string };
 }
 
+/** رقم السند من معرّف السطر — لاستخدام طباعة السند بعد الحفظ مباشرة. */
+export async function fetchCustodyDocNumber(entryId: string): Promise<string | null> {
+  const { data, error } = await db
+    .from("custody_ledger")
+    .select("doc_number")
+    .eq("id", entryId)
+    .maybeSingle();
+  if (error) throw error;
+  return (data as { doc_number: string | null } | null)?.doc_number ?? null;
+}
+
 export interface CustodyMillingInput {
   customerId: string;
   warehouseId: string;
@@ -433,6 +444,114 @@ export async function fetchDetectedLoss(): Promise<CustodyLossRow[]> {
 /* ---------------------------------------------------------------- misc */
 
 export const MILLING_MODULE_ID = "milling_operations";
+
+/* ------------------------------------- print vouchers (05 §بند 8.4) */
+
+/**
+ * سند طباعة موحّد لعملية أمانة (استلام/طحن/تسليم/تعديل).
+ *
+ * يُبنى من سجل السند الفعلي في `custody_ledger` (لا من حالة الشاشة)، مع
+ * أسماء العميل/المخزن/الأصناف من جداول النظام. الحقول المالية صفرية لأن
+ * الأمانات بلا مال (ق2/د6) — الفاتورة الوحيدة هي فاتورة الأجور المربوطة.
+ *
+ * المستند يمرّ عبر محرك الطباعة القياسي للنظام (renderUnifiedDocument /
+ * printUnifiedDocument) فترث أوراق A4/حراري وقالب `milling-clean` وقواعد
+ * الطباعة العامة — لا قالب خاص بالمطحنة ولا مصدر ثانٍ للتنسيق.
+ */
+export interface CustodyVoucherData {
+  entryType: "INTAKE" | "MILLING" | "DELIVERY" | "ADJUSTMENT";
+  docNumber: string;
+  createdAt: string;
+  customerName: string;
+  customerPhone?: string | null;
+  warehouseName: string;
+  notes?: string | null;
+  /** أسطر السند: صنف + كمية — كجم يظهر وإن صفر لأكياس فقط. */
+  lines: { item: string; bags: number; kg: number }[];
+}
+
+const VOUCHER_TITLES: Record<CustodyVoucherData["entryType"], string> = {
+  INTAKE: "سند استلام أمانة",
+  MILLING: "سند طحن أمانة",
+  DELIVERY: "سند تسليم أمانة",
+  ADJUSTMENT: "سند تعديل جردي",
+};
+
+export async function buildCustodyVoucher(docNumber: string): Promise<CustodyVoucherData | null> {
+  if (!docNumber?.trim()) return null;
+
+  /* سطور السند من السجل الوحيد — بلا حالة شاشة ولا حساب محلي. */
+  const { data, error } = await db
+    .from("custody_ledger")
+    .select(
+      `id, entry_type, doc_number, bags_in, bags_out, kg_in, kg_out, notes, created_at,
+       customers(name, phone),
+       warehouses(name, name_ar),
+       products(name, name_ar, sku)`,
+    )
+    .eq("doc_number", docNumber.trim())
+    .order("created_at");
+  if (error) throw error;
+  if (!data?.length) return null;
+
+  const first = data[0] as {
+    entry_type: CustodyVoucherData["entryType"];
+    doc_number: string;
+    created_at: string;
+    notes: string | null;
+    customers: { name: string; phone: string | null } | null;
+    warehouses: { name: string; name_ar: string | null } | null;
+  };
+
+  const lines = data.map((r: any) => ({
+    item: r.products?.name_ar || r.products?.name || "—",
+    bags: Number(r.bags_in ?? 0) + Number(r.bags_out ?? 0),
+    kg: Number(r.kg_in ?? 0) + Number(r.kg_out ?? 0),
+  }));
+
+  return {
+    entryType: first.entry_type,
+    docNumber: first.doc_number,
+    createdAt: first.created_at,
+    customerName: first.customers?.name || "—",
+    customerPhone: first.customers?.phone || null,
+    warehouseName: first.warehouses?.name_ar || first.warehouses?.name || "—",
+    notes: first.notes,
+    lines,
+  };
+}
+
+/** يحوّل سند الأمانة إلى UnifiedDocumentData لمحرك الطباعة القياسي. */
+export function custodyVoucherToDoc(v: CustodyVoucherData) {
+  const title = VOUCHER_TITLES[v.entryType];
+  return {
+    docType: "mill_document" as const,
+    title,
+    number: v.docNumber,
+    date: new Date(v.createdAt).toLocaleString("ar-EG"),
+    partyLabel: "صاحب الأمانة:",
+    partyName: v.customerName,
+    partyPhone: v.customerPhone ?? undefined,
+    warehouse: v.warehouseName,
+    movementType: "أمانة — بلا أثر مخزني أو مالي",
+    status: "مسجّل",
+    lines: v.lines.map((l) => ({
+      product: l.item,
+      qty: l.bags > 0 ? l.bags : l.kg,
+      unit: l.bags > 0 ? "كيس" : "كجم",
+      price: 0,
+      total: 0,
+      note: l.bags > 0 && l.kg > 0 ? `${l.kg} كجم` : undefined,
+    })),
+    notes: v.notes ?? "حبوب/نواتج ملك العميل — أمانة لا ذمة. صفر أثر على مخزون المطحنة.",
+    options: {
+      showFinancialDetails: false,
+      showPaymentInfo: false,
+      showBarcode: true,
+      showQrCode: true,
+    },
+  };
+}
 
 /* ----------------------------------------- smart manufacture (خطوة 7) */
 

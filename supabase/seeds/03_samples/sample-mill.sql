@@ -51,22 +51,30 @@ BEGIN;
 -- عائلات المنتجات التي تتعامل بها مطحنة يمنية: الحبوب الخام بأنواعها
 -- المعروفة في السوق اليمني، ومنتجات الطحن، ومستلزمات التعبئة.
 
-INSERT INTO public.categories (name, name_ar, parent_id) VALUES
-  ('البُر (القمح)',   'البُر (القمح)',   NULL),
-  ('الذرة الرفيعة',   'الذرة الرفيعة',   NULL),
-  ('الذرة الشامية',   'الذرة الشامية',   NULL),
-  ('الدُّخْن',        'الدُّخْن',        NULL),
-  ('الشعير',          'الشعير',          NULL),
-  ('العدس (البلسن)',  'العدس (البلسن)',  NULL),
-  ('الحمص والعِتْر',  'الحمص والعِتْر',  NULL),
-  ('دقيق البُر',      'دقيق البُر',      NULL),
-  ('دقيق الذرة',      'دقيق الذرة',      NULL),
-  ('دقيق الدخن',      'دقيق الدخن',      NULL),
-  ('دقيق الشعير',     'دقيق الشعير',     NULL),
-  ('المخلوط اليمني',  'المخلوط اليمني',  NULL),
-  ('النخالة',         'النخالة',         NULL),
-  ('مستلزمات تعبئة',  'مستلزمات تعبئة',  NULL)
-ON CONFLICT DO NOTHING;
+-- idempotent عبر NOT EXISTS — «ON CONFLICT DO NOTHING» لا يعمل هنا لأن
+-- جدول categories لا يحمل قيداً فريداً على name_ar، فيُكرّر الصفوف عند
+-- إعادة التشغيل ويُفشل subqueries حلّ التصنيف بالاسم.
+INSERT INTO public.categories (name, name_ar, parent_id)
+SELECT v.name, v.name_ar, NULL::uuid
+FROM (VALUES
+  ('البُر (القمح)',   'البُر (القمح)'),
+  ('الذرة الرفيعة',   'الذرة الرفيعة'),
+  ('الذرة الشامية',   'الذرة الشامية'),
+  ('الدُّخْن',        'الدُّخْن'),
+  ('الشعير',          'الشعير'),
+  ('العدس (البلسن)',  'العدس (البلسن)'),
+  ('الحمص والعِتْر',  'الحمص والعِتْر'),
+  ('دقيق البُر',      'دقيق البُر'),
+  ('دقيق الذرة',      'دقيق الذرة'),
+  ('دقيق الدخن',      'دقيق الدخن'),
+  ('دقيق الشعير',     'دقيق الشعير'),
+  ('المخلوط اليمني',  'المخلوط اليمني'),
+  ('النخالة',         'النخالة'),
+  ('مستلزمات تعبئة',  'مستلزمات تعبئة')
+) AS v(name, name_ar)
+WHERE NOT EXISTS (
+  SELECT 1 FROM public.categories c WHERE c.name_ar = v.name_ar
+);
 
 
 -- ============================================================================
@@ -87,8 +95,8 @@ INSERT INTO public.products (
 )
 SELECT
   v.sku, v.name, v.name_ar, v.description,
-  -- التصنيف يُحلّ بالاسم العربي
-  (SELECT id FROM public.categories WHERE name_ar = v.category),
+  -- التصنيف يُحلّ بالاسم العربي (LIMIT 1 = دفاع ضد أي صف مكرر قديم)
+  (SELECT id FROM public.categories WHERE name_ar = v.category LIMIT 1),
   -- الوحدة الكيلوجرام من بيانات النظام (وليست وحدة خاصة بالمطحنة)
   (SELECT id FROM public.units WHERE name = 'Kilogram'),
   (SELECT id FROM public.units WHERE name = 'Kilogram'),
@@ -109,6 +117,9 @@ SELECT
   v.weight::numeric
 FROM (VALUES
   -- ── الحبوب الخام (قبل الطحن) — أسماء السوق اليمني ─────────────────────────
+  -- ملاحظة على عمود is_service: TRUE تعني «هذا الصنف خدمة (لا مخزون)».
+  -- النواتج والمستهلكات بضاعة → FALSE، والخدمة الوحيدة (أجور طحن) → TRUE.
+  -- (كانت القيم مقلوبة قبل 2026-10-15 — أُصلحت مع تعديل 05 §بند 3.)
   ('حبوب-بُر-سمراء',   'بُر سمراء',  'بُر سمراء',
    'بُر سمراء محلي — من أشهر أصناف القمح في السوق اليمني.', 'البُر (القمح)',
    11000, 0, false, 'GOOD', 'TRACKED', 'BATCH', 'MOVING_AVERAGE', false, true, 'RAW_MATERIAL', NULL),
@@ -168,47 +179,47 @@ FROM (VALUES
   -- ── منتجات الطحن (بعد الطحن) ───────────────────────────────────────────────
   ('ناتج-دقيق-أبيض',   'دقيق أبيض',  'دقيق أبيض',
    'دقيق أبيض من البُر — للخبز والرشوش والملوج والكعك.', 'دقيق البُر',
-   0, 13500, true, 'GOOD', 'TRACKED', 'BATCH', 'MOVING_AVERAGE', true, false, 'FINISHED_GOOD', NULL),
+   0, 13500, false, 'GOOD', 'TRACKED', 'BATCH', 'MOVING_AVERAGE', true, false, 'FINISHED_GOOD', NULL),
 
   ('ناتج-دقيق-أحمر',   'دقيق أحمر (كامل)', 'دقيق أحمر (كامل)',
    'دقيق البُر الكامل (الأحمر) — للخبز البلدي.', 'دقيق البُر',
-   0, 13000, true, 'GOOD', 'TRACKED', 'BATCH', 'MOVING_AVERAGE', true, false, 'FINISHED_GOOD', NULL),
+   0, 13000, false, 'GOOD', 'TRACKED', 'BATCH', 'MOVING_AVERAGE', true, false, 'FINISHED_GOOD', NULL),
 
   ('ناتج-جريش',        'جريش',       'جريش',
    'جريش البُر — للشوربة.', 'دقيق البُر',
-   0, 12500, true, 'GOOD', 'TRACKED', 'BATCH', 'MOVING_AVERAGE', true, false, 'FINISHED_GOOD', NULL),
+   0, 12500, false, 'GOOD', 'TRACKED', 'BATCH', 'MOVING_AVERAGE', true, false, 'FINISHED_GOOD', NULL),
 
   ('ناتج-هريش',        'هريش',       'هريش',
    'هريش البُر — للشوربة.', 'دقيق البُر',
-   0, 12500, true, 'GOOD', 'TRACKED', 'BATCH', 'MOVING_AVERAGE', true, false, 'FINISHED_GOOD', NULL),
+   0, 12500, false, 'GOOD', 'TRACKED', 'BATCH', 'MOVING_AVERAGE', true, false, 'FINISHED_GOOD', NULL),
 
   ('ناتج-دقيق-ذرة-ناعم', 'دقيق ذرة ناعم', 'دقيق ذرة ناعم',
    'دقيق الذرة الرفيعة الناعم — للحوح اليمني والكدرة.', 'دقيق الذرة',
-   0, 15000, true, 'GOOD', 'TRACKED', 'BATCH', 'MOVING_AVERAGE', true, false, 'FINISHED_GOOD', NULL),
+   0, 15000, false, 'GOOD', 'TRACKED', 'BATCH', 'MOVING_AVERAGE', true, false, 'FINISHED_GOOD', NULL),
 
   ('ناتج-ذرة-مجروش',   'ذرة مجروشة خشنة', 'ذرة مجروشة خشنة',
    'ذرة رفيعة مجروشة خشنة — للعصيدة التهامية.', 'دقيق الذرة',
-   0, 13000, true, 'GOOD', 'TRACKED', 'BATCH', 'MOVING_AVERAGE', true, false, 'FINISHED_GOOD', NULL),
+   0, 13000, false, 'GOOD', 'TRACKED', 'BATCH', 'MOVING_AVERAGE', true, false, 'FINISHED_GOOD', NULL),
 
   ('ناتج-دقيق-دخن',    'دقيق الدخن الناعم', 'دقيق الدخن الناعم',
    'دقيق الدخن الناعم — لخبز الدخن والفتة والعصيدة.', 'دقيق الدخن',
-   0, 16000, true, 'GOOD', 'TRACKED', 'BATCH', 'MOVING_AVERAGE', true, false, 'FINISHED_GOOD', NULL),
+   0, 16000, false, 'GOOD', 'TRACKED', 'BATCH', 'MOVING_AVERAGE', true, false, 'FINISHED_GOOD', NULL),
 
   ('ناتج-دقيق-شعير',   'دقيق الشعير', 'دقيق الشعير',
    'دقيق الشعير — للمخبوزات الصحية.', 'دقيق الشعير',
-   0, 11000, true, 'GOOD', 'TRACKED', 'BATCH', 'MOVING_AVERAGE', true, false, 'FINISHED_GOOD', NULL),
+   0, 11000, false, 'GOOD', 'TRACKED', 'BATCH', 'MOVING_AVERAGE', true, false, 'FINISHED_GOOD', NULL),
 
   ('ناتج-شعير-مجروش',  'شعير مجروش', 'شعير مجروش',
    'شعير مجروش — للشوربة والتلبوية.', 'دقيق الشعير',
-   0, 10000, true, 'GOOD', 'TRACKED', 'BATCH', 'MOVING_AVERAGE', true, false, 'FINISHED_GOOD', NULL),
+   0, 10000, false, 'GOOD', 'TRACKED', 'BATCH', 'MOVING_AVERAGE', true, false, 'FINISHED_GOOD', NULL),
 
   ('ناتج-مخلوط-يمني',  'دقيق المخلوط المتكامل', 'دقيق المخلوط المتكامل',
    'دقيق المخلوط اليمني: بُر وذرة ودخن وشعير — لخبز التنور التقليدي.', 'المخلوط اليمني',
-   0, 14000, true, 'GOOD', 'TRACKED', 'BATCH', 'MOVING_AVERAGE', true, false, 'FINISHED_GOOD', NULL),
+   0, 14000, false, 'GOOD', 'TRACKED', 'BATCH', 'MOVING_AVERAGE', true, false, 'FINISHED_GOOD', NULL),
 
   ('ناتج-نخالة',       'نخالة',      'نخالة',
    'نخالة البُر — ناتج جانبي مخزني وقابل للبيع (للمواشي).', 'النخالة',
-   0, 7500, true, 'GOOD', 'TRACKED', 'BATCH', 'MOVING_AVERAGE', true, false, 'BY_PRODUCT', NULL),
+   0, 7500, false, 'GOOD', 'TRACKED', 'BATCH', 'MOVING_AVERAGE', true, false, 'BY_PRODUCT', NULL),
 
   -- ── مستهلكات التعبئة (تُشترى وتُصرف من مخزن المستهلكات — ق4) ───────────────
   ('مستهلك-كيس-منسوج', 'كيس منسوج فارغ', 'كيس منسوج فارغ',
@@ -227,7 +238,7 @@ FROM (VALUES
   -- سطر واحد في فاتورة الأجور، والسعر من هذا الصنف (مصدر السعر الوحيد).
   ('خدمة-أجور-طحن',    'أجور طحن وتجهيز', 'أجور طحن وتجهيز',
    'أجرة الخدمة الوحيدة للطحن والتجهيز — سعرها من هذا الصنف ولا يُدخل في مكان آخر.', 'دقيق البُر',
-   0, 1000, false, 'SERVICE', 'UNTRACKED', 'NONE', 'NONE', true, false, 'SERVICE', NULL)
+   0, 1000, true, 'SERVICE', 'UNTRACKED', 'NONE', 'NONE', true, false, 'SERVICE', NULL)
 
 ) AS v(sku, name, name_ar, description, category, cost, price, is_service,
        nature, policy, tracking, costing, sellable, purchasable, item_class, weight)

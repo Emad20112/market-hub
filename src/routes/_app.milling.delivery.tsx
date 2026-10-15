@@ -17,8 +17,12 @@ import {
   custodyDelivery,
   fetchCustodyBalances,
   capacityKgOf,
+  buildCustodyVoucher,
+  custodyVoucherToDoc,
   type CustodyLine,
 } from "@/lib/milling";
+import { UniversalPrintPreview } from "@/components/universal-print-preview";
+import { type PrintRequest } from "@/lib/printing";
 import {
   MillingPanel,
   MillingSectionTitle,
@@ -54,6 +58,8 @@ function MillingDeliveryPage() {
   const [lines, setLines] = useState<CustodyLine[]>([{ itemId: "", bags: 0, kg: 0 }]);
   const [autoKgLines, setAutoKgLines] = useState<Set<number>>(new Set());
   const [notes, setNotes] = useState("");
+  /** سند الطباعة الجاهز للمعاينة — يُفتح بعد تسجيل التسليم (05 §بند 8.4). */
+  const [printRequest, setPrintRequest] = useState<PrintRequest | null>(null);
 
   const customers = useQuery({
     queryKey: ["milling", "customers"],
@@ -160,16 +166,47 @@ function MillingDeliveryPage() {
         lines,
         notes: notes || undefined,
       }),
-    onSuccess: (res) => {
+    onSuccess: async (res) => {
       if (!res.ok) {
         toast.error(res.message || "تعذر تسجيل التسليم.");
         return;
       }
-      toast.success(`تم تسليم التسليم — سند ${res.data ?? ""}`);
+      toast.success(`تم تسجيل التسليم — سند ${res.data ?? ""}`);
+      /*
+       * سند التسليم يُبنى من السجل الفعلي عبر رقم السند الذي تعيده الدالة،
+       * ويُعرض عبر محرك الطباعة القياسي — لا قالب خاص ولا مصدر ثانٍ.
+       */
+      if (res.data) {
+        try {
+          const voucher = await buildCustodyVoucher(res.data as string);
+          if (voucher) {
+            setPrintRequest({
+              doc: custodyVoucherToDoc(voucher),
+              documentType: "mill_document",
+              rtl: true,
+            });
+          }
+        } catch {
+          /* الطباعة تحسين تجربة لا تُفشل العملية. */
+        }
+      }
       setLines([{ itemId: "", bags: 0, kg: 0 }]);
       setAutoKgLines(new Set());
       setNotes("");
       void qc.invalidateQueries({ queryKey: ["milling"] });
+      /*
+       * After a full delivery the side balance card disappears — so say it
+       * plainly instead of leaving the screen silent (05 §بند 8.2). The check
+       * reads the derived balance view, never a stored number.
+       */
+      void fetchCustodyBalances(customerId, warehouseId).then((rows) => {
+        const stillHolding = rows.some(
+          (b) => Number(b.bags_balance) > 0 || Number(b.kg_balance) > 0,
+        );
+        if (!stillHolding) {
+          toast.success("تم تسليم كامل رصيد هذا العميل");
+        }
+      });
     },
     onError: (err) => toast.error(err instanceof Error ? err.message : "خطأ غير متوقع"),
   });
@@ -365,6 +402,19 @@ function MillingDeliveryPage() {
             </div>
           </MillingPanel>
         </div>
+
+        {/* سند التسليم — معاين وطباعة عبر محرك الطباعة القياسي (05 §بند 8.4). */}
+        {printRequest ? (
+          <UniversalPrintPreview
+            open
+            onOpenChange={(open) => {
+              if (!open) setPrintRequest(null);
+            }}
+            request={printRequest}
+            title="سند تسليم أمانة"
+            rtl
+          />
+        ) : null}
       </div>
     </ModuleGuard>
   );

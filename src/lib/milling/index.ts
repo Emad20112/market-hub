@@ -35,6 +35,7 @@ export {
   fetchCustomerOpenInvoices,
   fetchUnlinkedMillingEntries,
   fetchDetectedLoss,
+  fetchCustodyDocNumber,
   // writes (RPC only)
   custodyIntake,
   custodyMilling,
@@ -44,6 +45,10 @@ export {
   smartManufacture,
   consumeInternalSupplies,
   type UnlinkedMillingEntry,
+  // print vouchers (05 §بند 8.4)
+  buildCustodyVoucher,
+  custodyVoucherToDoc,
+  type CustodyVoucherData,
   // helpers
   translateCustodyError,
   capacityKgOf,

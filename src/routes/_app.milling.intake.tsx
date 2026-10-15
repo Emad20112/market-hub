@@ -18,8 +18,13 @@ import {
   fetchGrainItems,
   fetchCustodyBalances,
   capacityKgOf,
+  buildCustodyVoucher,
+  custodyVoucherToDoc,
+  fetchCustodyDocNumber,
   type ProductOption,
 } from "@/lib/milling";
+import { UniversalPrintPreview } from "@/components/universal-print-preview";
+import { type PrintRequest } from "@/lib/printing";
 import {
   MillingPanel,
   MillingSectionTitle,
@@ -58,6 +63,8 @@ function MillingIntakePage() {
   /** هل الوزن الحالي محسوب تلقائياً من (أكياس × سعة الكيس)؟ */
   const [kgAuto, setKgAuto] = useState(false);
   const [notes, setNotes] = useState("");
+  /** سند الطباعة الجاهز للمعاينة — يُفتح بعد تسجيل الاستلام (05 §بند 8.4). */
+  const [printRequest, setPrintRequest] = useState<PrintRequest | null>(null);
 
   const customers = useQuery({
     queryKey: ["milling", "customers"],
@@ -130,12 +137,33 @@ function MillingIntakePage() {
         kg: Number(kg) || 0,
         notes: notes || undefined,
       }),
-    onSuccess: (res) => {
+    onSuccess: async (res) => {
       if (!res.ok) {
         toast.error(res.message || "تعذر تسجيل الاستلام.");
         return;
       }
       toast.success("تم تسجيل الاستلام — أُضيف لرصيد العميل العيني.");
+      /*
+       * سند الاستلام يُبنى من السجل الفعلي (custody_ledger) بلا حالة شاشة،
+       * ويُعرض عبر محرك الطباعة القياسي — لا قالب خاص ولا مصدر ثانٍ.
+       */
+      if (res.id) {
+        try {
+          const docNumber = await fetchCustodyDocNumber(res.id as string);
+          if (docNumber) {
+            const voucher = await buildCustodyVoucher(docNumber);
+            if (voucher) {
+              setPrintRequest({
+                doc: custodyVoucherToDoc(voucher),
+                documentType: "mill_document",
+                rtl: true,
+              });
+            }
+          }
+        } catch {
+          /* الطباعة تحسين تجربة لا تُفشل العملية — رسالة النجاح تكفي. */
+        }
+      }
       setItemId("");
       setBags("");
       setKg("");
@@ -322,6 +350,19 @@ function MillingIntakePage() {
             </div>
           </MillingPanel>
         </div>
+
+        {/* سند الاستلام — معاين وطباعة عبر محرك الطباعة القياسي (05 §بند 8.4). */}
+        {printRequest ? (
+          <UniversalPrintPreview
+            open
+            onOpenChange={(open) => {
+              if (!open) setPrintRequest(null);
+            }}
+            request={printRequest}
+            title="سند استلام أمانة"
+            rtl
+          />
+        ) : null}
       </div>
     </ModuleGuard>
   );
