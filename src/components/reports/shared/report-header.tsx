@@ -13,25 +13,19 @@ interface ReportHeaderProps {
   onExport?: () => void;
 }
 
-export function ReportHeader({
-  definition,
-  companyName,
-  costBasisNotice,
-}: ReportHeaderProps) {
+export function ReportHeader({ definition, companyName, costBasisNotice }: ReportHeaderProps) {
   return (
-    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b border-cyan-950/40 bg-slate-900/60 px-4 py-2.5 backdrop-blur-xs">
+    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b border-border bg-card/60 px-4 py-2.5">
       <div className="flex items-center gap-2.5 flex-wrap">
         <h1 className="text-sm sm:text-base font-bold tracking-tight text-foreground">
           {definition.titleAr}
         </h1>
-        <span className="text-[11px] text-muted-foreground font-mono">
-          ({definition.titleEn})
-        </span>
+        <span className="text-[11px] text-muted-foreground font-mono">({definition.titleEn})</span>
 
         {costBasisNotice === "ACTUAL" && (
           <Badge
             variant="outline"
-            className="gap-1 border-emerald-500/30 bg-emerald-500/10 text-emerald-400 text-[10px] py-0"
+            className="gap-1 border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[10px] py-0"
           >
             <ShieldCheck className="h-3 w-3" />
             تكلفة محققة (Actual)
@@ -40,7 +34,7 @@ export function ReportHeader({
         {costBasisNotice === "REFERENCE_ONLY" && (
           <Badge
             variant="outline"
-            className="gap-1 border-amber-500/30 bg-amber-500/10 text-amber-400 text-[10px] py-0"
+            className="gap-1 border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400 text-[10px] py-0"
           >
             <ShieldAlert className="h-3 w-3" />
             تكلفة استرشادية
@@ -49,9 +43,7 @@ export function ReportHeader({
       </div>
 
       {companyName && (
-        <span className="text-xs text-cyan-300 font-semibold font-mono">
-          {companyName}
-        </span>
+        <span className="text-xs text-foreground font-semibold font-mono">{companyName}</span>
       )}
     </div>
   );

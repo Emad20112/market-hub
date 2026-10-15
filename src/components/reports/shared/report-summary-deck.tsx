@@ -49,19 +49,19 @@ export function ReportSummaryDeck({
         return (
           <Card
             key={metric.key}
-            className="rounded-2xl border border-cyan-500/30 bg-slate-900/85 shadow-lg shadow-cyan-950/10 backdrop-blur-md hover:border-cyan-400/60 transition-all duration-200"
+            className="rounded-xl border border-border bg-card text-card-foreground shadow-xs hover:border-primary/40 transition-colors"
           >
-            <CardContent className="p-3.5 text-center flex flex-col justify-center items-center">
-              <div className="text-xs font-semibold text-slate-300 truncate w-full">
-                {metric.labelAr || "Summary KPIs"}
+            <CardContent className="p-3 text-center flex flex-col justify-center items-center">
+              <div className="text-xs font-semibold text-muted-foreground truncate w-full">
+                {metric.labelAr || "المؤشر"}
               </div>
               <div
                 className={`mt-1.5 text-base sm:text-lg font-bold font-mono tracking-tight truncate w-full ${
                   isPositiveProfit
-                    ? "text-emerald-400"
+                    ? "text-emerald-600 dark:text-emerald-400"
                     : isNegativeProfit
-                    ? "text-rose-400"
-                    : "text-foreground"
+                      ? "text-destructive"
+                      : "text-foreground"
                 }`}
               >
                 <Ltr>{formatValue(val, metric.format)}</Ltr>

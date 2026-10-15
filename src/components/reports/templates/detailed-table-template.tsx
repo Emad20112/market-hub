@@ -128,7 +128,7 @@ export function DetailedTableTemplate({
   };
 
   return (
-    <div className="flex flex-col gap-3 rounded-2xl border border-cyan-500/25 bg-slate-950/90 shadow-2xl shadow-cyan-950/20 p-2 sm:p-3 overflow-hidden backdrop-blur-md">
+    <div className="flex flex-col gap-3 rounded-xl border border-border bg-card shadow-xs p-2 sm:p-3 overflow-hidden">
       <ReportHeader
         definition={definition}
         companyName={companyName}

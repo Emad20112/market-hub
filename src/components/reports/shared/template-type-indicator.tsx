@@ -32,7 +32,7 @@ const TEMPLATE_MODES: {
 
 export function TemplateTypeIndicator({ currentTemplate = "summary" }: TemplateTypeIndicatorProps) {
   return (
-    <div className="flex items-center gap-1 rounded-xl border border-cyan-500/40 bg-slate-900/80 p-1 shadow-xs backdrop-blur-sm">
+    <div className="flex items-center gap-1 rounded-lg border border-border bg-card p-1 shadow-xs">
       {TEMPLATE_MODES.map((item) => {
         const isActive = item.id === currentTemplate;
         const Icon = item.icon;
@@ -40,10 +40,10 @@ export function TemplateTypeIndicator({ currentTemplate = "summary" }: TemplateT
           <div
             key={item.id}
             title={item.label}
-            className={`flex h-7 w-7 items-center justify-center rounded-lg transition-all ${
+            className={`flex h-7 w-7 items-center justify-center rounded-md transition-colors ${
               isActive
-                ? "bg-amber-500/20 text-amber-400 ring-1 ring-amber-500/50 shadow-sm shadow-amber-500/20"
-                : "text-slate-400 hover:bg-slate-800/60 hover:text-slate-200"
+                ? "bg-primary/10 text-primary ring-1 ring-primary/30 font-bold"
+                : "text-muted-foreground hover:bg-muted hover:text-foreground"
             }`}
           >
             <Icon className="h-3.5 w-3.5" />

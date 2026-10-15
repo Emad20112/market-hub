@@ -161,7 +161,7 @@ export function ComparisonTemplate({ definition, onPrint, onExport }: Comparison
   const favorable = definition.comparison?.favorableDirection === "down" ? !deltaIsUp : deltaIsUp;
 
   return (
-    <div className="flex flex-col gap-3 rounded-2xl border border-cyan-500/25 bg-slate-950/90 shadow-2xl shadow-cyan-950/20 p-2 sm:p-3 overflow-hidden backdrop-blur-md">
+    <div className="flex flex-col gap-3 rounded-xl border border-border bg-card shadow-xs p-2 sm:p-3 overflow-hidden">
       <ReportHeader
         definition={definition}
         companyName={companyName}
@@ -186,13 +186,13 @@ export function ComparisonTemplate({ definition, onPrint, onExport }: Comparison
       />
 
       {comparison && (
-        <div className="rounded-xl border border-cyan-500/30 bg-slate-900/60 p-3 shadow-inner">
-          <div className="text-xs font-bold text-cyan-300 mb-2">
+        <div className="rounded-xl border border-border bg-muted/20 p-3 shadow-xs">
+          <div className="text-xs font-semibold text-foreground mb-2">
             مقارنة الأداء والنمو: {comparison.metricLabelAr}
           </div>
           <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
-            <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-3">
-              <div className="text-[11px] font-medium text-slate-400">
+            <div className="rounded-lg border border-border bg-card p-3">
+              <div className="text-[11px] font-medium text-muted-foreground">
                 {comparison.metricLabelAr} — الفترة الحالية
               </div>
               <div className="mt-1 font-mono text-base font-bold text-foreground">
@@ -222,20 +222,14 @@ export function ComparisonTemplate({ definition, onPrint, onExport }: Comparison
                 deltaIsFlat
                   ? "border-slate-800 bg-slate-950/60"
                   : deltaIsUp
-                  ? "border-emerald-500/30 bg-emerald-500/10"
-                  : "border-rose-500/30 bg-rose-500/10"
+                    ? "border-emerald-500/30 bg-emerald-500/10"
+                    : "border-rose-500/30 bg-rose-500/10"
               }`}
             >
-              <div className="text-[11px] font-medium text-slate-400">
-                الفارق ونسبة التغير
-              </div>
+              <div className="text-[11px] font-medium text-slate-400">الفارق ونسبة التغير</div>
               <div
                 className={`mt-1 flex items-center gap-2 font-mono text-base font-bold ${
-                  deltaIsFlat
-                    ? "text-foreground"
-                    : deltaIsUp
-                    ? "text-emerald-400"
-                    : "text-rose-400"
+                  deltaIsFlat ? "text-foreground" : deltaIsUp ? "text-emerald-400" : "text-rose-400"
                 }`}
               >
                 {deltaIsFlat ? (

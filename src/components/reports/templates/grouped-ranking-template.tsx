@@ -43,7 +43,9 @@ export function GroupedRankingTemplate({
   const [rows, setRows] = useState<Record<string, any>[]>([]);
   const [metrics, setMetrics] = useState<Record<string, number>>({});
   const [totalRowCount, setTotalRowCount] = useState(0);
-  const [costBasisNotice, setCostBasisNotice] = useState<"ACTUAL" | "REFERENCE_ONLY" | "MIXED">("ACTUAL");
+  const [costBasisNotice, setCostBasisNotice] = useState<"ACTUAL" | "REFERENCE_ONLY" | "MIXED">(
+    "ACTUAL",
+  );
 
   const [isColumnPickerOpen, setIsColumnPickerOpen] = useState(false);
   const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
@@ -129,7 +131,7 @@ export function GroupedRankingTemplate({
   };
 
   return (
-    <div className="flex flex-col gap-3 rounded-2xl border border-cyan-500/25 bg-slate-950/90 shadow-2xl shadow-cyan-950/20 p-2 sm:p-3 overflow-hidden backdrop-blur-md">
+    <div className="flex flex-col gap-3 rounded-xl border border-border bg-card shadow-xs p-2 sm:p-3 overflow-hidden">
       <ReportHeader
         definition={definition}
         companyName={companyName}

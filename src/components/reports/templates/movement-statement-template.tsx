@@ -148,17 +148,17 @@ export function MovementStatementTemplate({
   };
 
   return (
-    <div className="flex flex-col gap-3 rounded-2xl border border-cyan-500/25 bg-slate-950/90 shadow-2xl shadow-cyan-950/20 p-2 sm:p-3 overflow-hidden backdrop-blur-md">
+    <div className="flex flex-col gap-3 rounded-xl border border-border bg-card shadow-xs p-2 sm:p-3 overflow-hidden">
       <ReportHeader
         definition={definition}
         companyName={companyName}
         costBasisNotice={definition.costBasisNotice}
       />
 
-      {/* Target Product Selection Strip with luxury dark styling */}
-      <div className="flex flex-wrap items-center gap-3 rounded-xl border border-cyan-500/20 bg-slate-900/60 p-3 shadow-inner">
-        <div className="flex items-center gap-2 text-xs font-bold text-cyan-300">
-          <Package className="h-4 w-4 text-cyan-400" />
+      {/* Target Product Selection Strip with system styling */}
+      <div className="flex flex-wrap items-center gap-3 rounded-lg border border-border bg-muted/20 p-3 shadow-xs">
+        <div className="flex items-center gap-2 text-xs font-semibold text-foreground">
+          <Package className="h-4 w-4 text-primary" />
           <span>الصنف المستهدف للتقرير:</span>
         </div>
         <div className="flex-1 min-w-[200px] max-w-sm flex items-center gap-2">
@@ -166,7 +166,7 @@ export function MovementStatementTemplate({
             value={productSearch}
             onChange={(event) => setProductSearch(event.target.value)}
             placeholder="ابحث بالاسم أو رمز الصنف..."
-            className="h-7 text-xs border-slate-700 bg-slate-950 text-slate-200"
+            className="h-8 text-xs"
           />
           <Select
             value={filters.productId || ""}

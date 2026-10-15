@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import type { ReportDomain } from "@/lib/reports/types";
 import { ReportRegistry } from "@/lib/reports/registry";
+import { Badge } from "@/components/ui/badge";
 
 interface DomainReportShellProps {
   currentDomain: ReportDomain;
@@ -94,7 +95,7 @@ export function DomainReportShell({
 
   if (!currentDomainConfig) {
     return (
-      <div className="rounded-2xl border border-destructive/30 bg-destructive/5 p-6 text-center">
+      <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-6 text-center">
         <h1 className="text-base font-bold text-foreground">تعذر تحميل مجال التقارير</h1>
         <p className="mt-2 text-sm text-muted-foreground">أعد فتح المجال من القائمة الجانبية.</p>
       </div>
@@ -105,45 +106,45 @@ export function DomainReportShell({
   const activeReport = domainReports.find((r) => r.id === activeReportId) || domainReports[0];
 
   return (
-    <div className="mx-auto flex w-full max-w-7xl flex-col gap-3 p-2 sm:p-4 animate-in fade-in duration-300">
-      {/* ── Top Bar: Vortex ERP brand on left, Domain Title & Actions on right (مطابق لصورة الموك أب) ── */}
-      <div className="flex items-center justify-between border-b border-cyan-950/60 pb-2.5 px-1">
+    <div className="mx-auto flex w-full max-w-7xl flex-col gap-3 p-2 sm:p-4 animate-in fade-in duration-200">
+      {/* ── Top Bar: اسم النظام في اليمين وعنوان المجال والأزرار في اليسار بتنسيق النظام ── */}
+      <div className="flex items-center justify-between border-b border-border pb-2.5 px-1">
         <div className="flex items-center gap-2">
-          <span className="text-sm sm:text-base font-extrabold tracking-tight text-foreground font-mono">
+          <span className="text-sm sm:text-base font-bold tracking-tight text-foreground font-mono">
             Vortex ERP
           </span>
-          <span className="rounded-full bg-cyan-500/10 px-2 py-0.5 text-[10px] font-semibold text-cyan-400 border border-cyan-500/20">
+          <Badge variant="secondary" className="text-[10px] py-0 font-normal">
             PRO
-          </span>
+          </Badge>
         </div>
 
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2">
-            <span className="text-sm font-bold text-foreground">
+            <span className="text-sm font-semibold text-foreground">
               {activeReport ? activeReport.titleAr : currentDomainConfig.titleAr}
             </span>
-            <span className="text-muted-foreground font-medium text-xs">
+            <span className="text-muted-foreground font-medium text-xs hidden sm:inline">
               • {currentDomainConfig.titleAr}
             </span>
           </div>
 
-          <div className="flex items-center gap-1.5 text-muted-foreground">
+          <div className="flex items-center gap-1 text-muted-foreground">
             <button
               type="button"
-              className="rounded-lg p-1.5 hover:bg-slate-800 hover:text-foreground transition-colors"
+              className="rounded-lg p-1.5 hover:bg-muted hover:text-foreground transition-colors"
               title="الإعدادات"
             >
               <Settings className="h-4 w-4" />
             </button>
-            <div className="flex h-7 w-7 items-center justify-center rounded-full bg-slate-800 text-slate-300 ring-1 ring-border">
+            <div className="flex h-7 w-7 items-center justify-center rounded-full bg-muted text-muted-foreground">
               <User className="h-4 w-4" />
             </div>
           </div>
         </div>
       </div>
 
-      {/* ── Tabs Pills Row: شريط اختيار التقرير المدمج بحواف متوهجة نيون كالموك أب ── */}
-      <div className="flex items-center justify-end gap-2 overflow-x-auto py-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      {/* ── Tabs Pills Row: شريط اختيار التقرير متوافق مع ألوان النظام ── */}
+      <div className="flex items-center justify-start gap-1.5 overflow-x-auto py-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {domainReports.length > 0 ? (
           domainReports.map((report) => {
             const isSelected = (activeReportId || domainReports[0]?.id) === report.id;
@@ -153,13 +154,13 @@ export function DomainReportShell({
                 type="button"
                 onClick={() => onSelectReport?.(report.id)}
                 aria-current={isSelected ? "page" : undefined}
-                className={`shrink-0 rounded-xl px-3 py-1.5 text-xs font-semibold transition-all duration-200 border ${
+                className={`shrink-0 rounded-lg px-3 py-1.5 text-xs font-medium transition-all duration-150 border ${
                   isSelected
-                    ? "border-cyan-400 bg-cyan-950/40 text-cyan-300 shadow-[0_0_12px_rgba(6,182,212,0.25)] ring-1 ring-cyan-400/50"
-                    : "border-slate-800/90 bg-slate-900/60 text-slate-400 hover:border-slate-700 hover:text-slate-200"
+                    ? "border-primary bg-primary text-primary-foreground shadow-xs font-semibold"
+                    : "border-border bg-card text-muted-foreground hover:bg-muted hover:text-foreground"
                 }`}
               >
-                [ {report.titleAr} ]
+                {report.titleAr}
               </button>
             );
           })

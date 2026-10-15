@@ -128,7 +128,7 @@ export function StatusExceptionsTemplate({
   const hasExceptions = totalRowCount > 0;
 
   return (
-    <div className="flex flex-col gap-3 rounded-2xl border border-cyan-500/25 bg-slate-950/90 shadow-2xl shadow-cyan-950/20 p-2 sm:p-3 overflow-hidden backdrop-blur-md">
+    <div className="flex flex-col gap-3 rounded-xl border border-border bg-card shadow-xs p-2 sm:p-3 overflow-hidden">
       <ReportHeader
         definition={definition}
         companyName={companyName}
@@ -152,27 +152,27 @@ export function StatusExceptionsTemplate({
         loading={loading}
       />
 
-      {/* Exception Status Banner with luxury styling */}
+      {/* Exception Status Banner with system styling */}
       <div
-        className={`flex items-center gap-2 rounded-xl border px-4 py-2.5 text-xs font-semibold ${
+        className={`flex items-center gap-2 rounded-lg border px-4 py-2.5 text-xs font-semibold ${
           hasExceptions
-            ? "border-amber-500/40 bg-amber-500/10 text-amber-300 shadow-inner"
-            : "border-emerald-500/40 bg-emerald-500/10 text-emerald-300 shadow-inner"
+            ? "border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-400"
+            : "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
         }`}
       >
         {loading ? (
-          <ShieldAlert className="h-4 w-4 animate-pulse text-cyan-400" />
+          <ShieldAlert className="h-4 w-4 animate-pulse text-muted-foreground" />
         ) : hasExceptions ? (
-          <AlertTriangle className="h-4 w-4 text-amber-400" />
+          <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400" />
         ) : (
-          <CheckCircle2 className="h-4 w-4 text-emerald-400" />
+          <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
         )}
         <span>
           {loading
             ? "جارٍ فحص الحالات والاستثناءات وتدقيق السجلات..."
             : hasExceptions
-            ? `تم رصد ${totalRowCount.toLocaleString("en-US")} حالة تتطلب المراجعة الفورية`
-            : "لا توجد حالات استثناء — جميع السجلات سليمة ومطابقة للمحددات"}
+              ? `تم رصد ${totalRowCount.toLocaleString("en-US")} حالة تتطلب المراجعة الفورية`
+              : "لا توجد حالات استثناء — جميع السجلات سليمة ومطابقة للمحددات"}
         </span>
       </div>
 
