@@ -18,12 +18,14 @@ interface GroupedRankingTemplateProps {
   definition: ReportDefinition;
   onPrint?: () => void;
   onExport?: () => void;
+  onSelectReport?: (reportId: string) => void;
 }
 
 export function GroupedRankingTemplate({
   definition,
   onPrint,
   onExport,
+  onSelectReport,
 }: GroupedRankingTemplateProps) {
   const { companyName, currencySymbol } = useReportCompanyInfo();
 
@@ -59,7 +61,16 @@ export function GroupedRankingTemplate({
     defaultVisibility(columnRegistry),
   );
 
-  const groupBy = definition.id === "rep-customers-sales-turnover" ? "customer" : "product";
+  const groupBy =
+    definition.id === "rep-customers-sales-turnover" || definition.id === "rep-sales-customer"
+      ? "customer"
+      : definition.id === "rep-sales-branch"
+        ? "branch"
+        : definition.id === "rep-sales-warehouse"
+          ? "warehouse"
+          : definition.id === "rep-sales-payment-method"
+            ? "payment_method"
+            : (definition as any).customGroupBy || "product";
 
   async function fetchData() {
     setLoading(true);
@@ -153,6 +164,11 @@ export function GroupedRankingTemplate({
         onExport={handleOpenExport}
         currentTemplate={definition.viewTemplate}
         loading={loading}
+        onSelectReport={onSelectReport}
+        totalColumnsCount={definition.columns.length}
+        visibleColumnsCount={
+          definition.columns.filter((c) => columnVisibility[c.key] !== false).length
+        }
       />
 
       <ReportSummaryDeck

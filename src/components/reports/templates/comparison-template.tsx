@@ -21,6 +21,7 @@ interface ComparisonTemplateProps {
   definition: ReportDefinition;
   onPrint?: () => void;
   onExport?: () => void;
+  onSelectReport?: (reportId: string) => void;
 }
 
 function formatPercent(value: number | undefined) {
@@ -28,7 +29,12 @@ function formatPercent(value: number | undefined) {
   return `${value > 0 ? "+" : ""}${Number(value).toFixed(2)}%`;
 }
 
-export function ComparisonTemplate({ definition, onPrint, onExport }: ComparisonTemplateProps) {
+export function ComparisonTemplate({
+  definition,
+  onPrint,
+  onExport,
+  onSelectReport,
+}: ComparisonTemplateProps) {
   const { companyName, currencySymbol } = useReportCompanyInfo();
 
   const [filters, setFilters] = useState<Record<string, any>>({
@@ -183,6 +189,11 @@ export function ComparisonTemplate({ definition, onPrint, onExport }: Comparison
         onExport={handleOpenExport}
         currentTemplate={definition.viewTemplate}
         loading={loading}
+        onSelectReport={onSelectReport}
+        totalColumnsCount={definition.columns.length}
+        visibleColumnsCount={
+          definition.columns.filter((c) => columnVisibility[c.key] !== false).length
+        }
       />
 
       {comparison && (

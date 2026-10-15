@@ -19,12 +19,14 @@ interface DetailedTableTemplateProps {
   definition: ReportDefinition;
   onPrint?: () => void;
   onExport?: () => void;
+  onSelectReport?: (reportId: string) => void;
 }
 
 export function DetailedTableTemplate({
   definition,
   onPrint,
   onExport,
+  onSelectReport,
 }: DetailedTableTemplateProps) {
   const { companyName, currencySymbol } = useReportCompanyInfo();
 
@@ -150,6 +152,11 @@ export function DetailedTableTemplate({
         onExport={handleOpenExport}
         currentTemplate={definition.viewTemplate}
         loading={loading}
+        onSelectReport={onSelectReport}
+        totalColumnsCount={definition.columns.length}
+        visibleColumnsCount={
+          definition.columns.filter((c) => columnVisibility[c.key] !== false).length
+        }
       />
 
       <ReportSummaryDeck

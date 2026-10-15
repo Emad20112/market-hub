@@ -31,12 +31,14 @@ interface MovementStatementTemplateProps {
   definition: ReportDefinition;
   onPrint?: () => void;
   onExport?: () => void;
+  onSelectReport?: (reportId: string) => void;
 }
 
 export function MovementStatementTemplate({
   definition,
   onPrint,
   onExport,
+  onSelectReport,
 }: MovementStatementTemplateProps) {
   const { companyName, currencySymbol } = useReportCompanyInfo();
 
@@ -209,6 +211,11 @@ export function MovementStatementTemplate({
         onExport={handleOpenExport}
         currentTemplate={definition.viewTemplate}
         loading={loading}
+        onSelectReport={onSelectReport}
+        totalColumnsCount={definition.columns.length}
+        visibleColumnsCount={
+          definition.columns.filter((c) => columnVisibility[c.key] !== false).length
+        }
       />
 
       <ReportSummaryDeck

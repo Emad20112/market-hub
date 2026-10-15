@@ -19,12 +19,14 @@ interface StatusExceptionsTemplateProps {
   definition: ReportDefinition;
   onPrint?: () => void;
   onExport?: () => void;
+  onSelectReport?: (reportId: string) => void;
 }
 
 export function StatusExceptionsTemplate({
   definition,
   onPrint,
   onExport,
+  onSelectReport,
 }: StatusExceptionsTemplateProps) {
   const { companyName, currencySymbol } = useReportCompanyInfo();
 
@@ -150,6 +152,11 @@ export function StatusExceptionsTemplate({
         onExport={handleOpenExport}
         currentTemplate={definition.viewTemplate}
         loading={loading}
+        onSelectReport={onSelectReport}
+        totalColumnsCount={definition.columns.length}
+        visibleColumnsCount={
+          definition.columns.filter((c) => columnVisibility[c.key] !== false).length
+        }
       />
 
       {/* Exception Status Banner with system styling */}

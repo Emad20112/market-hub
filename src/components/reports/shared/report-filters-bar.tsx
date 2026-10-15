@@ -2,7 +2,6 @@ import { useEffect, useState, useMemo } from "react";
 import {
   Filter,
   Search,
-  SlidersHorizontal,
   RotateCcw,
   Printer,
   Download,
@@ -30,7 +29,9 @@ import type {
   ReportViewTemplateType,
 } from "@/lib/reports/types";
 import { searchReportFilterOptions } from "@/lib/reports/report-execution.functions";
-import { TemplateTypeIndicator } from "./template-type-indicator";
+import { ReportTemplateSelector } from "./report-template-selector";
+import { ReportTemplateCreatorDialog } from "./report-template-creator-dialog";
+import { ReportColumnVisibilityButton } from "./report-column-visibility-button";
 
 interface ReportFiltersBarProps {
   filters: ReportFilterDefinition[];
@@ -44,6 +45,9 @@ interface ReportFiltersBarProps {
   loading?: boolean;
   definition?: ReportDefinition;
   currentTemplate?: ReportViewTemplateType;
+  onSelectReport?: (reportId: string) => void;
+  visibleColumnsCount?: number;
+  totalColumnsCount?: number;
 }
 
 const optionSourceByControl = {
@@ -79,7 +83,9 @@ export function ReportFiltersBar({
   onOpenColumnPicker,
   loading,
   definition,
-  currentTemplate,
+  onSelectReport,
+  visibleColumnsCount,
+  totalColumnsCount,
 }: ReportFiltersBarProps) {
   const [searchDraft, setSearchDraft] = useState(values.search || "");
   const [optionsBySource, setOptionsBySource] = useState<
@@ -87,7 +93,6 @@ export function ReportFiltersBar({
   >({});
   const [, setOptionsLoading] = useState(false);
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
-  const [mobileOptionsOpen, setMobileOptionsOpen] = useState(false);
   const [selectedPreset, setSelectedPreset] = useState("this_month");
 
   const selectableFilters = useMemo(
@@ -176,8 +181,53 @@ export function ReportFiltersBar({
     return count;
   }, [values, selectableFilters]);
 
+  const handleSelectReport = (reportId: string) => {
+    if (onSelectReport) {
+      onSelectReport(reportId);
+    } else {
+      const url = new URL(window.location.href);
+      url.searchParams.set("report", reportId);
+      window.location.href = url.toString();
+    }
+  };
+
   return (
     <div className="flex flex-col gap-3">
+      {/* ── شريط التحكم العلوي الموحد: اختيار القالب + إنشاء قالب جديد + ظهور وتخصيص الأعمدة بجانب بعضها ── */}
+      <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border bg-card p-2 shadow-xs">
+        <div className="flex flex-wrap items-center gap-2">
+          {/* 1. زر يفتح قائمة منسدلة لاختيار نوع القالب حسب التقرير */}
+          <ReportTemplateSelector
+            currentDomain={definition?.domain || "sales"}
+            activeReportId={definition?.id}
+            onSelectReport={handleSelectReport}
+          />
+
+          {/* 2. مكون إنشاء وتصميم قالب جديد وتسميته وحفظه */}
+          <ReportTemplateCreatorDialog
+            currentDomain={definition?.domain || "sales"}
+            activeReportId={definition?.id}
+            onTemplateCreated={handleSelectReport}
+          />
+
+          {/* 3. مكون ظهور الأعمدة منقول بجانب مكون اختيار القالب ومكون إنشاء قالب */}
+          {onOpenColumnPicker && (
+            <ReportColumnVisibilityButton
+              onClick={onOpenColumnPicker}
+              visibleCount={visibleColumnsCount}
+              totalCount={totalColumnsCount || definition?.columns.length}
+            />
+          )}
+        </div>
+
+        {activeFiltersCount > 0 && (
+          <div className="hidden sm:flex items-center gap-1.5 text-xs text-muted-foreground">
+            <CheckCircle2 className="h-3.5 w-3.5 text-primary" />
+            <span>{activeFiltersCount} فلاتر نشطة</span>
+          </div>
+        )}
+      </div>
+
       {/* ── Mobile Controls (< md) ── */}
       <div className="flex md:hidden items-center justify-between gap-2 border border-border rounded-xl bg-card p-2.5 shadow-xs">
         <div className="flex items-center gap-2">
@@ -349,49 +399,6 @@ export function ReportFiltersBar({
               </div>
             </SheetContent>
           </Sheet>
-
-          <Sheet open={mobileOptionsOpen} onOpenChange={setMobileOptionsOpen}>
-            <SheetTrigger asChild>
-              <Button size="sm" variant="outline" className="h-8 text-xs gap-1.5">
-                <SlidersHorizontal className="h-3.5 w-3.5" />
-                <span>الخيارات والأعمدة</span>
-              </Button>
-            </SheetTrigger>
-            <SheetContent side="bottom" className="max-h-[75vh]">
-              <SheetHeader>
-                <SheetTitle className="text-sm font-bold text-foreground">
-                  خيارات التقرير
-                </SheetTitle>
-              </SheetHeader>
-              <div className="space-y-3.5 py-4">
-                <Button
-                  onClick={() => {
-                    if (onOpenColumnPicker) onOpenColumnPicker();
-                    setMobileOptionsOpen(false);
-                  }}
-                  variant="outline"
-                  className="w-full h-8 text-xs justify-center gap-1.5"
-                >
-                  <SlidersHorizontal className="h-3.5 w-3.5" />
-                  تخصيص الأعمدة المعروضة
-                </Button>
-                <div className="rounded-lg border border-border bg-muted/30 p-3 space-y-1 text-xs">
-                  <div className="text-muted-foreground">
-                    مصدر البيانات:{" "}
-                    <span className="text-foreground font-semibold">
-                      {definition?.dataSourceName || "سجل العمليات المعتمد"}
-                    </span>
-                  </div>
-                  <div className="text-muted-foreground">
-                    حبيبة الصف:{" "}
-                    <span className="text-foreground font-semibold">
-                      {definition?.rowGrainAr || "حركة مفصلة"}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </SheetContent>
-          </Sheet>
         </div>
 
         <div className="flex items-center gap-1.5">
@@ -532,7 +539,7 @@ export function ReportFiltersBar({
           </div>
         </div>
 
-        {/* ── البطاقة 3: الفلاتر المعتمدة والموحدة (بدل نصوص المصدر الثابتة) ── */}
+        {/* ── البطاقة 3: الفلاتر المعتمدة والموحدة (طريقة الدفع وحالة الفاتورة) ── */}
         <div className="flex flex-col gap-2.5 rounded-lg border border-border bg-muted/20 p-3 shadow-xs md:col-span-2 lg:col-span-1">
           <div className="flex items-center justify-between border-b border-border pb-2">
             <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
@@ -542,7 +549,7 @@ export function ReportFiltersBar({
             <span className="text-[10px] text-muted-foreground">خيارات تشغيلية</span>
           </div>
 
-          <div className="space-y-2 flex-1">
+          <div className="space-y-2.5 flex-1">
             {/* فلتر طريقة الدفع الموحد */}
             <div className="space-y-1">
               <label className="text-[11px] font-medium text-foreground block">طريقة الدفع</label>
@@ -587,22 +594,8 @@ export function ReportFiltersBar({
               </Select>
             </div>
 
-            {/* تخصيص الأعمدة */}
-            <div className="pt-1">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={onOpenColumnPicker}
-                className="w-full h-8 text-xs justify-center gap-1.5 font-medium"
-              >
-                <SlidersHorizontal className="h-3.5 w-3.5" />
-                <span>تخصيص الأعمدة المعروضة</span>
-              </Button>
-            </div>
-
             {/* سطر دلالي مصغر للمصدر والحبيبة في أسفل البطاقة */}
-            <div className="pt-1 border-t border-border/50 text-[10px] text-muted-foreground flex items-center justify-between">
+            <div className="pt-2 border-t border-border/50 text-[10px] text-muted-foreground flex items-center justify-between">
               <span className="truncate">
                 المصدر: {definition?.dataSourceName || "سجل العمليات"}
               </span>
@@ -612,7 +605,7 @@ export function ReportFiltersBar({
         </div>
       </div>
 
-      {/* ── شريط أزرار الإجراءات: مرن ومتجاوب بتنسيق النظام ── */}
+      {/* ── شريط أزرار الإجراءات والطباعة والتصدير (تمت إزالة مؤشرات القوالب السابقة التي كانت تظهر تحت) ── */}
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border pb-2.5">
         <div className="flex flex-wrap items-center gap-2">
           {/* زر معاينة */}
@@ -649,16 +642,7 @@ export function ReportFiltersBar({
           </Button>
         </div>
 
-        {activeFiltersCount > 0 && (
-          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <CheckCircle2 className="h-3.5 w-3.5 text-primary" />
-            <span>{activeFiltersCount} فلاتر نشطة</span>
-          </div>
-        )}
-      </div>
-
-      {/* ── شريط الطباعة ونوع القالب ── */}
-      <div className="flex flex-wrap items-center justify-between gap-2 py-1">
+        {/* أزرار الطباعة والتصدير فقط بدون أي اختيارات سابقة بالأسفل */}
         <div className="flex items-center gap-1.5">
           {onPrint && (
             <Button
@@ -686,8 +670,6 @@ export function ReportFiltersBar({
             </Button>
           )}
         </div>
-
-        <TemplateTypeIndicator currentTemplate={currentTemplate || definition?.viewTemplate} />
       </div>
     </div>
   );

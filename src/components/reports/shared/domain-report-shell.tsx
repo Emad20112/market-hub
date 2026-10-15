@@ -12,6 +12,8 @@ import {
 import type { ReportDomain } from "@/lib/reports/types";
 import { ReportRegistry } from "@/lib/reports/registry";
 import { Badge } from "@/components/ui/badge";
+import { ReportTemplateSelector } from "./report-template-selector";
+import { ReportTemplateCreatorDialog } from "./report-template-creator-dialog";
 
 interface DomainReportShellProps {
   currentDomain: ReportDomain;
@@ -143,32 +145,23 @@ export function DomainReportShell({
         </div>
       </div>
 
-      {/* ── Tabs Pills Row: شريط اختيار التقرير متوافق مع ألوان النظام ── */}
-      <div className="flex items-center justify-start gap-1.5 overflow-x-auto py-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-        {domainReports.length > 0 ? (
-          domainReports.map((report) => {
-            const isSelected = (activeReportId || domainReports[0]?.id) === report.id;
-            return (
-              <button
-                key={report.id}
-                type="button"
-                onClick={() => onSelectReport?.(report.id)}
-                aria-current={isSelected ? "page" : undefined}
-                className={`shrink-0 rounded-lg px-3 py-1.5 text-xs font-medium transition-all duration-150 border ${
-                  isSelected
-                    ? "border-primary bg-primary text-primary-foreground shadow-xs font-semibold"
-                    : "border-border bg-card text-muted-foreground hover:bg-muted hover:text-foreground"
-                }`}
-              >
-                {report.titleAr}
-              </button>
-            );
-          })
-        ) : (
-          <span className="w-full py-1 text-center text-xs text-muted-foreground">
-            لا توجد تقارير متاحة حالياً في هذا المجال
-          </span>
-        )}
+      {/* ── شريط التنقل العلوي بالقوالب: قائمة منسدلة + إنشاء قالب جديد ── */}
+      <div className="flex flex-wrap items-center justify-between gap-2 py-0.5">
+        <div className="flex flex-wrap items-center gap-2">
+          {/* زر القائمة المنسدلة لاختيار نوع القالب */}
+          <ReportTemplateSelector
+            currentDomain={currentDomain}
+            activeReportId={activeReportId}
+            onSelectReport={(reportId) => onSelectReport?.(reportId)}
+          />
+
+          {/* مكون إنشاء وتصميم قالب جديد */}
+          <ReportTemplateCreatorDialog
+            currentDomain={currentDomain}
+            activeReportId={activeReportId}
+            onTemplateCreated={(newId) => onSelectReport?.(newId)}
+          />
+        </div>
       </div>
 
       {/* ── مساحة عرض محتوى التقرير ── */}

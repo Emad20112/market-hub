@@ -19,9 +19,15 @@ interface SummaryTemplateProps {
   definition: ReportDefinition;
   onPrint?: () => void;
   onExport?: () => void;
+  onSelectReport?: (reportId: string) => void;
 }
 
-export function SummaryTemplate({ definition, onPrint, onExport }: SummaryTemplateProps) {
+export function SummaryTemplate({
+  definition,
+  onPrint,
+  onExport,
+  onSelectReport,
+}: SummaryTemplateProps) {
   const { companyName, currencySymbol } = useReportCompanyInfo();
 
   const [filters, setFilters] = useState<Record<string, any>>({
@@ -146,6 +152,11 @@ export function SummaryTemplate({ definition, onPrint, onExport }: SummaryTempla
         onExport={handleOpenExport}
         currentTemplate={definition.viewTemplate}
         loading={loading}
+        onSelectReport={onSelectReport}
+        totalColumnsCount={definition.columns.length}
+        visibleColumnsCount={
+          definition.columns.filter((c) => columnVisibility[c.key] !== false).length
+        }
       />
 
       <ReportSummaryDeck
