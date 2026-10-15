@@ -1,19 +1,6 @@
 import React from "react";
-import {
-  TrendingUp,
-  Package,
-  Truck,
-  Users,
-  Building2,
-  ShieldAlert,
-  Settings,
-  User,
-} from "lucide-react";
+import { TrendingUp, Package, Truck, Users, Building2, ShieldAlert } from "lucide-react";
 import type { ReportDomain } from "@/lib/reports/types";
-import { ReportRegistry } from "@/lib/reports/registry";
-import { Badge } from "@/components/ui/badge";
-import { ReportTemplateSelector } from "./report-template-selector";
-import { ReportTemplateCreatorDialog } from "./report-template-creator-dialog";
 
 interface DomainReportShellProps {
   currentDomain: ReportDomain;
@@ -87,12 +74,7 @@ export const REPORT_DOMAINS_CONFIG: {
   },
 ];
 
-export function DomainReportShell({
-  currentDomain,
-  activeReportId,
-  onSelectReport,
-  children,
-}: DomainReportShellProps) {
+export function DomainReportShell({ currentDomain, children }: DomainReportShellProps) {
   const currentDomainConfig = REPORT_DOMAINS_CONFIG.find((d) => d.id === currentDomain);
 
   if (!currentDomainConfig) {
@@ -104,66 +86,8 @@ export function DomainReportShell({
     );
   }
 
-  const domainReports = ReportRegistry.getByDomain(currentDomain);
-  const activeReport = domainReports.find((r) => r.id === activeReportId) || domainReports[0];
-
   return (
-    <div className="mx-auto flex w-full max-w-7xl flex-col gap-3 p-2 sm:p-4 animate-in fade-in duration-200">
-      {/* ── Top Bar: اسم النظام في اليمين وعنوان المجال والأزرار في اليسار بتنسيق النظام ── */}
-      <div className="flex items-center justify-between border-b border-border pb-2.5 px-1">
-        <div className="flex items-center gap-2">
-          <span className="text-sm sm:text-base font-bold tracking-tight text-foreground font-mono">
-            Vortex ERP
-          </span>
-          <Badge variant="secondary" className="text-[10px] py-0 font-normal">
-            PRO
-          </Badge>
-        </div>
-
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-semibold text-foreground">
-              {activeReport ? activeReport.titleAr : currentDomainConfig.titleAr}
-            </span>
-            <span className="text-muted-foreground font-medium text-xs hidden sm:inline">
-              • {currentDomainConfig.titleAr}
-            </span>
-          </div>
-
-          <div className="flex items-center gap-1 text-muted-foreground">
-            <button
-              type="button"
-              className="rounded-lg p-1.5 hover:bg-muted hover:text-foreground transition-colors"
-              title="الإعدادات"
-            >
-              <Settings className="h-4 w-4" />
-            </button>
-            <div className="flex h-7 w-7 items-center justify-center rounded-full bg-muted text-muted-foreground">
-              <User className="h-4 w-4" />
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* ── شريط التنقل العلوي بالقوالب: قائمة منسدلة + إنشاء قالب جديد ── */}
-      <div className="flex flex-wrap items-center justify-between gap-2 py-0.5">
-        <div className="flex flex-wrap items-center gap-2">
-          {/* زر القائمة المنسدلة لاختيار نوع القالب */}
-          <ReportTemplateSelector
-            currentDomain={currentDomain}
-            activeReportId={activeReportId}
-            onSelectReport={(reportId) => onSelectReport?.(reportId)}
-          />
-
-          {/* مكون إنشاء وتصميم قالب جديد */}
-          <ReportTemplateCreatorDialog
-            currentDomain={currentDomain}
-            activeReportId={activeReportId}
-            onTemplateCreated={(newId) => onSelectReport?.(newId)}
-          />
-        </div>
-      </div>
-
+    <div className="mx-auto flex w-full max-w-7xl flex-col gap-3 p-1 sm:p-2 animate-in fade-in duration-200">
       {/* ── مساحة عرض محتوى التقرير ── */}
       <div className="w-full">{children}</div>
     </div>
