@@ -36,6 +36,7 @@ import {
   type SortOption,
 } from "@/components/ui/table-toolbar";
 import { RecordsViewToggle } from "@/components/ui/records-view-toggle";
+import { usePersistedViewMode } from "@/hooks/use-persisted-view-mode";
 import { type DataTableColumn, type DataTableSort } from "@/components/ui/data-table";
 import { RecordsView, type RecordsViewMode } from "@/components/ui/records-view";
 import { IconButton } from "@/components/ui/icon-button";
@@ -71,7 +72,7 @@ function SuppliersPage() {
   const [filterType, setFilterType] = useState<FilterType>("all");
   const [filters, setFilters] = useState<FilterValues>({});
   const [sortKey, setSortKey] = useState<string>("name_asc");
-  const [viewMode, setViewMode] = useState<ViewMode>("cards");
+  const [viewMode, setViewMode] = usePersistedViewMode("suppliers", "cards");
   const [edit, setEdit] = useState<Partial<Supplier> | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
 
@@ -109,6 +110,12 @@ function SuppliersPage() {
         .order("name")
         .limit(1000);
       if (error) throw error;
+      /*
+       * «مورد نقدي» شريك نظامي حقيقي (Essential Reference) تزرعه
+       * seeds/01_system/09_essential_partners.sql — يظهر هنا كأي مورد لأن
+       * النظام واحد: المشتريات الفورية المدفوعة حالاً تُسجَّل عليه فعلاً.
+       * (ب1 في 05_خطة_التكامل_الشامل.md)
+       */
       return (data ?? []) as Supplier[];
     },
     staleTime: 60_000,
@@ -582,10 +589,10 @@ function SuppliersPage() {
         }}
         viewToggle={<RecordsViewToggle value={viewMode} onChange={setViewMode} />}
         action={
-          <ToolbarAction
+          <PrimaryAction
             label={t("suppliers.new")}
             icon={<Plus />}
-            tone="primary"
+
             onClick={() => setEdit({})}
           />
         }

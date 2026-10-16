@@ -1,14 +1,5 @@
 import React from "react";
-import {
-  Scale,
-  CheckCircle2,
-  ShieldCheck,
-  Sparkles,
-  Building2,
-  Zap,
-  Factory,
-  Layers,
-} from "lucide-react";
+import { Scale, CheckCircle2, ShieldCheck, Zap, Building2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
 import { useMillingMode, MILLING_MODES, type MillingMode } from "@/lib/milling-mode";
@@ -43,10 +34,6 @@ export function MillingModeSection({ canEdit, lang }: MillingModeSectionProps) {
         return <Building2 className="h-5 w-5 text-slate-500" />;
       case "simplified":
         return <Zap className="h-5 w-5 text-amber-500" />;
-      case "manufacturing":
-        return <Factory className="h-5 w-5 text-sky-500" />;
-      case "hybrid":
-        return <Layers className="h-5 w-5 text-purple-500" />;
     }
   };
 
@@ -70,8 +57,8 @@ export function MillingModeSection({ canEdit, lang }: MillingModeSectionProps) {
                 </div>
                 <div className="text-xs text-muted-foreground font-normal mt-0.5">
                   {isAr
-                    ? "تحديد ما إذا كانت المؤسسة سوبرماركت/متجر عام (إخفاء المطحنة تماماً) أو مطحنة تعمل بالخطة المبسطة أو خطة التصنيع الموسعة."
-                    : "Configure store identity: General Store/Supermarket, Simplified Mill, or Industrial Production."}
+                    ? "تحديد ما إذا كانت المؤسسة سوبرماركت/متجر عام (إخفاء المطحنة تماماً) أو مطحنة تعمل بالخطة المبسطة الموحدة."
+                    : "Configure store identity: General Store/Supermarket or Simplified Mill."}
                 </div>
               </div>
             </span>

@@ -82,34 +82,6 @@ ALTER TABLE public.journal_lines ADD CONSTRAINT "journal_lines_account_id_fkey" 
 ALTER TABLE public.journal_lines ADD CONSTRAINT "journal_lines_entry_id_fkey" FOREIGN KEY (entry_id) REFERENCES journal_entries(id) ON DELETE CASCADE;
 ALTER TABLE public.loyalty_transactions ADD CONSTRAINT "loyalty_transactions_created_by_fkey" FOREIGN KEY (created_by) REFERENCES auth.users(id);
 ALTER TABLE public.loyalty_transactions ADD CONSTRAINT "loyalty_transactions_customer_id_fkey" FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE;
-ALTER TABLE public.milling_delivery_items ADD CONSTRAINT "milling_delivery_items_delivery_id_fkey" FOREIGN KEY (delivery_id) REFERENCES milling_delivery_notes(id) ON DELETE CASCADE;
-ALTER TABLE public.milling_delivery_items ADD CONSTRAINT "milling_delivery_items_job_output_id_fkey" FOREIGN KEY (job_output_id) REFERENCES milling_job_outputs(id) ON DELETE RESTRICT;
-ALTER TABLE public.milling_delivery_notes ADD CONSTRAINT "milling_delivery_notes_customer_id_fkey" FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE RESTRICT;
-ALTER TABLE public.milling_delivery_notes ADD CONSTRAINT "milling_delivery_notes_delivered_by_fkey" FOREIGN KEY (delivered_by) REFERENCES auth.users(id) ON DELETE SET NULL;
-ALTER TABLE public.milling_delivery_notes ADD CONSTRAINT "milling_delivery_notes_job_id_fkey" FOREIGN KEY (job_id) REFERENCES milling_jobs(id) ON DELETE RESTRICT;
-ALTER TABLE public.milling_delivery_notes ADD CONSTRAINT "milling_delivery_notes_store_id_fkey" FOREIGN KEY (store_id) REFERENCES warehouses(id) ON DELETE RESTRICT;
-ALTER TABLE public.milling_grain_grades ADD CONSTRAINT "milling_grain_grades_product_id_fkey" FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE RESTRICT;
-ALTER TABLE public.milling_intake_receipts ADD CONSTRAINT "milling_intake_receipts_customer_id_fkey" FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE RESTRICT;
-ALTER TABLE public.milling_intake_receipts ADD CONSTRAINT "milling_intake_receipts_grain_grade_id_fkey" FOREIGN KEY (grain_grade_id) REFERENCES milling_grain_grades(id) ON DELETE SET NULL;
-ALTER TABLE public.milling_intake_receipts ADD CONSTRAINT "milling_intake_receipts_grain_grade_ref_fkey" FOREIGN KEY (grain_grade_ref) REFERENCES milling_grain_grades(id) ON DELETE SET NULL;
-ALTER TABLE public.milling_intake_receipts ADD CONSTRAINT "milling_intake_receipts_grain_product_id_fkey" FOREIGN KEY (grain_product_id) REFERENCES products(id) ON DELETE SET NULL;
-ALTER TABLE public.milling_intake_receipts ADD CONSTRAINT "milling_intake_receipts_received_by_fkey" FOREIGN KEY (received_by) REFERENCES auth.users(id) ON DELETE SET NULL;
-ALTER TABLE public.milling_intake_receipts ADD CONSTRAINT "milling_intake_receipts_store_id_fkey" FOREIGN KEY (store_id) REFERENCES warehouses(id) ON DELETE RESTRICT;
-ALTER TABLE public.milling_job_outputs ADD CONSTRAINT "milling_job_outputs_job_id_fkey" FOREIGN KEY (job_id) REFERENCES milling_jobs(id) ON DELETE CASCADE;
-ALTER TABLE public.milling_job_outputs ADD CONSTRAINT "milling_job_outputs_mill_bag_product_id_fkey" FOREIGN KEY (mill_bag_product_id) REFERENCES products(id) ON DELETE SET NULL;
-ALTER TABLE public.milling_jobs ADD CONSTRAINT "milling_jobs_agreement_id_fkey" FOREIGN KEY (agreement_id) REFERENCES milling_service_agreements(id) ON DELETE SET NULL;
-ALTER TABLE public.milling_jobs ADD CONSTRAINT "milling_jobs_created_by_fkey" FOREIGN KEY (created_by) REFERENCES auth.users(id) ON DELETE SET NULL;
-ALTER TABLE public.milling_jobs ADD CONSTRAINT "milling_jobs_customer_id_fkey" FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE RESTRICT;
-ALTER TABLE public.milling_jobs ADD CONSTRAINT "milling_jobs_intake_receipt_id_fkey" FOREIGN KEY (intake_receipt_id) REFERENCES milling_intake_receipts(id) ON DELETE RESTRICT;
-ALTER TABLE public.milling_jobs ADD CONSTRAINT "milling_jobs_service_product_id_fkey" FOREIGN KEY (service_product_id) REFERENCES products(id) ON DELETE SET NULL;
-ALTER TABLE public.milling_jobs ADD CONSTRAINT "milling_jobs_store_id_fkey" FOREIGN KEY (store_id) REFERENCES warehouses(id) ON DELETE RESTRICT;
-ALTER TABLE public.milling_service_agreements ADD CONSTRAINT "milling_service_agreements_agreed_by_fkey" FOREIGN KEY (agreed_by) REFERENCES auth.users(id) ON DELETE SET NULL;
-ALTER TABLE public.milling_service_agreements ADD CONSTRAINT "milling_service_agreements_customer_id_fkey" FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE RESTRICT;
-ALTER TABLE public.milling_service_agreements ADD CONSTRAINT "milling_service_agreements_grain_grade_id_fkey" FOREIGN KEY (grain_grade_id) REFERENCES milling_grain_grades(id) ON DELETE SET NULL;
-ALTER TABLE public.milling_service_agreements ADD CONSTRAINT "milling_service_agreements_intake_receipt_id_fkey" FOREIGN KEY (intake_receipt_id) REFERENCES milling_intake_receipts(id) ON DELETE RESTRICT;
-ALTER TABLE public.milling_service_agreements ADD CONSTRAINT "milling_service_agreements_service_product_id_fkey" FOREIGN KEY (service_product_id) REFERENCES products(id) ON DELETE SET NULL;
-ALTER TABLE public.milling_service_agreements ADD CONSTRAINT "milling_service_agreements_store_id_fkey" FOREIGN KEY (store_id) REFERENCES warehouses(id) ON DELETE RESTRICT;
-ALTER TABLE public.milling_unit_conversions ADD CONSTRAINT "milling_unit_conversions_unit_id_fkey" FOREIGN KEY (unit_id) REFERENCES units(id) ON DELETE CASCADE;
 ALTER TABLE public.opening_balance_documents ADD CONSTRAINT "opening_balance_documents_created_by_fkey" FOREIGN KEY (created_by) REFERENCES auth.users(id);
 ALTER TABLE public.opening_balance_documents ADD CONSTRAINT "opening_balance_documents_posted_by_fkey" FOREIGN KEY (posted_by) REFERENCES auth.users(id);
 ALTER TABLE public.opening_balance_documents ADD CONSTRAINT "opening_balance_documents_reverses_document_id_fkey" FOREIGN KEY (reverses_document_id) REFERENCES opening_balance_documents(id);
@@ -126,20 +98,6 @@ ALTER TABLE public.product_batches ADD CONSTRAINT "product_batches_product_id_fk
 ALTER TABLE public.product_batches ADD CONSTRAINT "product_batches_warehouse_id_fkey" FOREIGN KEY (warehouse_id) REFERENCES warehouses(id) ON DELETE CASCADE;
 ALTER TABLE public.product_compatibilities ADD CONSTRAINT "product_compatibilities_product_id_fkey" FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE;
 ALTER TABLE public.product_compatibilities ADD CONSTRAINT "product_compatibilities_vehicle_model_id_fkey" FOREIGN KEY (vehicle_model_id) REFERENCES vehicle_models(id) ON DELETE CASCADE;
-ALTER TABLE public.production_bom_lines ADD CONSTRAINT "production_bom_lines_bom_id_fkey" FOREIGN KEY (bom_id) REFERENCES production_boms(id) ON DELETE CASCADE;
-ALTER TABLE public.production_bom_lines ADD CONSTRAINT "production_bom_lines_product_id_fkey" FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE RESTRICT;
-ALTER TABLE public.production_boms ADD CONSTRAINT "production_boms_created_by_fkey" FOREIGN KEY (created_by) REFERENCES auth.users(id);
-ALTER TABLE public.production_boms ADD CONSTRAINT "production_boms_product_id_fkey" FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE;
-ALTER TABLE public.production_order_losses ADD CONSTRAINT "production_order_losses_created_by_fkey" FOREIGN KEY (created_by) REFERENCES auth.users(id);
-ALTER TABLE public.production_order_losses ADD CONSTRAINT "production_order_losses_order_id_fkey" FOREIGN KEY (order_id) REFERENCES production_orders(id) ON DELETE CASCADE;
-ALTER TABLE public.production_order_materials ADD CONSTRAINT "production_order_materials_order_id_fkey" FOREIGN KEY (order_id) REFERENCES production_orders(id) ON DELETE CASCADE;
-ALTER TABLE public.production_order_materials ADD CONSTRAINT "production_order_materials_product_id_fkey" FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE RESTRICT;
-ALTER TABLE public.production_order_outputs ADD CONSTRAINT "production_order_outputs_order_id_fkey" FOREIGN KEY (order_id) REFERENCES production_orders(id) ON DELETE CASCADE;
-ALTER TABLE public.production_order_outputs ADD CONSTRAINT "production_order_outputs_product_id_fkey" FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE RESTRICT;
-ALTER TABLE public.production_orders ADD CONSTRAINT "production_orders_bom_id_fkey" FOREIGN KEY (bom_id) REFERENCES production_boms(id) ON DELETE SET NULL;
-ALTER TABLE public.production_orders ADD CONSTRAINT "production_orders_completed_by_fkey" FOREIGN KEY (completed_by) REFERENCES auth.users(id);
-ALTER TABLE public.production_orders ADD CONSTRAINT "production_orders_created_by_fkey" FOREIGN KEY (created_by) REFERENCES auth.users(id);
-ALTER TABLE public.production_orders ADD CONSTRAINT "production_orders_warehouse_id_fkey" FOREIGN KEY (warehouse_id) REFERENCES warehouses(id) ON DELETE RESTRICT;
 ALTER TABLE public.products ADD CONSTRAINT "products_base_uom_id_fkey" FOREIGN KEY (base_uom_id) REFERENCES units(id) ON DELETE SET NULL;
 ALTER TABLE public.products ADD CONSTRAINT "products_brand_id_fkey" FOREIGN KEY (brand_id) REFERENCES brands(id) ON DELETE SET NULL;
 ALTER TABLE public.products ADD CONSTRAINT "products_category_id_fkey" FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE SET NULL;
@@ -166,7 +124,6 @@ ALTER TABLE public.sales_invoice_items ADD CONSTRAINT "sales_invoice_items_produ
 ALTER TABLE public.sales_invoice_items ADD CONSTRAINT "sales_invoice_items_uom_id_fkey" FOREIGN KEY (uom_id) REFERENCES units(id) ON DELETE SET NULL;
 ALTER TABLE public.sales_invoices ADD CONSTRAINT "sales_invoices_created_by_fkey" FOREIGN KEY (created_by) REFERENCES auth.users(id) ON DELETE SET NULL;
 ALTER TABLE public.sales_invoices ADD CONSTRAINT "sales_invoices_customer_id_fkey" FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE SET NULL;
-ALTER TABLE public.sales_invoices ADD CONSTRAINT "sales_invoices_milling_job_id_fkey" FOREIGN KEY (milling_job_id) REFERENCES milling_jobs(id) ON DELETE SET NULL;
 ALTER TABLE public.sales_invoices ADD CONSTRAINT "sales_invoices_warehouse_id_fkey" FOREIGN KEY (warehouse_id) REFERENCES warehouses(id) ON DELETE SET NULL;
 ALTER TABLE public.sales_return_items ADD CONSTRAINT "sales_return_items_product_id_fkey" FOREIGN KEY (product_id) REFERENCES products(id);
 ALTER TABLE public.sales_return_items ADD CONSTRAINT "sales_return_items_return_id_fkey" FOREIGN KEY (return_id) REFERENCES sales_returns(id) ON DELETE CASCADE;
@@ -282,21 +239,13 @@ ALTER TABLE public.journal_lines ENABLE ROW LEVEL SECURITY;
 
 ALTER TABLE public.loyalty_transactions ENABLE ROW LEVEL SECURITY;
 
-ALTER TABLE public.milling_delivery_items ENABLE ROW LEVEL SECURITY;
 
-ALTER TABLE public.milling_delivery_notes ENABLE ROW LEVEL SECURITY;
 
-ALTER TABLE public.milling_grain_grades ENABLE ROW LEVEL SECURITY;
 
-ALTER TABLE public.milling_intake_receipts ENABLE ROW LEVEL SECURITY;
 
-ALTER TABLE public.milling_job_outputs ENABLE ROW LEVEL SECURITY;
 
-ALTER TABLE public.milling_jobs ENABLE ROW LEVEL SECURITY;
 
-ALTER TABLE public.milling_service_agreements ENABLE ROW LEVEL SECURITY;
 
-ALTER TABLE public.milling_unit_conversions ENABLE ROW LEVEL SECURITY;
 
 ALTER TABLE public.opening_balance_documents ENABLE ROW LEVEL SECURITY;
 
@@ -316,17 +265,11 @@ ALTER TABLE public.product_batches ENABLE ROW LEVEL SECURITY;
 
 ALTER TABLE public.product_compatibilities ENABLE ROW LEVEL SECURITY;
 
-ALTER TABLE public.production_bom_lines ENABLE ROW LEVEL SECURITY;
 
-ALTER TABLE public.production_boms ENABLE ROW LEVEL SECURITY;
 
-ALTER TABLE public.production_order_losses ENABLE ROW LEVEL SECURITY;
 
-ALTER TABLE public.production_order_materials ENABLE ROW LEVEL SECURITY;
 
-ALTER TABLE public.production_order_outputs ENABLE ROW LEVEL SECURITY;
 
-ALTER TABLE public.production_orders ENABLE ROW LEVEL SECURITY;
 
 ALTER TABLE public.products ENABLE ROW LEVEL SECURITY;
 
@@ -594,41 +537,13 @@ CREATE POLICY "Staff write loyalty" ON public.loyalty_transactions
   AS PERMISSIVE FOR INSERT TO authenticated
   WITH CHECK (is_staff(auth.uid()));
 
-CREATE POLICY "milling_delivery_items_read" ON public.milling_delivery_items
-  AS PERMISSIVE FOR SELECT TO authenticated
-  USING ((EXISTS ( SELECT 1
-   FROM milling_delivery_notes d
-  WHERE (d.id = milling_delivery_items.delivery_id))));
 
-CREATE POLICY "milling_delivery_read" ON public.milling_delivery_notes
-  AS PERMISSIVE FOR SELECT TO authenticated
-  USING (can_view_milling());
 
-CREATE POLICY "milling_grain_grades_read" ON public.milling_grain_grades
-  AS PERMISSIVE FOR SELECT TO authenticated
-  USING (is_staff(auth.uid()));
 
-CREATE POLICY "milling_intake_read" ON public.milling_intake_receipts
-  AS PERMISSIVE FOR SELECT TO authenticated
-  USING (can_view_milling());
 
-CREATE POLICY "milling_job_outputs_read" ON public.milling_job_outputs
-  AS PERMISSIVE FOR SELECT TO authenticated
-  USING ((EXISTS ( SELECT 1
-   FROM milling_jobs j
-  WHERE (j.id = milling_job_outputs.job_id))));
 
-CREATE POLICY "milling_jobs_read" ON public.milling_jobs
-  AS PERMISSIVE FOR SELECT TO authenticated
-  USING (can_view_milling());
 
-CREATE POLICY "milling_agreements_read" ON public.milling_service_agreements
-  AS PERMISSIVE FOR SELECT TO authenticated
-  USING (is_staff(auth.uid()));
 
-CREATE POLICY "milling_unit_conversions_read" ON public.milling_unit_conversions
-  AS PERMISSIVE FOR SELECT TO authenticated
-  USING (is_staff(auth.uid()));
 
 CREATE POLICY "opening_bal_read" ON public.opening_balance_documents
   AS PERMISSIVE FOR SELECT TO authenticated
@@ -690,29 +605,11 @@ CREATE POLICY "fitment_staff" ON public.product_compatibilities
   USING (is_staff(auth.uid()))
   WITH CHECK ((has_role(auth.uid(), 'owner'::app_role) OR has_role(auth.uid(), 'manager'::app_role)));
 
-CREATE POLICY "production_bom_lines_read" ON public.production_bom_lines
-  AS PERMISSIVE FOR SELECT TO authenticated
-  USING (is_staff(auth.uid()));
 
-CREATE POLICY "production_boms_read" ON public.production_boms
-  AS PERMISSIVE FOR SELECT TO authenticated
-  USING (is_staff(auth.uid()));
 
-CREATE POLICY "production_order_losses_read" ON public.production_order_losses
-  AS PERMISSIVE FOR SELECT TO authenticated
-  USING (is_staff(auth.uid()));
 
-CREATE POLICY "production_order_materials_read" ON public.production_order_materials
-  AS PERMISSIVE FOR SELECT TO authenticated
-  USING (is_staff(auth.uid()));
 
-CREATE POLICY "production_order_outputs_read" ON public.production_order_outputs
-  AS PERMISSIVE FOR SELECT TO authenticated
-  USING (is_staff(auth.uid()));
 
-CREATE POLICY "production_orders_read" ON public.production_orders
-  AS PERMISSIVE FOR SELECT TO authenticated
-  USING (is_staff(auth.uid()));
 
 CREATE POLICY "prod_manage" ON public.products
   AS PERMISSIVE FOR ALL TO authenticated
@@ -1032,63 +929,10 @@ GRANT DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON public.jo
 GRANT DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON public.loyalty_transactions TO anon;
 GRANT DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON public.loyalty_transactions TO authenticated;
 GRANT DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON public.loyalty_transactions TO service_role;
-GRANT DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON public.milling_agreements_view TO anon;
-GRANT DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON public.milling_agreements_view TO authenticated;
-GRANT DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON public.milling_agreements_view TO service_role;
-GRANT DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON public.milling_customer_custody TO anon;
-GRANT DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON public.milling_customer_custody TO authenticated;
-GRANT DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON public.milling_customer_custody TO service_role;
-GRANT REFERENCES, SELECT, TRIGGER, TRUNCATE ON public.milling_delivery_items TO anon;
-GRANT REFERENCES, SELECT, TRIGGER, TRUNCATE ON public.milling_delivery_items TO authenticated;
-GRANT DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON public.milling_delivery_items TO service_role;
-GRANT REFERENCES, SELECT, TRIGGER, TRUNCATE ON public.milling_delivery_notes TO anon;
-GRANT REFERENCES, SELECT, TRIGGER, TRUNCATE ON public.milling_delivery_notes TO authenticated;
-GRANT DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON public.milling_delivery_notes TO service_role;
-GRANT DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON public.milling_efficiency_report TO anon;
-GRANT DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON public.milling_efficiency_report TO authenticated;
-GRANT DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON public.milling_efficiency_report TO service_role;
-GRANT REFERENCES, SELECT, TRIGGER, TRUNCATE ON public.milling_grain_grades TO anon;
-GRANT DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON public.milling_grain_grades TO authenticated;
-GRANT DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON public.milling_grain_grades TO service_role;
-GRANT DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON public.milling_grain_grades_view TO anon;
-GRANT DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON public.milling_grain_grades_view TO authenticated;
-GRANT DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON public.milling_grain_grades_view TO service_role;
-GRANT DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON public.milling_intake_health TO anon;
-GRANT DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON public.milling_intake_health TO authenticated;
-GRANT DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON public.milling_intake_health TO service_role;
-GRANT REFERENCES, SELECT, TRIGGER, TRUNCATE ON public.milling_intake_receipts TO anon;
-GRANT REFERENCES, SELECT, TRIGGER, TRUNCATE ON public.milling_intake_receipts TO authenticated;
-GRANT DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON public.milling_intake_receipts TO service_role;
 GRANT DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON public.milling_inventory_report TO authenticated;
 GRANT DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON public.milling_inventory_report TO service_role;
-GRANT REFERENCES, SELECT, TRIGGER, TRUNCATE ON public.milling_job_outputs TO anon;
-GRANT REFERENCES, SELECT, TRIGGER, TRUNCATE ON public.milling_job_outputs TO authenticated;
-GRANT DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON public.milling_job_outputs TO service_role;
-GRANT REFERENCES, SELECT, TRIGGER, TRUNCATE ON public.milling_jobs TO anon;
-GRANT REFERENCES, SELECT, TRIGGER, TRUNCATE ON public.milling_jobs TO authenticated;
-GRANT DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON public.milling_jobs TO service_role;
-GRANT DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON public.milling_jobs_without_agreement TO authenticated;
-GRANT DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON public.milling_jobs_without_agreement TO service_role;
 GRANT DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON public.milling_margin_report TO authenticated;
 GRANT DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON public.milling_margin_report TO service_role;
-GRANT DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON public.milling_output_balances TO anon;
-GRANT DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON public.milling_output_balances TO authenticated;
-GRANT DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON public.milling_output_balances TO service_role;
-GRANT DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON public.milling_pricing_diagnostics TO anon;
-GRANT DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON public.milling_pricing_diagnostics TO authenticated;
-GRANT DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON public.milling_pricing_diagnostics TO service_role;
-GRANT DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON public.milling_revenue_report TO anon;
-GRANT DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON public.milling_revenue_report TO authenticated;
-GRANT DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON public.milling_revenue_report TO service_role;
-GRANT REFERENCES, SELECT, TRIGGER, TRUNCATE ON public.milling_service_agreements TO anon;
-GRANT REFERENCES, SELECT, TRIGGER, TRUNCATE ON public.milling_service_agreements TO authenticated;
-GRANT DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON public.milling_service_agreements TO service_role;
-GRANT DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON public.milling_service_money TO anon;
-GRANT DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON public.milling_service_money TO authenticated;
-GRANT DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON public.milling_service_money TO service_role;
-GRANT REFERENCES, SELECT, TRIGGER, TRUNCATE ON public.milling_unit_conversions TO anon;
-GRANT REFERENCES, SELECT, TRIGGER, TRUNCATE ON public.milling_unit_conversions TO authenticated;
-GRANT DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON public.milling_unit_conversions TO service_role;
 GRANT DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON public.opening_balance_documents TO authenticated;
 GRANT DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON public.opening_balance_documents TO service_role;
 GRANT DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON public.opening_balance_lines TO authenticated;
@@ -1116,20 +960,6 @@ GRANT DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON public.pr
 GRANT DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON public.product_compatibilities TO anon;
 GRANT DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON public.product_compatibilities TO authenticated;
 GRANT DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON public.product_compatibilities TO service_role;
-GRANT DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON public.production_bom_lines TO authenticated;
-GRANT DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON public.production_bom_lines TO service_role;
-GRANT DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON public.production_boms TO authenticated;
-GRANT DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON public.production_boms TO service_role;
-GRANT DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON public.production_ledger_status TO authenticated;
-GRANT DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON public.production_ledger_status TO service_role;
-GRANT DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON public.production_order_losses TO authenticated;
-GRANT DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON public.production_order_losses TO service_role;
-GRANT DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON public.production_order_materials TO authenticated;
-GRANT DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON public.production_order_materials TO service_role;
-GRANT DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON public.production_order_outputs TO authenticated;
-GRANT DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON public.production_order_outputs TO service_role;
-GRANT DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON public.production_orders TO authenticated;
-GRANT DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON public.production_orders TO service_role;
 GRANT DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON public.products TO anon;
 GRANT DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON public.products TO authenticated;
 GRANT DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON public.products TO service_role;
@@ -1220,10 +1050,6 @@ GRANT DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON public.wa
 GRANT DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON public.warehouses TO service_role;
 
 -- Function execution privileges.
-GRANT EXECUTE ON FUNCTION public.add_milling_output(_job_id uuid, _output_type text, _bag_size_kg numeric, _produced_bag_count integer, _produced_weight_kg numeric, _bags_source text, _mill_bag_product_id uuid, _mill_bags_used integer) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.add_milling_output(_job_id uuid, _output_type text, _bag_size_kg numeric, _produced_bag_count integer, _produced_weight_kg numeric, _bags_source text, _mill_bag_product_id uuid, _mill_bags_used integer) TO service_role;
-GRANT EXECUTE ON FUNCTION public.add_production_output(_order_id uuid, _product_id uuid, _qty numeric, _output_role text) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.add_production_output(_order_id uuid, _product_id uuid, _qty numeric, _output_role text) TO service_role;
 GRANT EXECUTE ON FUNCTION public.adjust_loyalty(_customer uuid, _points numeric, _kind text, _note text) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.adjust_loyalty(_customer uuid, _points numeric, _kind text, _note text) TO service_role;
 GRANT EXECUTE ON FUNCTION public.apply_cost_movement(p_product_id uuid, p_warehouse_id uuid, p_signed_qty numeric, p_incoming_cost numeric, p_source_type text, p_source_id uuid, p_note text, p_owner_type owner_type, p_owner_id uuid) TO authenticated;
@@ -1242,34 +1068,16 @@ GRANT EXECUTE ON FUNCTION public.can_view_milling() TO authenticated;
 GRANT EXECUTE ON FUNCTION public.can_view_milling() TO service_role;
 GRANT EXECUTE ON FUNCTION public.cancel_expense(p_entry_id uuid, p_reason text, p_expected_version integer) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.cancel_expense(p_entry_id uuid, p_reason text, p_expected_version integer) TO service_role;
-GRANT EXECUTE ON FUNCTION public.cancel_milling_intake(_receipt_id uuid, _reason text) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.cancel_milling_intake(_receipt_id uuid, _reason text) TO service_role;
-GRANT EXECUTE ON FUNCTION public.cancel_milling_job(_job_id uuid, _reason text) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.cancel_milling_job(_job_id uuid, _reason text) TO service_role;
 GRANT EXECUTE ON FUNCTION public.close_expense(p_entry_id uuid) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.close_expense(p_entry_id uuid) TO service_role;
 GRANT EXECUTE ON FUNCTION public.company_costing_method() TO authenticated;
 GRANT EXECUTE ON FUNCTION public.company_costing_method() TO service_role;
-GRANT EXECUTE ON FUNCTION public.complete_milling_job(_job_id uuid, _notes text) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.complete_milling_job(_job_id uuid, _notes text) TO service_role;
-GRANT EXECUTE ON FUNCTION public.complete_production_order(_order_id uuid, _overhead_cost numeric, _direct_labour numeric) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.complete_production_order(_order_id uuid, _overhead_cost numeric, _direct_labour numeric) TO service_role;
 GRANT EXECUTE ON FUNCTION public.create_expense(p_lines jsonb, p_expense_date date, p_due_date date, p_entry_type expense_entry_type, p_payee_type expense_payee_type, p_payee_name text, p_supplier_id uuid, p_employee_id uuid, p_warehouse_id uuid, p_cost_center_id uuid, p_project_id uuid, p_description text, p_note text, p_tax_mode expense_tax_mode, p_reference text, p_submit boolean) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.create_expense(p_lines jsonb, p_expense_date date, p_due_date date, p_entry_type expense_entry_type, p_payee_type expense_payee_type, p_payee_name text, p_supplier_id uuid, p_employee_id uuid, p_warehouse_id uuid, p_cost_center_id uuid, p_project_id uuid, p_description text, p_note text, p_tax_mode expense_tax_mode, p_reference text, p_submit boolean) TO service_role;
 GRANT EXECUTE ON FUNCTION public.create_journal_entry(p_memo text, p_entry_date date, p_source_type text, p_source_id uuid, p_is_system boolean, p_lines jsonb) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.create_journal_entry(p_memo text, p_entry_date date, p_source_type text, p_source_id uuid, p_is_system boolean, p_lines jsonb) TO service_role;
-GRANT EXECUTE ON FUNCTION public.create_milling_agreement(_intake_receipt_id uuid, _grain_grade_id uuid, _requested_output_type text, _requested_output_note text, _output_bag_size_kg numeric, _bags_source text, _delivery_mode text, _service_product_id uuid, _price_basis text, _agreed_price numeric, _expected_extraction_rate numeric, _allowed_loss_percentage numeric, _notes text) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.create_milling_agreement(_intake_receipt_id uuid, _grain_grade_id uuid, _requested_output_type text, _requested_output_note text, _output_bag_size_kg numeric, _bags_source text, _delivery_mode text, _service_product_id uuid, _price_basis text, _agreed_price numeric, _expected_extraction_rate numeric, _allowed_loss_percentage numeric, _notes text) TO service_role;
-GRANT EXECUTE ON FUNCTION public.create_milling_intake(_store_id uuid, _customer_id uuid, _grain_type text, _grain_product_id uuid, _grain_grade_id uuid, _bag_size_kg numeric, _bag_count integer, _gross_weight_kg numeric, _tare_weight_kg numeric, _moisture numeric, _impurities numeric, _truck_plate text, _driver_name text, _silo text, _notes text, _bag_type text, _bag_source text, _bag_condition text) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.create_milling_intake(_store_id uuid, _customer_id uuid, _grain_type text, _grain_product_id uuid, _grain_grade_id uuid, _bag_size_kg numeric, _bag_count integer, _gross_weight_kg numeric, _tare_weight_kg numeric, _moisture numeric, _impurities numeric, _truck_plate text, _driver_name text, _silo text, _notes text, _bag_type text, _bag_source text, _bag_condition text) TO service_role;
-GRANT EXECUTE ON FUNCTION public.create_milling_job(_intake_receipt_id uuid, _input_bag_count integer, _input_bag_size_kg numeric, _input_weight_kg numeric, _fee_per_bag numeric, _fee_per_ton numeric, _service_product_id uuid, _expected_extraction_rate numeric, _allowed_loss_percentage numeric, _notes text) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.create_milling_job(_intake_receipt_id uuid, _input_bag_count integer, _input_bag_size_kg numeric, _input_weight_kg numeric, _fee_per_bag numeric, _fee_per_ton numeric, _service_product_id uuid, _expected_extraction_rate numeric, _allowed_loss_percentage numeric, _notes text) TO service_role;
-GRANT EXECUTE ON FUNCTION public.create_milling_job_v2(_agreement_id uuid, _intake_receipt_id uuid, _input_bag_count integer, _input_bag_size_kg numeric, _input_weight_kg numeric, _notes text) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.create_milling_job_v2(_agreement_id uuid, _intake_receipt_id uuid, _input_bag_count integer, _input_bag_size_kg numeric, _input_weight_kg numeric, _notes text) TO service_role;
 GRANT EXECUTE ON FUNCTION public.create_opening_balance(_effective_date date, _lines jsonb, _notes text) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.create_opening_balance(_effective_date date, _lines jsonb, _notes text) TO service_role;
-GRANT EXECUTE ON FUNCTION public.create_production_order(_warehouse_id uuid, _bom_id uuid, _production_date date, _allocation_basis text, _notes text) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.create_production_order(_warehouse_id uuid, _bom_id uuid, _production_date date, _allocation_basis text, _notes text) TO service_role;
 GRANT EXECUTE ON FUNCTION public.create_purchase(_warehouse_id uuid, _supplier_id uuid, _payment_method text, _paid numeric, _discount numeric, _note text, _items jsonb) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.create_purchase(_warehouse_id uuid, _supplier_id uuid, _payment_method text, _paid numeric, _discount numeric, _note text, _items jsonb) TO service_role;
 GRANT EXECUTE ON FUNCTION public.create_purchase_return(_invoice_id uuid, _warehouse_id uuid, _supplier_id uuid, _refund_method text, _note text, _items jsonb) TO authenticated;
@@ -1339,12 +1147,6 @@ GRANT EXECUTE ON FUNCTION public.is_platform_superadmin(p_user_id uuid) TO servi
 GRANT EXECUTE ON FUNCTION public.is_staff(_user_id uuid) TO anon;
 GRANT EXECUTE ON FUNCTION public.is_staff(_user_id uuid) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.is_staff(_user_id uuid) TO service_role;
-GRANT EXECUTE ON FUNCTION public.issue_milling_service_invoice(_job_id uuid, _payment_method text, _paid numeric, _discount numeric, _note text, _include_packaging boolean) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.issue_milling_service_invoice(_job_id uuid, _payment_method text, _paid numeric, _discount numeric, _note text, _include_packaging boolean) TO service_role;
-GRANT EXECUTE ON FUNCTION public.issue_milling_service_invoice_v2(_job_id uuid, _payment_method text, _paid numeric, _discount numeric, _note text, _include_packaging boolean, _include_sewing boolean, _sewing_price numeric) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.issue_milling_service_invoice_v2(_job_id uuid, _payment_method text, _paid numeric, _discount numeric, _note text, _include_packaging boolean, _include_sewing boolean, _sewing_price numeric) TO service_role;
-GRANT EXECUTE ON FUNCTION public.issue_production_materials(_order_id uuid, _product_id uuid, _qty numeric) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.issue_production_materials(_order_id uuid, _product_id uuid, _qty numeric) TO service_role;
 GRANT EXECUTE ON FUNCTION public.item_effective_policy(p_item_id uuid) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.item_effective_policy(p_item_id uuid) TO service_role;
 GRANT EXECUTE ON FUNCTION public.item_has_stock_history(p_item_id uuid) TO authenticated;
@@ -1357,10 +1159,6 @@ GRANT EXECUTE ON FUNCTION public.list_expenses(p_search text, p_status expense_s
 GRANT EXECUTE ON FUNCTION public.list_expenses(p_search text, p_status expense_status[], p_category_id uuid, p_warehouse_id uuid, p_cost_center_id uuid, p_project_id uuid, p_supplier_id uuid, p_employee_id uuid, p_payment_state text, p_date_from date, p_date_to date, p_amount_min numeric, p_amount_max numeric, p_category_ids uuid[], p_limit integer, p_cursor_date date, p_cursor_id uuid) TO service_role;
 GRANT EXECUTE ON FUNCTION public.migrate_legacy_expenses(p_mode text, p_from date, p_to date, p_batch_size integer, p_dry_run boolean) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.migrate_legacy_expenses(p_mode text, p_from date, p_to date, p_batch_size integer, p_dry_run boolean) TO service_role;
-GRANT EXECUTE ON FUNCTION public.milling_kg_per_unit(_unit_id uuid) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.milling_kg_per_unit(_unit_id uuid) TO service_role;
-GRANT EXECUTE ON FUNCTION public.milling_match_grain_grade(_grade_id uuid, _moisture numeric, _impurities numeric) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.milling_match_grain_grade(_grade_id uuid, _moisture numeric, _impurities numeric) TO service_role;
 -- ⚠️ لا يُمنح لـ anon: دالة SECURITY DEFINER تُخصّص من تسلسل حقيقي، ومنحها
 -- لزائر غير مسجَّل يسمح له بإحراق أرقام المستندات بلا مصادقة. وكانت هي الوحيدة
 -- بين كل دوال next_* الممنوحة لـ anon — بقية الدوال تقتصر على authenticated
@@ -1374,9 +1172,6 @@ GRANT EXECUTE ON FUNCTION public.next_expense_reference() TO service_role;
 -- that does not exist is a hard error.
 GRANT EXECUTE ON FUNCTION public.next_journal_number(p_date date) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.next_journal_number(p_date date) TO service_role;
-GRANT EXECUTE ON FUNCTION public.next_milling_delivery_number() TO service_role;
-GRANT EXECUTE ON FUNCTION public.next_milling_intake_number() TO service_role;
-GRANT EXECUTE ON FUNCTION public.next_milling_job_number() TO service_role;
 GRANT EXECUTE ON FUNCTION public.next_stock_adjustment_number() TO authenticated;
 GRANT EXECUTE ON FUNCTION public.next_stock_adjustment_number() TO service_role;
 GRANT EXECUTE ON FUNCTION public.next_stock_opening_number() TO authenticated;
@@ -1392,8 +1187,6 @@ GRANT EXECUTE ON FUNCTION public.post_opening_balance(_document_id uuid) TO auth
 GRANT EXECUTE ON FUNCTION public.post_opening_balance(_document_id uuid) TO service_role;
 GRANT EXECUTE ON FUNCTION public.post_opening_stock(_warehouse_id uuid, _effective_date date, _note text, _items jsonb) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.post_opening_stock(_warehouse_id uuid, _effective_date date, _note text, _items jsonb) TO service_role;
-GRANT EXECUTE ON FUNCTION public.post_production_order(p_order_id uuid) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.post_production_order(p_order_id uuid) TO service_role;
 -- NOTE: post_purchase_invoice and post_sales_invoice are NOT granted here.
 -- Their definition moved to 16_payment_methods.sql (their payment-account branch
 -- needs the payment_methods catalogue), so they do not exist yet at this point.
@@ -1403,14 +1196,10 @@ GRANT EXECUTE ON FUNCTION public.post_stock_adjustment(_warehouse_id uuid, _reas
 GRANT EXECUTE ON FUNCTION public.post_stock_adjustment(_warehouse_id uuid, _reason text, _note text, _effective_date date, _items jsonb) TO service_role;
 GRANT EXECUTE ON FUNCTION public.post_stock_delta(p_product_id uuid, p_warehouse_id uuid, p_signed_qty numeric, p_unit_cost numeric, p_movement_kind stock_movement_kind, p_source_type text, p_source_id uuid, p_note text, p_owner_type owner_type, p_owner_id uuid, p_movement_type_legacy movement_type) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.post_stock_delta(p_product_id uuid, p_warehouse_id uuid, p_signed_qty numeric, p_unit_cost numeric, p_movement_kind stock_movement_kind, p_source_type text, p_source_id uuid, p_note text, p_owner_type owner_type, p_owner_id uuid, p_movement_type_legacy movement_type) TO service_role;
-GRANT EXECUTE ON FUNCTION public.process_milling_delivery(_job_id uuid, _truck_plate text, _driver_name text, _notes text, _items jsonb) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.process_milling_delivery(_job_id uuid, _truck_plate text, _driver_name text, _notes text, _items jsonb) TO service_role;
 GRANT EXECUTE ON FUNCTION public.product_delete_guard(p_product_id uuid) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.product_delete_guard(p_product_id uuid) TO service_role;
 GRANT EXECUTE ON FUNCTION public.product_reference_counts(p_product_id uuid) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.product_reference_counts(p_product_id uuid) TO service_role;
-GRANT EXECUTE ON FUNCTION public.production_last_movement(p_product_id uuid, p_warehouse_id uuid, p_source_id uuid) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.production_last_movement(p_product_id uuid, p_warehouse_id uuid, p_source_id uuid) TO service_role;
 GRANT EXECUTE ON FUNCTION public.receive_customer_owned_stock(_customer_id uuid, _product_id uuid, _warehouse_id uuid, _quantity numeric, _unit_cost numeric, _note text) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.receive_customer_owned_stock(_customer_id uuid, _product_id uuid, _warehouse_id uuid, _quantity numeric, _unit_cost numeric, _note text) TO service_role;
 GRANT EXECUTE ON FUNCTION public.record_customer_payment(_customer_id uuid, _invoice_id uuid, _amount numeric, _method text, _payment_date date, _note text) TO authenticated;
@@ -1421,11 +1210,8 @@ GRANT EXECUTE ON FUNCTION public.record_expense_payment(p_entry_id uuid, p_amoun
 GRANT EXECUTE ON FUNCTION public.record_expense_payment(p_entry_id uuid, p_amount numeric, p_payment_date date, p_payment_method payment_method, p_account_label text, p_reference_no text, p_note text, p_idempotency_key text) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.record_expense_payment(p_entry_id uuid, p_amount numeric, p_payment_date date, p_payment_method payment_method, p_account_label text, p_reference_no text, p_note text, p_idempotency_key text, p_account_id uuid) TO service_role;
 GRANT EXECUTE ON FUNCTION public.record_expense_payment(p_entry_id uuid, p_amount numeric, p_payment_date date, p_payment_method payment_method, p_account_label text, p_reference_no text, p_note text, p_idempotency_key text) TO service_role;
-GRANT EXECUTE ON FUNCTION public.record_production_loss(_order_id uuid, _reason text, _qty numeric, _notes text) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.record_production_loss(_order_id uuid, _reason text, _qty numeric, _notes text) TO service_role;
 GRANT EXECUTE ON FUNCTION public.release_customer_owned_stock(_customer_id uuid, _product_id uuid, _warehouse_id uuid, _quantity numeric, _note text) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.release_customer_owned_stock(_customer_id uuid, _product_id uuid, _warehouse_id uuid, _quantity numeric, _note text) TO service_role;
-GRANT EXECUTE ON FUNCTION public.repair_milling_dual_fee_jobs(_apply boolean) TO service_role;
 GRANT EXECUTE ON FUNCTION public.resolve_purchase_line(p_line jsonb, OUT o_product_id uuid, OUT o_quantity numeric, OUT o_line_type text, OUT o_stock_effect text) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.resolve_purchase_line(p_line jsonb, OUT o_product_id uuid, OUT o_quantity numeric, OUT o_line_type text, OUT o_stock_effect text) TO service_role;
 GRANT EXECUTE ON FUNCTION public.resolve_sale_line(p_line jsonb, OUT o_product_id uuid, OUT o_quantity numeric, OUT o_line_type text, OUT o_stock_effect text, OUT o_service_name text) TO authenticated;
@@ -1482,3 +1268,37 @@ GRANT EXECUTE ON FUNCTION public.update_expense(p_entry_id uuid, p_expected_vers
 GRANT EXECUTE ON FUNCTION public.update_expense(p_entry_id uuid, p_expected_version integer, p_lines jsonb, p_expense_date date, p_due_date date, p_entry_type expense_entry_type, p_payee_type expense_payee_type, p_payee_name text, p_supplier_id uuid, p_employee_id uuid, p_warehouse_id uuid, p_cost_center_id uuid, p_project_id uuid, p_description text, p_note text, p_tax_mode expense_tax_mode) TO service_role;
 GRANT EXECUTE ON FUNCTION public.warehouse_reference_counts(p_warehouse_id uuid) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.warehouse_reference_counts(p_warehouse_id uuid) TO service_role;
+
+-- ══════════════════
+-- custody_ledger — طبقة الأمانات المبسطة (10_milling_custody.sql)
+-- ══════════════════
+
+ALTER TABLE public.custody_ledger ADD CONSTRAINT "custody_ledger_customer_id_fkey" FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE RESTRICT;
+ALTER TABLE public.custody_ledger ADD CONSTRAINT "custody_ledger_warehouse_id_fkey" FOREIGN KEY (warehouse_id) REFERENCES warehouses(id) ON DELETE RESTRICT;
+ALTER TABLE public.custody_ledger ADD CONSTRAINT "custody_ledger_item_id_fkey" FOREIGN KEY (item_id) REFERENCES products(id) ON DELETE RESTRICT;
+ALTER TABLE public.custody_ledger ADD CONSTRAINT "custody_ledger_milling_document_id_fkey" FOREIGN KEY (milling_document_id) REFERENCES milling_service_documents(id) ON DELETE RESTRICT;
+ALTER TABLE public.custody_ledger ADD CONSTRAINT "custody_ledger_service_invoice_id_fkey" FOREIGN KEY (service_invoice_id) REFERENCES sales_invoices(id) ON DELETE SET NULL;
+ALTER TABLE public.custody_ledger ADD CONSTRAINT "custody_ledger_created_by_fkey" FOREIGN KEY (created_by) REFERENCES auth.users(id) ON DELETE SET NULL;
+ALTER TABLE public.milling_service_documents ADD CONSTRAINT "milling_service_documents_customer_id_fkey" FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE RESTRICT;
+ALTER TABLE public.milling_service_documents ADD CONSTRAINT "milling_service_documents_warehouse_id_fkey" FOREIGN KEY (warehouse_id) REFERENCES warehouses(id) ON DELETE RESTRICT;
+ALTER TABLE public.milling_service_documents ADD CONSTRAINT "milling_service_documents_sales_invoice_id_fkey" FOREIGN KEY (sales_invoice_id) REFERENCES sales_invoices(id) ON DELETE RESTRICT;
+ALTER TABLE public.milling_service_documents ADD CONSTRAINT "milling_service_documents_created_by_fkey" FOREIGN KEY (created_by) REFERENCES auth.users(id) ON DELETE SET NULL;
+
+ALTER TABLE public.custody_ledger ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.milling_service_documents ENABLE ROW LEVEL SECURITY;
+
+GRANT REFERENCES, SELECT, TRIGGER, TRUNCATE ON public.custody_ledger TO anon;
+GRANT REFERENCES, SELECT, TRIGGER, TRUNCATE ON public.custody_ledger TO authenticated;
+GRANT DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON public.custody_ledger TO service_role;
+GRANT REFERENCES, SELECT, TRIGGER, TRUNCATE ON public.milling_service_documents TO anon;
+GRANT REFERENCES, SELECT, TRIGGER, TRUNCATE ON public.milling_service_documents TO authenticated;
+GRANT DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON public.milling_service_documents TO service_role;
+GRANT SELECT ON public.custody_customer_statement TO anon;
+GRANT SELECT ON public.custody_customer_statement TO authenticated;
+GRANT SELECT ON public.custody_customer_statement TO service_role;
+GRANT SELECT ON public.custody_service_money TO anon;
+GRANT SELECT ON public.custody_service_money TO authenticated;
+GRANT SELECT ON public.custody_service_money TO service_role;
+GRANT SELECT ON public.custody_detected_loss TO anon;
+GRANT SELECT ON public.custody_detected_loss TO authenticated;
+GRANT SELECT ON public.custody_detected_loss TO service_role;

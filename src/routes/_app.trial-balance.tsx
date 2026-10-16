@@ -60,6 +60,22 @@ function TrialBalancePage() {
         .limit(3000),
     ]);
 
+    /*
+     * Service revenue split (05 §بند 3): the milling toll fee is a normal
+     * sales line whose product is `item_class = 'SERVICE'`. Derived from the
+     * same invoices — never a parallel table — so the total stays identical.
+     */
+    const serviceItems = await supabase
+      .from("sales_invoice_items")
+      .select("quantity,unit_price,products!inner(item_class)")
+      .eq("products.item_class", "SERVICE")
+      .limit(5000);
+    const serviceRevenue = (serviceItems.data ?? []).reduce(
+      (a, r: { quantity?: number | null; unit_price?: number | null }) =>
+        a + Number(r.quantity ?? 0) * Number(r.unit_price ?? 0),
+      0,
+    );
+
     const salesTotal = (sales.data ?? []).reduce((a, r) => a + Number(r.total), 0);
     const salesPaidCash = (sales.data ?? []).reduce((a, r) => a + Number(r.paid), 0);
 
@@ -128,6 +144,17 @@ function TrialBalancePage() {
         type: "revenue",
         debit: 0,
         credit: salesTotal,
+      },
+      /*
+       * Informational sub-line: service revenue is part of 4010 above, shown
+       * apart so the mill owner can read the toll-fee figure directly.
+       */
+      {
+        accountCode: "4010-S",
+        accountName: lang === "ar" ? "منها: إيراد الخدمة (أجور طحن…)" : "Of which: Service revenue",
+        type: "revenue",
+        debit: 0,
+        credit: serviceRevenue,
       },
       {
         accountCode: "5010",

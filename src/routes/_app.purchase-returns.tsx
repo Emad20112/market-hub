@@ -56,6 +56,7 @@ import {
   type SortOption,
 } from "@/components/ui/table-toolbar";
 import { RecordsViewToggle } from "@/components/ui/records-view-toggle";
+import { usePersistedViewMode } from "@/hooks/use-persisted-view-mode";
 import { type DataTableColumn, type DataTableSort } from "@/components/ui/data-table";
 import { useBreakpoint } from "@/design/breakpoints";
 
@@ -110,7 +111,7 @@ function PurchaseReturnsPage() {
   const [filters, setFilters] = useState<FilterValues>({});
   const [sortKey, setSortKey] = useState<string>("date_desc");
   const [sort, setSort] = useState<DataTableSort | null>(null);
-  const [viewMode, setViewMode] = useState<ViewMode>("cards");
+  const [viewMode, setViewMode] = usePersistedViewMode("purchase-returns", "cards");
 
   const whName = useCallback(
     (w?: { name: string | null; name_ar?: string | null } | null) =>

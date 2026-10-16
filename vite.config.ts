@@ -14,6 +14,9 @@ export default defineConfig({
       injectRegister: "auto",
       manifest: false,
       workbox: {
+        // Nitro outputs the client bundle into .output/public, not ./dist.
+        // Without this, precache finds zero files (warning in build log).
+        globDirectory: ".output/public",
         globPatterns: ["**/*.{js,css,html,ico,png,svg,webp,woff2}"],
         navigateFallback: null,
         runtimeCaching: [

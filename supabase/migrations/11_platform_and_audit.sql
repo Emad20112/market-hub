@@ -83,8 +83,4 @@ CREATE INDEX idx_audit_entity ON public.audit_logs USING btree (entity_type, ent
 
 -- ── SEQUENCES ─────────────────────────────────────────────────────────────
 CREATE SEQUENCE IF NOT EXISTS public.expense_reference_seq START 1;
-CREATE SEQUENCE IF NOT EXISTS public.milling_delivery_seq START 1;
-CREATE SEQUENCE IF NOT EXISTS public.milling_intake_seq START 1;
-CREATE SEQUENCE IF NOT EXISTS public.milling_job_seq START 1;
-CREATE SEQUENCE IF NOT EXISTS public.production_order_seq START 1;
 

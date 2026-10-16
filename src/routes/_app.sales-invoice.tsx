@@ -216,7 +216,8 @@ function SalesInvoicePage() {
   const isRtl = lang === "ar";
   const hasMultiWarehouse = isModuleEnabled("multi_warehouse");
 
-  const [mode, setMode] = useState<Mode>("pos");
+  // وضع تذكرة الطحن لم يعد متاحاً من الفواتير العامة؛ كاونتر المطحنة هو مصدره الوحيد.
+  const [mode] = useState<Mode>("pos");
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
 
@@ -626,8 +627,8 @@ function SalesInvoicePage() {
         title={isRtl ? "فاتورة المبيعات" : "Sales Invoice"}
         subtitle={
           isRtl
-            ? "وضعان مختلفان: بيع صنف من الكتالوج، أو تذكرة طحن بشروط يُتفاوض عليها في اللحظة"
-            : "Two modes: a catalogue sale, or a milling ticket negotiated at the counter"
+            ? "فاتورة مبيعات للسلع والخدمات العامة من الكتالوج"
+            : "Sales invoice for catalogue goods and general services"
         }
         actions={
           <Link
@@ -640,47 +641,18 @@ function SalesInvoicePage() {
         }
       />
 
-      {/* Mode switch — the two acts, stated as two acts. */}
-      <div className="grid grid-cols-2 gap-2 rounded-2xl border border-border/80 bg-surface-2/40 p-1.5">
-        {(
-          [
-            {
-              id: "pos" as Mode,
-              icon: <ShoppingBag className="h-4 w-4" />,
-              title: isRtl ? "بيع من الكتالوج" : "Catalogue sale",
-              sub: isRtl ? "صنف معروف، الكمية فقط" : "Known product, quantity only",
-            },
-            {
-              id: "ticket" as Mode,
-              icon: <Wrench className="h-4 w-4" />,
-              title: isRtl ? "تذكرة طحن (خدمة)" : "Milling ticket (service)",
-              sub: isRtl ? "شروط يُتفاوض عليها" : "Negotiated terms",
-            },
-          ] as const
-        ).map((m) => (
-          <button
-            key={m.id}
-            type="button"
-            onClick={() => setMode(m.id)}
-            className={`flex items-start gap-2.5 rounded-xl px-3.5 py-3 text-start transition ${
-              mode === m.id
-                ? "bg-surface shadow-sm ring-1 ring-primary/30"
-                : "text-muted-foreground hover:bg-surface/60"
-            }`}
-          >
-            <span
-              className={`mt-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-lg ${
-                mode === m.id ? "bg-primary/10 text-primary" : "bg-surface-2"
-              }`}
-            >
-              {m.icon}
-            </span>
-            <span className="min-w-0">
-              <span className="block text-sm font-semibold text-foreground">{m.title}</span>
-              <span className="block truncate text-[11px] text-muted-foreground">{m.sub}</span>
-            </span>
-          </button>
-        ))}
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber-500/30 bg-amber-500/5 px-4 py-3">
+        <p className="text-xs text-foreground">
+          {isRtl
+            ? "خدمة الطحن لها فاتورة ومستند أمانة موحدان، وتُسجل حصراً من شاشة استقبال وفواتير الطحن."
+            : "Milling services are recorded from the milling intake desk."}
+        </p>
+        <Link
+          to="/milling/intake"
+          className="rounded-xl bg-amber-500 px-3 py-2 text-xs font-bold text-white hover:bg-amber-600"
+        >
+          {isRtl ? "فتح استقبال وفواتير الطحن" : "Open milling desk"}
+        </Link>
       </div>
 
       {lastInvoice && (

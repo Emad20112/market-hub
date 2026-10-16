@@ -29,7 +29,6 @@ import {
   PackagePlus,
 } from "lucide-react";
 import { toast } from "sonner";
-import { GrainGradesCatalogView } from "@/components/catalog/grain-grades-catalog";
 import { PackagingBagsCatalogView } from "@/components/catalog/packaging-bags-catalog";
 
 export const Route = createFileRoute("/_app/catalog")({
@@ -40,7 +39,6 @@ export const Route = createFileRoute("/_app/catalog")({
 /** كل أبعاد الفهرس قابلة للعرض من خلال إعداد النشاط. */
 type Tab =
   | "categories"
-  | "grain_grades"
   | "packaging_bags"
   | "units"
   | "brands"
@@ -62,7 +60,6 @@ type Item = {
 
 const TAB_ICONS: Record<Tab, any> = {
   categories: FolderTree,
-  grain_grades: Wheat,
   packaging_bags: PackagePlus,
   units: Scale,
   brands: Tag,
@@ -80,11 +77,6 @@ function CatalogPage() {
   const allTabs = useMemo<{ key: Tab; label: string; icon: any }[]>(
     () => [
       { key: "categories", label: t("catalog.categories") || "التصنيفات", icon: FolderTree },
-      {
-        key: "grain_grades",
-        label: lang === "ar" ? "أنواع ودرجات الحبوب" : "Grain Grades",
-        icon: Wheat,
-      },
       {
         key: "packaging_bags",
         label: lang === "ar" ? "أكياس ومستلزمات التعبئة" : "Packaging Bags",
@@ -118,15 +110,13 @@ function CatalogPage() {
   const { data: stats } = useQuery({
     queryKey: ["catalog-metrics-overview"],
     queryFn: async () => {
-      const [cats, grainGrades, bags, units] = await Promise.all([
+      const [cats, bags, units] = await Promise.all([
         supabase.from("categories").select("id", { count: "exact", head: true }),
-        (supabase as any).from("grain_grades").select("id", { count: "exact", head: true }),
         (supabase as any).from("packaging_bags").select("id", { count: "exact", head: true }),
         supabase.from("units").select("id", { count: "exact", head: true }),
       ]);
       return {
         categories: cats.count ?? 0,
-        grainGrades: grainGrades.count ?? 0,
         bags: bags.count ?? 0,
         units: units.count ?? 0,
       };
@@ -165,12 +155,12 @@ function CatalogPage() {
           subtitle={lang === "ar" ? "تصنيف شجري للمنتجات" : "Product categories"}
         />
         <VortexMetricCard
-          label={lang === "ar" ? "درجات وأنواع الحبوب" : "Grain Grades"}
-          value={stats?.grainGrades ?? 0}
+          label={lang === "ar" ? "عبوات وأكياس التعبئة" : "Packaging Bags"}
+          value={stats?.bags ?? 0}
           currency=""
           icon={Wheat}
           tone="info"
-          subtitle={lang === "ar" ? "در أول، در ثانٍ" : "Grade 1, Grade 2"}
+          subtitle={lang === "ar" ? "أحجام وسعات الأكياس" : "Bag sizes & capacities"}
         />
         <VortexMetricCard
           label={lang === "ar" ? "وحدات القياس" : "Measurement Units"}
@@ -225,13 +215,7 @@ function CatalogPage() {
       </div>
 
       {/* Main Catalog View */}
-      {tab === "grain_grades" ? (
-        <GrainGradesCatalogView />
-      ) : tab === "packaging_bags" ? (
-        <PackagingBagsCatalogView />
-      ) : (
-        <CatalogTable tab={tab} />
-      )}
+      {tab === "packaging_bags" ? <PackagingBagsCatalogView /> : <CatalogTable tab={tab} />}
 
       {/* Catalog Modules Customization Dialog */}
       <CatalogModulesDialog open={modulesDialogOpen} onClose={() => setModulesDialogOpen(false)} />
@@ -268,7 +252,7 @@ function CatalogTable({ tab }: { tab: Tab }) {
   const cols =
     tab === "units"
       ? "id, name, name_ar, short_name"
-      : tab === "grain_grades" || tab === "qualities"
+      : tab === "qualities"
         ? "id, name, name_ar, code, sort_order"
         : tab === "origins"
           ? "id, name, name_ar, code"
@@ -282,7 +266,7 @@ function CatalogTable({ tab }: { tab: Tab }) {
       const { data, error } = await (supabase as any)
         .from(table)
         .select(cols)
-        .order(tab === "grain_grades" || tab === "qualities" ? "sort_order" : "name");
+        .order(tab === "qualities" ? "sort_order" : "name");
       if (error) throw error;
       return (data ?? []) as unknown as Item[];
     },
@@ -404,16 +388,12 @@ function CatalogTable({ tab }: { tab: Tab }) {
       lang === "ar" ? "الاسم العربي" : "Arabic Name",
       lang === "ar" ? "الاسم اللاتيني" : "Latin Name",
       ...(tab === "units" ? [lang === "ar" ? "الرمز المختصر" : "Short Code"] : []),
-      ...(tab === "grain_grades" ? [lang === "ar" ? "الكود" : "Code"] : []),
-      ...(tab === "grain_grades" ? [lang === "ar" ? "الترتيب" : "Sort Order"] : []),
     ];
 
     const rows = filtered.map((item) => [
       `"${(item.name_ar || "").replace(/"/g, '""')}"`,
       `"${(item.name || "").replace(/"/g, '""')}"`,
       ...(tab === "units" ? [`"${(item.short_name || "").replace(/"/g, '""')}"`] : []),
-      ...(tab === "grain_grades" ? [`"${(item.code || "").replace(/"/g, '""')}"`] : []),
-      ...(tab === "grain_grades" ? [item.sort_order ?? 0] : []),
     ]);
 
     const csvContent = "" + [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
@@ -518,10 +498,10 @@ function CatalogTable({ tab }: { tab: Tab }) {
                     {lang === "ar" ? "الماركة التابعة" : "Make"}
                   </th>
                 )}
-                {(tab === "grain_grades" || tab === "origins" || tab === "qualities") && (
+                {(tab === "origins" || tab === "qualities") && (
                   <th className="px-4 py-3 text-start">{lang === "ar" ? "الكود" : "Code"}</th>
                 )}
-                {(tab === "grain_grades" || tab === "qualities") && (
+                {tab === "qualities" && (
                   <th className="px-4 py-3 text-start">
                     {lang === "ar" ? "الترتيب" : "Sort Order"}
                   </th>
@@ -605,7 +585,7 @@ function CatalogTable({ tab }: { tab: Tab }) {
                       </td>
                     )}
 
-                    {(tab === "grain_grades" || tab === "origins" || tab === "qualities") && (
+                    {(tab === "origins" || tab === "qualities") && (
                       <td className="px-4 py-3">
                         <span className="inline-flex rounded-lg border border-border/80 bg-muted/50 px-2.5 py-0.5 font-mono text-xs font-bold text-primary">
                           {r.code || "—"}
@@ -613,7 +593,7 @@ function CatalogTable({ tab }: { tab: Tab }) {
                       </td>
                     )}
 
-                    {(tab === "grain_grades" || tab === "qualities") && (
+                    {tab === "qualities" && (
                       <td className="px-4 py-3">
                         <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-muted text-xs font-bold text-foreground">
                           {r.sort_order ?? 0}
@@ -786,7 +766,7 @@ function CatalogSheetDialog({
             ? "units"
             : tab === "origins"
               ? "countries_of_origin"
-              : tab === "qualities" || tab === "grain_grades"
+              : tab === "qualities"
                 ? "quality_grades"
                 : tab === "makes"
                   ? "vehicle_makes"
@@ -807,7 +787,7 @@ function CatalogSheetDialog({
     const payload =
       tab === "units"
         ? { ...base, short_name: form.short_name.trim() || form.name.trim().slice(0, 4) || "unit" }
-        : tab === "grain_grades" || tab === "qualities"
+        : tab === "qualities"
           ? { ...base, code: baseCode, sort_order: Number(form.sort_order) || 0 }
           : tab === "origins"
             ? { ...base, code: baseCode }
@@ -951,7 +931,7 @@ function CatalogSheetDialog({
           </div>
         )}
 
-        {(tab === "grain_grades" || tab === "origins" || tab === "qualities") && (
+        {(tab === "origins" || tab === "qualities") && (
           <div>
             <label className="mb-1.5 block text-xs font-bold text-foreground">
               {lang === "ar" ? "الكود التعريفي المختصر" : "Short Code"}
@@ -965,7 +945,7 @@ function CatalogSheetDialog({
           </div>
         )}
 
-        {(tab === "grain_grades" || tab === "qualities") && (
+        {tab === "qualities" && (
           <div>
             <label className="mb-1.5 block text-xs font-bold text-foreground">
               {lang === "ar" ? "ترتيب الأهمية" : "Sort Order"}

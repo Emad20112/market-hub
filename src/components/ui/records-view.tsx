@@ -1,10 +1,15 @@
 import * as React from "react";
-import { ChevronDown, Inbox, Loader2, RefreshCw } from "lucide-react";
+import { ChevronDown, Loader2, RefreshCw } from "lucide-react";
 
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/lib/i18n";
 import { DataTable, type DataTableColumn, type DataTableSort } from "@/components/ui/data-table";
-import { EmptyState, Spinner } from "@/components/ui/feedback";
+import {
+  RecordsSkeleton,
+  RecordsEmpty as SharedRecordsEmpty,
+} from "@/components/ui/records-states";
 import { QueryErrorState } from "@/components/ui/connection";
+import { Spinner } from "@/components/ui/feedback";
 
 /**
  * RecordsView — the shared "one record, three presentations" surface.
@@ -104,7 +109,8 @@ export interface RecordsViewProps<T> {
   tableRowProps?: React.ComponentProps<typeof DataTable<T>>["rowProps"];
 }
 
-const DEFAULT_CARDS_GRID = "grid grid-cols-2 gap-2.5 sm:gap-4 md:grid-cols-3 lg:grid-cols-4";
+const DEFAULT_CARDS_GRID =
+  "grid grid-cols-2 gap-2.5 sm:gap-4 md:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5";
 
 export function RecordsView<T>({
   rows,
@@ -143,11 +149,10 @@ export function RecordsView<T>({
 
   if (isEmpty) {
     return (
-      <EmptyState
-        variant="page"
-        icon={empty?.icon ?? <Inbox />}
+      <SharedRecordsEmpty
         title={empty?.title ?? "—"}
         description={empty?.description}
+        icon={empty?.icon}
         action={empty?.action}
         hint={empty?.hint}
         className={className}
@@ -159,7 +164,7 @@ export function RecordsView<T>({
     return (
       <div className={cn("min-w-0", className)}>
         {loading ? (
-          <CardSkeletonGrid />
+          <RecordsSkeleton mode={viewMode} />
         ) : (
           <>
             <div className={refreshing ? "opacity-70 transition-opacity" : undefined}>
@@ -288,10 +293,11 @@ function RecordActivation({
 }
 
 /* ------------------------------------------------------------------ */
-/*  Load-more footer for cards/list                                    */
+/*  Load-more footer for cards/list (exported for screens that draw    */
+/*  their own cards/list without the full RecordsView scaffold).       */
 /* ------------------------------------------------------------------ */
 
-function LoadMoreFooter({
+export function LoadMoreFooter({
   hasMore,
   loadingMore,
   loadedCount,
@@ -302,6 +308,7 @@ function LoadMoreFooter({
   loadedCount: number;
   onLoadMore?: () => void;
 }) {
+  const { t } = useI18n();
   if (!onLoadMore || (!hasMore && loadedCount === 0)) return null;
 
   return (
@@ -309,7 +316,7 @@ function LoadMoreFooter({
       {loadingMore ? (
         <>
           <Loader2 className="size-4 animate-spin text-muted-foreground" aria-hidden />
-          <span className="text-[11px] text-muted-foreground">جارٍ تحميل المزيد…</span>
+          <span className="text-[11px] text-muted-foreground">{t("records.loading_more")}</span>
         </>
       ) : hasMore ? (
         <button
@@ -318,30 +325,13 @@ function LoadMoreFooter({
           className="inline-flex items-center gap-1.5 rounded-full border border-border bg-surface px-4 py-1.5 text-xs font-medium transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
         >
           <ChevronDown className="size-3.5" aria-hidden />
-          تحميل المزيد
+          {t("records.load_more")}
         </button>
       ) : (
         <span className="text-[11px] text-muted-foreground/70">
-          تم عرض جميع السجلات ({loadedCount})
+          {t("records.all_loaded").replace("{count}", String(loadedCount))}
         </span>
       )}
-    </div>
-  );
-}
-
-/* ------------------------------------------------------------------ */
-/*  Loading placeholder                                                */
-/* ------------------------------------------------------------------ */
-
-function CardSkeletonGrid() {
-  return (
-    <div role="status" aria-live="polite" className={DEFAULT_CARDS_GRID}>
-      {Array.from({ length: 8 }).map((_, index) => (
-        <div key={index} className="card-mullak h-40 rounded-2xl bg-surface-2/40 shimmer" />
-      ))}
-      <span className="sr-only">
-        <Spinner /> Loading
-      </span>
     </div>
   );
 }

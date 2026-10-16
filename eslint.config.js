@@ -45,6 +45,15 @@ export default tseslint.config(
                 "TanStack Start does not use the Next.js `server-only` package. Rename the module to `*.server.ts` or mark it with `@tanstack/react-start/server-only`.",
             },
           ],
+          patterns: [
+            {
+              /* أرقام دعم الشركة بيانات خاصة تظهر في المستندات المطبوعة فقط.
+               * أي شاشة تريدها تستخدم `@/lib/printing/company-credit` ولا تعرضها. */
+              group: ["@/lib/company-credit", "**/company-credit"],
+              message:
+                "أرقام دعم المنشأة تظهر في المستندات المطبوعة فقط. الاستيراد من `@/lib/printing/company-credit` أو `@/lib/printing/identity`، ولا تُعرض الأرقام على أي شاشة.",
+            },
+          ],
         },
       ],
       "react-refresh/only-export-components": ["warn", { allowConstantExport: true }],
@@ -53,4 +62,11 @@ export default tseslint.config(
     },
   },
   eslintPluginPrettier,
+  {
+    /* استثناء: طبقات الطباعة والقوالب هي المكان الشرعي الوحيد لأرقام الدعم. */
+    files: ["src/lib/printing/**", "src/lib/templates/**"],
+    rules: {
+      "no-restricted-imports": "off",
+    },
+  },
 );

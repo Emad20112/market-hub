@@ -36,6 +36,15 @@ function IncomeStatementPage() {
   const [pnl, setPnl] = useState({
     salesTotal: 0,
     salesDiscounts: 0,
+    /*
+     * Split of net revenue into goods vs service lines. A milling toll fee is
+     * just a normal invoice line whose product has `item_class = 'SERVICE'`
+     * (00 §3.3) — it is derived from the same sales invoices, never from a
+     * parallel table. This split is informational only: the totals below still
+     * add up to the same net revenue.
+     */
+    serviceRevenue: 0,
+    goodsRevenue: 0,
     netRevenue: 0,
     cogs: 0,
     grossProfit: 0,
@@ -66,7 +75,9 @@ function IncomeStatementPage() {
         .lte("created_at", toTs),
       supabase
         .from("sales_invoice_items")
-        .select("quantity,unit_price,product_id,invoice_id,sales_invoices!inner(created_at)")
+        .select(
+          "quantity,unit_price,product_id,invoice_id,products(item_class),sales_invoices!inner(created_at)",
+        )
         .gte("sales_invoices.created_at", fromTs)
         .lte("sales_invoices.created_at", toTs),
       fetchUnifiedExpenseStats({ dateFrom: range.from, dateTo: range.to }),
@@ -89,9 +100,24 @@ function IncomeStatementPage() {
      */
     const soldLines = (itemsRes.data ?? []) as unknown as Array<{
       quantity: number | null;
+      unit_price: number | null;
       product_id: string | null;
       invoice_id: string;
+      products: { item_class: string | null } | null;
     }>;
+
+    /*
+     * Service revenue split (05 §بند 3): derived from the sold lines whose
+     * product class is SERVICE, e.g. the mill's "أجور طحن وتجهيز" line. This
+     * is presentation-only — the money still lives in sales_invoices.
+     */
+    let serviceRevenue = 0;
+    for (const line of soldLines) {
+      if (line.products?.item_class === "SERVICE") {
+        serviceRevenue += Number(line.quantity ?? 0) * Number(line.unit_price ?? 0);
+      }
+    }
+    const goodsRevenue = salesTotal - serviceRevenue;
 
     const costs = await Promise.all(
       soldLines.map(async (line) => {
@@ -125,6 +151,8 @@ function IncomeStatementPage() {
     setPnl({
       salesTotal,
       salesDiscounts,
+      serviceRevenue,
+      goodsRevenue,
       netRevenue,
       cogs,
       grossProfit,
@@ -154,6 +182,14 @@ function IncomeStatementPage() {
             {
               label: lang === "ar" ? "إجمالي إيرادات المبيعات" : "Gross Sales",
               value: pnl.salesTotal,
+            },
+            {
+              label: lang === "ar" ? "منها: إيراد البضاعة" : "Of which: Goods revenue",
+              value: pnl.goodsRevenue,
+            },
+            {
+              label: lang === "ar" ? "منها: إيراد الخدمة (أجور طحن…)" : "Of which: Service revenue",
+              value: pnl.serviceRevenue,
             },
             {
               label: lang === "ar" ? "يخصم: الخصومات الممنوحة" : "Less: Sales Discounts",
@@ -214,6 +250,8 @@ function IncomeStatementPage() {
       ],
       rows: [
         { item: "إجمالي إيرادات المبيعات", amount: pnl.salesTotal },
+        { item: "منها: إيراد البضاعة", amount: pnl.goodsRevenue },
+        { item: "منها: إيراد الخدمة (أجور طحن…)", amount: pnl.serviceRevenue },
         { item: "يخصم: الخصومات الممنوحة", amount: pnl.salesDiscounts },
         { item: "صافي إيرادات المبيعات (Net Revenue)", amount: pnl.netRevenue },
         { item: "تكلفة شراء المنتجات المباعة (COGS)", amount: pnl.cogs },
@@ -314,6 +352,21 @@ function IncomeStatementPage() {
             <div className="flex justify-between py-1.5 border-b border-border/40">
               <span>{lang === "ar" ? "إجمالي إيرادات المبيعات" : "Gross Sales Revenue"}</span>
               <span className="font-mono">{money(pnl.salesTotal)}</span>
+            </div>
+            {/*
+             * Split of revenue by line nature. The service line is where
+             * milling toll fees land — shown apart so the mill owner sees
+             * them as their own number instead of buried inside sales.
+             */}
+            <div className="flex justify-between py-1.5 border-b border-border/40 text-muted-foreground">
+              <span>{lang === "ar" ? "منها: إيراد البضاعة" : "Of which: Goods revenue"}</span>
+              <span className="font-mono">{money(pnl.goodsRevenue)}</span>
+            </div>
+            <div className="flex justify-between py-1.5 border-b border-border/40 text-muted-foreground">
+              <span>
+                {lang === "ar" ? "منها: إيراد الخدمة (أجور طحن…)" : "Of which: Service revenue"}
+              </span>
+              <span className="font-mono">{money(pnl.serviceRevenue)}</span>
             </div>
             <div className="flex justify-between py-1.5 border-b border-border/40 text-muted-foreground">
               <span>{lang === "ar" ? "يخصم: الخصومات الممنوحة" : "Less: Sales Discounts"}</span>

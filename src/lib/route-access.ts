@@ -47,11 +47,15 @@ export const ROUTE_ACCESS: Record<string, RouteAccessRule> = {
   "/warehouses": { allowedRoles: STOCK_OPS },
   "/batches": { allowedRoles: STOCK_OPS },
 
-  // The express counter is a gate position: whoever weighs and receives grain
-  // needs it, which includes the cashier, so it is deliberately wider than the
-  // rest of the milling module.
-  "/milling-counter": {
+  // المطبعة المبسطة: الطحن موقع عمل — القبّان والمستودع والصندوق يحتاجونه.
+  "/milling/milling": {
     allowedRoles: ["owner", "manager", "accountant", "warehouse", "cashier"],
+  },
+  "/milling/manufacture": {
+    allowedRoles: ["owner", "manager", "warehouse"],
+  },
+  "/milling/consumables": {
+    allowedRoles: ["owner", "manager", "warehouse"],
   },
   "/purchase-pos": { allowedRoles: STOCK },
   "/purchases": { allowedRoles: STOCK },

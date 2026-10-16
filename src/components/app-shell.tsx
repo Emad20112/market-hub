@@ -1,4 +1,5 @@
 import { useCompanyCurrency } from "@/hooks/use-company-currency";
+import { HeaderNavArrows } from "@/components/header-nav-arrows";
 import { Link, useRouterState, useNavigate } from "@tanstack/react-router";
 import { memo, useEffect, useMemo, useState } from "react";
 import {
@@ -525,11 +526,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     });
   };
 
-  useEffect(() => {
-    if (isSettingsRoute) {
-      setSettingsSidebarOpen(false);
-    }
-  }, [isSettingsRoute]);
+  /* دخول الإعدادات لا يغلق القائمة الجانبية تلقائياً — القائمة تبقى كما
+   * تركها المستخدم، ويُغلقها هو بنفسه فقط. */
 
   // السمة تُقرأ من المزوّد المركزي، لا من حالة محلية هنا: كانت الحالة المحلية
   // تفقد الخيار إذا حُفظت خارج غلاف التطبيق (صفحة الدخول، شاشة البداية).
@@ -611,6 +609,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <Menu className="h-4.5 w-4.5" />
           </button>
 
+          {/* Smart back/forward — page-tracking arrows (disabled at stack edges,
+           *  hidden on the POS full-screen routes like the rest of the header). */}
+          {!isPosRoute ? <HeaderNavArrows /> : null}
+
           {/*
            * Desktop sidebar collapse / expand — the plan's control (§4.2).
            *
@@ -629,7 +631,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               isSettingsRoute ? setSettingsSidebarOpen((open) => !open) : toggleCollapsed()
             }
             className={cn(
-              "hidden md:grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-border/60 bg-surface-2/70 text-muted-foreground transition-all duration-300 hover:border-ring/40 hover:bg-surface-3 hover:text-foreground active:scale-95",
+              "hidden md:grid h-10 w-10 shrink-0 place-items-center rounded-full border border-border/40 bg-transparent text-muted-foreground backdrop-blur-sm transition-all duration-300 hover:border-ring/40 hover:bg-surface/40 hover:text-foreground active:scale-95",
               "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50",
               searchFocused && "md:hidden lg:grid",
             )}

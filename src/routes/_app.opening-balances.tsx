@@ -172,8 +172,9 @@ function OpeningBalancesPage() {
 
       <div className="space-y-4">
         <QueryErrorGuard
-          what="الأرصدة الافتتاحية"
-          queries={[documents, items, customers, suppliers, warehouses]}
+          error={
+            documents.error ?? items.error ?? customers.error ?? suppliers.error ?? warehouses.error
+          }
         />
 
         {/* ── المسودة: التوازن أولاً ── */}
@@ -388,10 +389,7 @@ function OpeningBalancesPage() {
           {documents.isLoading ? (
             <p className="p-6 text-center text-xs text-muted-foreground">جارٍ التحميل…</p>
           ) : !documents.data?.length ? (
-            <MillingEmpty
-              title="لا توجد أرصدة افتتاحية"
-              description="أنشئ قيدك الأول من النموذج أعلاه."
-            />
+            <MillingEmpty title="لا توجد أرصدة افتتاحية" hint="أنشئ قيدك الأول من النموذج أعلاه." />
           ) : (
             <MillingTable
               minWidth={900}
@@ -489,7 +487,7 @@ function OpeningBalancesPage() {
                 تعذّر تحميل البنود: {(lines.error as Error).message}
               </p>
             ) : !lines.data?.length ? (
-              <MillingEmpty title="لا بنود" description="هذا القيد فارغ." />
+              <MillingEmpty title="لا بنود" hint="هذا القيد فارغ." />
             ) : (
               <MillingTable minWidth={600} headers={["القسم", "الجهة", "البيان", "المبلغ"]}>
                 {lines.data.map((l) => (

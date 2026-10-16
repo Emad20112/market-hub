@@ -996,7 +996,7 @@ END $function$;
 
 CREATE OR REPLACE FUNCTION public.expense_settlement_status(p_current expense_status, p_paid numeric, p_total numeric)
  RETURNS expense_status
- LANGUAGE sql
+ LANGUAGE sql SET search_path = public
  IMMUTABLE
 AS $function$
   SELECT CASE

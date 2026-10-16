@@ -221,16 +221,7 @@ export function calculateCategoryStats(tables: BackupDataPayload["tables"]): Tab
     count(tables.customer_ledger) +
     count(tables.loyalty_transactions);
 
-  const millingModule =
-    count(tables.milling_intake_receipts) +
-    count(tables.milling_jobs) +
-    count(tables.milling_job_inputs) +
-    count(tables.milling_job_outputs) +
-    count(tables.milling_delivery_notes) +
-    count(tables.milling_delivery_items) +
-    count(tables.milling_byproduct_rates) +
-    count(tables.milling_grain_grades) +
-    count(tables.milling_service_agreements);
+  const millingModule = count(tables.custody_ledger);
 
   const expenseModule =
     count(tables.expenses) +
@@ -299,15 +290,7 @@ export async function extractTenantDataReadOnly(
     stock_movements,
     stock_transfers,
     stock_transfer_items,
-    milling_intake_receipts,
-    milling_jobs,
-    milling_job_inputs,
-    milling_job_outputs,
-    milling_delivery_notes,
-    milling_delivery_items,
-    milling_byproduct_rates,
-    milling_grain_grades,
-    milling_service_agreements,
+    custody_ledger,
     expenses,
     expense_categories,
     expense_approvals,
@@ -345,15 +328,7 @@ export async function extractTenantDataReadOnly(
     safeSelectTable("stock_movements"),
     safeSelectTable("stock_transfers"),
     safeSelectTable("stock_transfer_items"),
-    safeSelectTable("milling_intake_receipts"),
-    safeSelectTable("milling_jobs"),
-    safeSelectTable("milling_job_inputs"),
-    safeSelectTable("milling_job_outputs"),
-    safeSelectTable("milling_delivery_notes"),
-    safeSelectTable("milling_delivery_items"),
-    safeSelectTable("milling_byproduct_rates"),
-    safeSelectTable("milling_grain_grades"),
-    safeSelectTable("milling_service_agreements"),
+    safeSelectTable("custody_ledger"),
     safeSelectTable("expenses"),
     safeSelectTable("expense_categories"),
     safeSelectTable("expense_approvals"),
@@ -393,15 +368,7 @@ export async function extractTenantDataReadOnly(
     stock_movements,
     stock_transfers,
     stock_transfer_items,
-    milling_intake_receipts,
-    milling_jobs,
-    milling_job_inputs,
-    milling_job_outputs,
-    milling_delivery_notes,
-    milling_delivery_items,
-    milling_byproduct_rates,
-    milling_grain_grades,
-    milling_service_agreements,
+    custody_ledger,
     expenses,
     expense_categories,
     expense_approvals,
@@ -616,14 +583,14 @@ export async function validateBackupFile(
       );
     }
 
-    // 6.2 Milling Jobs -> Milling Intake Receipts check
-    const intakeIds = new Set((payload.tables.milling_intake_receipts ?? []).map((i: any) => i.id));
-    const orphanMillingJobs = (payload.tables.milling_jobs ?? []).filter(
-      (j: any) => j.intake_receipt_id && !intakeIds.has(j.intake_receipt_id),
+    // 6.2 Custody ledger -> Customers check
+    const customerIdsInCapsule = new Set((payload.tables.customers ?? []).map((i: any) => i.id));
+    const orphanCustody = (payload.tables.custody_ledger ?? []).filter(
+      (j: any) => j.customer_id && !customerIdsInCapsule.has(j.customer_id),
     );
-    if (orphanMillingJobs.length > 0) {
+    if (orphanCustody.length > 0) {
       result.warnings.push(
-        `تنبيه مطاحن: يوجد ${orphanMillingJobs.length} أمر طحن يشير إلى إيصالات استلام غير مدرجة.`,
+        `تنبيه مطاحن: يوجد ${orphanCustody.length} سطر أمانات يشير إلى عملاء غير مدرجين.`,
       );
     }
 

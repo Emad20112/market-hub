@@ -526,14 +526,16 @@ function POSPage() {
         compatsRes,
       ] = await Promise.allSettled([
         supabase.from("warehouses").select("id,name,name_ar").eq("is_active", true).order("name"),
+        // «عميل نقدي» المزروع (seeds/01_system/09_essential_partners) يظهر هنا
+        // كأي عميل — النظام واحد، والبيع الفوري يُسجَّل عليه فعلاً بدل NULL.
+        // (بند 5 في 05_خطة_التكامل_الشامل.md)
         supabase.from("customers").select("id,name,phone,balance,credit_limit").order("name"),
         (supabase.from("products") as any)
           .select(
             "id,sku,barcode,name,name_ar,sale_price,tax_rate,image_url,category_id,brand_id,unit_id,origin_id,quality_grade_id,is_active,is_service,item_nature,inventory_policy",
           )
-          // نقاط البيع تبيع المنتجات النهائية فقط (المواصفة §20): الخام
-          // والتعبئة والخدمات لا تُعرض هنا — الخدمة لها مسارها المستقل
-          // (تذكرة الطحن)، والخام/التعبئة مخزون داخلي لا سلعة بيع.
+          // خدمة الطحن لا تباع من POS: تحتاج بيانات الاستلام والأكياس والأمانة
+          // الموجودة حصراً في كاونتر المطحنة. تظل الخدمة الحرة في زرها المخصص.
           .eq("is_active", true)
           .eq("is_sellable", true)
           .neq("item_class", "RAW_MATERIAL")

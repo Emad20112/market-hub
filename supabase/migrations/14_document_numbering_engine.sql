@@ -1,4 +1,4 @@
-﻿﻿-- ============================================================================
+﻿-- ============================================================================
 -- 14_document_numbering_engine.sql — محرّك ترقيم المستندات المركزي
 -- ============================================================================
 --
@@ -60,7 +60,6 @@ AS $$
     WHEN 'customer_payment'   THEN 'public.customer_payment_seq'
     WHEN 'supplier_payment'   THEN 'public.supplier_payment_seq'
     WHEN 'stock_adjustment'   THEN 'public.stock_adjustment_seq'
-    WHEN 'production_order'   THEN 'public.production_order_seq'
     WHEN 'milling_intake'     THEN 'public.milling_intake_seq'
     WHEN 'milling_service'    THEN 'public.milling_service_seq'
     WHEN 'journal_entry'      THEN 'public.journal_entry_seq'
@@ -80,7 +79,6 @@ CREATE SEQUENCE IF NOT EXISTS public.sales_order_seq         START 1;
 CREATE SEQUENCE IF NOT EXISTS public.customer_payment_seq    START 1;
 CREATE SEQUENCE IF NOT EXISTS public.supplier_payment_seq    START 1;
 CREATE SEQUENCE IF NOT EXISTS public.stock_adjustment_seq    START 1;
-CREATE SEQUENCE IF NOT EXISTS public.production_order_seq    START 1;
 CREATE SEQUENCE IF NOT EXISTS public.milling_intake_seq      START 1;
 CREATE SEQUENCE IF NOT EXISTS public.milling_service_seq     START 1;
 CREATE SEQUENCE IF NOT EXISTS public.journal_entry_seq       START 1;
@@ -512,7 +510,6 @@ REVOKE ALL ON SEQUENCE public.sales_order_seq      FROM PUBLIC, anon, authentica
 REVOKE ALL ON SEQUENCE public.customer_payment_seq FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON SEQUENCE public.supplier_payment_seq FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON SEQUENCE public.stock_adjustment_seq FROM PUBLIC, anon, authenticated;
-REVOKE ALL ON SEQUENCE public.production_order_seq FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON SEQUENCE public.milling_intake_seq   FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON SEQUENCE public.milling_service_seq  FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON SEQUENCE public.journal_entry_seq    FROM PUBLIC, anon, authenticated;
@@ -524,7 +521,6 @@ GRANT USAGE ON SEQUENCE public.customer_payment_seq TO service_role;
 GRANT USAGE ON SEQUENCE public.sales_order_seq      TO service_role;
 GRANT USAGE ON SEQUENCE public.supplier_payment_seq TO service_role;
 GRANT USAGE ON SEQUENCE public.stock_adjustment_seq TO service_role;
-GRANT USAGE ON SEQUENCE public.production_order_seq TO service_role;
 GRANT USAGE ON SEQUENCE public.milling_intake_seq   TO service_role;
 GRANT USAGE ON SEQUENCE public.milling_service_seq  TO service_role;
 GRANT USAGE ON SEQUENCE public.journal_entry_seq    TO service_role;

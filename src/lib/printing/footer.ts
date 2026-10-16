@@ -30,7 +30,9 @@ export function renderUniversalFooter(
   const companyPhone =
     company.phone ||
     (company.contacts && company.contacts.length > 0
-      ? company.contacts.filter((c) => !(SUPPORT_CONTACTS as readonly string[]).includes(c)).join(" · ")
+      ? company.contacts
+          .filter((c) => !(SUPPORT_CONTACTS as readonly string[]).includes(c))
+          .join(" · ")
       : "") ||
     "";
 
