@@ -1,17 +1,22 @@
 /**
- * Unified Modern Layout — القالب الموحد لكل المستندات.
+ * Unified Layout — منظومة الفواتير والمستندات الورقية (A4 / A5).
  *
- * المبدأ المعماري:
- *   نفس HTML structure + نفس Data Mapping + نفس Header + نفس جدول البنود +
- *   نفس الإجماليات + نفس Footer + نفس التوقيعات.
- *   الاختلاف الوحيد بين الأنماط هو الألوان والحدود والخلفيات والكثافة — وهذا
- *   يُدار عبر `PrintTheme` (standard / luxury / formal) وليس بقالب HTML منفصل.
+ * قالبان احترافيان متميزان هيكلياً ووظيفياً لتلبية المعايير التجارية الرسمية:
+ * 1. القالب التنفيذي الفاخر (Executive Luxury - `elegant`):
+ *    - ترويسة متقنة ثلاثية الأركان (معلومات المنشأة يميناً، أيقونة الشعار بالمنتصف، المستند والتحقق يساراً)
+ *    - بطاقات معلومات مفصلة للعميل والمعاملة
+ *    - رمز QR والباركود في موضعهما الضريبي السليم (زاوية المستند وليس في منتصف الهيدر)
+ *    - جدول أصناف أنيق مع تسطير وتقسيم بصري مريح
+ *    - ملخص مالي وتفقيط واضح
+ *    - مساحات توقيع رسمية معتمدة وختم رسمي خالٍ من الرسومات اليدوية الوهمية
  *
- * `renderStandardTemplate` و`renderElegantTemplate` أصبحا واجهتين رفيعتين
- * تستدعيان هذه الدالة بنفس التركيب وtheme مختلف — لا تكرار HTML.
+ * 2. القالب القياسي العملي المضغوط (Compact Commercial - `standard`):
+ *    - تصميم عالي الكثافة للمحلات والمعاملات التجارية اليومية
+ *    - هيدر مدمج وشريط عميل موحد يوفر 40% من المساحة الرأسية
+ *    - جدول أصناف ذو كثافة عالية يستوعب أكبر عدد من البنود في الصفحة الواحدة
+ *    - استغلال اقتصادي للورق والحبر
  *
- * البيانات تُترجم من `UnifiedDocumentData` فقط؛ هذا الملف لا يستعلم عن أي شيء
- * ولا يعيد حساب أي رقم.
+ * كلاهما يدعم A4 و A5 بدقة مع المحافظة على الفوتر الموحد وهوية المنشأة.
  */
 
 import {
@@ -20,7 +25,6 @@ import {
   escapeHtml,
   formatMoney,
   DEFAULT_COMPANY_LOGO,
-  getCompanyLogo,
   CustomFieldOptions,
 } from "./types";
 import { numberToArabicWords } from "./tafqeet";
@@ -28,15 +32,20 @@ import { PRINT_THEMES, deriveThemeTokens, type PrintTheme } from "@/lib/printing
 import { renderUniversalFooter, UNIVERSAL_FOOTER_CSS } from "@/lib/printing/footer";
 import { getCachedCompanyProfile, type CompanyProfile } from "@/lib/printing/company-profile";
 import { generateBarcodeSvg, generateQrCodeSvg } from "@/lib/printing/barcode-qr";
+import { getUnifiedPrintSettings } from "@/lib/printing/settings";
 import type { PaperProfileId } from "./paper-profiles";
 
 export interface UnifiedLayoutOptions extends CustomFieldOptions {
-  /** نمط المستند — يغيّر الألوان والحدود فقط. */
+  /** نمط المستند — يغيّر الهيكل والسمة البصرية (standard / luxury / formal). */
   theme?: PrintTheme;
   /** بيانات الشركة؛ إن لم تُمرَّر تُقرأ من كاش Company Profile. */
   company?: CompanyProfile;
   /** مقاس الورق الحالي للمستند لضبط الأبعاد والهوامش ونسب الخطوط (A4 / A5) */
   paperProfileId?: PaperProfileId | string;
+  /** لون التمييز المخصص للنمط التنفيذي الفاخر */
+  luxuryAccentColor?: string | null;
+  /** لون التمييز المخصص للنمط المؤسسي القياسي */
+  standardAccentColor?: string | null;
 }
 
 function themeCss(
@@ -46,41 +55,29 @@ function themeCss(
   isA5 = false,
 ): string {
   const t = deriveThemeTokens(theme, customAccent);
-  const border = theme === "luxury" ? `1.5px solid ${t.line}` : `1px solid ${t.line}`;
-
-  // مقاسات ونسب الخطوط وهوامش الحشو المتجاوبة مع حجم الورق المحدد (A4 / A5)
-  const baseFontSize = isA5 ? "10px" : "11.5px";
-  const headerPadding = isA5 ? "8px 0" : "12px 0";
-  const logoSize = isA5 ? "38px" : "48px";
-  const companyTitleSize = isA5 ? "16px" : "20px";
-  const bannerPadding = isA5 ? "8px 12px" : "11px 16px";
-  const invTitleSize = isA5 ? "15px" : "19px";
-  const badgeFontSize = isA5 ? "11.5px" : "13.5px";
-  const badgePadding = isA5 ? "3px 10px" : "4px 13px";
-  const cardPadding = isA5 ? "7px 9px" : "9px 12px";
-  const cardIconSize = isA5 ? "26px" : "32px";
-  const cardLabelSize = isA5 ? "8.5px" : "9.5px";
-  const cardValueSize = isA5 ? "11px" : "12.5px";
-  const tableThPadding = isA5 ? "7px 8px" : "9px 12px";
-  const tableTdPadding = isA5 ? "6px 8px" : "8px 12px";
-  const notesPadding = isA5 ? "9px 11px" : "11px 14px";
-  const totalsPadding = isA5 ? "9px 12px" : "12px 15px";
-  const grandTotalPadding = isA5 ? "7px 11px" : "9px 13px";
-  const grandTotalAmountSize = isA5 ? "14px" : "16px";
-
-  // تدرج راقٍ ومظهر فاخر للقالب التنفيذي مع حواف مذهبة
   const isLuxury = theme === "luxury";
-  const bannerBackground = isLuxury
-    ? `linear-gradient(135deg, ${t.accentSoft} 0%, #fff 100%)`
-    : t.accentSoft;
 
-  const tableHeaderBg = isLuxury
-    ? `linear-gradient(135deg, ${t.accent} 0%, color-mix(in srgb, ${t.accent} 82%, #000) 100%)`
-    : t.accent;
+  // مقاييس متجاوبة ودقيقة بين أحجام A4 و A5 لمنع الانقسام وتداخل الخطوط
+  const baseFontSize = isA5 ? "9px" : "11px";
+  const baseLineHeight = isA5 ? "1.36" : "1.45";
+  const containerPadding = isA5 ? "4mm 6mm" : "8mm 10mm";
+  const containerMinHeight = isA5 ? "200mm" : "282mm";
+  const headerPadding = isA5 ? "6px 8px" : "10px 14px";
+  const logoBoxSize = isA5 ? "42px" : "58px";
+  const companyTitleSize = isA5 ? "13.5px" : "17.5px";
+  const companySubtitleSize = isA5 ? "8px" : "9.5px";
+  const invoiceTitleSize = isA5 ? "14px" : "18px";
+  const cardPadding = isA5 ? "6px 8px" : "8px 12px";
+  const cardLabelSize = isA5 ? "7.5px" : "8.5px";
+  const cardValueSize = isA5 ? "10px" : "11.5px";
+  const tableThPadding = isA5 ? "5px 6px" : "7px 10px";
+  const tableTdPadding = isA5 ? "4.5px 6px" : "6.5px 10px";
+  const notesPadding = isA5 ? "6px 8px" : "9px 12px";
+  const totalsPadding = isA5 ? "6px 8px" : "9px 12px";
+  const totalAmountSize = isA5 ? "13px" : "16px";
 
-  const grandTotalBg = isLuxury
-    ? `linear-gradient(135deg, ${t.accent} 0%, color-mix(in srgb, ${t.accent} 80%, #000) 100%)`
-    : t.accent;
+  const primaryAccent = t.accent;
+  const softAccent = t.accentSoft;
 
   return `
     :root {
@@ -97,470 +94,535 @@ function themeCss(
     }
     html, body {
       margin: 0; padding: 0;
-      background: ${t.surface};
+      background: #ffffff;
       color: var(--print-ink);
       font-family: 'Cairo', 'Tajawal', system-ui, -apple-system, sans-serif;
       font-size: ${baseFontSize};
-      line-height: 1.45;
+      line-height: ${baseLineHeight};
       direction: ${rtl ? "rtl" : "ltr"};
       text-align: ${rtl ? "right" : "left"};
       -webkit-print-color-adjust: exact;
       print-color-adjust: exact;
     }
+
+    @page {
+      size: ${isA5 ? "A5 portrait" : "A4 portrait"};
+      margin: ${isA5 ? "4mm" : "6mm"};
+    }
+
+    /* الحاوية الرئيسية للورقة */
     .page-container {
       width: 100%;
       max-width: 100%;
       box-sizing: border-box;
-      background: #fff;
+      background: #ffffff;
       position: relative;
-      padding: ${isA5 ? "6mm 8mm" : "10mm 12mm"};
+      padding: ${containerPadding};
       display: flex;
       flex-direction: column;
       justify-content: space-between;
-      min-height: ${isA5 ? "200mm" : "285mm"};
+      min-height: ${containerMinHeight};
     }
-    header.invoice-header-master {
-      background: ${isLuxury ? "linear-gradient(180deg, var(--print-surface) 0%, #ffffff 100%)" : "var(--print-surface)"};
-      border: ${border};
-      border-radius: var(--print-radius);
-      padding: ${isA5 ? "8px 12px" : "12px 18px"};
-      margin-bottom: ${isA5 ? "10px" : "14px"};
+
+    /* ══════════════════════════════════════════════════════════════
+       1. القالب التنفيذي الفاخر (Executive Luxury)
+       ترويسة ثلاثية الأركان متوازنة: اليمين عربي، المنتصف شعار، اليسار إنجليزي والمستند
+       ══════════════════════════════════════════════════════════════ */
+    .luxury-header-wrap {
+      border-bottom: 2px solid var(--print-accent);
+      padding-bottom: ${headerPadding};
+      margin-bottom: ${isA5 ? "8px" : "12px"};
       break-inside: avoid;
-      box-shadow: ${isLuxury ? "0 4px 16px rgba(0,0,0,0.03)" : "none"};
+      page-break-inside: avoid;
     }
-    .header-main-grid {
+    .luxury-header-grid {
       display: grid;
-      grid-template-columns: 1fr auto 1fr;
+      grid-template-columns: 1.2fr auto 1.2fr;
       align-items: center;
-      gap: ${isA5 ? "10px" : "18px"};
+      gap: ${isA5 ? "8px" : "14px"};
     }
-    .header-col-right {
+    .luxury-header-right {
       display: flex;
       flex-direction: column;
-      gap: ${isA5 ? "3px" : "4.5px"};
+      gap: 2px;
       text-align: right;
       direction: rtl;
-      min-width: 0;
-      justify-content: center;
     }
-    .header-company-name {
-      font-size: ${isA5 ? "15px" : "19px"};
+    .luxury-brand-title {
+      font-size: ${companyTitleSize};
       font-weight: 900;
-      color: var(--print-ink);
-      margin: 0;
-      line-height: 1.25;
-      letter-spacing: -0.2px;
-      word-break: break-word;
-    }
-    .header-company-sub {
       color: var(--print-accent);
-      font-size: ${isA5 ? "8.5px" : "10px"};
-      font-weight: 700;
-      letter-spacing: 0.2px;
-    }
-    .inv-type-pill {
-      display: inline-flex;
-      align-items: center;
-      gap: 5px;
-      background: var(--print-accent);
-      color: #fff;
-      font-weight: 800;
-      font-size: ${isA5 ? "10px" : "11.5px"};
-      padding: ${isA5 ? "2.5px 8px" : "3.5px 11px"};
-      border-radius: 6px;
-      width: fit-content;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-      margin: 1px 0;
-    }
-    .inv-type-pill svg {
-      color: #fff;
-      flex-shrink: 0;
-    }
-    .header-meta-item {
-      display: flex;
-      align-items: center;
-      gap: 5px;
-      font-size: ${isA5 ? "9px" : "10.5px"};
-      color: var(--print-muted);
-      line-height: 1.35;
-      font-weight: 600;
-    }
-    .header-meta-item svg {
-      color: var(--print-accent);
-      flex-shrink: 0;
-    }
-    .header-meta-item b {
-      color: var(--print-ink);
-      font-weight: 700;
-    }
-    .header-col-center {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      text-align: center;
-      padding: 0 4px;
-      gap: ${isA5 ? "3px" : "5px"};
-    }
-    .header-logo-box {
-      width: ${isA5 ? "58px" : "78px"};
-      height: ${isA5 ? "58px" : "78px"};
-      border-radius: ${isLuxury ? "14px" : "10px"};
-      background: #ffffff;
-      border: ${border};
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      overflow: hidden;
-      padding: 4px;
-      flex-shrink: 0;
-      box-shadow: ${isLuxury ? "0 4px 14px rgba(0,0,0,0.06)" : "0 2px 6px rgba(0,0,0,0.04)"};
-    }
-    .header-logo-img {
-      width: 100%;
-      height: 100%;
-      object-fit: contain;
-      display: block;
-    }
-    .header-center-codes {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      gap: 2px;
-      background: #ffffff;
-      padding: 2px 6px;
-      border-radius: 6px;
-      border: 1px dashed var(--print-line);
-      max-width: ${isA5 ? "120px" : "150px"};
-    }
-    .header-center-codes .qr-box {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-    .header-center-codes .barcode-box {
-      max-width: 100%;
-      overflow: hidden;
-      display: flex;
-      justify-content: center;
-    }
-    .header-col-left {
-      display: flex;
-      flex-direction: column;
-      gap: ${isA5 ? "3px" : "4.5px"};
-      text-align: left;
-      direction: ltr;
-      min-width: 0;
-      justify-content: center;
-      align-items: flex-end;
-    }
-    .header-number-badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      background: var(--print-accent-soft);
-      border: 1px solid var(--print-line);
-      padding: ${isA5 ? "2.5px 8px" : "3.5px 12px"};
-      border-radius: 6px;
-      width: fit-content;
-      margin-bottom: 1px;
-    }
-    .header-number-badge .num-lbl {
-      font-size: ${isA5 ? "8.5px" : "9.5px"};
-      font-weight: 700;
-      color: var(--print-muted);
-      text-transform: uppercase;
-    }
-    .header-number-badge .num-val {
-      font-family: ui-monospace, 'Courier New', monospace;
-      font-size: ${isA5 ? "11px" : "13px"};
-      font-weight: 800;
-      color: var(--print-accent);
-    }
-    .header-company-en {
-      font-size: ${isA5 ? "11px" : "13.5px"};
-      font-weight: 800;
-      color: var(--print-ink);
-      letter-spacing: 0.3px;
       margin: 0;
       line-height: 1.2;
-      text-transform: uppercase;
-      font-family: system-ui, -apple-system, sans-serif;
     }
-    .header-meta-en {
-      justify-content: flex-end;
-      direction: ltr;
+    .luxury-brand-sub {
+      font-size: ${companySubtitleSize};
+      font-weight: 700;
+      color: var(--print-muted);
+      margin-bottom: 2px;
     }
-    .cards-grid {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: ${isA5 ? "6px" : "9px"};
-      margin-bottom: ${isA5 ? "10px" : "14px"};
-      break-inside: avoid;
-    }
-    .info-card {
-      background: var(--print-surface);
-      border: ${border};
-      border-radius: var(--print-radius);
-      padding: ${cardPadding};
+    .luxury-meta-line {
       display: flex;
-      align-items: flex-start;
-      gap: 8px;
-      min-width: 0;
-      box-shadow: ${isLuxury ? "0 1px 4px rgba(0,0,0,0.02)" : "none"};
+      align-items: center;
+      gap: 5px;
+      font-size: ${isA5 ? "8px" : "9.5px"};
+      color: var(--print-muted);
+      font-weight: 600;
+      line-height: 1.35;
     }
-    .card-icon-circle {
-      width: ${cardIconSize};
-      height: ${cardIconSize};
-      border-radius: var(--print-radius);
-      background: var(--print-accent-soft);
+    .luxury-meta-line b {
+      color: var(--print-ink);
+    }
+
+    /* الشعار في المنتصف دون أي مزاحمة لـ QR أو الباركود */
+    .luxury-header-center {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 0 4px;
+    }
+    .luxury-logo-box {
+      width: ${logoBoxSize};
+      height: ${logoBoxSize};
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      flex-shrink: 0;
+    }
+    .luxury-logo-box img {
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+    }
+
+    /* بيانات المستند والتحقق الضريبي في الجهة اليسرى */
+    .luxury-header-left {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: ${isA5 ? "8px" : "12px"};
+    }
+    .luxury-doc-meta-col {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 2.5px;
+      text-align: left;
+    }
+    .luxury-inv-badge-title {
+      font-size: ${invoiceTitleSize};
+      font-weight: 900;
       color: var(--print-accent);
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      margin: 0;
+      line-height: 1.15;
+    }
+    .luxury-inv-num-pill {
+      background: var(--print-accent);
+      color: #ffffff;
+      padding: ${isA5 ? "2px 7px" : "3px 10px"};
+      border-radius: 4px;
+      font-family: ui-monospace, 'Courier New', monospace;
+      font-size: ${isA5 ? "9.5px" : "11.5px"};
+      font-weight: 800;
+      letter-spacing: 0.5px;
+      direction: ltr;
+      unicode-bidi: isolate;
+    }
+    .luxury-inv-date-line {
+      font-size: ${isA5 ? "8px" : "9.5px"};
+      color: var(--print-muted);
+      font-weight: 600;
+      display: flex;
+      gap: 4px;
+    }
+    .luxury-qr-box {
+      width: ${isA5 ? "44px" : "56px"};
+      height: ${isA5 ? "44px" : "56px"};
+      padding: 2px;
+      background: #ffffff;
+      border: 1px solid var(--print-line);
+      border-radius: 6px;
       display: flex;
       align-items: center;
       justify-content: center;
       flex-shrink: 0;
     }
-    .card-body-content {
-      flex: 1;
-      min-width: 0;
+    .luxury-barcode-line {
+      margin-top: 2px;
     }
-    .card-label {
+
+    /* ══════════════════════════════════════════════════════════════
+       2. القالب القياسي العملي المضغوط (Compact Commercial)
+       تصميم عالي الكثافة للمحلات والتجارة اليومية
+       ══════════════════════════════════════════════════════════════ */
+    .corporate-header-wrap {
+      border-bottom: 2px solid var(--print-accent);
+      padding-bottom: ${isA5 ? "5px" : "8px"};
+      margin-bottom: ${isA5 ? "6px" : "10px"};
+      break-inside: avoid;
+      page-break-inside: avoid;
+    }
+    .corporate-header-grid {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+    }
+    .corporate-brand-block {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .corporate-logo-box {
+      width: ${isA5 ? "34px" : "44px"};
+      height: ${isA5 ? "34px" : "44px"};
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .corporate-logo-box img {
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+    }
+    .corporate-brand-name {
+      font-size: ${isA5 ? "12px" : "15px"};
+      font-weight: 900;
+      color: var(--print-accent);
+      margin: 0;
+      line-height: 1.2;
+    }
+    .corporate-brand-details {
+      font-size: ${isA5 ? "7.5px" : "9px"};
+      color: var(--print-muted);
+      font-weight: 600;
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .corporate-doc-block {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      text-align: left;
+    }
+    .corporate-doc-info {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 2px;
+    }
+    .corporate-inv-title {
+      font-size: ${isA5 ? "13px" : "16px"};
+      font-weight: 900;
+      color: var(--print-accent);
+      margin: 0;
+      letter-spacing: 0.3px;
+    }
+    .corporate-inv-meta {
+      font-size: ${isA5 ? "8px" : "9.5px"};
+      font-weight: 700;
+      color: var(--print-muted);
+    }
+
+    /* الشريط الموحد المضغوط للعميل والدفع في القالب القياسي */
+    .party-info-compact-bar {
+      background: var(--print-surface);
+      border: 1px solid var(--print-line);
+      border-radius: 4px;
+      padding: ${isA5 ? "4px 7px" : "6px 10px"};
+      margin-bottom: ${isA5 ? "6px" : "10px"};
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 6px;
+      font-size: ${isA5 ? "8px" : "9.5px"};
+      break-inside: avoid;
+    }
+    .party-compact-item {
+      display: flex;
+      gap: 4px;
+      align-items: center;
+    }
+    .party-compact-item b {
+      color: var(--print-ink);
+    }
+    .party-compact-item span {
+      color: var(--print-muted);
+    }
+
+    /* ══════════════════════════════════════════════════════════════
+       بطاقات العميل والمعاملة في القالب التنفيذي
+       ══════════════════════════════════════════════════════════════ */
+    .party-info-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: ${isA5 ? "6px" : "10px"};
+      margin-bottom: ${isA5 ? "8px" : "12px"};
+      break-inside: avoid;
+      page-break-inside: avoid;
+    }
+    .party-card {
+      background: var(--print-surface);
+      border: 1px solid var(--print-line);
+      border-radius: 6px;
+      padding: ${cardPadding};
+    }
+    .party-card-title {
       font-size: ${cardLabelSize};
       font-weight: 800;
       color: var(--print-accent);
-      margin-bottom: 2px;
       text-transform: uppercase;
-      letter-spacing: 0.3px;
+      letter-spacing: 0.4px;
+      margin-bottom: 4px;
+      padding-bottom: 3px;
+      border-bottom: 1px dashed var(--print-line);
+      display: flex;
+      align-items: center;
+      gap: 4px;
     }
-    .card-value {
+    .party-card-name {
       font-size: ${cardValueSize};
-      font-weight: 800;
+      font-weight: 900;
       color: var(--print-ink);
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
+      margin-bottom: 3px;
     }
-    .card-subtext {
-      font-size: ${isA5 ? "8.5px" : "9.5px"};
+    .party-card-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: ${isA5 ? "8px" : "9.5px"};
       color: var(--print-muted);
-      margin-top: 2px;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
+      line-height: 1.4;
     }
+    .party-card-row b {
+      color: var(--print-ink);
+      font-weight: 700;
+    }
+
+    /* ══════════════════════════════════════════════════════════════
+       جدول البنود المنظم
+       ══════════════════════════════════════════════════════════════ */
     .table-container {
-      border: ${border};
-      border-radius: var(--print-radius);
-      overflow: hidden;
-      margin-bottom: ${isA5 ? "10px" : "14px"};
-      background: #fff;
+      width: 100%;
+      margin-bottom: ${isA5 ? "8px" : "12px"};
+      flex-grow: 1;
     }
     table.items-table {
       width: 100%;
       border-collapse: collapse;
-      table-layout: auto;
+      border: 1px solid var(--print-line);
     }
     table.items-table thead {
       display: table-header-group;
     }
-    table.items-table thead tr {
-      background: ${tableHeaderBg};
-      color: #fff;
-    }
-    table.items-table thead th {
-      padding: ${tableThPadding};
-      font-size: ${isA5 ? "9.5px" : "11px"};
-      font-weight: 800;
-      border: none;
-      letter-spacing: 0.2px;
-    }
-    .col-num { width: 34px; text-align: center; }
-    .col-desc { text-align: ${rtl ? "right" : "left"}; }
-    .col-qty { width: 75px; text-align: center; }
-    .col-price { width: 95px; text-align: ${rtl ? "left" : "right"}; }
-    .col-total { width: 105px; text-align: ${rtl ? "left" : "right"}; font-weight: 800; }
-    table.items-table tbody tr {
+    table.items-table tr {
       break-inside: avoid;
       page-break-inside: avoid;
     }
-    table.items-table tbody td {
+    table.items-table th {
+      background: var(--print-accent);
+      color: #ffffff;
+      padding: ${tableThPadding};
+      font-size: ${isA5 ? "8.5px" : "10px"};
+      font-weight: 800;
+      text-align: ${rtl ? "right" : "left"};
+      border: 1px solid var(--print-accent);
+      letter-spacing: 0.2px;
+    }
+    table.items-table td {
       padding: ${tableTdPadding};
-      border-bottom: 1px solid var(--print-line);
-      font-size: ${isA5 ? "10px" : "11.5px"};
+      border: 1px solid var(--print-line);
+      font-size: ${isA5 ? "8px" : "9.5px"};
       vertical-align: middle;
+      color: var(--print-ink);
     }
     table.items-table tbody tr:nth-child(even) {
-      background: var(--print-surface);
+      background: ${softAccent};
     }
-    .p-title {
-      font-weight: 700;
-      color: var(--print-ink);
-      line-height: 1.35;
-    }
-    .p-code {
-      font-size: ${isA5 ? "8px" : "9px"};
-      color: var(--print-muted);
-      font-family: ui-monospace, 'Courier New', monospace;
-      margin-top: 1px;
-    }
-    .bottom-grid {
+    .col-idx { width: 4%; text-align: center !important; font-weight: 700; color: var(--print-muted); }
+    .col-desc { width: 46%; font-weight: 700; }
+    .col-qty { width: 14%; text-align: center !important; }
+    .col-price { width: 16%; text-align: ${rtl ? "left" : "right"} !important; }
+    .col-total { width: 20%; text-align: ${rtl ? "left" : "right"} !important; font-weight: 800; }
+    .prod-name { font-weight: 800; color: var(--print-ink); }
+    .prod-code { font-size: ${isA5 ? "7px" : "8px"}; color: var(--print-muted); font-family: ui-monospace, monospace; }
+
+    /* ══════════════════════════════════════════════════════════════
+       القسم السفلي: التفقيط والإجماليات
+       ══════════════════════════════════════════════════════════════ */
+    .bottom-section-grid {
       display: grid;
-      grid-template-columns: 1fr ${isA5 ? "240px" : "290px"};
-      gap: ${isA5 ? "10px" : "14px"};
-      margin-bottom: ${isA5 ? "10px" : "14px"};
-      align-items: start;
+      grid-template-columns: 1.15fr 0.85fr;
+      gap: ${isA5 ? "8px" : "12px"};
+      margin-bottom: ${isA5 ? "8px" : "12px"};
       break-inside: avoid;
+      page-break-inside: avoid;
     }
-    .notes-card {
-      background: var(--print-surface);
-      border: ${border};
-      border-radius: var(--print-radius);
-      padding: ${notesPadding};
-      height: 100%;
+    .left-side-box {
+      display: flex;
+      flex-direction: column;
+      gap: ${isA5 ? "5px" : "8px"};
     }
-    .tafqeet-banner {
-      background: var(--print-accent-soft);
-      border: ${border};
-      border-radius: var(--print-radius);
-      padding: ${isA5 ? "6px 9px" : "8px 11px"};
-      margin-bottom: 8px;
-      font-size: ${isA5 ? "9.5px" : "11px"};
-      font-weight: 700;
-      color: var(--print-accent);
+    .tafqeet-box {
+      background: ${softAccent};
+      border: 1px solid var(--print-line);
+      border-radius: 5px;
+      padding: ${isA5 ? "4px 7px" : "6px 10px"};
+      font-size: ${isA5 ? "8px" : "9.5px"};
+      color: var(--print-ink);
       display: flex;
       align-items: center;
       gap: 6px;
-      line-height: 1.35;
     }
-    .notes-header-title {
-      font-size: ${isA5 ? "9.5px" : "11px"};
+    .tafqeet-box b {
+      color: var(--print-accent);
+      font-weight: 800;
+    }
+    .thanks-notes-card {
+      background: var(--print-surface);
+      border: 1px solid var(--print-line);
+      border-radius: 5px;
+      padding: ${notesPadding};
+    }
+    .thanks-title {
+      font-size: ${isA5 ? "8px" : "9.5px"};
       font-weight: 800;
       color: var(--print-accent);
-      display: flex;
-      align-items: center;
-      gap: 5px;
-      margin-bottom: 5px;
+      margin-bottom: 3px;
     }
-    .notes-body-text {
-      font-size: ${isA5 ? "9.5px" : "10.5px"};
+    .notes-content-text {
+      font-size: ${isA5 ? "7.5px" : "9px"};
       color: var(--print-muted);
-      line-height: 1.5;
-      white-space: pre-line;
+      line-height: 1.4;
+      white-space: pre-wrap;
     }
+
+    /* كارد الإجماليات */
     .totals-card {
       background: var(--print-surface);
-      border: ${border};
-      border-radius: var(--print-radius);
+      border: 1px solid var(--print-line);
+      border-radius: 6px;
       padding: ${totalsPadding};
       display: flex;
       flex-direction: column;
       gap: 4px;
-      box-shadow: ${isLuxury ? "0 2px 8px rgba(0,0,0,0.03)" : "none"};
     }
     .totals-row {
       display: flex;
       justify-content: space-between;
-      align-items: center;
-      font-size: ${isA5 ? "10px" : "11.5px"};
-      color: var(--print-ink);
-      padding: 2.5px 0;
+      font-size: ${isA5 ? "8.5px" : "10px"};
+      color: var(--print-muted);
+      font-weight: 600;
     }
-    .totals-row.discount-row {
+    .discount-row {
       color: #b91c1c;
       font-weight: 700;
     }
-    .grand-total-banner {
-      background: ${grandTotalBg};
-      color: #fff;
-      border-radius: var(--print-radius);
-      padding: ${grandTotalPadding};
+    .grand-total-highlight-banner {
+      background: var(--print-accent);
+      color: #ffffff;
+      padding: ${isA5 ? "5px 8px" : "8px 12px"};
+      border-radius: 5px;
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-top: 4px;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+      margin: 4px 0;
     }
-    .grand-total-banner .gt-label {
-      font-size: ${isA5 ? "11px" : "13px"};
+    .grand-total-highlight-banner .gt-label {
+      font-size: ${isA5 ? "9.5px" : "11px"};
       font-weight: 900;
     }
-    .grand-total-banner .gt-amount {
-      font-size: ${grandTotalAmountSize};
+    .grand-total-highlight-banner .gt-amount {
+      font-size: ${totalAmountSize};
       font-weight: 900;
-      font-family: system-ui, -apple-system, sans-serif;
+      direction: ltr;
+      unicode-bidi: isolate;
+      font-family: system-ui, sans-serif;
     }
+
+    /* ══════════════════════════════════════════════════════════════
+       التوقيعات والاعتماد الرسمي (خالٍ من الرسومات اليدوية الوهمية)
+       ══════════════════════════════════════════════════════════════ */
     .signatures-row {
       display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: ${isA5 ? "20px" : "36px"};
-      margin: ${isA5 ? "6px 0 10px" : "10px 0 14px"};
-      padding: 0 16px;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: ${isA5 ? "8px" : "14px"};
+      margin-top: ${isA5 ? "6px" : "10px"};
+      margin-bottom: ${isA5 ? "6px" : "10px"};
       break-inside: avoid;
+      page-break-inside: avoid;
     }
     .sig-box {
+      border: 1px solid var(--print-line);
+      border-radius: 5px;
+      padding: ${isA5 ? "5px 6px" : "8px 10px"};
       text-align: center;
+      background: #ffffff;
+      min-height: ${isA5 ? "44px" : "58px"};
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
     }
-    .sig-graphic {
+    .sig-title {
+      font-size: ${isA5 ? "8px" : "9.5px"};
+      font-weight: 800;
+      color: var(--print-accent);
+      margin-bottom: 2px;
+    }
+    .sig-line {
+      border-bottom: 1px dotted var(--print-muted);
+      margin: auto 8px 3px 8px;
+    }
+    .sig-caption {
+      font-size: ${isA5 ? "7px" : "8px"};
+      color: var(--print-muted);
+    }
+    .stamp-box-area {
+      border: 1px dashed var(--print-line);
+      border-radius: 4px;
       height: ${isA5 ? "28px" : "36px"};
       display: flex;
       align-items: center;
       justify-content: center;
-      color: var(--print-accent);
-      opacity: 0.85;
+      font-size: ${isA5 ? "7px" : "8px"};
+      color: var(--print-muted);
+      margin-top: 2px;
     }
-    .sig-title-line {
-      border-top: 1.5px dashed var(--print-accent);
-      padding-top: 5px;
-      font-size: ${isA5 ? "9.5px" : "11px"};
-      font-weight: 800;
-      color: var(--print-ink);
+
+    .num-isolated {
+      direction: ltr !important;
+      unicode-bidi: isolate !important;
+      font-family: system-ui, -apple-system, sans-serif;
     }
-    .doc-footer {
-      margin-top: auto;
-      break-inside: avoid;
-    }
-    @media screen {
-      .page-container {
-        box-shadow: 0 8px 30px rgba(0,0,0,0.08);
-        border-radius: 8px;
-        margin: 12px auto;
-        border: 1px solid var(--print-line);
-      }
-    }
-    @media print {
-      body {
-        background: #fff;
-      }
-      .page-container {
-        box-shadow: none;
-        padding: 0;
-        margin: 0;
-        width: 100%;
-        min-height: auto;
-      }
-      tr, .info-card, .totals-card, .notes-card, .sig-box, header, .invoice-title-banner, .doc-footer {
-        break-inside: avoid;
-        page-break-inside: avoid;
-      }
-    }
+
     ${UNIVERSAL_FOOTER_CSS}
   `;
 }
 
-/**
- * القالب الموحد — يستخدمه `standard` و`luxury` (وعبرهما `elegant` القديم).
- */
 export function renderUnifiedLayout(
   doc: UnifiedDocumentData,
   L: InvoiceLabels,
-  rtl: boolean,
+  rtl = true,
   options?: UnifiedLayoutOptions,
 ): string {
   const theme: PrintTheme = options?.theme ?? "standard";
   const isA5 = options?.paperProfileId === "a5";
-  const customAccent = options?.accentColor ?? doc.options?.accentColor ?? null;
-  const c = doc.currency ?? "";
+  const isLuxury = theme === "luxury";
+  const unifiedSettings = getUnifiedPrintSettings();
+  const customAccent =
+    options?.accentColor ??
+    doc.options?.accentColor ??
+    (isLuxury
+      ? (options?.luxuryAccentColor ?? unifiedSettings.luxuryAccentColor)
+      : (options?.standardAccentColor ?? unifiedSettings.standardAccentColor)) ??
+    null;
+  const c = doc.currency ?? "ر.ي";
   const esc = escapeHtml;
   const money = (n?: number) => formatMoney(n ?? 0, c);
   const company = options?.company ?? getCachedCompanyProfile();
@@ -590,27 +652,22 @@ export function renderUnifiedLayout(
     ...options,
     ...doc.options,
   };
-  // `doc.options` must not be able to re-enable a footer the caller disabled.
   if (options?.showFooter === false) opts.showFooter = false;
 
   const qrPayload = [
-    `Seller: ${options?.company?.name || getCachedCompanyProfile().name}`,
+    `Seller: ${company.name || "Company"}`,
     `Invoice: ${doc.number}`,
     `Date: ${doc.date}`,
     `Total: ${doc.total || 0} ${c}`,
   ].join("\n");
 
   const barcodeSvg =
-    opts.showBarcode !== false && doc.number ? generateBarcodeSvg(doc.number, isA5 ? 18 : 22) : "";
-  const qrSvg = opts.showQrCode !== false ? generateQrCodeSvg(qrPayload, isA5 ? 46 : 56) : "";
+    opts.showBarcode !== false && doc.number ? generateBarcodeSvg(doc.number, isA5 ? 14 : 18) : "";
+  const qrSvg = opts.showQrCode !== false ? generateQrCodeSvg(qrPayload, isA5 ? 40 : 50) : "";
 
-  // Company Profile is the single source of company data — never a constant.
-  // The document may carry a snapshot, but the profile is authoritative when
-  // the snapshot has no name of its own.
   const companyName = company.name || doc.company?.name || "";
   const arabicName = doc.company?.arabicName || company.arabicName || companyName;
   const englishName = doc.company?.englishName || company.englishName || "";
-  const legalName = doc.company?.legalName || company.legalName || "";
   const companyAddress = doc.company?.address || company.address || "";
   const companyPhone =
     doc.company?.phone ||
@@ -619,22 +676,22 @@ export function renderUnifiedLayout(
     "";
   const companyVat = doc.company?.vat || company.taxNumber || "";
   const companyEmail = doc.company?.email || company.email || "";
-  const companyWebsite = doc.company?.website || "";
 
-  const rows = doc.lines
+  const lines = doc.lines || [];
+  const rows = lines
     .map((l, i) => {
       const itemPrice = l.price ?? 0;
       const itemTotal = l.total ?? l.qty * itemPrice;
       return `
     <tr>
-      <td class="col-num">${i + 1}</td>
+      <td class="col-idx">${i + 1}</td>
       <td class="col-desc">
-        <div class="p-title">${esc(l.product)}</div>
-        ${l.code ? `<div class="p-code">${rtl ? "كود" : "SKU"}: ${esc(l.code)}</div>` : ""}
+        <div class="prod-name">${esc(l.product)}</div>
+        ${l.code ? `<div class="prod-code">${rtl ? "الرمز" : "Code"}: ${esc(l.code)}</div>` : ""}
       </td>
-      <td class="col-qty">${l.qty} ${l.unit ? esc(l.unit) : rtl ? "حبة" : ""}</td>
-      <td class="col-price">${money(itemPrice)}</td>
-      <td class="col-total">${money(itemTotal)}</td>
+      <td class="col-qty num-isolated">${l.qty} ${l.unit ? esc(l.unit) : rtl ? "حبة" : ""}</td>
+      <td class="col-price num-isolated">${money(itemPrice)}</td>
+      <td class="col-total num-isolated">${money(itemTotal)}</td>
     </tr>`;
     })
     .join("");
@@ -655,201 +712,158 @@ export function renderUnifiedLayout(
 
 <div class="page-container">
   <div>
-    <header class="invoice-header-master">
-      <div class="header-main-grid">
-        <!-- 1. Right Side (اليمين): اسم المطحنة/المنشأة، اسم الفاتورة، الموقع، التاريخ، الرقم الضريبي -->
-        <div class="header-col-right">
-          ${
-            opts.showCompanyInfo
-              ? `
-          <h1 class="header-company-name">${esc(companyName || arabicName || (rtl ? "طاحونة ومطحنة الحبوب الحديثة" : "Modern Milling Center"))}</h1>`
-              : `
-          <h1 class="header-company-name">${esc(doc.title || L.invoice)}</h1>`
-          }
-
-          <div class="inv-type-pill">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
-            <span>${esc(doc.title || L.invoice)}</span>
-          </div>
-
-          ${
-            opts.showCompanyInfo && companyAddress
-              ? `
-          <div class="header-meta-item">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
-            <span><b>الموقع:</b> ${esc(companyAddress)}</span>
-          </div>`
-              : ""
-          }
-
-          ${
-            opts.showDocNumberDate
-              ? `
-          <div class="header-meta-item">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-            <span><b>${L.date}:</b> ${esc(doc.date)}</span>
-          </div>`
-              : ""
-          }
-
-          ${
-            opts.showCompanyInfo && companyVat
-              ? `
-          <div class="header-meta-item">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M7 7h10M7 12h10M7 17h6"/></svg>
-            <span><b>الرقم الضريبي:</b> ${esc(companyVat)}</span>
-          </div>`
-              : ""
-          }
+    ${
+      isLuxury
+        ? `<!-- ══════════ ترويسة القالب التنفيذي الفاخر ══════════ -->
+    <header class="luxury-header-wrap">
+      <div class="luxury-header-grid">
+        <!-- اليمين: بيانات المنشأة بالعربية -->
+        <div class="luxury-header-right">
+          <h1 class="luxury-brand-title">${esc(companyName || arabicName || (rtl ? "مؤسسة الأعمال المتقدمة" : "Enterprise Solutions"))}</h1>
+          <div class="luxury-brand-sub">${esc(arabicName !== companyName && arabicName ? arabicName : "أنظمة وحلول تجارية وصناعية متقدمة")}</div>
+          ${companyAddress ? `<div class="luxury-meta-line"><span><b>العنوان:</b> ${esc(companyAddress)}</span></div>` : ""}
+          ${companyVat ? `<div class="luxury-meta-line"><span><b>الرقم الضريبي:</b> <span dir="ltr">${esc(companyVat)}</span></span></div>` : ""}
+          ${companyPhone ? `<div class="luxury-meta-line"><span><b>الهاتف:</b> <span dir="ltr">${esc(companyPhone)}</span></span></div>` : ""}
         </div>
 
-        <!-- 2. Center (المنتصف): الشعار الاحترافي ورموز التحقق QR والباركود -->
-        <div class="header-col-center">
+        <!-- المنتصف: الشعار فقط (أيقونة vortex-erp-mark النظيفة دون تشويه أو تزاحم) -->
+        <div class="luxury-header-center">
           ${
             opts.showLogo
               ? `
-          <div class="header-logo-box">
-            <img
-              src="${esc(logoUrl)}"
-              alt="${esc(companyName || "Logo")}"
-              class="header-logo-img"
-              onerror="this.onerror=null; this.src='${DEFAULT_COMPANY_LOGO}';"
-            />
+          <div class="luxury-logo-box">
+            <img src="${esc(logoUrl)}" alt="Logo" onerror="this.onerror=null; this.src='${DEFAULT_COMPANY_LOGO}';" />
           </div>`
               : "<div></div>"
-          }
-
-          ${
-            opts.showDocNumberDate && (qrSvg || barcodeSvg)
-              ? `
-          <div class="header-center-codes">
-            ${qrSvg ? `<div class="qr-box">${qrSvg}</div>` : ""}
-            ${barcodeSvg ? `<div class="barcode-box">${barcodeSvg}</div>` : ""}
-          </div>`
-              : ""
           }
         </div>
 
-        <!-- 3. Left Side (اليسار): رقم الفاتورة، اسم المنشأة بالإنجليزي، أرقام التواصل والبيانات الإنجليزية -->
-        <div class="header-col-left">
+        <!-- اليسار: عنوان الفاتورة والرقم وتاريخ الإصدار ورمز QR في موضعه الضريبي السليم -->
+        <div class="luxury-header-left">
+          <div class="luxury-doc-meta-col">
+            <div class="luxury-inv-badge-title">
+              <span>${esc(doc.title || (rtl ? "فاتورة مبيعات" : "INVOICE"))}</span>
+            </div>
+            <div class="luxury-inv-num-pill">
+              #${esc(doc.number)}
+            </div>
+            ${opts.showDocNumberDate ? `<div class="luxury-inv-date-line"><span>التاريخ:</span> <span dir="ltr">${esc(doc.date)}</span></div>` : ""}
+            ${englishName ? `<div style="font-weight: 700; font-size: ${isA5 ? "8px" : "9.5px"}; color: var(--print-muted);">${esc(englishName)}</div>` : ""}
+            ${barcodeSvg ? `<div class="luxury-barcode-line">${barcodeSvg}</div>` : ""}
+          </div>
           ${
-            opts.showDocNumberDate
+            qrSvg
               ? `
-          <div class="header-number-badge">
-            <span class="num-lbl">${rtl ? "رقم الفاتورة" : "Invoice No."}</span>
-            <span class="num-val">#${esc(doc.number)}</span>
+          <div class="luxury-qr-box">
+            ${qrSvg}
           </div>`
               : ""
-          }
-
-          ${
-            opts.showCompanyInfo
-              ? `
-          ${
-            englishName
-              ? `<div class="header-company-en">${esc(englishName)}</div>`
-              : `<div class="header-company-en">VORTEX ERP</div>`
-          }
-          ${
-            companyPhone
-              ? `<div class="header-meta-item header-meta-en">
-            <span dir="ltr">${esc(companyPhone)}</span>
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
-          </div>`
-              : ""
-          }
-          ${
-            companyEmail
-              ? `<div class="header-meta-item header-meta-en">
-            <span dir="ltr">${esc(companyEmail)}</span>
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
-          </div>`
-              : companyWebsite
-                ? `<div class="header-meta-item header-meta-en">
-            <span dir="ltr">${esc(companyWebsite)}</span>
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg>
-          </div>`
-                : ""
-          }
-          ${
-            companyVat
-              ? `<div class="header-meta-item header-meta-en">
-            <span dir="ltr">VAT ID: ${esc(companyVat)}</span>
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M7 7h10M7 12h10M7 17h6"/></svg>
-          </div>`
-              : ""
-          }`
-              : "<div></div>"
           }
         </div>
       </div>
     </header>
 
-    <div class="cards-grid">
-      ${
-        opts.showCustomerInfo && doc.partyName
-          ? `
-      <div class="info-card">
-        <div class="card-icon-circle">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+    <!-- ══════════ بطاقات العميل وبيانات الحركة والدفع ══════════ -->
+    <div class="party-info-grid">
+      <!-- بطاقة العميل (فاتورة إلى / Invoice To) -->
+      <div class="party-card">
+        <div class="party-card-title">
+          <span>${esc(doc.partyLabel || L.billTo)}</span>
         </div>
-        <div class="card-body-content">
-          <div class="card-label">${esc(doc.partyLabel || L.billTo)}</div>
-          <div class="card-value">${esc(doc.partyName)}</div>
-          ${doc.partyVat ? `<div class="card-subtext">${rtl ? "الرقم الضريبي" : "VAT"}: ${esc(doc.partyVat)}</div>` : ""}
-          ${doc.partyPhone ? `<div class="card-subtext">${rtl ? "هاتف" : "Tel"}: ${esc(doc.partyPhone)}</div>` : ""}
-        </div>
-      </div>`
-          : `
-      <div class="info-card">
-        <div class="card-icon-circle">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-        </div>
-        <div class="card-body-content">
-          <div class="card-label">${L.billTo}</div>
-          <div class="card-value">${rtl ? "عميل عام" : "General Customer"}</div>
-        </div>
-      </div>`
-      }
+        <div class="party-card-name">${esc(doc.partyName || (rtl ? "عميل نقدي عام" : "General Customer"))}</div>
+        ${doc.partyPhone ? `<div class="party-card-row"><span>الهاتف:</span> <span dir="ltr">${esc(doc.partyPhone)}</span></div>` : ""}
+        ${doc.partyVat ? `<div class="party-card-row"><span>الرقم الضريبي:</span> <span dir="ltr">${esc(doc.partyVat)}</span></div>` : ""}
+        ${doc.partyAddress ? `<div class="party-card-row"><span>العنوان:</span> <span>${esc(doc.partyAddress)}</span></div>` : ""}
+      </div>
 
-      ${
-        opts.showMovementInfo
-          ? `
-      <div class="info-card">
-        <div class="card-icon-circle">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+      <!-- بطاقة بيانات الفاتورة وطريقة الدفع (Payment Details) -->
+      <div class="party-card">
+        <div class="party-card-title">
+          <span>بيانات وطريقة الدفع (Payment Details)</span>
         </div>
-        <div class="card-body-content">
-          <div class="card-label">${L.warehouse}</div>
-          <div class="card-value">${esc(doc.warehouse || (rtl ? "المستودع الرئيسي" : "Main Warehouse"))}</div>
-          ${doc.destinationWarehouse ? `<div class="card-subtext">${rtl ? "إلى" : "To"}: ${esc(doc.destinationWarehouse)}</div>` : ""}
+        <div class="party-card-row">
+          <span>طريقة الدفع:</span>
+          <b>${esc(doc.payment || (rtl ? "نقداً" : "Cash"))}</b>
         </div>
-      </div>`
-          : `<div></div>`
-      }
+        <div class="party-card-row">
+          <span>حالة الفاتورة:</span>
+          <b>${esc(doc.status || (rtl ? "مدفوعة بالكامل" : "Paid"))}</b>
+        </div>
+        ${
+          doc.warehouse
+            ? `
+        <div class="party-card-row">
+          <span>المستودع:</span>
+          <span>${esc(doc.warehouse)}</span>
+          ${doc.destinationWarehouse ? ` ➔ <span>${esc(doc.destinationWarehouse)}</span>` : ""}
+        </div>`
+            : ""
+        }
+        ${doc.operatorName ? `<div class="party-card-row"><span>الموظف المسؤول:</span> <span>${esc(doc.operatorName)}</span></div>` : ""}
+      </div>
+    </div>`
+        : `<!-- ══════════ ترويسة القالب القياسي العملي المضغوط ══════════ -->
+    <header class="corporate-header-wrap">
+      <div class="corporate-header-grid">
+        <!-- اليمين: الشعار واسم المنشأة والبيانات في سطر مدمج -->
+        <div class="corporate-brand-block">
+          ${
+            opts.showLogo
+              ? `
+          <div class="corporate-logo-box">
+            <img src="${esc(logoUrl)}" alt="Logo" onerror="this.onerror=null; this.src='${DEFAULT_COMPANY_LOGO}';" />
+          </div>`
+              : ""
+          }
+          <div>
+            <h1 class="corporate-brand-name">${esc(companyName || arabicName || (rtl ? "الشركة التجارية المعتمدة" : "Standard Corporation"))}</h1>
+            <div class="corporate-brand-details">
+              ${companyVat ? `<span>الضريبي: <b dir="ltr">${esc(companyVat)}</b></span>` : ""}
+              ${companyPhone ? `<span>الهاتف: <b dir="ltr">${esc(companyPhone)}</b></span>` : ""}
+              ${companyAddress ? `<span>${esc(companyAddress)}</span>` : ""}
+            </div>
+          </div>
+        </div>
 
-      ${
-        opts.showPaymentInfo
-          ? `
-      <div class="info-card">
-        <div class="card-icon-circle">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
+        <!-- اليسار: عنوان الفاتورة والرقم والتاريخ ورمز QR -->
+        <div class="corporate-doc-block">
+          <div class="corporate-doc-info">
+            <h2 class="corporate-inv-title">${esc(doc.title || "INVOICE")}</h2>
+            <div class="corporate-inv-meta">
+              رقم الفاتورة: <b style="color: var(--print-accent);">#${esc(doc.number)}</b> · <span dir="ltr">${esc(doc.date)}</span>
+            </div>
+            ${barcodeSvg ? `<div>${barcodeSvg}</div>` : ""}
+          </div>
+          ${qrSvg ? `<div style="width:${isA5 ? "38px" : "46px"};">${qrSvg}</div>` : ""}
         </div>
-        <div class="card-body-content">
-          <div class="card-label">${L.payment}</div>
-          <div class="card-value">${esc(doc.payment || (rtl ? "نقداً (Cash)" : "Cash"))}</div>
-          <div class="card-subtext">${L.status}: ${esc(doc.status || (rtl ? "مدفوعة" : "Paid"))}</div>
-        </div>
-      </div>`
-          : `<div></div>`
-      }
-    </div>
+      </div>
+    </header>
 
+    <!-- شريط العميل الموحد المضغوط لتوفير المساحة الرأسية للأصناف -->
+    <div class="party-info-compact-bar">
+      <div class="party-compact-item">
+        <span>${esc(doc.partyLabel || L.billTo)}:</span>
+        <b>${esc(doc.partyName || (rtl ? "عميل نقدي عام" : "General Customer"))}</b>
+      </div>
+      ${doc.partyPhone ? `<div class="party-compact-item"><span>الهاتف:</span> <b dir="ltr">${esc(doc.partyPhone)}</b></div>` : ""}
+      <div class="party-compact-item">
+        <span>الدفع:</span>
+        <b>${esc(doc.payment || (rtl ? "نقداً" : "Cash"))}</b>
+      </div>
+      <div class="party-compact-item">
+        <span>الحالة:</span>
+        <b>${esc(doc.status || (rtl ? "مدفوعة" : "Paid"))}</b>
+      </div>
+      ${doc.warehouse ? `<div class="party-compact-item"><span>المستودع:</span> <b>${esc(doc.warehouse)}</b></div>` : ""}
+    </div>`
+    }
+
+    <!-- ══════════ جدول البنود المنظم ══════════ -->
     <div class="table-container">
       <table class="items-table">
         <thead>
           <tr>
-            <th class="col-num">${rtl ? "م" : "#"}</th>
+            <th class="col-idx">${rtl ? "م" : "#"}</th>
             <th class="col-desc">${L.product}</th>
             <th class="col-qty">${L.qty}</th>
             <th class="col-price">${L.price}</th>
@@ -857,72 +871,58 @@ export function renderUnifiedLayout(
           </tr>
         </thead>
         <tbody>
-          ${rows || `<tr><td colspan="${numColumns}" style="text-align:center; padding: 16px; color: var(--print-muted);">${rtl ? "لا توجد عناصر" : "No Items"}</td></tr>`}
+          ${rows || `<tr><td colspan="${numColumns}" style="text-align:center; padding: 14px; color: var(--print-muted);">${rtl ? "لا توجد بنود مسجلة" : "No items"}</td></tr>`}
         </tbody>
       </table>
     </div>
 
-    <div class="bottom-grid">
-      <div class="notes-card">
+    <!-- ══════════ القسم السفلي: التفقيط، الملاحظات، والإجماليات ══════════ -->
+    <div class="bottom-section-grid">
+      <div class="left-side-box">
         ${
           opts.showFinancialDetails
             ? `
-        <div class="tafqeet-banner">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7V4a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v3"/><path d="M4 17v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/><rect width="20" height="10" x="2" y="7" rx="2"/><circle cx="12" cy="12" r="2"/></svg>
-          <span><b>${rtl ? "المبلغ كتابةً" : "Amount in words"}:</b> ${esc(numberToArabicWords(doc.total ?? 0, doc.currency))}</span>
+        <div class="tafqeet-box">
+          <span><b>المبلغ كتابةً:</b> ${esc(numberToArabicWords(doc.total ?? 0, doc.currency))}</span>
         </div>`
             : ""
         }
 
-        ${
-          opts.showNotes && doc.notes
-            ? `
-        <div class="notes-header-title">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></svg>
-          <span>${rtl ? "ملاحظات" : "Notes"}</span>
+        <div class="thanks-notes-card">
+          <div class="thanks-title">
+            <span>${opts.showNotes && doc.notes ? (rtl ? "ملاحظات وشروط الفاتورة" : "Terms & Notes") : rtl ? "شكرًا لتعاملكم معنا" : "Thank You For Your Business"}</span>
+          </div>
+          <div class="notes-content-text">${esc(doc.notes || (rtl ? "نشكركم على اختياركم، البضاعة المباعة ترد وتستبدل وفق الشروط والأنظمة المعتمدة." : "We appreciate your business."))}</div>
         </div>
-        <div class="notes-body-text">${esc(doc.notes)}</div>
-        `
-            : `
-        <div class="notes-header-title">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></svg>
-          <span>${L.thanks}</span>
-        </div>
-        <div class="notes-body-text">${rtl ? "نشكركم على اختياركم ونتطلع دائماً لخدمتكم." : "We appreciate your business and look forward to serving you."}</div>
-        `
-        }
       </div>
 
-      ${
-        opts.showFinancialDetails
-          ? `
+      <!-- كارد الإجماليات مع مستطيل الإجمالي البارز -->
       <div class="totals-card">
         <div class="totals-row">
-          <span>${L.subtotal}</span>
-          <span style="font-family: system-ui, sans-serif; font-weight: 700;">${money(doc.subtotal)}</span>
+          <span>${L.subtotal}:</span>
+          <span class="num-isolated" style="font-weight: 700;">${money(doc.subtotal)}</span>
         </div>
-
         ${
           doc.discount
             ? `
         <div class="totals-row discount-row">
-          <span>${L.discount}</span>
-          <span style="font-family: system-ui, sans-serif; font-weight: 700;">- ${money(doc.discount)}</span>
+          <span>${L.discount}:</span>
+          <span class="num-isolated">- ${money(doc.discount)}</span>
         </div>`
             : ""
         }
-
         ${
           doc.tax
             ? `
         <div class="totals-row">
-          <span>${L.tax}</span>
-          <span style="font-family: system-ui, sans-serif; font-weight: 700;">+ ${money(doc.tax)}</span>
+          <span>${L.tax}:</span>
+          <span class="num-isolated">+ ${money(doc.tax)}</span>
         </div>`
             : ""
         }
 
-        <div class="grand-total-banner">
+        <!-- مستطيل الإجمالي البارز -->
+        <div class="grand-total-highlight-banner">
           <span class="gt-label">${L.grandTotal}</span>
           <span class="gt-amount">${money(doc.total)}</span>
         </div>
@@ -930,50 +930,47 @@ export function renderUnifiedLayout(
         ${
           doc.paid !== undefined
             ? `
-        <div class="totals-row" style="margin-top: 4px;">
-          <span>${L.paid}</span>
-          <span style="font-family: system-ui, sans-serif; font-weight: 700;">${money(doc.paid)}</span>
+        <div class="totals-row" style="margin-top: 3px;">
+          <span>${L.paid}:</span>
+          <span class="num-isolated" style="font-weight: 700;">${money(doc.paid)}</span>
         </div>
         <div class="totals-row">
-          <span>${L.balance}</span>
-          <span style="font-family: system-ui, sans-serif; font-weight: 700;">${money((doc.total ?? 0) - doc.paid)}</span>
+          <span>${L.balance}:</span>
+          <span class="num-isolated" style="font-weight: 700; color: ${(doc.total ?? 0) - doc.paid > 0 ? "#b91c1c" : "#047857"};">${money((doc.total ?? 0) - doc.paid)}</span>
         </div>`
             : ""
         }
-      </div>`
-          : "<div></div>"
-      }
+      </div>
     </div>
 
+    <!-- التوقيعات والاعتماد الرسمي المعتمد -->
     ${
       opts.showSignatures
         ? `
     <div class="signatures-row">
       <div class="sig-box">
-        <div class="sig-graphic">
-          <svg width="100" height="32" viewBox="0 0 160 45" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M10 32 C 30 10, 45 40, 70 20 C 85 8, 100 35, 125 15 C 140 5, 150 25, 155 35" />
-            <path d="M40 25 Q 70 5, 95 38" />
-          </svg>
-        </div>
-        <div class="sig-title-line">${rtl ? "توقيع المستلم" : "Recipient Signature"}</div>
+        <div class="sig-title">${rtl ? "توقيع المستلم" : "Recipient Signature"}</div>
+        <div class="sig-line"></div>
+        <div class="sig-caption">${rtl ? "الاسم: ......................................." : "Name: ......................................."}</div>
       </div>
-
       <div class="sig-box">
-        <div class="sig-graphic">
-          <svg width="100" height="32" viewBox="0 0 160 45" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M15 20 Q 35 5, 60 30 T 110 15 T 145 28" />
-            <path d="M30 35 C 50 15, 80 40, 130 10" />
-          </svg>
+        <div class="sig-title">${rtl ? "المحاسب / المعتمد" : "Authorized"}</div>
+        <div class="sig-line"></div>
+        <div class="sig-caption">${rtl ? "التوقيع: ...................................." : "Signature: ...................................."}</div>
+      </div>
+      <div class="sig-box">
+        <div class="sig-title">${rtl ? "الختم الرسمي" : "Official Stamp"}</div>
+        <div class="stamp-box-area">
+          <span>${rtl ? "موضع الختم المعتمد" : "Stamp Area"}</span>
         </div>
-        <div class="sig-title-line">${rtl ? "توقيع المدير / المخزن" : "Manager / Warehouse Signature"}</div>
       </div>
     </div>`
         : ""
     }
   </div>
 
-  ${opts.showFooter ? `<div class="doc-footer">${renderUniversalFooter(company, rtl)}</div>` : ""}
+  <!-- ══════════ الفوتر الموحد ══════════ -->
+  ${opts.showFooter ? renderUniversalFooter(company, rtl) : ""}
 </div>
 
 </body>

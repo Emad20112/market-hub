@@ -8,7 +8,7 @@ interface PrintingSectionProps {
 
 export function PrintingSection({ canEdit }: PrintingSectionProps) {
   const { hasRole, isPlatformSuperadmin } = useAuth();
-  const canEditPrinting = canEdit && (hasRole("owner") || isPlatformSuperadmin);
+  const canEditPrinting = canEdit || hasRole("owner") || hasRole("manager") || isPlatformSuperadmin;
 
   return <PrintSettingsCard canEdit={canEditPrinting} />;
 }

@@ -31,6 +31,7 @@ import {
 import {
   getUnifiedPrintSettings,
   commitPrintSettings,
+  saveUnifiedPrintSettings,
   normalizePrintSettings,
   PRINT_PAPERS,
   DEFAULT_STANDARD_COLOR,
@@ -129,6 +130,12 @@ export function PrintSettingsCard({ canEdit = true }: PrintSettingsCardProps) {
   // Modal preview state
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewDocType, setPreviewDocType] = useState<PrintingDocumentType>("customer_invoice");
+  const [previewTemplateOverride, setPreviewTemplateOverride] = useState<InvoiceTemplateId | null>(
+    null,
+  );
+  const [previewPaperOverride, setPreviewPaperOverride] = useState<PrintPaperId | null>(null);
+  const [standardPaperSize, setStandardPaperSize] = useState<"a4" | "a5">("a4");
+  const [luxuryPaperSize, setLuxuryPaperSize] = useState<"a4" | "a5">("a4");
   const [isSaving, setIsSaving] = useState(false);
   const [savedSnapshot, setSavedSnapshot] = useState(() => ({
     settings: getPrintSettings(),
@@ -174,6 +181,44 @@ export function PrintSettingsCard({ canEdit = true }: PrintSettingsCardProps) {
     } finally {
       setIsSaving(false);
     }
+  }
+
+  function handleStandardColorChange(color: string | undefined) {
+    updateUnified({ standardAccentColor: color });
+    setSettings((cur) => ({ ...cur, standardAccentColor: color }));
+    saveUnifiedPrintSettings({ standardAccentColor: color });
+    savePrintSettings({ standardAccentColor: color });
+  }
+
+  function handleLuxuryColorChange(color: string | undefined) {
+    updateUnified({ luxuryAccentColor: color });
+    setSettings((cur) => ({ ...cur, luxuryAccentColor: color }));
+    saveUnifiedPrintSettings({ luxuryAccentColor: color });
+    savePrintSettings({ luxuryAccentColor: color });
+  }
+
+  function handleDefaultInvoiceTemplateChange(templateId: InvoiceTemplateId) {
+    const theme: PrintTheme =
+      templateId === "elegant" ? "luxury" : templateId === "formal" ? "formal" : "standard";
+    const nextOverrides = {
+      ...unified.overrides,
+      customer_invoice: {
+        ...unified.overrides.customer_invoice,
+        templateId,
+        theme,
+      },
+    };
+    updateUnified({ overrides: nextOverrides, theme });
+    setSettings((cur) => ({ ...cur, defaultCustomerTemplate: templateId }));
+    saveUnifiedPrintSettings({ overrides: nextOverrides, theme });
+    savePrintSettings({ defaultCustomerTemplate: templateId });
+    toast.success(
+      templateId === "elegant"
+        ? "تم تعيين القالب التنفيذي الفاخر كقالب افتراضي للفواتير"
+        : templateId === "standard"
+          ? "تم تعيين القالب القياسي المؤسسي كقالب افتراضي للفواتير"
+          : "تم تعيين الفاتورة الرسمية المبسطة كقالب افتراضي للفواتير",
+    );
   }
 
   // Handle department template & paper profile change
@@ -246,8 +291,10 @@ export function PrintSettingsCard({ canEdit = true }: PrintSettingsCardProps) {
   const previewRequest = useMemo(() => {
     const dept = DEPARTMENTS.find((d) => d.id === previewDocType);
     const override = unified.overrides[previewDocType];
-    const templateId = override?.templateId || dept?.defaultTemplate || "thermal-milling";
+    const templateId =
+      previewTemplateOverride || override?.templateId || dept?.defaultTemplate || "thermal-milling";
     const paperId =
+      previewPaperOverride ||
       override?.paperId ||
       dept?.defaultPaper ||
       (templateId.startsWith("thermal") ? "thermal-80" : "a4");
@@ -274,6 +321,8 @@ export function PrintSettingsCard({ canEdit = true }: PrintSettingsCardProps) {
   }, [
     sampleDoc,
     previewDocType,
+    previewTemplateOverride,
+    previewPaperOverride,
     unified.overrides,
     unified.showBarcode,
     unified.showQrCode,
@@ -504,12 +553,10 @@ export function PrintSettingsCard({ canEdit = true }: PrintSettingsCardProps) {
                               </>
                             ) : (
                               <>
-                                <option value="milling-clean">
-                                  ⭐ قالب الفاتورة الرسمية المبسطة
-                                </option>
-                                <option value="standard">📄 قالب مؤسسي قياسي</option>
-                                <option value="elegant">✨ قالب تنفيذي فاخر</option>
-                                <option value="formal">🏛️ قالب رسمي معتمد وتواقيع</option>
+                                <option value="elegant">✨ قالب تنفيذي فاخر (Executive Luxury)</option>
+                                <option value="standard">📄 قالب قياسي مضغوط (Compact Commercial)</option>
+                                <option value="milling-clean">⭐ قالب الفاتورة الرسمية المبسطة</option>
+                                <option value="formal">🏛️ قالب رسمي كلاسيكي</option>
                               </>
                             )}
                           </select>
@@ -666,6 +713,83 @@ export function PrintSettingsCard({ canEdit = true }: PrintSettingsCardProps) {
           {/* ═════════════════════════════════════════════════════════════════ */}
           {activeTab === "colors" && (
             <div className="space-y-6">
+              {/* اختيار قالب وثيم الفاتورة الافتراضي */}
+              <div className="rounded-2xl border border-primary/30 bg-primary/5 p-4 space-y-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="space-y-0.5">
+                    <div className="text-xs font-bold text-foreground flex items-center gap-2">
+                      <Sparkles className="h-4 w-4 text-primary" />
+                      <span>قالب وثيم الفواتير الافتراضي المعتمد (النموذج النشط للطباعة)</span>
+                    </div>
+                    <div className="text-[11px] text-muted-foreground">
+                      اختر القالب والثيم الذي يُطبَّق تلقائياً على فواتير المبيعات ونقاط البيع
+                      والمعاينة
+                    </div>
+                  </div>
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={saveAllSettings}
+                    disabled={!canEdit}
+                    className="rounded-xl h-8 gap-1.5 text-xs font-bold shadow-xs"
+                  >
+                    <Check className="h-3.5 w-3.5" />
+                    <span>حفظ واعتماد الثيم فوراً</span>
+                  </Button>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-1">
+                  {[
+                    {
+                      id: "elegant" as InvoiceTemplateId,
+                      title: "✨ القالب التنفيذي الفاخر",
+                      sub: "ألوان كحلية وزرقاء ملكية وتصميم تنفيذي راقٍ",
+                      theme: "luxury" as PrintTheme,
+                    },
+                    {
+                      id: "standard" as InvoiceTemplateId,
+                      title: "📄 القالب القياسي المؤسسي",
+                      sub: "هيكل مؤسسي أنيق متزن للشركات والمؤسسات",
+                      theme: "standard" as PrintTheme,
+                    },
+                    {
+                      id: "milling-clean" as InvoiceTemplateId,
+                      title: "⭐ الفاتورة الرسمية المبسطة",
+                      sub: "تصميم مبسط وواضح للمطاحن ونقاط البيع",
+                      theme: "standard" as PrintTheme,
+                    },
+                  ].map((tpl) => {
+                    const currentCustomerTemplate =
+                      unified.overrides.customer_invoice?.templateId ||
+                      settings.defaultCustomerTemplate ||
+                      "milling-clean";
+                    const isSelected = currentCustomerTemplate === tpl.id;
+
+                    return (
+                      <button
+                        key={tpl.id}
+                        type="button"
+                        disabled={!canEdit}
+                        onClick={() => handleDefaultInvoiceTemplateChange(tpl.id)}
+                        className={`flex flex-col text-start p-3 rounded-xl border transition-all ${
+                          isSelected
+                            ? "border-primary bg-primary/10 shadow-xs ring-1 ring-primary/40 font-bold"
+                            : "border-border/70 bg-background hover:border-primary/40"
+                        }`}
+                      >
+                        <div className="text-xs font-bold text-foreground flex items-center justify-between">
+                          <span>{tpl.title}</span>
+                          {isSelected && <Check className="h-3.5 w-3.5 text-primary" />}
+                        </div>
+                        <div className="text-[10px] text-muted-foreground mt-1 leading-relaxed">
+                          {tpl.sub}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
               <div className="rounded-2xl border border-border/70 bg-muted/20 p-3.5 flex flex-wrap items-center justify-between gap-2">
                 <div className="space-y-0.5">
                   <div className="text-xs font-bold text-foreground">
@@ -682,21 +806,14 @@ export function PrintSettingsCard({ canEdit = true }: PrintSettingsCardProps) {
                   size="sm"
                   disabled={!canEdit}
                   onClick={() => {
-                    updateUnified({
-                      standardAccentColor: undefined,
-                      luxuryAccentColor: undefined,
-                    });
-                    setSettings((cur) => ({
-                      ...cur,
-                      standardAccentColor: undefined,
-                      luxuryAccentColor: undefined,
-                    }));
+                    handleStandardColorChange(undefined);
+                    handleLuxuryColorChange(undefined);
                     toast.info("تمت استعادة الألوان الافتراضية للقالبين");
                   }}
                   className="rounded-xl h-8 gap-1.5 text-xs text-muted-foreground hover:text-foreground border-border/80"
                 >
                   <Undo2 className="h-3.5 w-3.5" />
-                  <span>استعادة الألوان الافتراضية</span>
+                  <span>استعادة الألوان الافتراضية للقالبين</span>
                 </Button>
               </div>
 
@@ -707,171 +824,199 @@ export function PrintSettingsCard({ canEdit = true }: PrintSettingsCardProps) {
                   const tokens = deriveThemeTokens("standard", currentColor);
 
                   return (
-                    <div className="rounded-2xl border border-border/80 bg-surface/80 p-5 space-y-4 shadow-xs">
-                      <div className="flex items-center justify-between gap-3 border-b border-border/60 pb-3">
-                        <div className="flex items-center gap-2.5">
-                          <div
-                            className="w-8 h-8 rounded-xl flex items-center justify-center text-white shadow-xs"
-                            style={{ backgroundColor: currentColor }}
-                          >
-                            <FileText className="h-4 w-4" />
-                          </div>
-                          <div>
-                            <h4 className="text-sm font-bold text-foreground">
-                              القالب القياسي المؤسسي (Standard Corporate)
-                            </h4>
-                            <p className="text-[11px] text-muted-foreground">
-                              هوية مؤسسية متزنة للشركات والمؤسسات
-                            </p>
-                          </div>
-                        </div>
-
-                        <span
-                          className="px-2.5 py-1 rounded-lg text-[11px] font-mono font-bold border"
-                          style={{
-                            color: currentColor,
-                            borderColor: tokens.line,
-                            backgroundColor: tokens.accentSoft,
-                          }}
-                        >
-                          {currentColor.toUpperCase()}
-                        </span>
-                      </div>
-
-                      {/* منتقي اللون المباشر */}
-                      <div className="space-y-2">
-                        <label className="text-xs font-semibold text-muted-foreground flex items-center justify-between">
-                          <span>اختيار لون حر (منتقي ألوان مخصص)</span>
-                          <span className="text-[10px] text-muted-foreground">
-                            اضغط لاختيار كود HEX
-                          </span>
-                        </label>
-                        <div className="flex items-center gap-3 p-2.5 rounded-xl border border-border/70 bg-background/60">
-                          <input
-                            type="color"
-                            disabled={!canEdit}
-                            value={currentColor}
-                            onChange={(e) => {
-                              const val = e.target.value;
-                              updateUnified({ standardAccentColor: val });
-                              setSettings((cur) => ({ ...cur, standardAccentColor: val }));
-                            }}
-                            className="w-10 h-10 rounded-lg cursor-pointer border-0 p-0 bg-transparent shrink-0"
-                          />
-                          <input
-                            type="text"
-                            disabled={!canEdit}
-                            value={currentColor}
-                            onChange={(e) => {
-                              const val = e.target.value;
-                              if (/^#[0-9A-Fa-f]{0,6}$/.test(val)) {
-                                updateUnified({ standardAccentColor: val });
-                                setSettings((cur) => ({ ...cur, standardAccentColor: val }));
-                              }
-                            }}
-                            placeholder="#1d4ed8"
-                            className="h-9 flex-1 rounded-lg border border-input bg-background px-3 font-mono text-xs uppercase"
-                          />
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            disabled={!canEdit || !unified.standardAccentColor}
-                            onClick={() => {
-                              updateUnified({ standardAccentColor: undefined });
-                              setSettings((cur) => ({ ...cur, standardAccentColor: undefined }));
-                            }}
-                            className="h-9 px-2 text-xs text-muted-foreground hover:text-foreground"
-                          >
-                            افتراضي
-                          </Button>
-                        </div>
-                      </div>
-
-                      {/* باليتة الألوان المقترحة */}
-                      <div className="space-y-2">
-                        <label className="text-xs font-semibold text-muted-foreground block">
-                          ألوان أعمال مقترحة احترافية
-                        </label>
-                        <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
-                          {STANDARD_COLOR_PALETTE.map((p) => {
-                            const isSelected = currentColor.toLowerCase() === p.color.toLowerCase();
-                            return (
-                              <button
-                                key={p.color}
-                                type="button"
-                                disabled={!canEdit}
-                                onClick={() => {
-                                  updateUnified({ standardAccentColor: p.color });
-                                  setSettings((cur) => ({ ...cur, standardAccentColor: p.color }));
-                                }}
-                                title={p.labelAr}
-                                className={`group flex flex-col items-center gap-1.5 p-2 rounded-xl border transition-all ${
-                                  isSelected
-                                    ? "ring-2 ring-primary border-primary bg-primary/5"
-                                    : "border-border/60 hover:border-border bg-background/50 hover:bg-background"
-                                }`}
-                              >
-                                <span
-                                  className="w-6 h-6 rounded-full shadow-xs flex items-center justify-center text-white"
-                                  style={{ backgroundColor: p.color }}
-                                >
-                                  {isSelected && <Check className="h-3 w-3" />}
-                                </span>
-                                <span className="text-[10px] text-muted-foreground truncate max-w-full">
-                                  {p.labelAr.split(" ")[0]}
-                                </span>
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
-
-                      {/* شريحة معاينة مصغرة للعناصر المصممة */}
-                      <div className="space-y-1.5 border-t border-border/60 pt-3">
-                        <span className="text-[11px] font-semibold text-muted-foreground block">
-                          معاينة حية لتطبيق اللون على العناصر
-                        </span>
-                        <div className="p-3 rounded-xl border border-border/60 bg-white dark:bg-zinc-950 space-y-2">
-                          <div
-                            className="p-2 rounded-lg text-xs font-bold flex items-center justify-between"
-                            style={{
-                              backgroundColor: tokens.accentSoft,
-                              color: tokens.accent,
-                              border: `1px solid ${tokens.line}`,
-                            }}
-                          >
-                            <span>ترويسة المستند #INV-2026</span>
-                            <span
-                              className="text-white text-[10px] px-2 py-0.5 rounded-full"
-                              style={{ backgroundColor: tokens.accent }}
+                    <div className="rounded-2xl border border-border/80 bg-surface/80 p-5 space-y-4 shadow-xs flex flex-col justify-between">
+                      <div className="space-y-4">
+                        <div className="flex items-center justify-between gap-3 border-b border-border/60 pb-3">
+                          <div className="flex items-center gap-2.5">
+                            <div
+                              className="w-8 h-8 rounded-xl flex items-center justify-center text-white shadow-xs"
+                              style={{ backgroundColor: currentColor }}
                             >
-                              معتمد
+                              <FileText className="h-4 w-4" />
+                            </div>
+                            <div>
+                              <h4 className="text-sm font-bold text-foreground">
+                                القالب القياسي المؤسسي (Standard Corporate)
+                              </h4>
+                              <p className="text-[11px] text-muted-foreground">
+                                هوية مؤسسية متزنة للشركات والمؤسسات (A4 / A5)
+                              </p>
+                            </div>
+                          </div>
+
+                          <span
+                            className="px-2.5 py-1 rounded-lg text-[11px] font-mono font-bold border"
+                            style={{
+                              color: currentColor,
+                              borderColor: tokens.line,
+                              backgroundColor: tokens.accentSoft,
+                            }}
+                          >
+                            {currentColor.toUpperCase()}
+                          </span>
+                        </div>
+
+                        {/* اختيار حجم الورق للمعاينة */}
+                        <div className="flex items-center justify-between p-2 rounded-xl border border-border/60 bg-background/50">
+                          <span className="text-xs font-semibold text-muted-foreground">
+                            حجم الورق للمعاينة والطباعة:
+                          </span>
+                          <div className="flex items-center gap-1">
+                            <button
+                              type="button"
+                              onClick={() => setStandardPaperSize("a4")}
+                              className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
+                                standardPaperSize === "a4"
+                                  ? "bg-primary text-primary-foreground shadow-xs"
+                                  : "text-muted-foreground hover:text-foreground"
+                              }`}
+                            >
+                              A4
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setStandardPaperSize("a5")}
+                              className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
+                                standardPaperSize === "a5"
+                                  ? "bg-primary text-primary-foreground shadow-xs"
+                                  : "text-muted-foreground hover:text-foreground"
+                              }`}
+                            >
+                              A5
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* منتقي اللون المباشر */}
+                        <div className="space-y-2">
+                          <label className="text-xs font-semibold text-muted-foreground flex items-center justify-between">
+                            <span>اختيار لون حر (منتقي ألوان فعلي)</span>
+                            <span className="text-[10px] text-muted-foreground">
+                              اضغط للمنتقي أو أدخل كود HEX
+                            </span>
+                          </label>
+                          <div className="flex items-center gap-3 p-2.5 rounded-xl border border-border/70 bg-background/60">
+                            <input
+                              type="color"
+                              disabled={!canEdit}
+                              value={currentColor}
+                              onChange={(e) => handleStandardColorChange(e.target.value)}
+                              className="w-10 h-10 rounded-lg cursor-pointer border-0 p-0 bg-transparent shrink-0"
+                            />
+                            <input
+                              type="text"
+                              disabled={!canEdit}
+                              value={currentColor}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                if (/^#[0-9A-Fa-f]{0,6}$/.test(val)) {
+                                  handleStandardColorChange(val);
+                                }
+                              }}
+                              placeholder="#1d4ed8"
+                              className="h-9 flex-1 rounded-lg border border-input bg-background px-3 font-mono text-xs uppercase"
+                            />
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              disabled={!canEdit || !unified.standardAccentColor}
+                              onClick={() => handleStandardColorChange(undefined)}
+                              className="h-9 px-2 text-xs text-muted-foreground hover:text-foreground"
+                            >
+                              افتراضي
+                            </Button>
+                          </div>
+                        </div>
+
+                        {/* باليتة الألوان المقترحة */}
+                        <div className="space-y-2">
+                          <label className="text-xs font-semibold text-muted-foreground block">
+                            ألوان أعمال مقترحة احترافية
+                          </label>
+                          <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
+                            {STANDARD_COLOR_PALETTE.map((p) => {
+                              const isSelected =
+                                currentColor.toLowerCase() === p.color.toLowerCase();
+                              return (
+                                <button
+                                  key={p.color}
+                                  type="button"
+                                  disabled={!canEdit}
+                                  onClick={() => handleStandardColorChange(p.color)}
+                                  title={p.labelAr}
+                                  className={`group flex flex-col items-center gap-1.5 p-2 rounded-xl border transition-all ${
+                                    isSelected
+                                      ? "ring-2 ring-primary border-primary bg-primary/5"
+                                      : "border-border/60 hover:border-border bg-background/50 hover:bg-background"
+                                  }`}
+                                >
+                                  <span
+                                    className="w-6 h-6 rounded-full shadow-xs flex items-center justify-center text-white"
+                                    style={{ backgroundColor: p.color }}
+                                  >
+                                    {isSelected && <Check className="h-3 w-3" />}
+                                  </span>
+                                  <span className="text-[10px] text-muted-foreground truncate max-w-full">
+                                    {p.labelAr.split(" ")[0]}
+                                  </span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+
+                        {/* شريحة معاينة مصغرة للعناصر المصممة */}
+                        <div className="space-y-1.5 border-t border-border/60 pt-3">
+                          <div className="flex items-center justify-between text-[11px] font-semibold text-muted-foreground">
+                            <span>معاينة حية للمظهر المؤسسي</span>
+                            <span className="font-mono text-primary uppercase">
+                              مقاس {standardPaperSize.toUpperCase()}
                             </span>
                           </div>
-                          <div
-                            className="p-2 rounded-lg text-[11px] text-white font-bold flex items-center justify-between"
-                            style={{ backgroundColor: tokens.accent }}
-                          >
-                            <span>رأس جدول البنود والإجمالي النهائي</span>
-                            <span>12,500 ر.ي</span>
+                          <div className="p-3 rounded-xl border border-border/60 bg-white dark:bg-zinc-950 space-y-2">
+                            <div
+                              className="p-2 rounded-lg text-xs font-bold flex items-center justify-between"
+                              style={{
+                                backgroundColor: tokens.accentSoft,
+                                color: tokens.accent,
+                                border: `1px solid ${tokens.line}`,
+                              }}
+                            >
+                              <span>ترويسة المستند القياسي #INV-2026</span>
+                              <span
+                                className="text-white text-[10px] px-2 py-0.5 rounded-full"
+                                style={{ backgroundColor: tokens.accent }}
+                              >
+                                معتمد
+                              </span>
+                            </div>
+                            <div
+                              className="p-2 rounded-lg text-[11px] text-white font-bold flex items-center justify-between"
+                              style={{ backgroundColor: "#1e293b" }}
+                            >
+                              <span>المبلغ الإجمالي المستحق (Total Due)</span>
+                              <span className="text-sky-300 font-mono">12,500 ر.ي</span>
+                            </div>
                           </div>
                         </div>
                       </div>
 
-                      <div className="flex justify-end pt-1">
+                      <div className="flex justify-end pt-3 border-t border-border/40">
                         <Button
                           type="button"
-                          variant="ghost"
+                          variant="outline"
                           size="sm"
                           onClick={() => {
-                            setPreviewDocType("purchase_invoice");
+                            setPreviewDocType("customer_invoice");
+                            setPreviewTemplateOverride("standard");
+                            setPreviewPaperOverride(standardPaperSize);
                             setPreviewOpen(true);
                           }}
-                          className="h-8 rounded-xl gap-1 text-xs text-primary hover:bg-primary/10"
+                          className="h-8 rounded-xl gap-1.5 text-xs text-primary hover:bg-primary/10 border-primary/40"
                         >
                           <Eye className="h-3.5 w-3.5" />
-                          <span>معاينة القالب القياسي</span>
+                          <span>معاينة القالب القياسي ({standardPaperSize.toUpperCase()})</span>
                         </Button>
                       </div>
                     </div>
@@ -884,171 +1029,199 @@ export function PrintSettingsCard({ canEdit = true }: PrintSettingsCardProps) {
                   const tokens = deriveThemeTokens("luxury", currentColor);
 
                   return (
-                    <div className="rounded-2xl border border-border/80 bg-surface/80 p-5 space-y-4 shadow-xs">
-                      <div className="flex items-center justify-between gap-3 border-b border-border/60 pb-3">
-                        <div className="flex items-center gap-2.5">
-                          <div
-                            className="w-8 h-8 rounded-xl flex items-center justify-center text-white shadow-xs"
-                            style={{ backgroundColor: currentColor }}
-                          >
-                            <Sparkles className="h-4 w-4" />
-                          </div>
-                          <div>
-                            <h4 className="text-sm font-bold text-foreground">
-                              القالب التنفيذي الفاخر (Executive Luxury)
-                            </h4>
-                            <p className="text-[11px] text-muted-foreground">
-                              تصميم راقٍ بلمسات ذهبية وفخمة للعمليات الكبرى
-                            </p>
-                          </div>
-                        </div>
-
-                        <span
-                          className="px-2.5 py-1 rounded-lg text-[11px] font-mono font-bold border"
-                          style={{
-                            color: currentColor,
-                            borderColor: tokens.line,
-                            backgroundColor: tokens.accentSoft,
-                          }}
-                        >
-                          {currentColor.toUpperCase()}
-                        </span>
-                      </div>
-
-                      {/* منتقي اللون المباشر */}
-                      <div className="space-y-2">
-                        <label className="text-xs font-semibold text-muted-foreground flex items-center justify-between">
-                          <span>اختيار لون حر (منتقي ألوان مخصص)</span>
-                          <span className="text-[10px] text-muted-foreground">
-                            اضغط لاختيار كود HEX
-                          </span>
-                        </label>
-                        <div className="flex items-center gap-3 p-2.5 rounded-xl border border-border/70 bg-background/60">
-                          <input
-                            type="color"
-                            disabled={!canEdit}
-                            value={currentColor}
-                            onChange={(e) => {
-                              const val = e.target.value;
-                              updateUnified({ luxuryAccentColor: val });
-                              setSettings((cur) => ({ ...cur, luxuryAccentColor: val }));
-                            }}
-                            className="w-10 h-10 rounded-lg cursor-pointer border-0 p-0 bg-transparent shrink-0"
-                          />
-                          <input
-                            type="text"
-                            disabled={!canEdit}
-                            value={currentColor}
-                            onChange={(e) => {
-                              const val = e.target.value;
-                              if (/^#[0-9A-Fa-f]{0,6}$/.test(val)) {
-                                updateUnified({ luxuryAccentColor: val });
-                                setSettings((cur) => ({ ...cur, luxuryAccentColor: val }));
-                              }
-                            }}
-                            placeholder="#9a6b16"
-                            className="h-9 flex-1 rounded-lg border border-input bg-background px-3 font-mono text-xs uppercase"
-                          />
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            disabled={!canEdit || !unified.luxuryAccentColor}
-                            onClick={() => {
-                              updateUnified({ luxuryAccentColor: undefined });
-                              setSettings((cur) => ({ ...cur, luxuryAccentColor: undefined }));
-                            }}
-                            className="h-9 px-2 text-xs text-muted-foreground hover:text-foreground"
-                          >
-                            افتراضي
-                          </Button>
-                        </div>
-                      </div>
-
-                      {/* باليتة الألوان الفاخرة المقترحة */}
-                      <div className="space-y-2">
-                        <label className="text-xs font-semibold text-muted-foreground block">
-                          ألوان فخمة وتنفيذية مقترحة
-                        </label>
-                        <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
-                          {LUXURY_COLOR_PALETTE.map((p) => {
-                            const isSelected = currentColor.toLowerCase() === p.color.toLowerCase();
-                            return (
-                              <button
-                                key={p.color}
-                                type="button"
-                                disabled={!canEdit}
-                                onClick={() => {
-                                  updateUnified({ luxuryAccentColor: p.color });
-                                  setSettings((cur) => ({ ...cur, luxuryAccentColor: p.color }));
-                                }}
-                                title={p.labelAr}
-                                className={`group flex flex-col items-center gap-1.5 p-2 rounded-xl border transition-all ${
-                                  isSelected
-                                    ? "ring-2 ring-primary border-primary bg-primary/5"
-                                    : "border-border/60 hover:border-border bg-background/50 hover:bg-background"
-                                }`}
-                              >
-                                <span
-                                  className="w-6 h-6 rounded-full shadow-xs flex items-center justify-center text-white"
-                                  style={{ backgroundColor: p.color }}
-                                >
-                                  {isSelected && <Check className="h-3 w-3" />}
-                                </span>
-                                <span className="text-[10px] text-muted-foreground truncate max-w-full">
-                                  {p.labelAr.split(" ")[0]}
-                                </span>
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
-
-                      {/* شريحة معاينة مصغرة للعناصر المصممة */}
-                      <div className="space-y-1.5 border-t border-border/60 pt-3">
-                        <span className="text-[11px] font-semibold text-muted-foreground block">
-                          معاينة حية لتطبيق اللون على العناصر الفاخرة
-                        </span>
-                        <div className="p-3 rounded-xl border border-border/60 bg-white dark:bg-zinc-950 space-y-2">
-                          <div
-                            className="p-2 rounded-lg text-xs font-bold flex items-center justify-between"
-                            style={{
-                              backgroundColor: tokens.accentSoft,
-                              color: tokens.accent,
-                              border: `1.5px solid ${tokens.line}`,
-                            }}
-                          >
-                            <span>ترويسة المستند التنفيذي #LUX-2026</span>
-                            <span
-                              className="text-white text-[10px] px-2 py-0.5 rounded-full"
-                              style={{ backgroundColor: tokens.accent }}
+                    <div className="rounded-2xl border border-border/80 bg-surface/80 p-5 space-y-4 shadow-xs flex flex-col justify-between">
+                      <div className="space-y-4">
+                        <div className="flex items-center justify-between gap-3 border-b border-border/60 pb-3">
+                          <div className="flex items-center gap-2.5">
+                            <div
+                              className="w-8 h-8 rounded-xl flex items-center justify-center text-white shadow-xs"
+                              style={{ backgroundColor: currentColor }}
                             >
-                              فاخر
+                              <Sparkles className="h-4 w-4" />
+                            </div>
+                            <div>
+                              <h4 className="text-sm font-bold text-foreground">
+                                القالب التنفيذي الفاخر (Executive Luxury)
+                              </h4>
+                              <p className="text-[11px] text-muted-foreground">
+                                تصميم راقٍ بهوية كحلية وزرقاء ملكية (A4 / A5)
+                              </p>
+                            </div>
+                          </div>
+
+                          <span
+                            className="px-2.5 py-1 rounded-lg text-[11px] font-mono font-bold border"
+                            style={{
+                              color: currentColor,
+                              borderColor: tokens.line,
+                              backgroundColor: tokens.accentSoft,
+                            }}
+                          >
+                            {currentColor.toUpperCase()}
+                          </span>
+                        </div>
+
+                        {/* اختيار حجم الورق للمعاينة */}
+                        <div className="flex items-center justify-between p-2 rounded-xl border border-border/60 bg-background/50">
+                          <span className="text-xs font-semibold text-muted-foreground">
+                            حجم الورق للمعاينة والطباعة:
+                          </span>
+                          <div className="flex items-center gap-1">
+                            <button
+                              type="button"
+                              onClick={() => setLuxuryPaperSize("a4")}
+                              className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
+                                luxuryPaperSize === "a4"
+                                  ? "bg-primary text-primary-foreground shadow-xs"
+                                  : "text-muted-foreground hover:text-foreground"
+                              }`}
+                            >
+                              A4
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setLuxuryPaperSize("a5")}
+                              className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
+                                luxuryPaperSize === "a5"
+                                  ? "bg-primary text-primary-foreground shadow-xs"
+                                  : "text-muted-foreground hover:text-foreground"
+                              }`}
+                            >
+                              A5
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* منتقي اللون المباشر */}
+                        <div className="space-y-2">
+                          <label className="text-xs font-semibold text-muted-foreground flex items-center justify-between">
+                            <span>اختيار لون حر (منتقي ألوان فعلي)</span>
+                            <span className="text-[10px] text-muted-foreground">
+                              اضغط للمنتقي أو أدخل كود HEX
+                            </span>
+                          </label>
+                          <div className="flex items-center gap-3 p-2.5 rounded-xl border border-border/70 bg-background/60">
+                            <input
+                              type="color"
+                              disabled={!canEdit}
+                              value={currentColor}
+                              onChange={(e) => handleLuxuryColorChange(e.target.value)}
+                              className="w-10 h-10 rounded-lg cursor-pointer border-0 p-0 bg-transparent shrink-0"
+                            />
+                            <input
+                              type="text"
+                              disabled={!canEdit}
+                              value={currentColor}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                if (/^#[0-9A-Fa-f]{0,6}$/.test(val)) {
+                                  handleLuxuryColorChange(val);
+                                }
+                              }}
+                              placeholder="#0f2b5c"
+                              className="h-9 flex-1 rounded-lg border border-input bg-background px-3 font-mono text-xs uppercase"
+                            />
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              disabled={!canEdit || !unified.luxuryAccentColor}
+                              onClick={() => handleLuxuryColorChange(undefined)}
+                              className="h-9 px-2 text-xs text-muted-foreground hover:text-foreground"
+                            >
+                              افتراضي
+                            </Button>
+                          </div>
+                        </div>
+
+                        {/* باليتة الألوان الفاخرة المقترحة (كحلي وأزرق ملكي) */}
+                        <div className="space-y-2">
+                          <label className="text-xs font-semibold text-muted-foreground block">
+                            ألوان كحلية وزرقاء ملكية مقترحة
+                          </label>
+                          <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
+                            {LUXURY_COLOR_PALETTE.map((p) => {
+                              const isSelected =
+                                currentColor.toLowerCase() === p.color.toLowerCase();
+                              return (
+                                <button
+                                  key={p.color}
+                                  type="button"
+                                  disabled={!canEdit}
+                                  onClick={() => handleLuxuryColorChange(p.color)}
+                                  title={p.labelAr}
+                                  className={`group flex flex-col items-center gap-1.5 p-2 rounded-xl border transition-all ${
+                                    isSelected
+                                      ? "ring-2 ring-primary border-primary bg-primary/5"
+                                      : "border-border/60 hover:border-border bg-background/50 hover:bg-background"
+                                  }`}
+                                >
+                                  <span
+                                    className="w-6 h-6 rounded-full shadow-xs flex items-center justify-center text-white"
+                                    style={{ backgroundColor: p.color }}
+                                  >
+                                    {isSelected && <Check className="h-3 w-3" />}
+                                  </span>
+                                  <span className="text-[10px] text-muted-foreground truncate max-w-full">
+                                    {p.labelAr.split(" ")[0]}
+                                  </span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+
+                        {/* شريحة معاينة مصغرة للعناصر المصممة الفاخرة */}
+                        <div className="space-y-1.5 border-t border-border/60 pt-3">
+                          <div className="flex items-center justify-between text-[11px] font-semibold text-muted-foreground">
+                            <span>معاينة حية للمظهر التنفيذي الفاخر</span>
+                            <span className="font-mono text-primary uppercase">
+                              مقاس {luxuryPaperSize.toUpperCase()}
                             </span>
                           </div>
-                          <div
-                            className="p-2 rounded-lg text-[11px] text-white font-bold flex items-center justify-between"
-                            style={{ backgroundColor: tokens.accent }}
-                          >
-                            <span>رأس جدول البنود والإجمالي التنفيذي</span>
-                            <span>45,000 ر.ي</span>
+                          <div className="p-3 rounded-xl border border-border/60 bg-white dark:bg-zinc-950 space-y-2">
+                            <div
+                              className="p-2 rounded-lg text-xs font-bold flex items-center justify-between"
+                              style={{
+                                backgroundColor: tokens.accentSoft,
+                                color: tokens.accent,
+                                border: `1.5px solid ${tokens.line}`,
+                              }}
+                            >
+                              <span>ترويسة المستند التنفيذي #LUX-2026</span>
+                              <span
+                                className="text-white text-[10px] px-2 py-0.5 rounded-full"
+                                style={{ backgroundColor: tokens.accent }}
+                              >
+                                فاخر
+                              </span>
+                            </div>
+                            <div
+                              className="p-2 rounded-lg text-[11px] text-white font-bold flex items-center justify-between"
+                              style={{ backgroundColor: tokens.accent }}
+                            >
+                              <span>الإجمالي النهائي البارز (Grand Total)</span>
+                              <span className="font-mono font-black">45,000 ر.ي</span>
+                            </div>
                           </div>
                         </div>
                       </div>
 
-                      <div className="flex justify-end pt-1">
+                      <div className="flex justify-end pt-3 border-t border-border/40">
                         <Button
                           type="button"
-                          variant="ghost"
+                          variant="outline"
                           size="sm"
                           onClick={() => {
                             setPreviewDocType("customer_invoice");
+                            setPreviewTemplateOverride("elegant");
+                            setPreviewPaperOverride(luxuryPaperSize);
                             setPreviewOpen(true);
                           }}
-                          className="h-8 rounded-xl gap-1 text-xs text-primary hover:bg-primary/10"
+                          className="h-8 rounded-xl gap-1.5 text-xs text-primary hover:bg-primary/10 border-primary/40"
                         >
                           <Eye className="h-3.5 w-3.5" />
-                          <span>معاينة القالب التنفيذي</span>
+                          <span>معاينة القالب التنفيذي ({luxuryPaperSize.toUpperCase()})</span>
                         </Button>
                       </div>
                     </div>
@@ -1322,7 +1495,11 @@ export function PrintSettingsCard({ canEdit = true }: PrintSettingsCardProps) {
       {/* ── Luxury Live Preview Modal for instant testing ── */}
       <LuxuryPrintPreviewModal
         open={previewOpen}
-        onClose={() => setPreviewOpen(false)}
+        onClose={() => {
+          setPreviewOpen(false);
+          setPreviewTemplateOverride(null);
+          setPreviewPaperOverride(null);
+        }}
         request={previewRequest}
         doc={sampleDoc}
         documentType={previewDocType}
