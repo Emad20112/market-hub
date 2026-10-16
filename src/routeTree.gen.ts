@@ -12,7 +12,6 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as AuthRouteImport } from './routes/auth'
-import { Route as AppAccountStatementRouteImport } from './routes/_app.account-statement'
 import { Route as AppAnalyticsRouteImport } from './routes/_app.analytics'
 import { Route as AppAuditRouteImport } from './routes/_app.audit'
 import { Route as AppBalanceSheetRouteImport } from './routes/_app.balance-sheet'
@@ -73,11 +72,6 @@ const AuthRoute = AuthRouteImport.update({
   id: '/auth',
   path: '/auth',
   getParentRoute: () => rootRouteImport,
-} as any)
-const AppAccountStatementRoute = AppAccountStatementRouteImport.update({
-  id: '/account-statement',
-  path: '/account-statement',
-  getParentRoute: () => AppRoute,
 } as any)
 const AppAnalyticsRoute = AppAnalyticsRouteImport.update({
   id: '/analytics',
@@ -315,7 +309,6 @@ const AppMillingOperationsGuideRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
-  '/account-statement': typeof AppAccountStatementRoute
   '/analytics': typeof AppAnalyticsRoute
   '/audit': typeof AppAuditRoute
   '/balance-sheet': typeof AppBalanceSheetRoute
@@ -366,7 +359,6 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
-  '/account-statement': typeof AppAccountStatementRoute
   '/analytics': typeof AppAnalyticsRoute
   '/audit': typeof AppAuditRoute
   '/balance-sheet': typeof AppBalanceSheetRoute
@@ -419,7 +411,6 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_app': typeof AppRouteWithChildren
   '/auth': typeof AuthRoute
-  '/_app/account-statement': typeof AppAccountStatementRoute
   '/_app/analytics': typeof AppAnalyticsRoute
   '/_app/audit': typeof AppAuditRoute
   '/_app/balance-sheet': typeof AppBalanceSheetRoute
@@ -472,7 +463,6 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/auth'
-    | '/account-statement'
     | '/analytics'
     | '/audit'
     | '/balance-sheet'
@@ -523,7 +513,6 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/auth'
-    | '/account-statement'
     | '/analytics'
     | '/audit'
     | '/balance-sheet'
@@ -575,7 +564,6 @@ export interface FileRouteTypes {
     | '/'
     | '/_app'
     | '/auth'
-    | '/_app/account-statement'
     | '/_app/analytics'
     | '/_app/audit'
     | '/_app/balance-sheet'
@@ -652,13 +640,6 @@ declare module '@tanstack/react-router' {
       fullPath: '/auth'
       preLoaderRoute: typeof AuthRouteImport
       parentRoute: typeof rootRouteImport
-    }
-    '/_app/account-statement': {
-      id: '/_app/account-statement'
-      path: '/account-statement'
-      fullPath: '/account-statement'
-      preLoaderRoute: typeof AppAccountStatementRouteImport
-      parentRoute: typeof AppRoute
     }
     '/_app/analytics': {
       id: '/_app/analytics'
@@ -1010,7 +991,6 @@ const AppMillingRouteWithChildren = AppMillingRoute._addFileChildren(
 )
 
 interface AppRouteChildren {
-  AppAccountStatementRoute: typeof AppAccountStatementRoute
   AppAnalyticsRoute: typeof AppAnalyticsRoute
   AppAuditRoute: typeof AppAuditRoute
   AppBalanceSheetRoute: typeof AppBalanceSheetRoute
@@ -1053,7 +1033,6 @@ interface AppRouteChildren {
 }
 
 const AppRouteChildren: AppRouteChildren = {
-  AppAccountStatementRoute: AppAccountStatementRoute,
   AppAnalyticsRoute: AppAnalyticsRoute,
   AppAuditRoute: AppAuditRoute,
   AppBalanceSheetRoute: AppBalanceSheetRoute,

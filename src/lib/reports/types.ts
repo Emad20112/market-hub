@@ -12,12 +12,16 @@ export type ReportDomain =
   | 'operations_audit';
 
 export type ReportViewTemplateType =
-  | 'summary'
   | 'detailed_table'
-  | 'movement_statement'
+  | 'grouped'
+  | 'chart'
   | 'grouped_ranking'
+  | 'movement_statement'
+  | 'summary'
   | 'comparison'
   | 'status_exceptions';
+
+export type ReportFilterValues = Record<string, any>;
 
 export type ColumnDataType =
   | 'text'
@@ -136,6 +140,8 @@ export interface ReportDefinition {
   filters: ReportFilterDefinition[];
   columns: ReportColumnDefinition[];
   metrics: ReportMetricDefinition[];
+
+  costBasisNotice?: 'ACTUAL' | 'REFERENCE_ONLY' | 'MIXED';
 
   // إمكانات التصدير
   exportCapabilities: ReportExportCapabilities;

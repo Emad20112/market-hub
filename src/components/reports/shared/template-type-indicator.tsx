@@ -1,53 +1,94 @@
 import React from "react";
-import {
-  BarChart3,
-  Table2,
-  GitBranch,
-  LineChart,
-  ArrowLeftRight,
-  ShieldAlert,
-  Layers,
-  FileSpreadsheet,
-} from "lucide-react";
+import { Table2, Layers, BarChart3, Sparkles } from "lucide-react";
 import type { ReportViewTemplateType } from "@/lib/reports/types";
 
-interface TemplateTypeIndicatorProps {
-  currentTemplate?: ReportViewTemplateType;
+export interface TemplateTypeIndicatorProps {
+  currentView?: ReportViewTemplateType;
+  onViewChange?: (view: ReportViewTemplateType) => void;
+  isCustomMultiMethod?: boolean;
+  className?: string;
 }
 
-const TEMPLATE_MODES: {
-  id: ReportViewTemplateType | "custom_1" | "custom_2";
-  icon: React.ComponentType<{ className?: string }>;
-  label: string;
-}[] = [
-  { id: "summary", icon: BarChart3, label: "الملخص اليومي والمؤشرات" },
-  { id: "detailed_table", icon: Table2, label: "جدول كشف تفصيلي" },
-  { id: "movement_statement", icon: GitBranch, label: "كشف حركة تسلسلي" },
-  { id: "grouped_ranking", icon: LineChart, label: "تحليل وتجميع تصنيفي" },
-  { id: "comparison", icon: ArrowLeftRight, label: "مقارنة فترات وأداء" },
-  { id: "status_exceptions", icon: ShieldAlert, label: "استثناءات وفروقات" },
-  { id: "custom_1", icon: Layers, label: "مصفوفة البيانات" },
-  { id: "custom_2", icon: FileSpreadsheet, label: "عرض السجلات الكامل" },
-];
+export function TemplateTypeIndicator({
+  currentView = "detailed_table",
+  onViewChange,
+  isCustomMultiMethod = false,
+  className,
+}: TemplateTypeIndicatorProps) {
+  // توحيد نمط العرض إلى أحد القوالب الثلاثة
+  const normalizedCurrent =
+    currentView === "chart"
+      ? "chart"
+      : currentView === "grouped" || currentView === "grouped_ranking"
+        ? "grouped"
+        : "detailed_table";
 
-export function TemplateTypeIndicator({ currentTemplate = "summary" }: TemplateTypeIndicatorProps) {
+  const items: {
+    id: "detailed_table" | "grouped" | "chart";
+    icon: React.ComponentType<{ className?: string }>;
+    label: string;
+    isGroupedCustom?: boolean;
+  }[] = [
+    {
+      id: "detailed_table",
+      icon: Table2,
+      label: "قالب الجدول التفصيلي",
+    },
+    {
+      id: "grouped",
+      icon: Layers,
+      label: isCustomMultiMethod ? "قالب تجميعي مخصص (متعدد الطرق)" : "قالب التجميع والتحليل",
+      isGroupedCustom: isCustomMultiMethod,
+    },
+    {
+      id: "chart",
+      icon: BarChart3,
+      label: "قالب الرسم البياني والمؤشرات",
+    },
+  ];
+
   return (
-    <div className="flex items-center gap-1 rounded-lg border border-border bg-card p-1 shadow-xs">
-      {TEMPLATE_MODES.map((item) => {
-        const isActive = item.id === currentTemplate;
+    <div
+      className={`inline-flex items-center gap-1 rounded-lg border border-border bg-card p-0.5 shadow-2xs ${className || ""}`}
+      role="group"
+      aria-label="قوالب عرض التقارير"
+    >
+      {items.map((item) => {
+        const isActive = normalizedCurrent === item.id;
         const Icon = item.icon;
+
+        // تمييز أيقونة قالب التجميع عندما يكون قالباً مخصصاً متعدد الطرق
+        const isDistinguishedCustom = item.id === "grouped" && item.isGroupedCustom;
+
         return (
-          <div
+          <button
             key={item.id}
+            type="button"
+            onClick={() => onViewChange?.(item.id)}
             title={item.label}
-            className={`flex h-7 w-7 items-center justify-center rounded-md transition-colors ${
+            className={`relative flex h-7 w-7 items-center justify-center rounded-md transition-all duration-150 ${
               isActive
-                ? "bg-primary/10 text-primary ring-1 ring-primary/30 font-bold"
-                : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                ? isDistinguishedCustom
+                  ? "bg-amber-500/20 text-amber-600 dark:text-amber-400 ring-1.5 ring-amber-500/60 font-bold shadow-xs scale-105"
+                  : "bg-primary text-primary-foreground font-bold shadow-xs scale-105"
+                : isDistinguishedCustom
+                  ? "bg-amber-500/10 text-amber-600 dark:text-amber-400 hover:bg-amber-500/20 ring-1 ring-amber-500/30"
+                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
             }`}
           >
             <Icon className="h-3.5 w-3.5" />
-          </div>
+
+            {/* تمييز بصري ظاهر لأيقونة التجميع المخصصة متعددة الطرق */}
+            {isDistinguishedCustom && (
+              <>
+                <span className="absolute -top-0.5 -right-0.5 flex h-2 w-2">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-400 opacity-75" />
+                  <span className="relative inline-flex h-2 w-2 rounded-full bg-amber-500" />
+                </span>
+                <Sparkles className="absolute -bottom-0.5 -left-0.5 h-2 w-2 text-amber-500 pointer-events-none" />
+              </>
+            )}
+          </button>
         );
       })}
     </div>

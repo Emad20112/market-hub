@@ -32,6 +32,7 @@ import { searchReportFilterOptions } from "@/lib/reports/report-execution.functi
 import { ReportTemplateSelector } from "./report-template-selector";
 import { ReportTemplateCreatorDialog } from "./report-template-creator-dialog";
 import { ReportColumnVisibilityButton } from "./report-column-visibility-button";
+import { TemplateTypeIndicator } from "./template-type-indicator";
 
 interface ReportFiltersBarProps {
   filters: ReportFilterDefinition[];
@@ -46,8 +47,15 @@ interface ReportFiltersBarProps {
   definition?: ReportDefinition;
   currentTemplate?: ReportViewTemplateType;
   onSelectReport?: (reportId: string) => void;
+  columns?: ReportColumnDefinition[];
+  columnVisibility?: Record<string, boolean>;
+  onChangeVisibility?: (visibility: Record<string, boolean>) => void;
+  onResetVisibility?: () => void;
   visibleColumnsCount?: number;
   totalColumnsCount?: number;
+  currentView?: ReportViewTemplateType;
+  onViewChange?: (view: ReportViewTemplateType) => void;
+  isCustomMultiMethod?: boolean;
 }
 
 const optionSourceByControl = {
@@ -84,8 +92,15 @@ export function ReportFiltersBar({
   loading,
   definition,
   onSelectReport,
+  columns,
+  columnVisibility,
+  onChangeVisibility,
+  onResetVisibility,
   visibleColumnsCount,
   totalColumnsCount,
+  currentView,
+  onViewChange,
+  isCustomMultiMethod,
 }: ReportFiltersBarProps) {
   const [searchDraft, setSearchDraft] = useState(values.search || "");
   const [optionsBySource, setOptionsBySource] = useState<
@@ -211,13 +226,22 @@ export function ReportFiltersBar({
           />
 
           {/* 3. مكون ظهور الأعمدة منقول بجانب مكون اختيار القالب ومكون إنشاء قالب */}
-          {onOpenColumnPicker && (
-            <ReportColumnVisibilityButton
-              onClick={onOpenColumnPicker}
-              visibleCount={visibleColumnsCount}
-              totalCount={totalColumnsCount || definition?.columns.length}
-            />
-          )}
+          <ReportColumnVisibilityButton
+            columns={columns || definition?.columns}
+            columnVisibility={columnVisibility}
+            onChangeVisibility={onChangeVisibility}
+            onResetVisibility={onResetVisibility}
+            onClick={onOpenColumnPicker}
+            visibleCount={visibleColumnsCount}
+            totalCount={totalColumnsCount || definition?.columns.length}
+          />
+
+          {/* 4. أيقونات التنقل المصغرة بين القوالب الثلاثة مع تمييز قالب التجميع المخصص */}
+          <TemplateTypeIndicator
+            currentView={currentView}
+            onViewChange={onViewChange}
+            isCustomMultiMethod={isCustomMultiMethod}
+          />
         </div>
 
         {activeFiltersCount > 0 && (
@@ -399,19 +423,6 @@ export function ReportFiltersBar({
               </div>
             </SheetContent>
           </Sheet>
-        </div>
-
-        <div className="flex items-center gap-1.5">
-          {onPreview && (
-            <Button
-              size="sm"
-              onClick={onPreview}
-              disabled={loading}
-              className="h-8 px-3 text-xs font-semibold"
-            >
-              <Eye className="h-3.5 w-3.5 ml-1" /> معاينة
-            </Button>
-          )}
         </div>
       </div>
 
