@@ -47,6 +47,10 @@ interface ReportFiltersBarProps {
   definition?: ReportDefinition;
   currentTemplate?: ReportViewTemplateType;
   onSelectReport?: (reportId: string) => void;
+  columns?: ReportColumnDefinition[];
+  columnVisibility?: Record<string, boolean>;
+  onChangeVisibility?: (visibility: Record<string, boolean>) => void;
+  onResetVisibility?: () => void;
   visibleColumnsCount?: number;
   totalColumnsCount?: number;
   currentView?: ReportViewTemplateType;
@@ -88,6 +92,10 @@ export function ReportFiltersBar({
   loading,
   definition,
   onSelectReport,
+  columns,
+  columnVisibility,
+  onChangeVisibility,
+  onResetVisibility,
   visibleColumnsCount,
   totalColumnsCount,
   currentView,
@@ -218,13 +226,15 @@ export function ReportFiltersBar({
           />
 
           {/* 3. مكون ظهور الأعمدة منقول بجانب مكون اختيار القالب ومكون إنشاء قالب */}
-          {onOpenColumnPicker && (
-            <ReportColumnVisibilityButton
-              onClick={onOpenColumnPicker}
-              visibleCount={visibleColumnsCount}
-              totalCount={totalColumnsCount || definition?.columns.length}
-            />
-          )}
+          <ReportColumnVisibilityButton
+            columns={columns || definition?.columns}
+            columnVisibility={columnVisibility}
+            onChangeVisibility={onChangeVisibility}
+            onResetVisibility={onResetVisibility}
+            onClick={onOpenColumnPicker}
+            visibleCount={visibleColumnsCount}
+            totalCount={totalColumnsCount || definition?.columns.length}
+          />
 
           {/* 4. أيقونات التنقل المصغرة بين القوالب الثلاثة مع تمييز قالب التجميع المخصص */}
           <TemplateTypeIndicator
@@ -413,19 +423,6 @@ export function ReportFiltersBar({
               </div>
             </SheetContent>
           </Sheet>
-        </div>
-
-        <div className="flex items-center gap-1.5">
-          {onPreview && (
-            <Button
-              size="sm"
-              onClick={onPreview}
-              disabled={loading}
-              className="h-8 px-3 text-xs font-semibold"
-            >
-              <Eye className="h-3.5 w-3.5 ml-1" /> معاينة
-            </Button>
-          )}
         </div>
       </div>
 

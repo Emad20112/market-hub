@@ -59,13 +59,11 @@ export function ReportViewControlsBar({
       />
 
       {/* 3. مكون ظهور وتخصيص الأعمدة بجانب اختيار القالب وإنشاء القالب */}
-      {onOpenColumnPicker && (
-        <ReportColumnVisibilityButton
-          onClick={onOpenColumnPicker}
-          visibleCount={visibleColumnsCount}
-          totalCount={totalColumnsCount}
-        />
-      )}
+      <ReportColumnVisibilityButton
+        onClick={onOpenColumnPicker}
+        visibleCount={visibleColumnsCount}
+        totalCount={totalColumnsCount}
+      />
 
       {/* 4. أيقونات التنقل المصغرة بين القوالب الثلاثة */}
       <TemplateTypeIndicator

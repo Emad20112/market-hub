@@ -23,7 +23,7 @@ export function ReportDataTable({
   currencySymbol = "ر.ي",
 }: ReportDataTableProps) {
   const { companyName } = useReportCompanyInfo();
-  const visibleColumns = columns.filter((col) => col.defaultVisible !== false);
+  const visibleColumns = columns;
   const hasAggregates = visibleColumns.some((col) => col.aggregate);
 
   function formatCellValue(val: any, col: ReportColumnDefinition) {
