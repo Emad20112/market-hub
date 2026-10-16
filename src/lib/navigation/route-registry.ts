@@ -512,11 +512,11 @@ export const ROUTE_REGISTRY: RouteSearchEntry[] = [
   {
     id: "milling-intake",
     path: "/milling/intake",
-    titleAr: "استلام الأمانات",
-    titleEn: "Custody Intake",
-    descriptionAr: "حبوب العميل تُستلم كأمانة — رصيد عيني بلا أثر مخزني",
-    descriptionEn: "Receive customer grain as custody — no stock impact",
-    keywords: withSynonyms(["استلام", "أمانة", "intake"], SEARCH_SYNONYMS.milling),
+    titleAr: "استقبال وفواتير الطحن",
+    titleEn: "Milling Service Desk",
+    descriptionAr: "إصدار فاتورة أجور الطحن الرسمية واستلام حبوب العميل في مستند موحد",
+    descriptionEn: "Official milling service invoice and custody document",
+    keywords: withSynonyms(["استلام", "فاتورة", "أجور", "طحن", "أمانة", "خدمة", "intake"], SEARCH_SYNONYMS.milling),
     category: "milling",
     moduleId: "milling_operations",
     requiredRoles: STOCK_OPS,
@@ -550,7 +550,7 @@ export const ROUTE_REGISTRY: RouteSearchEntry[] = [
   {
     id: "milling-manufacture",
     path: "/milling/manufacture",
-    titleAr: "التصنيع الذكي",
+    titleAr: "طحن قمح المنشأة (تصنيع ذكي)",
     titleEn: "Smart Manufacture",
     descriptionAr: "من مخزوننا: قمح يُنقص ونواتج تدخل بتكلفة موزعة حسب أسعار البيع النسبية",
     descriptionEn:
@@ -563,7 +563,7 @@ export const ROUTE_REGISTRY: RouteSearchEntry[] = [
   {
     id: "milling-consumables",
     path: "/milling/consumables",
-    titleAr: "صرف مستهلكات داخلي",
+    titleAr: "صرف مستهلكات المطحنة",
     titleEn: "Internal Consumables",
     descriptionAr: "أكياس وخيط وزيت تُصرف من مخزن المستهلكات — الكمية تُنقص بدقة",
     descriptionEn: "Issue consumables from the supplies store — quantities deducted precisely",
@@ -588,7 +588,7 @@ export const ROUTE_REGISTRY: RouteSearchEntry[] = [
   {
     id: "milling-guide",
     path: "/milling/operations-guide",
-    titleAr: "دليل عمليات المطحنة",
+    titleAr: "دليل تشغيل المطحنة",
     titleEn: "Milling Operations Guide",
     descriptionAr: "شرح وإرشادات عمليات المطحنة",
     descriptionEn: "Milling operations guide",
@@ -875,6 +875,9 @@ export const SIDEBAR_SECTION_ORDER: { category: RouteCategory; titleKey: string 
  */
 export const SIDEBAR_HIDDEN_IDS = new Set<string>([
   "returns",
+  "milling",
+  "milling-milling",
+  "milling-delivery",
   /**
    * ملاحظة: `settings` نفسه **لا** يُخفى. شاشات الإعدادات الفرعية كانت
    * مخفية كلها، فيُطوى قسم «النظام والإعدادات» على رابط عام واحد ويضطر

@@ -53,11 +53,12 @@ import {
 } from "@/lib/payments/payment-methods";
 import {
   TableToolbar,
-  ToolbarAction,
   type FilterDefinition,
   type FilterValues,
   type SortOption,
 } from "@/components/ui/table-toolbar";
+import { usePersistedViewMode } from "@/hooks/use-persisted-view-mode";
+import { RecordsViewToggle } from "@/components/ui/records-view-toggle";
 import {
   usePaymentMethods,
   useUpdatePaymentMethodSettings,
@@ -118,7 +119,7 @@ export function PaymentMethodsSection() {
   const [draft, setDraft] = useState<DraftState>({ rows: {}, order: [] });
   const [savedSnapshot, setSavedSnapshot] = useState<DraftState>({ rows: {}, order: [] });
   const [query, setQuery] = useState("");
-  const [viewMode, setViewMode] = useState<"grid" | "list" | "table">("grid");
+  const [viewMode, setViewMode] = usePersistedViewMode("payment-methods", "cards");
   const [filters, setFilters] = useState<FilterValues>({});
   const [sortKey, setSortKey] = useState("");
 
@@ -335,9 +336,17 @@ export function PaymentMethodsSection() {
   if (isLoading) {
     return (
       <Card className="rounded-3xl border-border/80">
-        <CardContent className="flex items-center justify-center gap-2 py-12 text-sm text-muted-foreground">
-          <LoaderCircle className="h-4 w-4 animate-spin" />
-          {isAr ? "جارٍ تحميل طرق الدفع..." : "Loading payment methods..."}
+        <CardContent className="py-6">
+          {/* Same shimmer skeletons every records list uses — one loading language. */}
+          <div role="status" aria-live="polite" className="space-y-3">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="card-mullak h-20 rounded-2xl bg-surface-2/40 shimmer" />
+            ))}
+            <span className="sr-only">
+              <LoaderCircle className="h-4 w-4 animate-spin" />
+              {isAr ? "جارٍ تحميل طرق الدفع..." : "Loading payment methods..."}
+            </span>
+          </div>
         </CardContent>
       </Card>
     );
@@ -405,37 +414,7 @@ export function PaymentMethodsSection() {
             }}
             filters={{ definitions: filterDefinitions, values: filters, onValueChange: setFilters }}
             sort={{ options: sortOptions, value: sortKey, onValueChange: setSortKey }}
-            viewToggle={
-              <ToolbarAction
-                label={
-                  viewMode === "grid"
-                    ? isAr
-                      ? "شبكة"
-                      : "Grid"
-                    : viewMode === "list"
-                      ? isAr
-                        ? "قائمة"
-                        : "List"
-                      : isAr
-                        ? "جدول"
-                        : "Table"
-                }
-                icon={
-                  viewMode === "grid" ? (
-                    <LayoutGrid />
-                  ) : viewMode === "list" ? (
-                    <List />
-                  ) : (
-                    <TableProperties />
-                  )
-                }
-                onClick={() =>
-                  setViewMode((current) =>
-                    current === "grid" ? "list" : current === "list" ? "table" : "grid",
-                  )
-                }
-              />
-            }
+            viewToggle={<RecordsViewToggle value={viewMode} onChange={setViewMode} />}
           >
             <p className="px-1 text-[11px] text-muted-foreground" aria-live="polite">
               {isAr
@@ -459,7 +438,7 @@ export function PaymentMethodsSection() {
           ) : (
             <div
               className={cn(
-                viewMode === "grid"
+                viewMode === "cards"
                   ? "grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3"
                   : viewMode === "list"
                     ? "grid grid-cols-1 gap-2.5"

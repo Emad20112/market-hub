@@ -57,6 +57,7 @@ import {
   type SortOption,
 } from "@/components/ui/table-toolbar";
 import { RecordsViewToggle } from "@/components/ui/records-view-toggle";
+import { usePersistedViewMode } from "@/hooks/use-persisted-view-mode";
 import { DataTable, type DataTableColumn, type DataTableSort } from "@/components/ui/data-table";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { IconButton } from "@/components/ui/icon-button";
@@ -119,7 +120,7 @@ function CustomersPage() {
   const [filterType, setFilterType] = useState<FilterType>("all");
   const [filters, setFilters] = useState<FilterValues>({});
   const [sortKey, setSortKey] = useState<string>("name_asc");
-  const [viewMode, setViewMode] = useState<ViewMode>("cards");
+  const [viewMode, setViewMode] = usePersistedViewMode("customers", "cards");
 
   /*
    * Column-header sorting for the classic table, kept separate from the
@@ -905,10 +906,10 @@ function CustomersPage() {
         }}
         viewToggle={<RecordsViewToggle value={viewMode} onChange={(mode) => setViewMode(mode)} />}
         action={
-          <ToolbarAction
+          <PrimaryAction
             label={lang === "ar" ? "عميل جديد" : "New Customer"}
             icon={<Plus />}
-            tone="primary"
+
             onClick={() => setEdit({})}
           />
         }

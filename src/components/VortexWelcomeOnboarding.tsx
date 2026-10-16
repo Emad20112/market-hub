@@ -896,7 +896,7 @@ export function VortexWelcomeOnboarding() {
                       {isAr ? "هاتف المنشأة:" : "Phone:"}
                     </span>
                     <span className="font-bold text-foreground mt-0.5 block" dir="ltr">
-                      {stats?.company?.phone || "+967 772 217 218"}
+                      {stats?.company?.phone || (isAr ? "غير محدد" : "Not set")}
                     </span>
                   </div>
 
@@ -927,14 +927,10 @@ export function VortexWelcomeOnboarding() {
                       </span>
                     </div>
                   </div>
-                  <a
-                    href="tel:+967772217218"
-                    className="px-3 py-1.5 rounded-xl bg-primary/10 text-primary font-bold hover:bg-primary/20 transition inline-flex items-center gap-1.5 shrink-0"
-                    dir="ltr"
-                  >
-                    <Phone className="size-3.5" />
-                    <span>+967 772 217 218</span>
-                  </a>
+                  <span className="px-3 py-1.5 rounded-xl bg-primary/10 text-primary font-bold inline-flex items-center gap-1.5 shrink-0">
+                    <ShieldCheck className="size-3.5" />
+                    <span>{isAr ? "دعم معتمد" : "Certified Support"}</span>
+                  </span>
                 </div>
               </div>
             </div>

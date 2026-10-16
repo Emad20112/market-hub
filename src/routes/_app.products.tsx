@@ -76,12 +76,22 @@ import {
   type SortOption,
 } from "@/components/ui/table-toolbar";
 import { RecordsToolbar } from "@/components/ui/records-toolbar";
+import { PrimaryAction } from "@/components/ui/primary-action";
+import { RecordsSkeleton, RecordsEmpty } from "@/components/ui/records-states";
+import { LoadMoreFooter } from "@/components/ui/records-view";
 import { RecordsViewToggle } from "@/components/ui/records-view-toggle";
 import { RecordsFilterPanel, RecordsSortPanel } from "@/components/ui/records-panels";
 import { quietChipClass } from "@/components/ui/action-button";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { ItemRoleBadge, resolveItemClass } from "@/components/item-role-badge";
 import { ProductFieldSettings } from "@/components/products/product-field-settings";
+import {
+  ProductPreviewCard,
+  ProductFormTabs,
+  FormIssuesBar,
+  type ProductFormTab,
+  type FormIssue,
+} from "@/components/products/product-form-shell";
 import { useProductFieldVisibility } from "@/hooks/use-product-field-visibility";
 import { usePersistedViewMode } from "@/hooks/use-persisted-view-mode";
 import { useColumnVisibility } from "@/hooks/use-column-visibility";
@@ -1202,15 +1212,11 @@ function ProductsPage() {
           onToggleColumn={productColumns.toggle}
           onResetColumns={productColumns.reset}
           action={
-            <Button
-              variant="primary"
-              size="sm"
+            <PrimaryAction
+              label={t("common.new")}
               icon={<Plus className="size-4" />}
               onClick={() => openNew()}
-              className="rounded-full font-bold shadow-xs shadow-primary/20"
-            >
-              <span className="hidden sm:inline">{t("common.new")}</span>
-            </Button>
+            />
           }
         >
           {/*
@@ -1289,31 +1295,24 @@ function ProductsPage() {
       {viewMode === "cards" ? (
         <div className="space-y-4">
           {isLoading ? (
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5 sm:gap-4">
-              {Array.from({ length: 8 }).map((_, i) => (
-                <div
-                  key={i}
-                  className="card-mullak h-44 animate-pulse bg-surface-2/40 rounded-2xl"
-                />
-              ))}
-            </div>
+            <RecordsSkeleton mode="cards" />
           ) : error && products.length === 0 ? (
             productLoadError
           ) : sortedRows.length === 0 ? (
-            <div className="card-mullak p-12 text-center flex flex-col items-center justify-center space-y-3">
-              <div className="grid size-14 place-items-center rounded-2xl bg-muted/30 text-muted-foreground">
-                <Package className="size-8" />
-              </div>
-              <h4 className="text-base font-bold text-foreground">{t("products.no_products")}</h4>
-              <p className="text-xs text-muted-foreground max-w-sm">{t("products.empty_hint")}</p>
-              <Button size="sm" icon={<Plus />} onClick={() => openNew()}>
-                {t("common.new")}
-              </Button>
-            </div>
+            <RecordsEmpty
+              icon={<Package className="size-8" />}
+              title={t("products.no_products")}
+              description={t("products.empty_hint")}
+              action={
+                <Button size="sm" icon={<Plus />} onClick={() => openNew()}>
+                  {t("common.new")}
+                </Button>
+              }
+            />
           ) : (
             <>
               {/* 2 columns on mobile, 3 on tablet, 4 on desktop */}
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5 sm:gap-4">
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5 gap-2.5 sm:gap-4">
                 {sortedRows.map((p) => {
                   const primary = lang === "ar" ? p.name_ar || p.name : p.name || p.name_ar || "—";
                   const other = lang === "ar" ? p.name : p.name_ar;
@@ -1519,25 +1518,13 @@ function ProductsPage() {
                 })}
               </div>
 
-              {/* Load More Button in Cards View */}
-              {hasNextPage && (
-                <div className="flex justify-center pt-4">
-                  <button
-                    onClick={() => void fetchNextPage()}
-                    disabled={isFetchingNextPage}
-                    className="flex items-center gap-2 rounded-2xl border border-border/80 bg-surface px-6 py-2.5 text-xs font-bold text-foreground shadow-sm hover:bg-surface-2 transition active:scale-95 disabled:opacity-50"
-                  >
-                    {isFetchingNextPage ? (
-                      <>
-                        <Loader2 className="size-4 animate-spin" />
-                        <span>{lang === "ar" ? "جاري التحميل..." : "Loading more…"}</span>
-                      </>
-                    ) : (
-                      <span>{lang === "ar" ? "عرض المزيد من المنتجات" : "Load more products"}</span>
-                    )}
-                  </button>
-                </div>
-              )}
+              {/* Load More — the shared footer (same button in cards & list). */}
+              <LoadMoreFooter
+                hasMore={Boolean(hasNextPage)}
+                loadingMore={isFetchingNextPage}
+                loadedCount={sortedRows.length}
+                onLoadMore={() => void fetchNextPage()}
+              />
             </>
           )}
         </div>
@@ -1545,27 +1532,20 @@ function ProductsPage() {
         /* ─── Luxury Mullak Row-Cards View (List with Right Accent Strip) ─── */
         <div className="space-y-3">
           {isLoading ? (
-            <div className="space-y-3">
-              {Array.from({ length: 6 }).map((_, i) => (
-                <div
-                  key={i}
-                  className="card-mullak h-20 animate-pulse bg-surface-2/40 rounded-2xl"
-                />
-              ))}
-            </div>
+            <RecordsSkeleton mode="list" />
           ) : error && products.length === 0 ? (
             productLoadError
           ) : sortedRows.length === 0 ? (
-            <div className="card-mullak p-12 text-center flex flex-col items-center justify-center space-y-3">
-              <div className="grid size-14 place-items-center rounded-2xl bg-muted/30 text-muted-foreground">
-                <Package className="size-8" />
-              </div>
-              <h4 className="text-base font-bold text-foreground">{t("products.no_products")}</h4>
-              <p className="text-xs text-muted-foreground max-w-sm">{t("products.empty_hint")}</p>
-              <Button size="sm" icon={<Plus />} onClick={() => openNew()}>
-                {t("common.new")}
-              </Button>
-            </div>
+            <RecordsEmpty
+              icon={<Package className="size-8" />}
+              title={t("products.no_products")}
+              description={t("products.empty_hint")}
+              action={
+                <Button size="sm" icon={<Plus />} onClick={() => openNew()}>
+                  {t("common.new")}
+                </Button>
+              }
+            />
           ) : (
             <>
               <div className="space-y-2.5">
@@ -1770,25 +1750,13 @@ function ProductsPage() {
                 })}
               </div>
 
-              {/* Load More Button in List View */}
-              {hasNextPage && (
-                <div className="flex justify-center pt-4">
-                  <button
-                    onClick={() => void fetchNextPage()}
-                    disabled={isFetchingNextPage}
-                    className="flex items-center gap-2 rounded-2xl border border-border/80 bg-surface px-6 py-2.5 text-xs font-bold text-foreground shadow-sm hover:bg-surface-2 transition active:scale-95 disabled:opacity-50"
-                  >
-                    {isFetchingNextPage ? (
-                      <>
-                        <Loader2 className="size-4 animate-spin" />
-                        <span>{lang === "ar" ? "جاري التحميل..." : "Loading more…"}</span>
-                      </>
-                    ) : (
-                      <span>{lang === "ar" ? "عرض المزيد من المنتجات" : "Load more products"}</span>
-                    )}
-                  </button>
-                </div>
-              )}
+              {/* Load More — the shared footer. */}
+              <LoadMoreFooter
+                hasMore={Boolean(hasNextPage)}
+                loadingMore={isFetchingNextPage}
+                loadedCount={sortedRows.length}
+                onLoadMore={() => void fetchNextPage()}
+              />
             </>
           )}
         </div>
@@ -2421,6 +2389,52 @@ function ProductDialog({
   const labelOf = (en: string, ar: string | null) => (lang === "ar" ? ar || en : en || ar || "");
   const currentCategory = meta.categories.find((c) => c.id === form.category_id);
 
+  /*
+   * Live validation — the issues the operator sees BEFORE pressing Save.
+   * Each entry points at the tab that owns it, so the strip (and the amber
+   * count badge on the tab itself) can jump straight to the field.
+   * The same rules the submit guard enforces, surfaced one step earlier.
+   */
+  const policyCheckQuiet = useMemo(() => validateItemPolicy(policy), [policy]);
+  const formIssues = useMemo<FormIssue[]>(() => {
+    const issues: FormIssue[] = [];
+    if (!form.name_ar.trim()) {
+      issues.push({
+        tab: "general",
+        message: lang === "ar" ? "الاسم بالعربية مطلوب" : "Arabic name is required",
+      });
+    }
+    if (form.sale_price.trim() === "" || Number(form.sale_price) <= 0) {
+      issues.push({
+        tab: "pricing",
+        message: lang === "ar" ? "سعر البيع غير محدد" : "Sale price is not set",
+      });
+    }
+    if (
+      canViewCost &&
+      form.cost_price.trim() !== "" &&
+      Number(form.cost_price) > Number(form.sale_price || 0)
+    ) {
+      issues.push({
+        tab: "pricing",
+        message: lang === "ar" ? "التكلفة أعلى من سعر البيع" : "Cost exceeds the sale price",
+      });
+    }
+    if (!policyCheckQuiet.valid) {
+      issues.push({
+        tab: "policy",
+        message: lang === "ar" ? policyCheckQuiet.errors[0] : "The item policy is invalid",
+      });
+    }
+    return issues;
+  }, [form.name_ar, form.sale_price, form.cost_price, policyCheckQuiet, canViewCost, lang]);
+
+  const tabIssueCounts = useMemo(() => {
+    const counts: Partial<Record<ProductFormTab, number>> = {};
+    for (const issue of formIssues) counts[issue.tab] = (counts[issue.tab] ?? 0) + 1;
+    return counts;
+  }, [formIssues]);
+
   return (
     <VortexDrawerDialog
       open={true}
@@ -2489,150 +2503,56 @@ function ProductDialog({
       }
     >
       <form id="product-form" onSubmit={submit} className="flex flex-col gap-5">
-        {/* Luxury Product Showcase Card */}
-        <div className="relative overflow-hidden rounded-2xl border border-border/60 bg-gradient-to-br from-card via-card/90 to-primary/5 p-4 shadow-xs sm:p-5">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div className="min-w-0 flex-1 space-y-1.5">
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="inline-flex items-center rounded-md bg-primary/10 px-2 py-0.5 text-[11px] font-semibold text-primary">
-                  {currentCategory
-                    ? labelOf(currentCategory.name, currentCategory.name_ar)
-                    : lang === "ar"
-                      ? "بدون تصنيف"
-                      : "Uncategorized"}
-                </span>
-                {form.barcode && (
-                  <span className="inline-flex items-center gap-1 rounded-md bg-muted/80 px-2 py-0.5 text-[11px] font-mono text-muted-foreground">
-                    <Barcode className="size-3" />
-                    {toSystemDigits(form.barcode)}
-                  </span>
-                )}
-                <span
-                  className={cn(
-                    "inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-medium",
-                    form.is_active
-                      ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
-                      : "bg-muted text-muted-foreground",
-                  )}
-                >
-                  <span
-                    className={cn(
-                      "size-1.5 rounded-full",
-                      form.is_active ? "bg-emerald-500" : "bg-muted-foreground",
-                    )}
-                  />
-                  {form.is_active
-                    ? lang === "ar"
-                      ? "نشط"
-                      : "Active"
-                    : lang === "ar"
-                      ? "معطل"
-                      : "Inactive"}
-                </span>
-              </div>
-              <h3 className="truncate text-base font-bold text-foreground sm:text-lg">
-                {form.name_ar.trim() ||
-                  form.name.trim() ||
-                  (lang === "ar" ? "اسم المنتج الجديد..." : "New Product Name...")}
-              </h3>
-              {form.name_ar.trim() && form.name.trim() && (
-                <p className="truncate text-xs text-muted-foreground">{form.name}</p>
-              )}
-            </div>
+        {/* Live Product Preview — shared shell (same card in every entry path). */}
+        <ProductPreviewCard
+          nameAr={form.name_ar}
+          nameEn={form.name}
+          categoryLabel={
+            currentCategory
+              ? labelOf(currentCategory.name, currentCategory.name_ar)
+              : lang === "ar"
+                ? "بدون تصنيف"
+                : "Uncategorized"
+          }
+          barcode={form.barcode || undefined}
+          isActive={form.is_active}
+          canViewCost={canViewCost}
+          profit={profitNum}
+          marginPercent={marginPercent}
+          currencySymbol={getCompanyCurrencySymbol()}
+          formatDigits={toSystemDigits}
+          activeLabel={lang === "ar" ? "نشط" : "Active"}
+          inactiveLabel={lang === "ar" ? "معطل" : "Inactive"}
+          newTitlePlaceholder={lang === "ar" ? "اسم المنتج الجديد..." : "New Product Name..."}
+        />
 
-            {/* Live Financial Metrics preview */}
-            {canViewCost && (
-              <div className="flex items-center gap-3 rounded-xl border border-border/40 bg-background/80 p-3 backdrop-blur-xs">
-                <div className="text-center sm:text-end">
-                  <div className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-                    {lang === "ar" ? "هامش الربح المتوقع" : "Expected Margin"}
-                  </div>
-                  <div className="flex items-center justify-center gap-1 font-mono text-sm font-bold text-foreground sm:justify-end">
-                    <span
-                      className={cn(
-                        profitNum >= 0
-                          ? "text-emerald-600 dark:text-emerald-400"
-                          : "text-rose-600 dark:text-rose-400",
-                      )}
-                    >
-                      {profitNum > 0 ? "+" : ""}
-                      {toSystemDigits(profitNum.toFixed(2))} {getCompanyCurrencySymbol()}
-                    </span>
-                  </div>
-                </div>
-                <div
-                  className={cn(
-                    "flex flex-col items-center justify-center rounded-lg px-2.5 py-1 text-center font-mono text-xs font-bold",
-                    profitNum >= 0
-                      ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
-                      : "bg-rose-500/10 text-rose-700 dark:text-rose-300",
-                  )}
-                >
-                  <span className="text-[10px] font-normal opacity-80">
-                    {lang === "ar" ? "العائد" : "ROI"}
-                  </span>
-                  <span>{marginPercent}%</span>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
+        {/* Live validation — issues jump to their owning tab. */}
+        <FormIssuesBar issues={formIssues} onJump={setActiveTab} />
 
-        {/* Sleek Segmented Tabs */}
-        <div className="flex items-center gap-1.5 overflow-x-auto rounded-xl border border-border/50 bg-muted/30 p-1 text-xs">
-          <button
-            type="button"
-            onClick={() => setActiveTab("general")}
-            className={cn(
-              "flex flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-2 font-medium transition-all duration-150 whitespace-nowrap",
-              activeTab === "general"
-                ? "bg-card text-foreground shadow-xs font-semibold"
-                : "text-muted-foreground hover:text-foreground",
-            )}
-          >
-            <Package className="size-3.5" />
-            <span>{lang === "ar" ? "البيانات الأساسية" : "Basic Info"}</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab("pricing")}
-            className={cn(
-              "flex flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-2 font-medium transition-all duration-150 whitespace-nowrap",
-              activeTab === "pricing"
-                ? "bg-card text-foreground shadow-xs font-semibold"
-                : "text-muted-foreground hover:text-foreground",
-            )}
-          >
-            <DollarSign className="size-3.5" />
-            <span>{lang === "ar" ? "التسعير والربحية" : "Pricing & Margins"}</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab("specs")}
-            className={cn(
-              "flex flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-2 font-medium transition-all duration-150 whitespace-nowrap",
-              activeTab === "specs"
-                ? "bg-card text-foreground shadow-xs font-semibold"
-                : "text-muted-foreground hover:text-foreground",
-            )}
-          >
-            <Layers className="size-3.5" />
-            <span>{lang === "ar" ? "المخزون والمواصفات" : "Stock & Specs"}</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab("policy")}
-            className={cn(
-              "flex flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-2 font-medium transition-all duration-150 whitespace-nowrap",
-              activeTab === "policy"
-                ? "bg-card text-foreground shadow-xs font-semibold"
-                : "text-muted-foreground hover:text-foreground",
-            )}
-          >
-            <SlidersHorizontal className="size-3.5" />
-            <span>{lang === "ar" ? "طبيعة وسياسة الصنف" : "Policies"}</span>
-          </button>
-        </div>
+        {/* Sleek Segmented Tabs — shared control (SegmentedTabs). */}
+        <ProductFormTabs
+          value={activeTab}
+          onChange={setActiveTab}
+          issues={tabIssueCounts}
+          labels={{
+            general: {
+              label: lang === "ar" ? "البيانات الأساسية" : "Basic Info",
+              icon: <Package className="size-3.5" />,
+            },
+            pricing: {
+              label: lang === "ar" ? "التسعير والربحية" : "Pricing & Margins",
+              icon: <DollarSign className="size-3.5" />,
+            },
+            specs: {
+              label: lang === "ar" ? "المخزون والمواصفات" : "Stock & Specs",
+              icon: <Layers className="size-3.5" />,
+            },
+            policy: {
+              label: lang === "ar" ? "طبيعة وسياسة الصنف" : "Policies",
+              icon: <SlidersHorizontal className="size-3.5" />,
+            },
+          }}
+        />
 
         {/* Tab 1: General Info */}
         {activeTab === "general" && (

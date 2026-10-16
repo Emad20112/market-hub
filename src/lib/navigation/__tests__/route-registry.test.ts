@@ -73,10 +73,11 @@ const REQUIRED_ROUTES = [
   "/settings",
   "/milling",
   "/milling/intake",
-  "/milling/jobs",
+  "/milling/milling",
   "/milling/delivery",
   "/milling/customer-statement",
-  "/production",
+  "/milling/manufacture",
+  "/milling/consumables",
 ];
 for (const path of REQUIRED_ROUTES) {
   check(`required route registered: ${path}`, paths.includes(path));

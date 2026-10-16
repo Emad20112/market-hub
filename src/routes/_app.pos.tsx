@@ -534,14 +534,13 @@ function POSPage() {
           .select(
             "id,sku,barcode,name,name_ar,sale_price,tax_rate,image_url,category_id,brand_id,unit_id,origin_id,quality_grade_id,is_active,is_service,item_nature,inventory_policy",
           )
-          // نقاط البيع تبيع المنتجات النهائية **والخدمات** (docs/milling/05 §بند 5):
-          // صنف «أجور طحن» (SERVICE) يظهر هنا كأي صنف بيع عادي، فيُصدر بيع الخدمة
-          // فاتورة مبيعات عادية تُربط بسطر الأمانة من كشف الأمانات.
-          // الخام والتعبئة فقط لا يُعرضان — مخزون داخلي لا سلعة بيع.
+          // خدمة الطحن لا تباع من POS: تحتاج بيانات الاستلام والأكياس والأمانة
+          // الموجودة حصراً في كاونتر المطحنة. تظل الخدمة الحرة في زرها المخصص.
           .eq("is_active", true)
           .eq("is_sellable", true)
           .neq("item_class", "RAW_MATERIAL")
           .neq("item_class", "PACKAGING")
+          .neq("item_class", "SERVICE")
           .order("name")
           .limit(1000),
         supabase.from("categories").select("id,name,name_ar").order("name"),
@@ -1317,21 +1316,6 @@ function POSPage() {
               ? `تمت عملية البيع بنجاح — فاتورة #${invoiceNumber}`
               : `${t("pos.sale_complete")} — #${invoiceNumber}`,
           );
-          /*
-           * تلميح الربط (06 §م2): البيع الذي يحمل صنف أجور (SERVICE) هو فاتورة
-           * أجور مطحنة — نُذكّر المستخدم بربطها بسطر الطحن من كشف الأمانات
-           * لأن الربط فقط يجعلها تظهر في التبويب المالي للكشف.
-           */
-          if (cart.some((l) => l.is_service)) {
-            setTimeout(() => {
-              toast.info(
-                lang === "ar"
-                  ? "فاتورة أجور طحن — اربطها بسطر الطحن من كشف الأمانات."
-                  : "Toll-fee invoice — link it to the milling line from the custody statement.",
-                { duration: 8000 },
-              );
-            }, 1200);
-          }
         } catch (netErr: any) {
           const offlineResult = await posOfflineService.processOfflineSale({
             warehouse_id: warehouseId,

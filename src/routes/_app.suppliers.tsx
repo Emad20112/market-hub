@@ -36,6 +36,7 @@ import {
   type SortOption,
 } from "@/components/ui/table-toolbar";
 import { RecordsViewToggle } from "@/components/ui/records-view-toggle";
+import { usePersistedViewMode } from "@/hooks/use-persisted-view-mode";
 import { type DataTableColumn, type DataTableSort } from "@/components/ui/data-table";
 import { RecordsView, type RecordsViewMode } from "@/components/ui/records-view";
 import { IconButton } from "@/components/ui/icon-button";
@@ -71,7 +72,7 @@ function SuppliersPage() {
   const [filterType, setFilterType] = useState<FilterType>("all");
   const [filters, setFilters] = useState<FilterValues>({});
   const [sortKey, setSortKey] = useState<string>("name_asc");
-  const [viewMode, setViewMode] = useState<ViewMode>("cards");
+  const [viewMode, setViewMode] = usePersistedViewMode("suppliers", "cards");
   const [edit, setEdit] = useState<Partial<Supplier> | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
 
@@ -588,10 +589,10 @@ function SuppliersPage() {
         }}
         viewToggle={<RecordsViewToggle value={viewMode} onChange={setViewMode} />}
         action={
-          <ToolbarAction
+          <PrimaryAction
             label={t("suppliers.new")}
             icon={<Plus />}
-            tone="primary"
+
             onClick={() => setEdit({})}
           />
         }

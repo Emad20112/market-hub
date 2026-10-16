@@ -132,8 +132,27 @@ CREATE OR REPLACE VIEW public.custody_customer_statement AS
      LEFT JOIN public.warehouses w ON ((w.id = l.warehouse_id)))
   GROUP BY l.customer_id, c.name, l.warehouse_id, w.name_ar, l.item_id, p.sku, p.name_ar, p.item_class;
 
--- التبويب المالي: فواتير الأجور المرتبطة بسطور الأمانة.
+-- التبويب المالي: المستند الموحد هو المصدر للفواتير الجديدة. الجزء الثاني
+-- يبقي فواتير الربط اليدوي التاريخية قابلة للقراءة فقط أثناء الانتقال.
 CREATE OR REPLACE VIEW public.custody_service_money AS
+ SELECT d.id AS custody_entry_id,
+    d.customer_id,
+    c.name AS customer_name_ar,
+    d.document_number AS doc_number,
+    d.created_at,
+    si.id AS invoice_id,
+    si.invoice_number,
+    si.status,
+    si.subtotal,
+    si.tax,
+    si.discount,
+    si.total,
+    si.paid,
+    round((si.total - si.paid), 2) AS outstanding
+   FROM ((public.milling_service_documents d
+     JOIN public.sales_invoices si ON ((si.id = d.sales_invoice_id)))
+     LEFT JOIN public.customers c ON ((c.id = d.customer_id)))
+ UNION ALL
  SELECT l.id AS custody_entry_id,
     l.customer_id,
     c.name AS customer_name_ar,
@@ -150,32 +169,37 @@ CREATE OR REPLACE VIEW public.custody_service_money AS
     round((si.total - si.paid), 2) AS outstanding
    FROM ((public.custody_ledger l
      JOIN public.sales_invoices si ON ((si.id = l.service_invoice_id)))
-     LEFT JOIN public.customers c ON ((c.id = l.customer_id)));
+     LEFT JOIN public.customers c ON ((c.id = l.customer_id)))
+  WHERE NOT EXISTS (
+    SELECT 1 FROM public.milling_service_documents d
+    WHERE d.sales_invoice_id = l.service_invoice_id
+  );
 
--- الفاقد المكتشف: الوارد − (الناتج المسجَّل) على الحبوب — يُكتشف لا يُدخل.
--- إدخال الطحن يسجّل صادر الحبوب ووارد النواتج، فالفارق بين (صادر الحبوب)
--- و(وارد النواتج) عبر كل حركات العميل هو ما اختفى بلا تسجيل.
+-- الفاقد المكتشف: صادر الحبوب − وارد النواتج لكل عملية طحن (مستند/سند).
+-- لا حقل إدخال للفاقد؛ التنبيه استدلالي لمراقبة التوازن التشغيلي (ح2).
 CREATE OR REPLACE VIEW public.custody_detected_loss AS
  WITH grain_flow AS (
          SELECT l.customer_id,
             l.warehouse_id,
             l.item_id,
+            coalesce(l.milling_document_id::text, l.doc_number) AS operation_key,
             p.name_ar AS grain_name_ar,
             sum(l.kg_out) AS milled_kg,
             sum(l.bags_out) AS milled_bags
            FROM (public.custody_ledger l
              JOIN public.products p ON ((p.id = l.item_id)))
           WHERE ((l.entry_type = 'MILLING'::custody_entry_type) AND (p.item_class = 'RAW_MATERIAL'::item_class))
-          GROUP BY l.customer_id, l.warehouse_id, l.item_id, p.name_ar
+          GROUP BY l.customer_id, l.warehouse_id, l.item_id, coalesce(l.milling_document_id::text, l.doc_number), p.name_ar
         ), output_flow AS (
          SELECT l.customer_id,
             l.warehouse_id,
+            coalesce(l.milling_document_id::text, l.doc_number) AS operation_key,
             sum(l.kg_in) AS produced_kg,
             sum(l.bags_in) AS produced_bags
            FROM (public.custody_ledger l
              JOIN public.products p ON ((p.id = l.item_id)))
           WHERE ((l.entry_type = 'MILLING'::custody_entry_type) AND (p.item_class = ANY (ARRAY['FINISHED_GOOD'::item_class, 'BY_PRODUCT'::item_class])))
-          GROUP BY l.customer_id, l.warehouse_id
+          GROUP BY l.customer_id, l.warehouse_id, coalesce(l.milling_document_id::text, l.doc_number)
         )
  SELECT g.customer_id,
     c.name AS customer_name_ar,
@@ -183,6 +207,7 @@ CREATE OR REPLACE VIEW public.custody_detected_loss AS
     w.name_ar AS warehouse_name_ar,
     g.item_id,
     g.grain_name_ar,
+    g.operation_key,
     g.milled_bags,
     g.milled_kg,
     COALESCE(o.produced_bags, (0)::numeric) AS produced_bags,
@@ -193,7 +218,7 @@ CREATE OR REPLACE VIEW public.custody_detected_loss AS
             ELSE 'OK'::text
         END AS loss_status
    FROM (((grain_flow g
-     LEFT JOIN output_flow o ON (((o.customer_id = g.customer_id) AND (o.warehouse_id = g.warehouse_id))))
+     LEFT JOIN output_flow o ON (((o.customer_id = g.customer_id) AND (o.warehouse_id = g.warehouse_id) AND (o.operation_key = g.operation_key))))
      LEFT JOIN public.customers c ON ((c.id = g.customer_id)))
      LEFT JOIN public.warehouses w ON ((w.id = g.warehouse_id)));
 

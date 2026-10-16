@@ -327,6 +327,58 @@ export const TEMPLATES: Record<CommunicationEventType, TemplateDefinition> = {
       return lines.join("\n");
     },
   },
+
+  milling_document_share: {
+    ar: (ctx) => {
+      const companyName = resolveCompanyName(ctx, true);
+      const customerName = ctx.customer?.name || "العميل الكريم";
+      const inv = ctx.invoice;
+      const total = formatAmount(inv?.total, ctx.company?.currency);
+      const paid = formatAmount(inv?.paid, ctx.company?.currency);
+      const remaining = formatAmount(inv?.remaining, ctx.company?.currency);
+      const docNum = ctx.millingDocumentNumber || "";
+      const statusText = ctx.millingStatus || "";
+
+      const lines = [
+        `السلام عليكم ورحمة الله وبركاته،`,
+        `عزيزنا *${customerName}*،`,
+        companyName ? `تحية طيبة من *${companyName}* — خدمة المطحنة:` : `خدمة المطحنة والأمانات:`,
+        docNum ? `🔖 *مستند الطحن:* #${docNum}` : "",
+        inv?.invoiceNumber ? `🧾 *فاتورة الأجور الرسمية:* #${inv.invoiceNumber}` : "",
+        statusText ? `⚙️ *الحالة:* ${statusText}` : "",
+        `💵 *الإجمالي:* ${total}`,
+        `✅ *المدفوع:* ${paid}`,
+        (inv?.remaining ?? 0) > 0 ? `⏳ *المتبقي المستحق:* *${remaining}*` : `✨ *الحالة المالية:* مسددة بالكامل`,
+        `\nشاكرين لكم ثقتكم ونسعد بخدمتكم دائماً.`,
+      ].filter(Boolean);
+
+      return lines.join("\n");
+    },
+    en: (ctx) => {
+      const companyName = resolveCompanyName(ctx, false);
+      const customerName = ctx.customer?.name || "Valued Customer";
+      const inv = ctx.invoice;
+      const total = formatAmount(inv?.total, ctx.company?.currency);
+      const paid = formatAmount(inv?.paid, ctx.company?.currency);
+      const remaining = formatAmount(inv?.remaining, ctx.company?.currency);
+      const docNum = ctx.millingDocumentNumber || "";
+      const statusText = ctx.millingStatus || "";
+
+      const lines = [
+        `Dear *${customerName}*,`,
+        companyName ? `Greetings from *${companyName}* — Milling Service:` : `Milling Service:`,
+        docNum ? `🔖 *Milling Doc:* #${docNum}` : "",
+        inv?.invoiceNumber ? `🧾 *Invoice:* #${inv.invoiceNumber}` : "",
+        statusText ? `⚙️ *Status:* ${statusText}` : "",
+        `💵 *Total:* ${total}`,
+        `✅ *Paid:* ${paid}`,
+        (inv?.remaining ?? 0) > 0 ? `⏳ *Remaining Balance:* *${remaining}*` : `✨ *Status:* Fully Paid`,
+        `\nThank you for choosing us!`,
+      ].filter(Boolean);
+
+      return lines.join("\n");
+    },
+  },
 };
 
 /**

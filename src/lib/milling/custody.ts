@@ -17,6 +17,8 @@
  */
 
 import { supabase } from "@/integrations/supabase/client";
+import { paymentMethodLabel } from "@/lib/payments/payment-methods";
+import type { UnifiedDocumentData } from "@/lib/templates/types";
 
 /* The generated types do not know the custody schema yet. Widening the global
  * Database type for one feature would hide real errors elsewhere, so we keep a
@@ -105,6 +107,78 @@ export interface CustodyLine {
   kg: number;
 }
 
+/** مستند خدمة موحّد: أمانة العميل وفاتورة أجوره في مرجع واحد. */
+export interface MillingServiceDocument {
+  id: string;
+  document_number: string;
+  customer_id: string;
+  warehouse_id: string;
+  sales_invoice_id: string;
+  status: "RECEIVED" | "PROCESSED" | "DELIVERED";
+  received_at: string;
+  processed_at: string | null;
+  delivered_at: string | null;
+  customers?: { name: string; phone: string | null } | null;
+  warehouses?: { name: string; name_ar: string | null } | null;
+  sales_invoices?: {
+    invoice_number: string;
+    total: number;
+    paid: number;
+    payment_method: string | null;
+    payment_status: string;
+  } | null;
+}
+
+export interface MillingServiceDocumentCreated {
+  document_id: string;
+  document_number: string;
+  invoice_id: string;
+  invoice_number: string;
+}
+
+export interface MillingDocumentLine {
+  id: string;
+  entry_type: CustodyEntryType;
+  item_id: string;
+  item_name_ar: string;
+  item_sku: string;
+  item_class: string;
+  package_weight_kg: number | null;
+  doc_number: string;
+  bags_in: number;
+  bags_out: number;
+  kg_in: number;
+  kg_out: number;
+  notes: string | null;
+  created_at: string;
+}
+
+export interface MillingDocumentDetails extends MillingServiceDocument {
+  lines: MillingDocumentLine[];
+  intakeGrain: {
+    itemId: string;
+    nameAr: string;
+    packageWeightKg: number | null;
+    bagsReceived: number;
+    kgReceived: number;
+    bagsMilled: number;
+    kgMilled: number;
+    bagsRemaining: number;
+    kgRemaining: number;
+  } | null;
+  outputsSummary: {
+    itemId: string;
+    nameAr: string;
+    itemClass: string;
+    bagsProduced: number;
+    kgProduced: number;
+    bagsDelivered: number;
+    kgDelivered: number;
+    bagsRemaining: number;
+    kgRemaining: number;
+  }[];
+}
+
 export interface OpResult<T = string> {
   ok: boolean;
   id?: T;
@@ -158,17 +232,27 @@ export async function fetchOutputItems(): Promise<ProductOption[]> {
 
 /** صنف الأجور الخدمي — سعره هو مصدر السعر الوحيد (ق5). */
 export async function fetchServiceItem(): Promise<ProductOption | null> {
+  // م5: جلب خدمة أجور الطحن بدقة (بالكود أو الاسم) وتجنب الترتيب العشوائي حسب UUID
   const { data, error } = await db
     .from("products")
     .select("id, sku, name, name_ar, item_class, sale_price, package_weight_kg")
     .eq("item_class", "SERVICE")
-    .eq("is_active", true)
-    .order("id")
-    .limit(1)
-    .maybeSingle();
+    .eq("is_active", true);
 
   if (error) throw error;
-  return (data ?? null) as ProductOption | null;
+  const list = (data ?? []) as ProductOption[];
+  if (list.length === 0) return null;
+
+  // تفضيل خدمة أجور الطحن المخصصة
+  const millingService = list.find(
+    (p) =>
+      p.sku?.toUpperCase() === "SRV-MILL" ||
+      p.sku?.toUpperCase().includes("MILL") ||
+      (p.name_ar && (p.name_ar.includes("طحن") || p.name_ar.includes("أجور"))) ||
+      (p.name && p.name.toLowerCase().includes("milling")),
+  );
+
+  return millingService || list[0];
 }
 
 /**
@@ -227,6 +311,335 @@ export async function custodyIntake(input: CustodyIntakeInput): Promise<OpResult
   return { ok: true, id: data as string };
 }
 
+/**
+ * ينشئ من كاونتر المطحنة عملية واحدة حقيقية: استلام أمانة + فاتورة مبيعات
+ * رسمية + أثر الذمة عند وجود آجل. لا يوجد ربط فاتورة لاحق.
+ */
+export async function createMillingServiceDocument(input: {
+  customerId: string;
+  warehouseId: string;
+  grainItemId: string;
+  bags: number;
+  kg: number;
+  serviceItemId: string;
+  serviceUnitPrice: number;
+  discount?: number;
+  paymentMethod: string;
+  paid: number;
+  notes?: string;
+}): Promise<OpResult<MillingServiceDocumentCreated>> {
+  if (!input.customerId || !input.warehouseId || !input.grainItemId || !input.serviceItemId) {
+    return { ok: false, message: "اختر العميل والمخزن والحبوب وخدمة الطحن." };
+  }
+  if ((input.bags ?? 0) <= 0 && (input.kg ?? 0) <= 0) {
+    return { ok: false, message: "سجّل عدد الأكياس أو الوزن على الأقل." };
+  }
+  if ((input.serviceUnitPrice ?? 0) < 0 || (input.discount ?? 0) < 0 || (input.paid ?? 0) < 0) {
+    return { ok: false, message: "السعر والخصم والمدفوع لا يمكن أن تكون سالبة." };
+  }
+
+  const { data, error } = await db.rpc("create_milling_service_document", {
+    _customer_id: input.customerId,
+    _warehouse_id: input.warehouseId,
+    _grain_item_id: input.grainItemId,
+    _bags: input.bags ?? 0,
+    _kg: input.kg ?? 0,
+    _service_item_id: input.serviceItemId,
+    _service_unit_price: input.serviceUnitPrice ?? 0,
+    _discount: input.discount ?? 0,
+    _payment_method: input.paymentMethod,
+    _paid: input.paid ?? 0,
+    _notes: input.notes ?? null,
+  });
+  if (error) return { ok: false, message: translateCustodyError(error.message) };
+  return { ok: true, data: data as MillingServiceDocumentCreated };
+}
+
+export async function fetchMillingServiceDocument(
+  documentId: string,
+): Promise<MillingServiceDocument | null> {
+  if (!documentId) return null;
+  const { data, error } = await db
+    .from("milling_service_documents")
+    .select(
+      `id, document_number, customer_id, warehouse_id, sales_invoice_id, status,
+       received_at, processed_at, delivered_at,
+       customers(name, phone), warehouses(name, name_ar),
+       sales_invoices(invoice_number, total, paid, payment_method, payment_status)`,
+    )
+    .eq("id", documentId)
+    .maybeSingle();
+  if (error) throw error;
+  return (data ?? null) as MillingServiceDocument | null;
+}
+
+export async function fetchMillingDocuments(options?: {
+  customerId?: string;
+  status?: string;
+  search?: string;
+}): Promise<MillingServiceDocument[]> {
+  let q = db
+    .from("milling_service_documents")
+    .select(
+      `id, document_number, customer_id, warehouse_id, sales_invoice_id, status,
+       received_at, processed_at, delivered_at, created_at,
+       customers(name, phone), warehouses(name, name_ar),
+       sales_invoices(invoice_number, total, paid, payment_method, payment_status)`,
+    )
+    .order("created_at", { ascending: false })
+    .limit(100);
+
+  if (options?.customerId) {
+    q = q.eq("customer_id", options.customerId);
+  }
+  if (options?.status && options.status !== "ALL") {
+    q = q.eq("status", options.status);
+  }
+
+  const { data, error } = await q;
+  if (error) throw error;
+  let list = (data ?? []) as MillingServiceDocument[];
+  if (options?.search?.trim()) {
+    const s = options.search.trim().toLowerCase();
+    list = list.filter(
+      (d) =>
+        (d.document_number || "").toLowerCase().includes(s) ||
+        (d.customers?.name || "").toLowerCase().includes(s) ||
+        (d.sales_invoices?.invoice_number || "").toLowerCase().includes(s),
+    );
+  }
+  return list;
+}
+
+export async function fetchMillingDocumentDetails(
+  documentId: string,
+): Promise<MillingDocumentDetails | null> {
+  if (!documentId) return null;
+
+  const doc = await fetchMillingServiceDocument(documentId);
+  if (!doc) return null;
+
+  const { data: rawLines, error } = await db
+    .from("custody_ledger")
+    .select(
+      `id, entry_type, item_id, doc_number, bags_in, bags_out, kg_in, kg_out, notes, created_at,
+       products(name, name_ar, sku, item_class, package_weight_kg)`,
+    )
+    .eq("milling_document_id", documentId)
+    .order("created_at", { ascending: true });
+
+  if (error) throw error;
+
+  const lines: MillingDocumentLine[] = (rawLines ?? []).map((r: any) => ({
+    id: r.id,
+    entry_type: r.entry_type,
+    item_id: r.item_id,
+    item_name_ar: r.products?.name_ar || r.products?.name || "—",
+    item_sku: r.products?.sku || "",
+    item_class: r.products?.item_class || "",
+    package_weight_kg: r.products?.package_weight_kg ?? null,
+    doc_number: r.doc_number,
+    bags_in: Number(r.bags_in ?? 0),
+    bags_out: Number(r.bags_out ?? 0),
+    kg_in: Number(r.kg_in ?? 0),
+    kg_out: Number(r.kg_out ?? 0),
+    notes: r.notes,
+    created_at: r.created_at,
+  }));
+
+  // 1) Intake grain summary
+  const intakeLines = lines.filter((l) => l.entry_type === "INTAKE");
+  let intakeGrain: MillingDocumentDetails["intakeGrain"] = null;
+  if (intakeLines.length > 0) {
+    const firstIntake = intakeLines[0];
+    const totalBagsIn = intakeLines.reduce((acc, l) => acc + l.bags_in, 0);
+    const totalKgIn = intakeLines.reduce((acc, l) => acc + l.kg_in, 0);
+    const milledLines = lines.filter(
+      (l) => l.entry_type === "MILLING" && l.item_id === firstIntake.item_id && l.bags_out + l.kg_out > 0,
+    );
+    const totalBagsMilled = milledLines.reduce((acc, l) => acc + l.bags_out, 0);
+    const totalKgMilled = milledLines.reduce((acc, l) => acc + l.kg_out, 0);
+
+    intakeGrain = {
+      itemId: firstIntake.item_id,
+      nameAr: firstIntake.item_name_ar,
+      packageWeightKg: firstIntake.package_weight_kg,
+      bagsReceived: totalBagsIn,
+      kgReceived: totalKgIn,
+      bagsMilled: totalBagsMilled,
+      kgMilled: totalKgMilled,
+      bagsRemaining: Math.max(0, totalBagsIn - totalBagsMilled),
+      kgRemaining: Math.max(0, totalKgIn - totalKgMilled),
+    };
+  }
+
+  // 2) Outputs summary
+  const outputLines = lines.filter(
+    (l) => l.entry_type === "MILLING" && (l.bags_in > 0 || l.kg_in > 0),
+  );
+  const outputsByItem = new Map<string, {
+    itemId: string;
+    nameAr: string;
+    itemClass: string;
+    bagsProduced: number;
+    kgProduced: number;
+  }>();
+
+  for (const o of outputLines) {
+    const curr = outputsByItem.get(o.item_id) ?? {
+      itemId: o.item_id,
+      nameAr: o.item_name_ar,
+      itemClass: o.item_class,
+      bagsProduced: 0,
+      kgProduced: 0,
+    };
+    curr.bagsProduced += o.bags_in;
+    curr.kgProduced += o.kg_in;
+    outputsByItem.set(o.item_id, curr);
+  }
+
+  const deliveryLines = lines.filter((l) => l.entry_type === "DELIVERY");
+  const outputsSummary = Array.from(outputsByItem.values()).map((out) => {
+    const itemDeliveries = deliveryLines.filter((d) => d.item_id === out.itemId);
+    const bagsDelivered = itemDeliveries.reduce((acc, d) => acc + d.bags_out, 0);
+    const kgDelivered = itemDeliveries.reduce((acc, d) => acc + d.kg_out, 0);
+    return {
+      itemId: out.itemId,
+      nameAr: out.nameAr,
+      itemClass: out.itemClass,
+      bagsProduced: out.bagsProduced,
+      kgProduced: out.kgProduced,
+      bagsDelivered,
+      kgDelivered,
+      bagsRemaining: Math.max(0, out.bagsProduced - bagsDelivered),
+      kgRemaining: Math.max(0, out.kgProduced - kgDelivered),
+    };
+  });
+
+  return {
+    ...doc,
+    lines,
+    intakeGrain,
+    outputsSummary,
+  };
+}
+
+export function buildMillingDocumentUnifiedDoc(
+  details: MillingDocumentDetails,
+  stage: "intake" | "milled" | "delivery" = "intake",
+): UnifiedDocumentData {
+  const inv = details.sales_invoices;
+  const subtotal = Number(inv?.total ?? 0);
+  const paid = Number(inv?.paid ?? 0);
+  const remaining = Math.max(0, subtotal - paid);
+  const title =
+    stage === "delivery"
+      ? "سند تسليم أمانة وفاتورة أجور طحن"
+      : stage === "milled"
+        ? "فاتورة أجور طحن وسند استلام أمانة (محدّث بالنواتج)"
+        : "فاتورة أجور طحن وسند استلام أمانة";
+
+  const lines: any[] = [];
+
+  // سطر الاستلام
+  if (details.intakeGrain) {
+    const g = details.intakeGrain;
+    lines.push({
+      product: `حبوب مستلمة: ${g.nameAr}`,
+      qty: g.bagsReceived > 0 ? g.bagsReceived : g.kgReceived,
+      unit: g.bagsReceived > 0 ? "كيس" : "كجم",
+      price: 0,
+      total: 0,
+      note: `${g.kgReceived} كجم إجمالي${g.packageWeightKg ? ` (سعة العبوة ${g.packageWeightKg} كجم)` : ""}`,
+    });
+  }
+
+  // أسطر النواتج إن كانت المرحلة طحن أو تسليم
+  if (stage !== "intake" && details.outputsSummary.length > 0) {
+    for (const out of details.outputsSummary) {
+      lines.push({
+        product: `ناتج طحن: ${out.nameAr}`,
+        qty: out.bagsProduced > 0 ? out.bagsProduced : out.kgProduced,
+        unit: out.bagsProduced > 0 ? "كيس" : "كجم",
+        price: 0,
+        total: 0,
+        note: `الوزن المسجل: ${out.kgProduced} كجم | المسلّم: ${out.bagsDelivered} كيس (${out.kgDelivered} كجم) | المتبقي: ${out.bagsRemaining} كيس (${out.kgRemaining} كجم)`,
+      });
+    }
+  }
+
+  // سطر فاتورة أجور الطحن الرسمية
+  lines.push({
+    product: `أجور طحن وتجهيز (${details.intakeGrain?.nameAr || "حبوب"})`,
+    qty: 1,
+    unit: "خدمة",
+    price: subtotal,
+    total: subtotal,
+    note: inv?.invoice_number ? `فاتورة مبيعات رسمية #${inv.invoice_number}` : undefined,
+  });
+
+  const statusLabel =
+    details.status === "DELIVERED"
+      ? "تم التسليم بالكامل"
+      : details.status === "PROCESSED"
+        ? "تم الطحن — بانتظار التسليم"
+        : "مستلم — بانتظار الطحن";
+
+  return {
+    docType: "mill_document",
+    title,
+    number: details.document_number,
+    relatedRef: inv?.invoice_number ? `فاتورة رسمية #${inv.invoice_number}` : undefined,
+    date: new Date(details.received_at).toLocaleString("ar-EG"),
+    partyLabel: "صاحب الأمانة / العميل:",
+    partyName: details.customers?.name || "عميل أمانة",
+    partyPhone: details.customers?.phone || undefined,
+    warehouse: details.warehouses?.name_ar || details.warehouses?.name || "المستودع الرئيسي",
+    movementType: "أمانة عينية خاصة بالعميل + فاتورة مبيعات رسمية لأجور الخدمة",
+    status: statusLabel,
+    lines,
+    subtotal,
+    discount: 0,
+    total: subtotal,
+    paid,
+    balance: remaining,
+    payment: inv?.payment_method ? paymentMethodLabel(inv.payment_method) : "نقداً",
+    notes:
+      "حبوب ونواتج ملك العميل (أمانة عينية خارج مخزون المنشأة). أجور الطحن مثبتة بالفاتورة الرسمية المبينة أعلاه.",
+    options: {
+      showFinancialDetails: true,
+      showPaymentInfo: true,
+      showBarcode: true,
+      showQrCode: true,
+      showSignatures: true,
+      showNotes: true,
+    },
+  };
+}
+
+export function syncAutoWeightOnItemChange(
+  newItem: ProductOption | null | undefined,
+  currentBags: number | string,
+  isCurrentlyAuto: boolean,
+  currentKg: string,
+): { kg: string; isAuto: boolean } {
+  const cap = capacityKgOf(newItem);
+  const bags = Number(currentBags) || 0;
+  if (cap && cap > 0) {
+    if (isCurrentlyAuto || currentKg === "" || Number(currentKg) === 0) {
+      return {
+        kg: bags > 0 ? String(bags * cap) : "",
+        isAuto: bags > 0,
+      };
+    }
+    return { kg: currentKg, isAuto: isCurrentlyAuto };
+  }
+  if (isCurrentlyAuto) {
+    return { kg: "", isAuto: false };
+  }
+  return { kg: currentKg, isAuto: false };
+}
+
 /** رقم السند من معرّف السطر — لاستخدام طباعة السند بعد الحفظ مباشرة. */
 export async function fetchCustodyDocNumber(entryId: string): Promise<string | null> {
   const { data, error } = await db
@@ -279,6 +692,36 @@ export async function custodyMilling(input: CustodyMillingInput): Promise<OpResu
   return { ok: true, data: data as string };
 }
 
+export async function processMillingServiceDocument(input: {
+  documentId: string;
+  grainItemId: string;
+  bagsOut: number;
+  kgOut: number;
+  outputs: CustodyLine[];
+  notes?: string;
+}): Promise<OpResult> {
+  const validOutputs = (input.outputs ?? []).filter(
+    (line) => line.itemId && ((line.bags ?? 0) > 0 || (line.kg ?? 0) > 0),
+  );
+  if (!input.documentId || !input.grainItemId || validOutputs.length === 0) {
+    return { ok: false, message: "اختر المستند والحبوب وأضف ناتجاً واحداً على الأقل." };
+  }
+  const { data, error } = await db.rpc("milling_document_process", {
+    _document_id: input.documentId,
+    _grain_item_id: input.grainItemId,
+    _bags_out: input.bagsOut ?? 0,
+    _kg_out: input.kgOut ?? 0,
+    _outputs: validOutputs.map((line) => ({
+      item_id: line.itemId,
+      bags: line.bags ?? 0,
+      kg: line.kg ?? 0,
+    })),
+    _notes: input.notes ?? null,
+  });
+  if (error) return { ok: false, message: translateCustodyError(error.message) };
+  return { ok: true, data: data as string };
+}
+
 export interface CustodyDeliveryInput {
   customerId: string;
   warehouseId: string;
@@ -303,6 +746,30 @@ export async function custodyDelivery(input: CustodyDeliveryInput): Promise<OpRe
       item_id: l.itemId,
       bags: l.bags ?? 0,
       kg: l.kg ?? 0,
+    })),
+    _notes: input.notes ?? null,
+  });
+  if (error) return { ok: false, message: translateCustodyError(error.message) };
+  return { ok: true, data: data as string };
+}
+
+export async function deliverMillingServiceDocument(input: {
+  documentId: string;
+  lines: CustodyLine[];
+  notes?: string;
+}): Promise<OpResult> {
+  const validLines = (input.lines ?? []).filter(
+    (line) => line.itemId && ((line.bags ?? 0) > 0 || (line.kg ?? 0) > 0),
+  );
+  if (!input.documentId || validLines.length === 0) {
+    return { ok: false, message: "اختر المستند وأضف سطر تسليم واحداً على الأقل." };
+  }
+  const { data, error } = await db.rpc("milling_document_delivery", {
+    _document_id: input.documentId,
+    _lines: validLines.map((line) => ({
+      item_id: line.itemId,
+      bags: line.bags ?? 0,
+      kg: line.kg ?? 0,
     })),
     _notes: input.notes ?? null,
   });

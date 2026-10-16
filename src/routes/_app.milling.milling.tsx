@@ -5,7 +5,7 @@
  * → أسطر MILLING في custody_ledger. لا فاقد يُدخل: الفارق يظهر في الكشف.
  * المرجع: docs/milling/00_خطة_التبسيط_المعتمدة.md §4.1
  */
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, Navigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { Cog, ArrowLeft, Plus, Trash2, Wheat } from "lucide-react";
@@ -35,7 +35,7 @@ import {
 
 export const Route = createFileRoute("/_app/milling/milling")({
   head: () => ({ meta: [{ title: "الطحن — فورتكس ERP" }] }),
-  component: MillingMillPage,
+  component: () => <Navigate to="/milling/intake" replace />,
 });
 
 interface CustomerOption {

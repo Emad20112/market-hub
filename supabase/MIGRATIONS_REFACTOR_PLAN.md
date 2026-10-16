@@ -257,7 +257,7 @@ psql "$DATABASE_URL" -c "SELECT * FROM pg_constraint WHERE connamespace='public'
 | 08 | `08_purchasing_and_returns.sql` | `purchase_invoices(+items)`, `purchase_returns(+items)` | 04, 05, 06 |
 | 09 | `09_accounting_ledger.sql` | `accounts`, `journal_entries`, `journal_lines`, `opening_balance_*` | 02, 06 |
 | 10 | `10_expenses.sql` | `expense_categories`, `expense_entries`, `expense_lines`, `expense_payments`, `expense_approvals`, `expense_attachments`, `expense_cost_centers`, `expense_projects` | 02, 04, 09 |
-| 11 | `10_milling_custody.sql` | `custody_ledger` + دوال RPC (`custody_*`, `smart_manufacture`, `consume_internal_supplies`) | 04, 05, 06 |
+| 11 | `10_milling_custody.sql` | `milling_service_documents` + `custody_ledger` ودوال RPC للمستند الموحد وعمليات الأمانة | 04, 05, 06 |
 | 12 | `12_platform_and_subscriptions.sql` | `platform_admins`, `platform_modules`, `platform_plans`, `tenant_subscriptions` | 02 |
 | 13 | `13_audit_and_governance.sql` | `audit_logs`, `platform_audit_logs` | 02, 12 |
 | 14 | `14_reporting_views.sql` | كل الـ Views: `trial_balance`, `inventory_valuation`, `company_stock_positions`, `customer_owned_positions`, `customer_ledger_balances`, `invoice_ledger_status`, `custody_customer_statement`, `custody_service_money`, `custody_detected_loss`, ... | 01–13 |
@@ -843,10 +843,10 @@ git diff --ignore-cr-at-eol -- <file>
 
 | التغيير | التفصيل |
 |---|---|
-| استبدال ملف 10 | `10_milling_and_production.sql` → `10_milling_custody.sql`: جدول واحد `custody_ledger` + 5 دوال RPC للسجل + `smart_manufacture` + `consume_internal_supplies` |
+| استبدال ملف 10 | `10_milling_and_production.sql` → `10_milling_custody.sql`: رأس مستند خدمة خفيف + سجل `custody_ledger` ودوال RPC للمستند الموحد وعمليات الأمانة |
 | حذف كامل | كل جداول `milling_*` القديمة وكل جداول `production_*` (BOM/أوامر/فاقد) — قاعدة تجريبية، إعادة بناء لا مهاجرة (ق1، ق6، ق8) |
 | إزالة enums | `milling_status` و`milling_output_type` من الملف 01 |
-| إزالة رابط فواتير | عمود `sales_invoices.milling_job_id` — البديل `custody_ledger.service_invoice_id` |
+| إزالة رابط فواتير | عمود `sales_invoices.milling_job_id` — البديل المعتمد `milling_service_documents.sales_invoice_id`؛ حقل السجل القديم للتاريخ فقط |
 | تسلسلات مملوكة | `milling_intake_seq`/`milling_service_seq`/`milling_delivery_seq` في الملف 10؛ حُذفت `milling_job_seq` و`production_order_seq` |
 | views جديدة | `custody_balances` · `custody_customer_statement` · `custody_service_money` · `custody_detected_loss` (بديل كل views `milling_*` عدا `milling_margin_report` و`milling_inventory_report` اللذين يبقيان) |
 | doc types | صف `production_order` أُزيل من ترقيم المستندات (seeds 07) |

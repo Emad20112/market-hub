@@ -261,8 +261,11 @@ export function VortexSmartError({ error, reset }: { error: any; reset: () => vo
     });
   };
 
-  const supportPhone = "+967772217218";
-  const supportPhoneFormatted = "+967 772 217 218";
+  /* رقم الدعم يبقى في الخلفية فقط (زر واتساب) — لا يُعرض على الشاشة أبداً.
+   * المصدر الرسمي: متغير البيئة، مع fallback ثابت للعمل حتى بدونه. */
+  const supportPhone =
+    (import.meta as { env?: Record<string, string | undefined> }).env?.VITE_SUPPORT_WHATSAPP ??
+    "+967772217218";
 
   const errorSummary =
     `*تقرير فحص فني ذكي - Vortex ERP*
@@ -293,7 +296,7 @@ ${error?.stack || "لا يوجد"}`;
     }
   };
 
-  const whatsappUrl = `https://wa.me/967772217218?text=${encodeURIComponent(
+  const whatsappUrl = `https://wa.me/${supportPhone.replace(/\D/g, "")}?text=${encodeURIComponent(
     `${errorSummary}
 
 يرجى فحص المشكلة البرمجية أعلاه.`,
@@ -384,15 +387,10 @@ ${error?.stack || "لا يوجد"}`;
 
         {/* Direct Developer & Support Quick Actions */}
         <div className="rounded-2xl border border-border/70 bg-surface/50 p-4 space-y-3 text-right backdrop-blur-xs">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Phone className="size-3.5 text-primary" />
-              <span className="text-xs font-bold text-foreground">
-                الدعم الفني المباشر (موسى العوضي)
-              </span>
-            </div>
-            <span className="text-[11px] font-mono font-semibold text-muted-foreground" dir="ltr">
-              {supportPhoneFormatted}
+          <div className="flex items-center gap-2">
+            <MessageSquare className="size-3.5 text-primary" />
+            <span className="text-xs font-bold text-foreground">
+              الدعم الفني المباشر (موسى العوضي)
             </span>
           </div>
 

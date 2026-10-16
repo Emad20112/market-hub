@@ -21,6 +21,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useI18n } from "@/lib/i18n";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { fieldSurfaceClass } from "@/components/ui/input";
 import { Package, Wrench, Check, ArrowLeft } from "lucide-react";
 import {
   COSTING_METHOD_LABELS,
@@ -563,8 +564,7 @@ export function GuidedItemDialog({ onClose, onCreated, units, categories }: Guid
 
 /* ------------------------------------------------------------- sub-parts */
 
-const inputClass =
-  "h-9 w-full rounded-md border border-border bg-surface px-3 text-sm outline-none focus:border-primary/60";
+const inputClass = fieldSurfaceClass;
 
 function StepQuestion({ title, hint }: { title: string; hint: string }) {
   return (

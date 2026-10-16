@@ -111,90 +111,119 @@ export function RecordsToolbar({
     columns?.length && columnVisibility && onToggleColumn && onResetColumns,
   );
 
+  /*
+   * Transparent until it actually sticks. A sentinel sits above the bar; an
+   * IntersectionObserver flips `lifted` once it scrolls out — which is exactly
+   * when content starts passing beneath the sticky controls and they need a
+   * glassy layer to stay readable. No tinted surface while the page is at top.
+   */
+  const [lifted, setLifted] = React.useState(false);
+  const sentinelRef = React.useRef<HTMLDivElement | null>(null);
+  React.useEffect(() => {
+    if (!sticky) return;
+    const sentinel = sentinelRef.current;
+    if (!sentinel) return;
+    const observer = new IntersectionObserver(([entry]) => setLifted(!entry.isIntersecting), {
+      rootMargin: "-64px 0px 0px 0px",
+      threshold: 0,
+    });
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [sticky]);
+
   return (
-    <div
-      className={cn(
-        "flex flex-col gap-2",
-        sticky &&
-          "sticky top-0 z-30 -mx-1 rounded-2xl border border-border/60 bg-surface/92 px-2 py-2 backdrop-blur-xl sm:mx-0 sm:px-3",
-        className,
-      )}
-    >
-      {/* Row 1 — search on a flexible track, then the controls. The action is
-       *  last so it always sits on the trailing edge in both directions. */}
-      <div className="flex items-center gap-1.5 sm:gap-2">
-        <SearchInput
-          value={searchValue}
-          onValueChange={onSearchChange}
-          placeholder={searchPlaceholder}
-          resultCountText={resultCount == null ? undefined : String(resultCount)}
-          clearLabel={t("common.clear")}
-          loading={searchLoading}
-          enableSlashShortcut
-          containerClassName="flex-1 min-w-0"
-        />
-        {searchAdornment}
-
-        {!hideFilter && onFilterOpen ? (
-          <ToolbarIconAction
-            label={filterLabel ?? t("common.filter")}
-            onClick={onFilterOpen}
-            active={activeFilterCount > 0}
-            badge={activeFilterCount}
-            controls="records-filter-panel"
-            icon={<FilterIcon />}
+    <>
+      {sticky ? <div ref={sentinelRef} aria-hidden className="h-px w-full" /> : null}
+      <div
+        className={cn(
+          "flex flex-col gap-2",
+          // Transparent by default — no tinted surface behind the search row.
+          sticky &&
+            cn(
+              "sticky top-0 z-30 -mx-1 rounded-2xl px-2 py-2 transition-[background-color,border-color,box-shadow] duration-300 sm:mx-0 sm:px-3",
+              lifted
+                ? "border border-border/60 bg-background/45 shadow-sm backdrop-blur-xl"
+                : "border border-transparent bg-transparent",
+            ),
+          className,
+        )}
+      >
+        {/* Row 1 — search on a flexible track, then the controls. The action is
+         *  last so it always sits on the trailing edge in both directions. */}
+        <div className="flex items-center gap-1.5 sm:gap-2">
+          <SearchInput
+            value={searchValue}
+            onValueChange={onSearchChange}
+            placeholder={searchPlaceholder}
+            resultCountText={resultCount == null ? undefined : String(resultCount)}
+            clearLabel={t("common.clear")}
+            loading={searchLoading}
+            enableSlashShortcut
+            containerClassName="flex-1 min-w-0"
           />
-        ) : null}
+          {searchAdornment}
 
-        {onSortOpen ? (
-          <ToolbarIconAction
-            label={sortLabel ?? t("nav.section.operations")}
-            onClick={onSortOpen}
-            active={sortActive}
-            controls="records-sort-panel"
-            icon={<ArrowDownUp />}
-          />
-        ) : null}
-
-        {viewMode && onViewModeChange ? (
-          <RecordsViewToggle value={viewMode} onChange={onViewModeChange} modes={viewModes} />
-        ) : null}
-
-        {showColumns ? (
-          <RecordsColumnPicker
-            columns={columns!}
-            visibility={columnVisibility!}
-            onToggle={onToggleColumn!}
-            onReset={onResetColumns!}
-          />
-        ) : null}
-
-        {end ? <div className="hidden items-center gap-2 xl:flex">{end}</div> : null}
-
-        {action}
-      </div>
-
-      {/* Row 2 — active filters. Deliberately OUTSIDE the view-mode branch:
-       *  the plan requires the filter bar to be present in cards, list and
-       *  table alike. */}
-      {(activeFilterCount > 0 || filterChips) && (
-        <div className="flex flex-wrap items-center gap-1.5">
-          {filterChips}
-          {activeFilterCount > 0 && onClearFilters ? (
-            <button
-              type="button"
-              onClick={onClearFilters}
-              className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-surface-3 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
-            >
-              <X className="size-3" aria-hidden />
-              {t("records.filters.clear_all")}
-            </button>
+          {!hideFilter && onFilterOpen ? (
+            <ToolbarIconAction
+              label={filterLabel ?? t("common.filter")}
+              onClick={onFilterOpen}
+              active={activeFilterCount > 0}
+              badge={activeFilterCount}
+              controls="records-filter-panel"
+              icon={<FilterIcon />}
+            />
           ) : null}
-        </div>
-      )}
 
-      {children}
-    </div>
+          {onSortOpen ? (
+            <ToolbarIconAction
+              label={sortLabel ?? t("common.sort")}
+              onClick={onSortOpen}
+              active={sortActive}
+              controls="records-sort-panel"
+              icon={<ArrowDownUp />}
+            />
+          ) : null}
+
+          {viewMode && onViewModeChange ? (
+            <RecordsViewToggle value={viewMode} onChange={onViewModeChange} modes={viewModes} />
+          ) : null}
+
+          {showColumns ? (
+            <RecordsColumnPicker
+              columns={columns!}
+              visibility={columnVisibility!}
+              onToggle={onToggleColumn!}
+              onReset={onResetColumns!}
+            />
+          ) : null}
+
+          {end ? <div className="hidden items-center gap-2 xl:flex">{end}</div> : null}
+
+          {action}
+        </div>
+
+        {/* Row 2 — active filters. Deliberately OUTSIDE the view-mode branch:
+         *  the plan requires the filter bar to be present in cards, list and
+         *  table alike. */}
+        {(activeFilterCount > 0 || filterChips) && (
+          <div className="flex flex-wrap items-center gap-1.5">
+            {filterChips}
+            {activeFilterCount > 0 && onClearFilters ? (
+              <button
+                type="button"
+                onClick={onClearFilters}
+                className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-surface-3 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+              >
+                <X className="size-3" aria-hidden />
+                {t("records.filters.clear_all")}
+              </button>
+            ) : null}
+          </div>
+        )}
+
+        {children}
+      </div>
+    </>
   );
 }
 

@@ -1276,14 +1276,23 @@ GRANT EXECUTE ON FUNCTION public.warehouse_reference_counts(p_warehouse_id uuid)
 ALTER TABLE public.custody_ledger ADD CONSTRAINT "custody_ledger_customer_id_fkey" FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE RESTRICT;
 ALTER TABLE public.custody_ledger ADD CONSTRAINT "custody_ledger_warehouse_id_fkey" FOREIGN KEY (warehouse_id) REFERENCES warehouses(id) ON DELETE RESTRICT;
 ALTER TABLE public.custody_ledger ADD CONSTRAINT "custody_ledger_item_id_fkey" FOREIGN KEY (item_id) REFERENCES products(id) ON DELETE RESTRICT;
+ALTER TABLE public.custody_ledger ADD CONSTRAINT "custody_ledger_milling_document_id_fkey" FOREIGN KEY (milling_document_id) REFERENCES milling_service_documents(id) ON DELETE RESTRICT;
 ALTER TABLE public.custody_ledger ADD CONSTRAINT "custody_ledger_service_invoice_id_fkey" FOREIGN KEY (service_invoice_id) REFERENCES sales_invoices(id) ON DELETE SET NULL;
 ALTER TABLE public.custody_ledger ADD CONSTRAINT "custody_ledger_created_by_fkey" FOREIGN KEY (created_by) REFERENCES auth.users(id) ON DELETE SET NULL;
+ALTER TABLE public.milling_service_documents ADD CONSTRAINT "milling_service_documents_customer_id_fkey" FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE RESTRICT;
+ALTER TABLE public.milling_service_documents ADD CONSTRAINT "milling_service_documents_warehouse_id_fkey" FOREIGN KEY (warehouse_id) REFERENCES warehouses(id) ON DELETE RESTRICT;
+ALTER TABLE public.milling_service_documents ADD CONSTRAINT "milling_service_documents_sales_invoice_id_fkey" FOREIGN KEY (sales_invoice_id) REFERENCES sales_invoices(id) ON DELETE RESTRICT;
+ALTER TABLE public.milling_service_documents ADD CONSTRAINT "milling_service_documents_created_by_fkey" FOREIGN KEY (created_by) REFERENCES auth.users(id) ON DELETE SET NULL;
 
 ALTER TABLE public.custody_ledger ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.milling_service_documents ENABLE ROW LEVEL SECURITY;
 
 GRANT REFERENCES, SELECT, TRIGGER, TRUNCATE ON public.custody_ledger TO anon;
 GRANT REFERENCES, SELECT, TRIGGER, TRUNCATE ON public.custody_ledger TO authenticated;
 GRANT DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON public.custody_ledger TO service_role;
+GRANT REFERENCES, SELECT, TRIGGER, TRUNCATE ON public.milling_service_documents TO anon;
+GRANT REFERENCES, SELECT, TRIGGER, TRUNCATE ON public.milling_service_documents TO authenticated;
+GRANT DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON public.milling_service_documents TO service_role;
 GRANT SELECT ON public.custody_customer_statement TO anon;
 GRANT SELECT ON public.custody_customer_statement TO authenticated;
 GRANT SELECT ON public.custody_customer_statement TO service_role;

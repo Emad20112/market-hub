@@ -1,6 +1,11 @@
-﻿import { cn } from "@/lib/utils";
-import { useStoredViewMode } from "@/lib/view-mode-storage";
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { cn } from "@/lib/utils";
+import { usePersistedViewMode } from "@/hooks/use-persisted-view-mode";
+import { RecordsViewToggle } from "@/components/ui/records-view-toggle";
+import { RecordsSkeleton } from "@/components/ui/records-states";
+import { QuickFilterBar } from "@/components/ui/quick-filter-bar";
+import { PrimaryAction } from "@/components/ui/primary-action";
+import type { RecordsViewMode } from "@/components/ui/records-view";
+import { createFileRoute, Link, useNavigate, useSearch } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -18,9 +23,7 @@ import {
   Plus,
   RefreshCw,
   Clock,
-  LayoutGrid,
   List,
-  TableProperties,
   Share2,
   Copy,
   Check,
@@ -32,6 +35,7 @@ import {
   Calendar,
   Wallet,
   Loader2,
+  Scale,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/page-header";
@@ -75,6 +79,9 @@ import { isSplitPaymentValue, paymentMethodLabel } from "@/lib/payments/payment-
 import { PaymentMethodChip } from "@/components/ui/payment-method";
 
 export const Route = createFileRoute("/_app/sales")({
+  validateSearch: (search: Record<string, unknown>): { customerId?: string } => ({
+    customerId: typeof search.customerId === "string" ? search.customerId : undefined,
+  }),
   head: () => ({ meta: [{ title: "المبيعات والفواتير — فورتيكس ERP" }] }),
   component: SalesPage,
 });
@@ -117,11 +124,13 @@ interface Line {
 }
 
 type StatusTab = "all" | "paid" | "partial" | "unpaid" | "cancelled";
-type ViewMode = "grid" | "list" | "table";
+/** Unified records vocabulary — `cards` (was "cards"), list, table. */
+type ViewMode = RecordsViewMode;
 
 const INVOICES_PAGE_SIZE = 50;
 
 export function SalesPage() {
+  const { customerId: searchCustomerId } = useSearch({ from: "/_app/sales" });
   const { t, lang } = useI18n();
   const { isModuleEnabled } = useModules();
   const hasMultiWarehouse = isModuleEnabled("multi_warehouse");
@@ -132,11 +141,7 @@ export function SalesPage() {
   const [statusTab, setStatusTab] = useState<StatusTab>("all");
   const [filters, setFilters] = useState<FilterValues>({});
   const [sortKey, setSortKey] = useState<string>("date_desc");
-  const [viewMode, setViewMode] = useStoredViewMode<ViewMode>("sales", "grid", [
-    "grid",
-    "list",
-    "table",
-  ]);
+  const [viewMode, setViewMode] = usePersistedViewMode("sales", "cards");
 
   /*
    * Two sort channels on purpose. The toolbar's sort dropdown writes
@@ -817,6 +822,11 @@ export function SalesPage() {
         return false;
       }
 
+      // Customer filter from URL (e.g. from customer statement)
+      if (searchCustomerId && r.customer_id !== searchCustomerId) {
+        return false;
+      }
+
       // 2. Search query
       if (search.trim()) {
         const q = search.toLowerCase().trim();
@@ -971,6 +981,7 @@ export function SalesPage() {
     filterDatePreset,
     sort,
     pmLabel,
+    searchCustomerId,
   ]);
 
   // Count active filters
@@ -1022,6 +1033,18 @@ export function SalesPage() {
         <div className="flex w-full sm:w-auto items-center justify-between sm:justify-end gap-2">
           {/* Main Action buttons */}
           <div className="flex items-center gap-1.5 sm:gap-2">
+            {isModuleEnabled("milling_operations") && (
+              <Link
+                to="/milling/intake"
+                className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-amber-500/40 bg-amber-500/10 px-3 sm:px-3.5 text-xs font-semibold text-amber-700 dark:text-amber-300 shadow-xs transition hover:bg-amber-500/20"
+                title={isRtl ? "استقبال وفواتير الطحن" : "Milling Desk"}
+              >
+                <Scale className="h-4 w-4 shrink-0 text-amber-600" />
+                <span className="hidden xs:inline">
+                  {isRtl ? "خدمات وفواتير الطحن" : "Milling Desk"}
+                </span>
+              </Link>
+            )}
             <Link
               to="/pos"
               className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-primary px-3 sm:px-3.5 text-xs font-semibold text-primary-foreground shadow-xs transition hover:opacity-95"
@@ -1115,126 +1138,58 @@ export function SalesPage() {
           },
           label: isRtl ? "ترتيب" : "Sort",
         }}
-        viewToggle={
-          <ToolbarAction
-            label={
-              viewMode === "grid"
-                ? isRtl
-                  ? "بطاقات"
-                  : "Cards"
-                : viewMode === "list"
-                  ? isRtl
-                    ? "قائمة"
-                    : "List"
-                  : isRtl
-                    ? "كلاسيكي"
-                    : "Classic"
-            }
-            icon={
-              viewMode === "grid" ? (
-                <LayoutGrid />
-              ) : viewMode === "list" ? (
-                <List />
-              ) : (
-                <TableProperties />
-              )
-            }
-            onClick={() =>
-              setViewMode((prev) => (prev === "grid" ? "list" : prev === "list" ? "table" : "grid"))
-            }
-            tone="ghost"
-          />
-        }
+        viewToggle={<RecordsViewToggle value={viewMode} onChange={setViewMode} />}
         action={
-          <ToolbarAction
+          <PrimaryAction
             label={isRtl ? "فاتورة جديدة" : "New Invoice"}
             icon={<Plus />}
-            tone="primary"
+
             onClick={() => void navigate({ to: "/pos" })}
           />
         }
       >
-        {/* Quick Filter Tabs with custom dedicated colors for each status — Visible in ALL view modes */}
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 scrollbar-x-none">
-          {[
+        {/* Quick Filter Tabs — the shared coloured strip, visible in ALL view modes */}
+        <QuickFilterBar
+          value={statusTab}
+          onChange={(id) => setStatusTab(id as StatusTab)}
+          items={[
             {
               id: "all",
               label: isRtl ? "الكل" : "All",
               count: totalInvoiceCount ?? rows.length,
-              activeCls:
-                "border-primary bg-primary text-primary-foreground shadow-xs shadow-primary/20",
-              inactiveCls:
-                "border-border/70 bg-surface/70 text-muted-foreground hover:bg-surface-2 hover:text-foreground",
-              pillCls: "bg-muted text-muted-foreground",
+              tone: "primary",
             },
             {
               id: "paid",
               label: isRtl ? "مسددة" : "Paid",
               count: metrics.paidCount,
-              activeCls:
-                "border-emerald-600 bg-emerald-600 text-white shadow-xs shadow-emerald-600/20",
-              inactiveCls:
-                "border-emerald-500/30 bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20",
-              pillCls: "bg-emerald-500/20 text-emerald-600",
+              tone: "success",
             },
             {
               id: "partial",
               label: isRtl ? "دفع جزئي" : "Partial",
               count: metrics.partialCount,
-              activeCls: "border-amber-600 bg-amber-600 text-white shadow-xs shadow-amber-600/20",
-              inactiveCls:
-                "border-amber-500/30 bg-amber-500/10 text-amber-600 hover:bg-amber-500/20",
-              pillCls: "bg-amber-500/20 text-amber-600",
+              tone: "warning",
             },
             {
               id: "unpaid",
               label: isRtl ? "غير مسددة (آجلة)" : "Unpaid",
               count: metrics.unpaidCount,
-              activeCls: "border-rose-600 bg-rose-600 text-white shadow-xs shadow-rose-600/20",
-              inactiveCls: "border-rose-500/30 bg-rose-500/10 text-rose-600 hover:bg-rose-500/20",
-              pillCls: "bg-rose-500/20 text-rose-600",
+              tone: "danger",
             },
             {
               id: "cancelled",
               label: isRtl ? "ملغاة" : "Cancelled",
               count: metrics.cancelledCount,
-              activeCls: "border-red-600 bg-red-600 text-white shadow-xs shadow-red-600/20",
-              inactiveCls: "border-red-500/30 bg-red-500/10 text-red-500 hover:bg-red-500/20",
-              pillCls: "bg-red-500/20 text-red-500",
+              tone: "danger",
             },
-          ].map((f) => {
-            const isSelected = statusTab === f.id;
-            return (
-              <button
-                key={f.id}
-                type="button"
-                onClick={() => setStatusTab(f.id as StatusTab)}
-                className={`flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-bold transition ${
-                  isSelected ? f.activeCls : f.inactiveCls
-                }`}
-              >
-                <span>{f.label}</span>
-                <span
-                  className={`rounded-full px-1.5 py-0.2 text-[10px] font-mono ${
-                    isSelected ? "bg-white/20 text-white" : f.pillCls
-                  }`}
-                >
-                  {toSystemDigits(f.count.toString())}
-                </span>
-              </button>
-            );
-          })}
-        </div>
+          ]}
+        />
       </TableToolbar>
 
-      {/* Main Content: Cards (Grid), List, or Classic Table View */}
+      {/* Main Content: Cards, List, or Classic Table View */}
       {loading ? (
-        <div className="panel-elevated flex min-h-[300px] flex-col items-center justify-center gap-3 p-8 text-center text-muted-foreground">
-          <RefreshCw className="h-8 w-8 animate-spin text-primary opacity-80" />
-          <p className="text-sm">
-            {isRtl ? "جاري تحميل بيانات المبيعات..." : "Loading sales data..."}
-          </p>
-        </div>
+        <RecordsSkeleton mode={viewMode} />
       ) : filteredRows.length === 0 ? (
         <div className="panel-elevated flex min-h-[300px] flex-col items-center justify-center gap-3 p-8 text-center text-muted-foreground">
           <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-surface-2 text-muted-foreground">
@@ -1275,9 +1230,9 @@ export function SalesPage() {
         </div>
       ) : (
         <>
-          {/* 1. Cards View (Grid Mode) — same 2-column mobile grid as products */}
-          {viewMode === "grid" && (
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          {/* 1. Cards View — the shared unified grid (2-up mobile, 3 md, 4 lg, 5 2xl) */}
+          {viewMode === "cards" && (
+            <div className="grid grid-cols-2 gap-2.5 sm:gap-4 md:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5">
               {filteredRows.map((inv) => {
                 const total = Number(inv.total) || 0;
                 const paid = Number(inv.paid) || 0;

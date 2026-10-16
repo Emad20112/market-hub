@@ -17,7 +17,8 @@ export type CommunicationEventType =
   | "invoice_share"
   | "statement_share"
   | "supplier_notice"
-  | "general_customer_notice";
+  | "general_customer_notice"
+  | "milling_document_share";
 
 export type DeliveryStatus =
   "idle" | "preparing" | "ready" | "opened" | "shared" | "copied" | "failed";
@@ -74,6 +75,8 @@ export interface UnifiedCommunicationContext {
   invoice?: InvoiceContext | null;
   payment?: PaymentContext | null;
   statement?: StatementContext | null;
+  millingDocumentNumber?: string | null;
+  millingStatus?: string | null;
   event: CommunicationEventType;
   language?: MessageLanguage;
 }

@@ -23,6 +23,8 @@ export interface BuildContextOptions {
   invoice?: Partial<InvoiceContext> | null;
   payment?: Partial<PaymentContext> | null;
   statement?: Partial<StatementContext> | null;
+  millingDocumentNumber?: string | null;
+  millingStatus?: string | null;
   company?: CompanyProfile | null;
   language?: MessageLanguage;
 }
@@ -95,6 +97,8 @@ export function buildUnifiedContext(options: BuildContextOptions): UnifiedCommun
     invoice: invoiceCtx,
     payment: paymentCtx,
     statement: statementCtx,
+    millingDocumentNumber: options.millingDocumentNumber,
+    millingStatus: options.millingStatus,
     language: options.language,
   };
 }

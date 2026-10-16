@@ -5,7 +5,7 @@
  * لا يُسلَّم أكثر مما تبقى باسم العميل — الدالة في القاعدة ترفض ذلك.
  * المرجع: docs/milling/00_خطة_التبسيط_المعتمدة.md §4.1
  */
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, Navigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { Truck, Plus, Trash2, PackageCheck } from "lucide-react";
@@ -37,7 +37,7 @@ import {
 
 export const Route = createFileRoute("/_app/milling/delivery")({
   head: () => ({ meta: [{ title: "التسليم — فورتكس ERP" }] }),
-  component: MillingDeliveryPage,
+  component: () => <Navigate to="/milling/intake" replace />,
 });
 
 interface CustomerOption {

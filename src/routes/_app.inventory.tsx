@@ -49,6 +49,9 @@ import {
   type SortOption,
 } from "@/components/ui/table-toolbar";
 import { RecordsViewToggle } from "@/components/ui/records-view-toggle";
+import { QuickFilterBar } from "@/components/ui/quick-filter-bar";
+import { usePersistedViewMode } from "@/hooks/use-persisted-view-mode";
+import { RecordsSkeleton } from "@/components/ui/records-states";
 import { buildSearchIndex, fuzzySearch } from "@/design/fuzzy";
 import { moneyCell, qtyCell } from "@/lib/format";
 import { useBreakpoint } from "@/design/breakpoints";
@@ -148,7 +151,7 @@ function InventoryPage() {
   const [filters, setFilters] = useState<FilterValues>({});
   const [sort, setSort] = useState<DataTableSort | null>(null);
   const [quickFilter, setQuickFilter] = useState<"all" | "low" | "out" | "healthy">("all");
-  const [viewMode, setViewMode] = useState<"grid" | "list" | "table">("grid");
+  const [viewMode, setViewMode] = usePersistedViewMode("inventory", "cards");
   const [warehouseId, setWarehouseId] = useState<string>("");
   const [adjust, setAdjust] = useState<{ product: Row } | null>(null);
   /* Engine-side documents: a physical receipt and a standing balance. */
@@ -819,71 +822,43 @@ function InventoryPage() {
             onValueChange: (v) => setSort(v ? { key: v, direction: "asc" } : null),
             label: lang === "ar" ? "ترتيب" : "Sort",
           }}
-          viewToggle={
-            <RecordsViewToggle
-              value={viewMode === "grid" ? "cards" : viewMode}
-              onChange={(mode) => setViewMode(mode === "cards" ? "grid" : mode)}
-            />
-          }
+          viewToggle={<RecordsViewToggle value={viewMode} onChange={setViewMode} />}
         >
-          <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5">
-            {(
-              [
-                { id: "all", label: t("inventory.quick.all"), count: totalCount ?? rows.length },
-                { id: "low", label: t("inventory.quick.low"), count: kpi.low },
-                { id: "out", label: t("inventory.quick.out"), count: kpi.out },
-                {
-                  id: "healthy",
-                  label: t("inventory.quick.healthy"),
-                  count: Math.max(0, rows.length - kpi.low - kpi.out),
-                },
-              ] as const
-            ).map((f) => (
-              <button
-                key={f.id}
-                type="button"
-                onClick={() => setQuickFilter(f.id)}
-                className={`flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-bold transition ${
-                  quickFilter === f.id
-                    ? "border-primary bg-primary text-primary-foreground shadow-xs shadow-primary/20"
-                    : "border-border/70 bg-surface/70 text-muted-foreground hover:bg-surface-2 hover:text-foreground"
-                }`}
-              >
-                <span>{f.label}</span>
-                <span
-                  className={`rounded-full px-1.5 text-[10px] font-mono ${
-                    quickFilter === f.id
-                      ? "bg-white/20 text-white"
-                      : "bg-muted text-muted-foreground"
-                  }`}
-                >
-                  {f.count}
-                </span>
-              </button>
-            ))}
-          </div>
+          <QuickFilterBar
+            value={quickFilter}
+            onChange={(id) => setQuickFilter(id as "all")}
+            items={[
+              {
+                id: "all",
+                label: t("inventory.quick.all"),
+                count: totalCount ?? rows.length,
+                tone: "primary",
+              },
+              { id: "low", label: t("inventory.quick.low"), count: kpi.low, tone: "warning" },
+              { id: "out", label: t("inventory.quick.out"), count: kpi.out, tone: "danger" },
+              {
+                id: "healthy",
+                label: t("inventory.quick.healthy"),
+                count: Math.max(0, rows.length - kpi.low - kpi.out),
+                tone: "success",
+              },
+            ]}
+          />
         </TableToolbar>
       </div>
 
       {/* ─── Grid view ─── */}
-      {viewMode === "grid" ? (
+      {viewMode === "cards" ? (
         <div className="space-y-4">
           {isLoading ? (
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {Array.from({ length: 8 }).map((_, i) => (
-                <div
-                  key={i}
-                  className="card-mullak h-44 animate-pulse rounded-2xl bg-surface-2/40"
-                />
-              ))}
-            </div>
+            <RecordsSkeleton mode="cards" />
           ) : inventoryLoadError ? (
             inventoryLoadError
           ) : sortedRows.length === 0 ? (
             emptyState
           ) : (
             <>
-              <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3 xl:grid-cols-4">
+              <div className="grid grid-cols-2 gap-2.5 sm:gap-4 md:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5">
                 {sortedRows.map((r) => {
                   const s = stateFor(r);
                   const primary = lang === "ar" ? r.name_ar || r.name : r.name || r.name_ar || "—";

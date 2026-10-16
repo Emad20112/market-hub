@@ -180,21 +180,23 @@ REJECTED  CANCELLED  REVERSED
 | `posting_date` | تاريخ الترحيل المحاسبي |
 
 ### المجال 9 — الطحن المبسط (أمانات العملاء)
-**الملف:** `10_milling_custody.sql` — جدول واحد + تسلسلات
+**الملف:** `10_milling_custody.sql` — رأس مستند خفيف + سجل أمانات وتسلسلات
 
 **الفكرة الحاكمة (docs/milling/00):** سطر واحد لكل حركة، والرصيد مشتق دائماً —
 لا رصيد مخزَّن، لا أوامر، لا فاقد مدخل، لا صوامع، لا أوزان عبوات.
 
 | الكائن | الغرض |
 |---|---|
-| `custody_ledger` | سجل الأمانات: `INTAKE/MILLING/DELIVERY/ADJUSTMENT` — أكياس وكجم وارد/صادر، وبند مالي اختياري مرتبط بفاتورة |
+| `milling_service_documents` | رأس مستند خدمة الطحن: العميل والمخزن وفاتورة المبيعات وحالة `RECEIVED/PROCESSED/DELIVERED` |
+| `custody_ledger` | سجل الأمانات: `INTAKE/MILLING/DELIVERY/ADJUSTMENT` — أكياس وكجم وارد/صادر، مربوط بـ `milling_document_id` |
 | `custody_entry_type` (enum) | أنواع الحركة الأربعة |
 | `custody_balances` (view) | الرصيد لكل عميل/صنف/مخزن = `sum(bags_in − bags_out)` — مشتق |
 | `custody_intake` (RPC) | استلام: حبوب خام (RAW_MATERIAL) → رصيد العميل |
 | `custody_milling` (RPC) | طحن: صادر حبوب + وارد نواتج (FINISHED_GOOD/BY_PRODUCT) في معاملة واحدة |
 | `custody_delivery` (RPC) | تسليم: يرفض لو الرصيد يصير سالباً |
 | `custody_adjustment` (RPC) | تسوية جردي بسبب إلزامي |
-| `custody_link_invoice` (RPC) | ربط سطر الطحن بفاتورة الأجور (فاتورة مبيعات عادية بسطر واحد «أجور طحن وتجهيز») |
+| `create_milling_service_document` (RPC) | ينشئ الاستلام وفاتورة المبيعات الرسمية ورأس المستند ذرّياً |
+| `milling_document_process` / `milling_document_delivery` | تسجل النواتج والتسليم على المستند ذاته فقط |
 | `smart_manufacture` (RPC) | زر التصنيع الذكي: قمح ملكنا يُنقص، نواتج تدخل بتكلفة موزعة حسب أسعار البيع النسبية |
 | `consume_internal_supplies` (RPC) | صرف مستهلكات داخلي (NON_STOCK_ITEM/PACKAGING) — تُنقص من مخزن المستهلكات بدقة |
 | sequences | `milling_intake_seq` (CI) · `milling_service_seq` (CM/CA/SM) · `milling_delivery_seq` (CD) — مملوكة هنا |
@@ -204,7 +206,9 @@ REJECTED  CANCELLED  REVERSED
 `milling_service_agreements`, `milling_grain_grades`, `milling_unit_conversions`,
 وكل جداول `production_*` (BOM/أوامر/مواد/نواتج/فاقد) — التعليل في
 `docs/milling/01_التحليل_المعمق_وحذف_التعقيد.md`. الرابط المالي الوحيد
-للفواتير: `custody_ledger.service_invoice_id` (عمود `sales_invoices.milling_job_id` أُزيل).
+للفواتير الجديدة: `milling_service_documents.sales_invoice_id` مباشرة.
+`custody_ledger.service_invoice_id` متروك لقراءة البيانات التاريخية فقط
+(عمود `sales_invoices.milling_job_id` أُزيل).
 
 ### المجال 10 — المنصة والتدقيق
 **الملف:** `11_platform_and_audit.sql` — 5 جداول
