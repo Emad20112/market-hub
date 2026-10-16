@@ -62,6 +62,7 @@ export interface VortexCollectionSheetProps {
     method: PaymentMethod;
     collectionMode?: CollectionMode;
     paymentDate?: string;
+    reference?: string;
     notes?: string;
   }) => Promise<{ receiptNumber: string }>;
   /** A preselected invoice may be supplied by the sales screen without changing the old sheet UI. */
@@ -232,6 +233,7 @@ export function VortexCollectionSheet({
             method,
             collectionMode,
             paymentDate,
+            reference: trimmedReference || undefined,
             notes: receiptNotes || undefined,
           })
         : await postPayment({
@@ -254,7 +256,7 @@ export function VortexCollectionSheet({
       });
 
       const newReceipt: CollectionReceipt = {
-        receiptNumber: res.receiptNumber || String(Date.now()).slice(-6),
+        receiptNumber: res?.receiptNumber || String(Date.now()).slice(-6),
         customerName: customer.name,
         customerPhone: customer.phone || undefined,
         amount: payAmount,

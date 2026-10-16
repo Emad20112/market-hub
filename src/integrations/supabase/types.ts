@@ -502,6 +502,7 @@ export type Database = {
           min_stock: number;
           name: string;
           name_ar: string | null;
+          package_weight_kg: number | null;
           sale_price: number;
           sku: string | null;
           tax_rate: number;
@@ -522,6 +523,7 @@ export type Database = {
           min_stock?: number;
           name: string;
           name_ar?: string | null;
+          package_weight_kg?: number | null;
           sale_price?: number;
           sku?: string | null;
           tax_rate?: number;
@@ -542,6 +544,7 @@ export type Database = {
           min_stock?: number;
           name?: string;
           name_ar?: string | null;
+          package_weight_kg?: number | null;
           sale_price?: number;
           sku?: string | null;
           tax_rate?: number;

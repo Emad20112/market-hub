@@ -29,6 +29,9 @@ import {
   type SortOption,
 } from "@/components/ui/table-toolbar";
 import { RecordsViewToggle } from "@/components/ui/records-view-toggle";
+import { usePersistedViewMode } from "@/hooks/use-persisted-view-mode";
+import { QuickFilterBar } from "@/components/ui/quick-filter-bar";
+import { PrimaryAction } from "@/components/ui/primary-action";
 import { type DataTableColumn, type DataTableSort } from "@/components/ui/data-table";
 import { useBreakpoint } from "@/design/breakpoints";
 import { useRealtimeTable } from "@/lib/realtime";
@@ -70,7 +73,7 @@ function WarehousesPage() {
   const [sortKey, setSortKey] = useState<string>("default_first");
   const [sort, setSort] = useState<DataTableSort | null>(null);
   const [quickFilter, setQuickFilter] = useState<QuickFilter>("all");
-  const [viewMode, setViewMode] = useState<ViewMode>("cards");
+  const [viewMode, setViewMode] = usePersistedViewMode("warehouses", "cards");
   const [editing, setEditing] = useState<Row | null>(null);
   const [open, setOpen] = useState(false);
   const [deleting, setDeleting] = useState<string | null>(null);
@@ -464,44 +467,40 @@ function WarehousesPage() {
         }}
         viewToggle={<RecordsViewToggle value={viewMode} onChange={setViewMode} />}
         action={
-          <ToolbarAction
+          <PrimaryAction
             label={t("warehouses.new")}
             icon={<Plus />}
-            tone="primary"
+
             onClick={openNew}
           />
         }
       >
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5">
-          {(
-            [
-              { id: "all", label: isRtl ? "الكل" : "All", count: data.length },
-              { id: "active", label: isRtl ? "النشطة" : "Active", count: activeCount },
-              { id: "inactive", label: isRtl ? "غير النشطة" : "Inactive", count: inactiveCount },
-              { id: "default", label: isRtl ? "الافتراضي" : "Default", count: defaultCount },
-            ] as const
-          ).map((f) => (
-            <button
-              key={f.id}
-              type="button"
-              onClick={() => setQuickFilter(f.id)}
-              className={`flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-bold transition ${
-                quickFilter === f.id
-                  ? "border-primary bg-primary text-primary-foreground shadow-xs shadow-primary/20"
-                  : "border-border/70 bg-surface/70 text-muted-foreground hover:bg-surface-2 hover:text-foreground"
-              }`}
-            >
-              <span>{f.label}</span>
-              <span
-                className={`rounded-full px-1.5 font-mono text-[10px] ${
-                  quickFilter === f.id ? "bg-white/20 text-white" : "bg-muted text-muted-foreground"
-                }`}
-              >
-                {f.count}
-              </span>
-            </button>
-          ))}
-        </div>
+        <QuickFilterBar
+          ariaLabel={isRtl ? "فلاتر سريعة للمستودعات" : "Warehouse quick filters"}
+          value={quickFilter}
+          onChange={(id) => setQuickFilter(id as QuickFilter)}
+          items={[
+            { id: "all", label: isRtl ? "الكل" : "All", count: data.length, tone: "primary" },
+            {
+              id: "active",
+              label: isRtl ? "النشطة" : "Active",
+              count: activeCount,
+              tone: "success",
+            },
+            {
+              id: "inactive",
+              label: isRtl ? "غير النشطة" : "Inactive",
+              count: inactiveCount,
+              tone: "warning",
+            },
+            {
+              id: "default",
+              label: isRtl ? "الافتراضي" : "Default",
+              count: defaultCount,
+              tone: "info",
+            },
+          ]}
+        />
       </TableToolbar>
 
       {/* ─── Records: cards / list / classic table — shared scaffold ─── */}

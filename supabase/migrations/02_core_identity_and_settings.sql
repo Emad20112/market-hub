@@ -219,7 +219,7 @@ AS $function$
        SELECT 1
        FROM public.user_roles ur
        WHERE ur.user_id = auth.uid()
-         AND ur.role IN ('owner', 'manager', 'warehouse')
+         AND ur.role IN ('owner', 'manager', 'warehouse', 'cashier')
      );
 $function$;
 
@@ -234,7 +234,7 @@ AS $function$
        SELECT 1
        FROM public.user_roles ur
        WHERE ur.user_id = auth.uid()
-         AND ur.role IN ('owner', 'manager', 'accountant', 'warehouse')
+         AND ur.role IN ('owner', 'manager', 'accountant', 'warehouse', 'cashier')
      );
 $function$;
 
@@ -416,4 +416,3 @@ EXCEPTION WHEN OTHERS THEN
   RAISE EXCEPTION 'Sync Apply Operation Failed: %', SQLERRM;
 END;
 $function$;
-

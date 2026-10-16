@@ -1,4 +1,4 @@
-import { Globe2, MapPin, Phone } from "lucide-react";
+import { Globe2, MapPin } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type InamaSoftFooterProps = {
@@ -30,33 +30,16 @@ export function InamaSoftFooter({ className }: InamaSoftFooterProps) {
           </span>
         </div>
 
-        {/* Right: minimal contact & social links */}
+        {/* Right: contact — أرقام الدعم لا تُعرض على الشاشة؛ الموقع الرسمي فقط */}
         <div className="flex items-center gap-1.5 sm:gap-3">
           <a
-            href="tel:784795104"
-            className="inline-flex items-center gap-1 whitespace-nowrap transition-colors hover:text-foreground"
-            aria-label="التواصل عبر الرقم 784795104"
-            dir="ltr"
-          >
-            <Phone className="h-3 w-3" />
-            <span>784795104</span>
-          </a>
-          <a
-            href="tel:772217218"
-            className="inline-flex items-center gap-1 whitespace-nowrap transition-colors hover:text-foreground"
-            aria-label="التواصل عبر الرقم 772217218"
-          >
-            <Phone className="h-3 w-3" />
-            <span>772217218</span>
-          </a>
-          <a
-            href="https://inma-soft.vercel.app"
+            href="https://inama-soft.vercel.app"
             target="_blank"
             rel="noreferrer"
             className="inline-flex items-center gap-1 transition-colors hover:text-foreground"
           >
             <Globe2 className="h-3 w-3" />
-            <span>الموقع الرسمي</span>
+            <span>الموقع الرسمي والدعم</span>
           </a>
         </div>
       </div>

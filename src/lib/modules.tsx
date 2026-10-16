@@ -47,7 +47,6 @@ export const SYSTEM_MODULES: PlatformModule[] = [
       "/catalog",
       "/inventory",
       "/sales",
-      "/sales-invoice",
       "/customers",
       "/settings",
       "/notifications",
@@ -59,7 +58,6 @@ export const SYSTEM_MODULES: PlatformModule[] = [
       "/_app/catalog",
       "/_app/inventory",
       "/_app/sales",
-      "/_app/sales-invoice",
       "/_app/customers",
       "/_app/settings",
       "/_app/notifications",
@@ -204,26 +202,29 @@ export const SYSTEM_MODULES: PlatformModule[] = [
     id: "milling_operations",
     name: { ar: "إدارة المطاحن والأمانات", en: "Flour Mill & Toll Processing" },
     description: {
-      ar: "استلام حبوب العملاء كأمانات، أوامر الطحن، توزيع النواتج على الأكياس، فواتير أجور الطحن، وإذونات تسليم النواتج — بفصل تام عن المخزون التجاري",
-      en: "Customer grain custody, milling jobs, bag-based output distribution, toll service invoices and delivery notes — fully separated from commercial stock",
+      ar: "أمانات العملاء المبسطة بجدول واحد: استلام، طحن، تسليم، وكشف حساب — بلا أوامر ولا فاقد، وبفصل تام عن المخزون التجاري",
+      en: "Simplified single-ledger customer custody: intake, milling, delivery and statement — no jobs, no loss tracking, fully separated from commercial stock",
     },
     category: "enterprise",
     dependencies: ["core"],
+    /*
+     * The counter is the only operational entry point. Old direct routes stay
+     * registered for historic bookmarks but are intentionally not navigated.
+     */
     navItems: [
-      "/milling",
-      "/milling-counter",
       "/milling/intake",
-      "/milling/jobs",
-      "/milling/delivery",
+      "/milling/manufacture",
+      "/milling/consumables",
       "/milling/customer-statement",
       "/milling/operations-guide",
     ],
     routes: [
       "/_app/milling",
-      "/_app/milling-counter",
       "/_app/milling/intake",
-      "/_app/milling/jobs",
+      "/_app/milling/milling",
       "/_app/milling/delivery",
+      "/_app/milling/manufacture",
+      "/_app/milling/consumables",
       "/_app/milling/customer-statement",
       "/_app/milling/operations-guide",
     ],

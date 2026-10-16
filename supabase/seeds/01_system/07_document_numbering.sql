@@ -61,9 +61,8 @@ VALUES
   ('stock_transfer',   'inventory',  'تحويل مخزني',     'Stock Transfer',    'TR',   '-', '{PREFIX}-{YYYY}{MM}-{SEQ}',  4, 'none'),
   ('stock_adjustment', 'inventory',  'تسوية مخزنية',    'Stock Adjustment',  'ADJ',  '-', '{PREFIX}-{YYYY}{MM}-{SEQ}',  4, 'none'),
 
-  -- ── الإنتاج والطحن ────────────────────────────────────────────────────────
-  ('production_order', 'production', 'أمر إنتاج',       'Production Order',  'PRD',  '-', '{PREFIX}-{YYYY}{MM}-{SEQ}',  4, 'none'),
-  ('milling_intake',   'milling',    'سند استلام طحن',  'Milling Intake',    'MI',   '-', '{PREFIX}-{YYYY}{MM}-{SEQ}',  4, 'none'),
+  -- ── المطحنة ──────────────────────────────────────────────────────
+  ('milling_intake',   'milling',    'سند استلام أمانات', 'Milling Intake',    'MI',   '-', '{PREFIX}-{YYYY}{MM}-{SEQ}',  4, 'none'),
   ('milling_service',  'milling',    'سند خدمة طحن',    'Milling Service',   'MS',   '-', '{PREFIX}-{YYYY}{MM}-{SEQ}',  4, 'none'),
 
   -- ── السندات والمالية ──────────────────────────────────────────────────────
@@ -107,7 +106,7 @@ DECLARE
   v_required text[] := ARRAY[
     'sales_invoice', 'sales_return', 'purchase_invoice', 'purchase_return',
     'stock_transfer', 'expense', 'customer_payment', 'supplier_payment',
-    'journal_entry', 'milling_intake', 'production_order'
+    'journal_entry', 'milling_intake', 'milling_service'
   ];
   v_missing text[];
 BEGIN

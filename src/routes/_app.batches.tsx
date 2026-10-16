@@ -29,6 +29,9 @@ import {
   type SortOption,
 } from "@/components/ui/table-toolbar";
 import { RecordsViewToggle } from "@/components/ui/records-view-toggle";
+import { usePersistedViewMode } from "@/hooks/use-persisted-view-mode";
+import { QuickFilterBar } from "@/components/ui/quick-filter-bar";
+import { PrimaryAction } from "@/components/ui/primary-action";
 import { type DataTableColumn, type DataTableSort } from "@/components/ui/data-table";
 import { useBreakpoint } from "@/design/breakpoints";
 import { useRealtimeTable } from "@/lib/realtime";
@@ -73,7 +76,7 @@ function BatchesPage() {
   const [sortKey, setSortKey] = useState<string>("expiry_asc");
   const [sort, setSort] = useState<DataTableSort | null>(null);
   const [quickFilter, setQuickFilter] = useState<QuickFilter>("all");
-  const [viewMode, setViewMode] = useState<ViewMode>("cards");
+  const [viewMode, setViewMode] = usePersistedViewMode("batches", "cards");
   const [open, setOpen] = useState(false);
   const [deleting, setDeleting] = useState<string | null>(null);
 
@@ -533,44 +536,29 @@ function BatchesPage() {
         }}
         viewToggle={<RecordsViewToggle value={viewMode} onChange={setViewMode} />}
         action={
-          <ToolbarAction
+          <PrimaryAction
             label={t("batches.new")}
             icon={<Plus />}
-            tone="primary"
+
             onClick={() => setOpen(true)}
           />
         }
       >
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5">
-          {(
-            [
-              { id: "all", label: isRtl ? "الكل" : "All", count: rows.length },
-              { id: "valid", label: t("batches.status.valid"), count: counts.valid },
-              { id: "soon", label: t("batches.status.soon"), count: counts.soon },
-              { id: "expired", label: t("batches.status.expired"), count: counts.expired },
-            ] as const
-          ).map((f) => (
-            <button
-              key={f.id}
-              type="button"
-              onClick={() => setQuickFilter(f.id)}
-              className={`flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-bold transition ${
-                quickFilter === f.id
-                  ? "border-primary bg-primary text-primary-foreground shadow-xs shadow-primary/20"
-                  : "border-border/70 bg-surface/70 text-muted-foreground hover:bg-surface-2 hover:text-foreground"
-              }`}
-            >
-              <span>{f.label}</span>
-              <span
-                className={`rounded-full px-1.5 font-mono text-[10px] ${
-                  quickFilter === f.id ? "bg-white/20 text-white" : "bg-muted text-muted-foreground"
-                }`}
-              >
-                {f.count}
-              </span>
-            </button>
-          ))}
-        </div>
+        <QuickFilterBar
+          value={quickFilter}
+          onChange={(id) => setQuickFilter(id as QuickFilter)}
+          items={[
+            { id: "all", label: isRtl ? "الكل" : "All", count: rows.length, tone: "primary" },
+            { id: "valid", label: t("batches.status.valid"), count: counts.valid, tone: "success" },
+            { id: "soon", label: t("batches.status.soon"), count: counts.soon, tone: "warning" },
+            {
+              id: "expired",
+              label: t("batches.status.expired"),
+              count: counts.expired,
+              tone: "danger",
+            },
+          ]}
+        />
       </TableToolbar>
 
       {/* ─── Records: cards / list / classic table — shared scaffold ─── */}

@@ -108,187 +108,120 @@ CREATE OR REPLACE VIEW public.item_valuation AS
      LEFT JOIN qty q ON ((q.product_id = p.id)))
      LEFT JOIN val v ON ((v.product_id = p.id)));
 
-CREATE OR REPLACE VIEW public.milling_agreements_view AS
- SELECT a.id,
-    a.store_id,
-    a.customer_id,
+-- ── أمانات المطحنة: طبقة المطابقة — كل الرصيد مشتق من custody_ledger ─────
+-- كشف العميل: المستلم، المطحون، المسلَّم، المتبقي — لكل عميل/صنف/مخزن.
+CREATE OR REPLACE VIEW public.custody_customer_statement AS
+ SELECT l.customer_id,
     c.name AS customer_name_ar,
-    a.intake_receipt_id,
-    r.receipt_number,
-    a.grain_grade_id,
-    g.grade_name_ar,
-    a.requested_output_type,
-    a.requested_output_note,
-    a.output_bag_size_kg,
-    a.bags_source,
-    a.delivery_mode,
-    a.service_product_id,
-    sp.name_ar AS service_name_ar,
-    a.price_basis,
-    a.agreed_price,
-    a.expected_extraction_rate,
-    a.allowed_loss_percentage,
-    a.status,
-    a.agreed_at,
-    a.notes
-   FROM ((((milling_service_agreements a
-     LEFT JOIN customers c ON ((c.id = a.customer_id)))
-     LEFT JOIN milling_intake_receipts r ON ((r.id = a.intake_receipt_id)))
-     LEFT JOIN milling_grain_grades g ON ((g.id = a.grain_grade_id)))
-     LEFT JOIN products sp ON ((sp.id = a.service_product_id)));
-
-CREATE OR REPLACE VIEW public.milling_customer_custody AS
- SELECT customer_id,
-    sum(net_weight_kg) AS received_kg,
-    sum(intake_bag_count) AS received_bags,
-    COALESCE(( SELECT sum(j.input_weight_kg) AS sum
-           FROM milling_jobs j
-          WHERE ((j.customer_id = r.customer_id) AND (j.status <> 'CANCELLED'::milling_status))), (0)::numeric) AS milled_kg,
-    COALESCE(( SELECT sum(j.input_bag_count) AS sum
-           FROM milling_jobs j
-          WHERE ((j.customer_id = r.customer_id) AND (j.status <> 'CANCELLED'::milling_status))), (0)::bigint) AS milled_bags,
-    COALESCE(( SELECT sum(o.produced_bag_count) AS sum
-           FROM (milling_job_outputs o
-             JOIN milling_jobs j2 ON ((j2.id = o.job_id)))
-          WHERE (j2.customer_id = r.customer_id)), (0)::bigint) AS produced_bags,
-    COALESCE(( SELECT sum(o.produced_weight_kg) AS sum
-           FROM (milling_job_outputs o
-             JOIN milling_jobs j2 ON ((j2.id = o.job_id)))
-          WHERE (j2.customer_id = r.customer_id)), (0)::numeric) AS produced_kg,
-    COALESCE(( SELECT sum(o.delivered_bag_count) AS sum
-           FROM (milling_job_outputs o
-             JOIN milling_jobs j2 ON ((j2.id = o.job_id)))
-          WHERE (j2.customer_id = r.customer_id)), (0)::bigint) AS delivered_bags,
-    COALESCE(( SELECT sum(o.delivered_weight_kg) AS sum
-           FROM (milling_job_outputs o
-             JOIN milling_jobs j2 ON ((j2.id = o.job_id)))
-          WHERE (j2.customer_id = r.customer_id)), (0)::numeric) AS delivered_kg
-   FROM milling_intake_receipts r
-  WHERE (status <> 'CANCELLED'::milling_status)
-  GROUP BY customer_id;
-
-CREATE OR REPLACE VIEW public.milling_efficiency_report AS
- SELECT j.id AS job_id,
-    j.job_number,
-    j.store_id,
-    w.name_ar AS store_name_ar,
-    j.customer_id,
-    c.name AS customer_name_ar,
-    j.status,
-    r.receipt_number,
-    g.grade_name_ar AS grain_grade,
-    a.id AS agreement_id,
-    a.requested_output_type,
-    a.bags_source,
-    a.delivery_mode,
-    a.price_basis,
-    a.agreed_price,
-    j.input_weight_kg,
-    j.input_bag_count,
-    j.expected_extraction_rate,
-    j.allowed_loss_percentage,
-    ( SELECT COALESCE(sum(o.produced_weight_kg), (0)::numeric) AS "coalesce"
-           FROM milling_job_outputs o
-          WHERE (o.job_id = j.id)) AS total_output_kg,
-    ( SELECT COALESCE(sum(o.produced_bag_count), (0)::bigint) AS "coalesce"
-           FROM milling_job_outputs o
-          WHERE (o.job_id = j.id)) AS total_output_bags,
-    ( SELECT COALESCE(sum(o.delivered_bag_count), (0)::bigint) AS "coalesce"
-           FROM milling_job_outputs o
-          WHERE (o.job_id = j.id)) AS delivered_bags,
-    j.actual_loss_kg,
-    j.loss_excess_kg,
-        CASE
-            WHEN (j.input_weight_kg > (0)::numeric) THEN round((((j.input_weight_kg - COALESCE(j.actual_loss_kg, (0)::numeric)) * 100.0) / j.input_weight_kg), 2)
-            ELSE (0)::numeric
-        END AS actual_extraction_rate,
-        CASE
-            WHEN (j.input_weight_kg > (0)::numeric) THEN round(((COALESCE(j.actual_loss_kg, (0)::numeric) * 100.0) / j.input_weight_kg), 2)
-            ELSE (0)::numeric
-        END AS actual_loss_pct,
-        CASE
-            WHEN (COALESCE(j.loss_excess_kg, (0)::numeric) > (0)::numeric) THEN 'EXCEEDS'::text
-            ELSE 'WITHIN'::text
-        END AS loss_status,
-    si.invoice_number,
-    si.total AS invoiced_total,
-    si.status AS invoice_status
-   FROM ((((((milling_jobs j
-     LEFT JOIN warehouses w ON ((w.id = j.store_id)))
-     LEFT JOIN customers c ON ((c.id = j.customer_id)))
-     LEFT JOIN milling_intake_receipts r ON ((r.id = j.intake_receipt_id)))
-     LEFT JOIN milling_grain_grades g ON ((g.id = r.grain_grade_id)))
-     LEFT JOIN milling_service_agreements a ON ((a.id = j.agreement_id)))
-     LEFT JOIN sales_invoices si ON ((si.milling_job_id = j.id)));
-
-CREATE OR REPLACE VIEW public.milling_grain_grades_view AS
- SELECT g.id,
-    g.product_id,
+    l.warehouse_id,
+    w.name_ar AS warehouse_name_ar,
+    l.item_id,
     p.sku,
-    p.name_ar AS product_name_ar,
-    p.name AS product_name,
-    p.cost_price,
-    g.grade_code,
-    g.grade_name_ar,
-    g.origin,
-    g.max_moisture,
-    g.max_impurities,
-    g.default_bag_size_kg,
-    g.default_service_sku,
-    g.is_active,
-    g.default_bag_type
-   FROM (milling_grain_grades g
-     JOIN products p ON ((p.id = g.product_id)));
+    p.name_ar AS item_name_ar,
+    p.item_class,
+    sum(l.bags_in) AS received_bags,
+    sum(l.kg_in) AS received_kg,
+    sum(l.bags_out) AS issued_bags,
+    sum(l.kg_out) AS issued_kg,
+    sum((l.bags_in - l.bags_out)) AS remaining_bags,
+    sum((l.kg_in - l.kg_out)) AS remaining_kg,
+    max(l.created_at) AS last_movement_at
+   FROM (((public.custody_ledger l
+     JOIN public.products p ON ((p.id = l.item_id)))
+     LEFT JOIN public.customers c ON ((c.id = l.customer_id)))
+     LEFT JOIN public.warehouses w ON ((w.id = l.warehouse_id)))
+  GROUP BY l.customer_id, c.name, l.warehouse_id, w.name_ar, l.item_id, p.sku, p.name_ar, p.item_class;
 
-CREATE OR REPLACE VIEW public.milling_intake_health AS
- SELECT r.id,
-    r.receipt_number,
-    r.customer_id,
+-- التبويب المالي: المستند الموحد هو المصدر للفواتير الجديدة. الجزء الثاني
+-- يبقي فواتير الربط اليدوي التاريخية قابلة للقراءة فقط أثناء الانتقال.
+CREATE OR REPLACE VIEW public.custody_service_money AS
+ SELECT d.id AS custody_entry_id,
+    d.customer_id,
     c.name AS customer_name_ar,
-    r.store_id,
-    r.status,
-    r.grain_type,
-    r.grain_product_id,
-    r.grain_grade_id,
-    g.grade_name_ar,
-    (r.grain_grade_id IS NULL) AS needs_grade_link,
-    r.bag_size_kg,
-    r.intake_bag_count,
-    r.net_weight_kg,
-    r.nominal_weight_kg,
-    (r.net_weight_kg - r.nominal_weight_kg) AS bag_weight_gap_kg,
-    r.moisture_percentage,
-    g.max_moisture,
-        CASE
-            WHEN ((g.max_moisture IS NOT NULL) AND (r.moisture_percentage > g.max_moisture)) THEN 'ABOVE_LIMIT'::text
-            ELSE 'OK'::text
-        END AS moisture_status,
-    r.created_at
-   FROM ((milling_intake_receipts r
-     LEFT JOIN customers c ON ((c.id = r.customer_id)))
-     LEFT JOIN milling_grain_grades g ON ((g.id = r.grain_grade_id)));
+    d.document_number AS doc_number,
+    d.created_at,
+    si.id AS invoice_id,
+    si.invoice_number,
+    si.status,
+    si.subtotal,
+    si.tax,
+    si.discount,
+    si.total,
+    si.paid,
+    round((si.total - si.paid), 2) AS outstanding
+   FROM ((public.milling_service_documents d
+     JOIN public.sales_invoices si ON ((si.id = d.sales_invoice_id)))
+     LEFT JOIN public.customers c ON ((c.id = d.customer_id)))
+ UNION ALL
+ SELECT l.id AS custody_entry_id,
+    l.customer_id,
+    c.name AS customer_name_ar,
+    l.doc_number,
+    l.created_at,
+    si.id AS invoice_id,
+    si.invoice_number,
+    si.status,
+    si.subtotal,
+    si.tax,
+    si.discount,
+    si.total,
+    si.paid,
+    round((si.total - si.paid), 2) AS outstanding
+   FROM ((public.custody_ledger l
+     JOIN public.sales_invoices si ON ((si.id = l.service_invoice_id)))
+     LEFT JOIN public.customers c ON ((c.id = l.customer_id)))
+  WHERE NOT EXISTS (
+    SELECT 1 FROM public.milling_service_documents d
+    WHERE d.sales_invoice_id = l.service_invoice_id
+  );
 
-CREATE OR REPLACE VIEW public.milling_jobs_without_agreement AS
- SELECT job_number,
-    status,
-    customer_id,
-    intake_receipt_id,
-    COALESCE(milling_fee_per_bag, (0)::numeric) AS fee_per_bag,
-    COALESCE(milling_fee_per_ton, (0)::numeric) AS fee_per_ton,
+-- الفاقد المكتشف: صادر الحبوب − وارد النواتج لكل عملية طحن (مستند/سند).
+-- لا حقل إدخال للفاقد؛ التنبيه استدلالي لمراقبة التوازن التشغيلي (ح2).
+CREATE OR REPLACE VIEW public.custody_detected_loss AS
+ WITH grain_flow AS (
+         SELECT l.customer_id,
+            l.warehouse_id,
+            l.item_id,
+            coalesce(l.milling_document_id::text, l.doc_number) AS operation_key,
+            p.name_ar AS grain_name_ar,
+            sum(l.kg_out) AS milled_kg,
+            sum(l.bags_out) AS milled_bags
+           FROM (public.custody_ledger l
+             JOIN public.products p ON ((p.id = l.item_id)))
+          WHERE ((l.entry_type = 'MILLING'::custody_entry_type) AND (p.item_class = 'RAW_MATERIAL'::item_class))
+          GROUP BY l.customer_id, l.warehouse_id, l.item_id, coalesce(l.milling_document_id::text, l.doc_number), p.name_ar
+        ), output_flow AS (
+         SELECT l.customer_id,
+            l.warehouse_id,
+            coalesce(l.milling_document_id::text, l.doc_number) AS operation_key,
+            sum(l.kg_in) AS produced_kg,
+            sum(l.bags_in) AS produced_bags
+           FROM (public.custody_ledger l
+             JOIN public.products p ON ((p.id = l.item_id)))
+          WHERE ((l.entry_type = 'MILLING'::custody_entry_type) AND (p.item_class = ANY (ARRAY['FINISHED_GOOD'::item_class, 'BY_PRODUCT'::item_class])))
+          GROUP BY l.customer_id, l.warehouse_id, coalesce(l.milling_document_id::text, l.doc_number)
+        )
+ SELECT g.customer_id,
+    c.name AS customer_name_ar,
+    g.warehouse_id,
+    w.name_ar AS warehouse_name_ar,
+    g.item_id,
+    g.grain_name_ar,
+    g.operation_key,
+    g.milled_bags,
+    g.milled_kg,
+    COALESCE(o.produced_bags, (0)::numeric) AS produced_bags,
+    COALESCE(o.produced_kg, (0)::numeric) AS produced_kg,
+    round((g.milled_kg - COALESCE(o.produced_kg, (0)::numeric)), 3) AS detected_loss_kg,
         CASE
-            WHEN (intake_receipt_id IS NULL) THEN 'لا يوجد سند استلام مرتبط'::text
-            WHEN ((COALESCE(milling_fee_per_bag, (0)::numeric) = (0)::numeric) AND (COALESCE(milling_fee_per_ton, (0)::numeric) = (0)::numeric)) THEN 'لا يوجد أجر مسجل على الأمر'::text
-            WHEN ((COALESCE(milling_fee_per_bag, (0)::numeric) > (0)::numeric) AND (COALESCE(milling_fee_per_ton, (0)::numeric) > (0)::numeric)) THEN 'أساسان تسعيريان معاً — لا يمكن استنتاج العقد'::text
-            WHEN (NOT (EXISTS ( SELECT 1
-               FROM sales_invoices si
-              WHERE (si.milling_job_id = j.id)))) THEN 'لا توجد فاتورة يمكن التحقق منها'::text
-            WHEN (NOT (EXISTS ( SELECT 1
-               FROM sales_invoices si
-              WHERE ((si.milling_job_id = j.id) AND (round(si.total, 2) = round(((j.input_bag_count)::numeric * j.milling_fee_per_bag), 2)))))) THEN 'إجمالي الفاتورة لا يطابق عدد الأكياس × الأجر'::text
-            ELSE 'سبب آخر'::text
-        END AS reason
-   FROM milling_jobs j
-  WHERE (agreement_id IS NULL);
+            WHEN ((g.milled_kg > (0)::numeric) AND ((g.milled_kg - COALESCE(o.produced_kg, (0)::numeric)) > (g.milled_kg * (0.05)::numeric))) THEN 'REVIEW'::text
+            ELSE 'OK'::text
+        END AS loss_status
+   FROM (((grain_flow g
+     LEFT JOIN output_flow o ON (((o.customer_id = g.customer_id) AND (o.warehouse_id = g.warehouse_id) AND (o.operation_key = g.operation_key))))
+     LEFT JOIN public.customers c ON ((c.id = g.customer_id)))
+     LEFT JOIN public.warehouses w ON ((w.id = g.warehouse_id)));
+
 
 CREATE OR REPLACE VIEW public.milling_margin_report AS
  WITH sold AS (
@@ -337,82 +270,6 @@ CREATE OR REPLACE VIEW public.milling_margin_report AS
                    FROM item_cost_layers cl
                   WHERE ((cl.product_id = p.id) AND (cl.owner_type = 'COMPANY'::owner_type))) l ON (true))) c ON (true));
 
-CREATE OR REPLACE VIEW public.milling_output_balances AS
- SELECT j.customer_id,
-    j.store_id,
-    o.output_type,
-    o.bag_size_kg,
-    sum(o.produced_bag_count) AS produced_bags,
-    sum(o.produced_weight_kg) AS produced_kg,
-    sum(o.delivered_bag_count) AS delivered_bags,
-    sum(o.delivered_weight_kg) AS delivered_kg,
-    sum((o.produced_bag_count - o.delivered_bag_count)) AS remaining_bags,
-    sum((o.produced_weight_kg - o.delivered_weight_kg)) AS remaining_kg
-   FROM (milling_job_outputs o
-     JOIN milling_jobs j ON ((j.id = o.job_id)))
-  WHERE ((j.status <> 'CANCELLED'::milling_status) AND (o.output_type <> 'WASTE'::milling_output_type))
-  GROUP BY j.customer_id, j.store_id, o.output_type, o.bag_size_kg;
-
-CREATE OR REPLACE VIEW public.milling_pricing_diagnostics AS
- SELECT j.job_number,
-    j.status,
-    j.milling_fee_per_bag,
-    j.milling_fee_per_ton,
-        CASE
-            WHEN ((j.milling_fee_per_bag > (0)::numeric) AND (j.milling_fee_per_ton > (0)::numeric)) THEN 'DUAL_BASIS_ERROR'::text
-            WHEN (j.milling_fee_per_bag > (0)::numeric) THEN 'OK_BAG'::text
-            WHEN (j.milling_fee_per_ton > (0)::numeric) THEN 'OK_TON'::text
-            ELSE 'NO_FEE'::text
-        END AS pricing_health,
-    si.invoice_number,
-    si.total AS invoiced_total
-   FROM (milling_jobs j
-     LEFT JOIN sales_invoices si ON ((si.milling_job_id = j.id)));
-
-CREATE OR REPLACE VIEW public.milling_revenue_report AS
- SELECT date_trunc('month'::text, si.created_at) AS period_month,
-    si.warehouse_id AS store_id,
-    w.name_ar AS store_name_ar,
-    si.customer_id,
-    c.name AS customer_name_ar,
-    j.job_number,
-    a.id AS agreement_number,
-    i.product_id,
-    p.sku,
-    p.name_ar AS item_name_ar,
-    i.line_type,
-    i.stock_effect,
-    sum(i.quantity) AS quantity,
-    sum(i.total) AS net_total,
-    sum(i.tax) AS tax_total,
-    count(*) AS line_count
-   FROM ((((((sales_invoice_items i
-     JOIN sales_invoices si ON ((si.id = i.invoice_id)))
-     LEFT JOIN milling_jobs j ON ((j.id = si.milling_job_id)))
-     LEFT JOIN milling_service_agreements a ON ((a.id = j.agreement_id)))
-     LEFT JOIN products p ON ((p.id = i.product_id)))
-     LEFT JOIN customers c ON ((c.id = si.customer_id)))
-     LEFT JOIN warehouses w ON ((w.id = si.warehouse_id)))
-  WHERE ((si.status <> ALL (ARRAY['draft'::invoice_status, 'cancelled'::invoice_status, 'returned'::invoice_status])) AND (i.line_type = 'SERVICE'::text) AND ((j.id IS NOT NULL) OR (a.id IS NOT NULL)))
-  GROUP BY (date_trunc('month'::text, si.created_at)), si.warehouse_id, w.name_ar, si.customer_id, c.name, j.job_number, a.id, i.product_id, p.sku, p.name_ar, i.line_type, i.stock_effect;
-
-CREATE OR REPLACE VIEW public.milling_service_money AS
- SELECT si.milling_job_id AS job_id,
-    si.customer_id,
-    si.warehouse_id,
-    si.id AS invoice_id,
-    si.invoice_number,
-    si.created_at,
-    si.status,
-    si.subtotal,
-    si.tax,
-    si.discount,
-    si.total,
-    si.paid,
-    round((si.total - si.paid), 2) AS outstanding,
-    j.job_number
-   FROM (sales_invoices si
-     JOIN milling_jobs j ON ((j.id = si.milling_job_id)));
 
 CREATE OR REPLACE VIEW public.opening_balance_summary AS
  SELECT d.id,
@@ -449,33 +306,6 @@ CREATE OR REPLACE VIEW public.opening_balance_summary AS
             sum(l.amount) FILTER (WHERE (l.section = 'CAPITAL'::text)) AS capital_amount
            FROM opening_balance_lines l
           WHERE (l.document_id = d.id)) s ON (true));
-
-CREATE OR REPLACE VIEW public.production_ledger_status AS
- SELECT o.id AS order_id,
-    o.order_number,
-    o.production_date,
-    o.status,
-    o.allocation_basis,
-    o.material_cost,
-    o.direct_labour,
-    o.overhead_cost,
-    o.total_cost,
-    COALESCE(outs.output_cost, (0)::numeric) AS output_cost,
-    round((o.total_cost - COALESCE(outs.output_cost, (0)::numeric)), 2) AS loss_value,
-    o.actual_input_qty,
-    o.actual_output_qty,
-    je.id AS journal_entry_id,
-    je.entry_number,
-        CASE
-            WHEN (je.id IS NOT NULL) THEN 'POSTED'::text
-            WHEN (o.status = 'COMPLETED'::text) THEN 'NOT_POSTED'::text
-            ELSE 'NOT_POSTABLE'::text
-        END AS ledger_state
-   FROM ((production_orders o
-     LEFT JOIN LATERAL ( SELECT sum(po.total_cost) AS output_cost
-           FROM production_order_outputs po
-          WHERE (po.order_id = o.id)) outs ON (true))
-     LEFT JOIN journal_entries je ON (((je.source_type = 'production_order'::text) AND (je.source_id = o.id) AND (je.status <> 'REVERSED'::text))));
 
 CREATE OR REPLACE VIEW public.purchase_ledger_status AS
  SELECT pi.id AS invoice_id,

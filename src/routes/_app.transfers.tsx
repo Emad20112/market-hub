@@ -41,6 +41,9 @@ import {
   type SortOption,
 } from "@/components/ui/table-toolbar";
 import { RecordsViewToggle } from "@/components/ui/records-view-toggle";
+import { usePersistedViewMode } from "@/hooks/use-persisted-view-mode";
+import { QuickFilterBar } from "@/components/ui/quick-filter-bar";
+import { PrimaryAction } from "@/components/ui/primary-action";
 import { type PageGuideConfig } from "@/components/page-guide";
 import { buildSearchIndex, fuzzySearch } from "@/design/fuzzy";
 import { qtyCell } from "@/lib/format";
@@ -227,7 +230,7 @@ function TransfersPage() {
   const [filters, setFilters] = useState<FilterValues>({});
   const [sort, setSort] = useState<DataTableSort | null>(null);
   const [quickFilter, setQuickFilter] = useState<"all" | "incoming" | "outgoing">("all");
-  const [viewMode, setViewMode] = useState<"grid" | "list" | "table">("grid");
+  const [viewMode, setViewMode] = usePersistedViewMode("transfers", "cards");
   const [open, setOpen] = useState(false);
 
   const label = (en?: string | null, ar?: string | null) =>
@@ -667,72 +670,42 @@ function TransfersPage() {
             onValueChange: (v) => setSort(v ? { key: v, direction: "asc" } : null),
             label: t("transfers.sort.label"),
           }}
-          viewToggle={
-            /* The screen calls the card layout "grid"; the shared toggle calls
-             * it "cards". Translate at the boundary so neither vocabulary
-             * leaks into the other. */
-            <RecordsViewToggle
-              value={viewMode === "grid" ? "cards" : viewMode}
-              onChange={(mode) => setViewMode(mode === "cards" ? "grid" : mode)}
-            />
-          }
+          viewToggle={<RecordsViewToggle value={viewMode} onChange={setViewMode} />}
           action={
-            <ToolbarAction
+            <PrimaryAction
               label={t("transfers.new")}
               icon={<Plus />}
-              tone="primary"
+
               onClick={() => setOpen(true)}
             />
           }
         >
-          {viewMode !== "table" && (
-            <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5">
-              {(
-                [
-                  { id: "all", label: t("transfers.quick.all"), count: rows.length },
-                  {
-                    id: "incoming",
-                    label: t("transfers.quick.incoming"),
-                    count: rows.filter((r) => r.status === "completed" || r.status === "pending")
-                      .length,
-                  },
-                  {
-                    id: "outgoing",
-                    label: t("transfers.quick.outgoing"),
-                    count: rows.filter((r) => r.status === "draft" || r.status === "cancelled")
-                      .length,
-                  },
-                ] as const
-              ).map((f) => (
-                <button
-                  key={f.id}
-                  type="button"
-                  onClick={() => setQuickFilter(f.id)}
-                  className={`flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-bold transition ${
-                    quickFilter === f.id
-                      ? "border-primary bg-primary text-primary-foreground shadow-xs shadow-primary/20"
-                      : "border-border/70 bg-surface/70 text-muted-foreground hover:bg-surface-2 hover:text-foreground"
-                  }`}
-                >
-                  <span>{f.label}</span>
-                  <span
-                    className={`rounded-full px-1.5 font-mono text-[10px] ${
-                      quickFilter === f.id
-                        ? "bg-white/20 text-white"
-                        : "bg-muted text-muted-foreground"
-                    }`}
-                  >
-                    {f.count}
-                  </span>
-                </button>
-              ))}
-            </div>
-          )}
+          {/* Quick filters — visible in cards, list AND table alike. */}
+          <QuickFilterBar
+            value={quickFilter}
+            onChange={(id) => setQuickFilter(id as "all")}
+            items={[
+              { id: "all", label: t("transfers.quick.all"), count: rows.length, tone: "primary" },
+              {
+                id: "incoming",
+                label: t("transfers.quick.incoming"),
+                count: rows.filter((r) => r.status === "completed" || r.status === "pending")
+                  .length,
+                tone: "success",
+              },
+              {
+                id: "outgoing",
+                label: t("transfers.quick.outgoing"),
+                count: rows.filter((r) => r.status === "draft" || r.status === "cancelled").length,
+                tone: "info",
+              },
+            ]}
+          />
         </TableToolbar>
       </div>
 
       {/* ─── Grid view ─── */}
-      {viewMode === "grid" ? (
+      {viewMode === "cards" ? (
         <div className="space-y-4">
           {isLoading ? (
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">

@@ -1,17 +1,7 @@
 import { memo } from "react";
 import { useState, useEffect, useRef, useMemo } from "react";
 import { useNavigate } from "@tanstack/react-router";
-import {
-  Search,
-  Receipt,
-  Package,
-  Users,
-  X,
-  Sparkles,
-  Command as CommandIcon,
-  Loader2,
-  Building2,
-} from "lucide-react";
+import { Search, Receipt, Package, Users, X, Sparkles, Loader2, Building2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useI18n } from "@/lib/i18n";
 import { useAuth } from "@/lib/auth";
@@ -115,16 +105,13 @@ export const VortexHeaderOmnisearch = memo(function VortexHeaderOmnisearch({
     return () => document.removeEventListener("mousedown", handleOutsideClick);
   }, []);
 
-  // اختصارات لوحة المفاتيح: '/' و 'Ctrl+K' / 'Cmd+K'
+  // اختصار لوحة المفاتيح للبحث الشامل: 'Ctrl+Shift+K' / 'Cmd+Shift+K' حصراً.
+  // اختصار واحد فقط للهيدر — لا يتعارض مع '/' (حقول البحث داخل الواجهات)
+  // ولا 'Ctrl+Shift+P' (لوحة الأوامر) ولا اختصارات نقطة البيع.
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      const activeElement = document.activeElement;
-      const isInput =
-        activeElement &&
-        (activeElement.tagName === "INPUT" || activeElement.tagName === "TEXTAREA");
-
-      // اختصار البحث الرئيسي المخصص: Ctrl+K أو Cmd+K حصراً لمنع التعارض مع حقول بحث الصفحات المنفصلة
-      if ((e.metaKey || e.ctrlKey) && (e.key.toLowerCase() === "k" || e.code === "KeyK")) {
+      // اختصار البحث الرئيسي المخصص للهيدر
+      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key.toLowerCase() === "k") {
         e.preventDefault();
         e.stopPropagation();
         e.stopImmediatePropagation();
@@ -426,8 +413,8 @@ export const VortexHeaderOmnisearch = memo(function VortexHeaderOmnisearch({
                 ? "بحث..."
                 : "Search..."
               : isAr
-                ? "ابحث عن فاتورة، عميل، منتج، مورد... (Ctrl+K)"
-                : "Search invoices, products, customers... (Ctrl+K)"
+                ? "ابحث عن فاتورة، عميل، منتج، مورد..."
+                : "Search invoices, products, customers..."
           }
           className="h-full flex-1 min-w-0 bg-transparent text-sm font-medium text-foreground placeholder:text-muted-foreground/75 placeholder:truncate focus:outline-none"
         />
@@ -459,11 +446,7 @@ export const VortexHeaderOmnisearch = memo(function VortexHeaderOmnisearch({
             <X className="h-3.5 w-3.5" />
           </button>
         ) : (
-          <div className="flex items-center gap-1.5">
-            <kbd className="hidden sm:inline-flex h-5 items-center gap-1 rounded-md border border-border/80 bg-background/80 px-2 text-[10px] font-mono font-medium text-muted-foreground shadow-sm">
-              <CommandIcon className="h-3 w-3" /> K
-            </kbd>
-          </div>
+          <div className="flex items-center gap-1.5" />
         )}
       </div>
 

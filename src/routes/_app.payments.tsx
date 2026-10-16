@@ -293,7 +293,6 @@ function PaymentsPage() {
   return (
     <>
       <PageHeader
-        className="mb-6"
         title={lang === "ar" ? "تحصيل دفعات العملاء" : "Customer Payments"}
         subtitle={
           lang === "ar"

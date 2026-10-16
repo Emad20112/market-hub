@@ -1,4 +1,4 @@
-import { useStoredViewMode } from "@/lib/view-mode-storage";
+import { usePersistedViewMode } from "@/hooks/use-persisted-view-mode";
 import { cn } from "@/lib/utils";
 import { ModuleGuard, useModules } from "@/lib/modules";
 import { createFileRoute, Link } from "@tanstack/react-router";
@@ -141,11 +141,7 @@ function PurchasesPage() {
   const [statusTab, setStatusTab] = useState<StatusTab>("all");
   const [filters, setFilters] = useState<FilterValues>({});
   const [sortKey, setSortKey] = useState<string>("date_desc");
-  const [viewMode, setViewMode] = useStoredViewMode<ViewMode>("purchases", "cards", [
-    "cards",
-    "list",
-    "table",
-  ]);
+  const [viewMode, setViewMode] = usePersistedViewMode("purchases", "cards");
   const [selected, setSelected] = useState<Invoice | null>(null);
   const [lines, setLines] = useState<Line[]>([]);
   const [loadingLines, setLoadingLines] = useState(false);
@@ -806,10 +802,10 @@ function PurchasesPage() {
         }}
         viewToggle={<RecordsViewToggle value={viewMode} onChange={setViewMode} />}
         action={
-          <ToolbarAction
+          <PrimaryAction
             label={isRtl ? "فاتورة شراء جديدة" : "New Purchase"}
             icon={<Plus />}
-            tone="primary"
+
             onClick={() => setCreating(true)}
           />
         }
@@ -925,8 +921,8 @@ function PurchasesPage() {
           </Link>
         </div>
       ) : viewMode === "cards" ? (
-        /* ─── 1 Column on Mobile, 2 on SM, 3 on LG, 4 on XL — spacious, breathable, high-end ─── */
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        /* ─── The shared unified grid (2-up mobile, 3 md, 4 lg, 5 2xl) ─── */
+        <div className="grid grid-cols-2 gap-2.5 sm:gap-4 md:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5">
           {filtered.map((inv) => {
             const total = Number(inv.total) || 0;
             const paid = Number(inv.paid) || 0;

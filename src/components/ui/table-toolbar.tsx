@@ -255,7 +255,7 @@ export function TableToolbar({
     <div
       className={cn(
         "flex flex-col gap-2",
-        sticky && "sticky top-0 z-20 bg-surface/95 backdrop-blur-md",
+        sticky && "sticky top-0 z-20 bg-background/45 backdrop-blur-xl",
         className,
       )}
     >

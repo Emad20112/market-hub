@@ -1,26 +1,30 @@
 import * as React from "react";
-import { CalendarDays, Check, ChevronDown, ListFilter, Search, ToggleLeft } from "lucide-react";
+import { CalendarDays, Check, ListFilter, RotateCcw, Search, ToggleLeft } from "lucide-react";
 
 import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
-import { Modal } from "@/components/ui/modal";
 import { useI18n } from "@/lib/i18n";
+import { VortexFilterSheet, VortexFilterSection } from "@/components/vortex-ui";
 import type { FilterDefinition, FilterValues, SortOption } from "@/components/ui/table-toolbar";
 
 /**
  * Filter and sort panels shared by every records screen.
  *
- * `table-toolbar.tsx` already had these, but they were private to that file and
- * tightly coupled to its own label-resolution contract. The records toolbar
- * needs the same two panels, so they are lifted here as first-class components
- * with the same behaviour the operators already know:
+ * Axis 10: BOTH panels now wear the «شيت الفلترة الجانبي المتقدم» skin — the
+ * VortexFilterSheet chrome the operators already love (icon with a live count
+ * badge, «N مفعل» pill, spring side sheet, swipe-to-dismiss) — replacing the
+ * plain Modal they used before.
  *
- *  - a **draft** that only commits on "Apply", so tapping through five selects
- *    does not refetch five times;
- *  - a bottom sheet on phones and a small anchored panel on desktop
- *    (`Modal` handles that), because neither needs the full screen;
- *  - a live count of what is currently applied, so "Apply" is never pressed
- *    blind.
+ * Footer order is fixed by the plan: **Apply on the trailing (right) side as
+ * a wide solid button with a check icon, Reset on the leading (left) side in
+ * grey** — matching the gallery sheet exactly.
+ *
+ * Option presentation follows one rule:
+ *  - ≤ 4 options → segment chips (the elegant boolean-check pattern);
+ *  - > 4 options → an elegant selectable LIST with a check mark, never a
+ *    row of buttons (the debts screen has many states — chips were cramped).
+ *
+ * A **draft** still only commits on "Apply", so tapping through the controls
+ * does not refetch five times.
  */
 
 const controlClass =
@@ -66,7 +70,7 @@ export function RecordsFilterPanel({
   const { t } = useI18n();
   const [draft, setDraft] = React.useState<FilterValues>(values);
 
-  // Re-seed on every open so the panel always reflects what is applied.
+  // Re-seed on every open so the sheet always reflects what is applied.
   React.useEffect(() => {
     if (open) setDraft(values);
   }, [open, values]);
@@ -74,47 +78,34 @@ export function RecordsFilterPanel({
   const activeCount = countActive(draft);
 
   return (
-    <Modal
+    <VortexFilterSheet
       open={open}
-      onClose={onClose}
+      onOpenChange={(next) => {
+        if (!next) onClose();
+      }}
       title={title ?? t("common.filter")}
-      description={
-        activeCount > 0
-          ? t("records.filters.active").replace("{count}", String(activeCount))
-          : undefined
-      }
-      size="sm"
-      desktop="popover-start"
-      sheetUntil="lg"
-      footer={
-        <div className="flex w-full items-center gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => setDraft({})}
-            disabled={activeCount === 0}
-            className="flex-1"
-            block={false}
-          >
-            {t("common.clear")}
-          </Button>
-          <Button type="button" onClick={() => onSubmit(draft)} className="flex-1" block={false}>
-            {t("records.apply")}
-          </Button>
-        </div>
-      }
+      activeFiltersCount={activeCount}
+      onApply={() => onSubmit(draft)}
+      onReset={() => setDraft({})}
+      applyLabel={t("records.apply")}
+      resetLabel={t("records.filters.clear_all")}
     >
-      <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-2">
         {definitions.map((definition) => (
-          <FilterControl
+          <VortexFilterSection
             key={definition.key}
-            def={definition}
-            value={draft[definition.key]}
-            onChange={(value) => setDraft((prev) => ({ ...prev, [definition.key]: value }))}
-          />
+            title={definition.label}
+            icon={filterIcon(definition.type)}
+          >
+            <FilterControl
+              def={definition}
+              value={draft[definition.key]}
+              onChange={(value) => setDraft((prev) => ({ ...prev, [definition.key]: value }))}
+            />
+          </VortexFilterSection>
         ))}
       </div>
-    </Modal>
+    </VortexFilterSheet>
   );
 }
 
@@ -129,130 +120,122 @@ function FilterControl({
 }) {
   const { t } = useI18n();
 
-  const labelBlock = (
-    <span className="flex items-center gap-1.5 text-label text-muted-foreground">
-      <span className="grid size-5 place-items-center rounded-full bg-primary/10 text-primary">
-        {filterIcon(def.type)}
-      </span>
-      {def.label}
-    </span>
+  /** Elegant selectable list — used when the options are too many for chips. */
+  const optionList = (
+    options: { value: string; label: string }[],
+    current: string,
+    commit: (value: string) => void,
+  ) => (
+    <div className="flex flex-col gap-0.5" role="radiogroup" aria-label={def.label}>
+      {options.map((option) => {
+        const selected = option.value === current;
+        return (
+          <button
+            key={option.value}
+            type="button"
+            role="radio"
+            aria-checked={selected}
+            onClick={() => commit(option.value)}
+            className={cn(
+              "flex items-center justify-between gap-3 rounded-xl border border-transparent px-3 py-2 text-start text-sm transition-colors",
+              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50",
+              selected
+                ? "border-primary/25 bg-primary/10 font-medium text-primary"
+                : "text-foreground hover:border-border/60 hover:bg-surface-2/60",
+            )}
+          >
+            <span className="truncate">{option.label}</span>
+            {selected ? <Check className="size-4 shrink-0" aria-hidden /> : null}
+          </button>
+        );
+      })}
+    </div>
+  );
+
+  /** Segment chips — the elegant boolean-check pattern, for few options. */
+  const optionChips = (
+    options: { value: string; label: string }[],
+    current: string,
+    commit: (value: string) => void,
+  ) => (
+    <div className="flex flex-wrap gap-1.5" role="radiogroup" aria-label={def.label}>
+      {options.map((option) => {
+        const selected = option.value === current;
+        return (
+          <button
+            key={option.value}
+            type="button"
+            role="radio"
+            aria-checked={selected}
+            onClick={() => commit(option.value)}
+            className={cn(
+              "inline-flex h-9 items-center gap-1 rounded-full border px-3.5 text-xs font-medium transition-colors",
+              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50",
+              selected
+                ? "border-primary/45 bg-primary/12 text-primary"
+                : "border-border/70 bg-surface/60 text-muted-foreground hover:bg-surface hover:text-foreground",
+            )}
+          >
+            {selected ? <Check className="size-3" aria-hidden /> : null}
+            {option.label}
+          </button>
+        );
+      })}
+    </div>
   );
 
   if (def.type === "select") {
-    return (
-      <div className="flex flex-col gap-1.5">
-        <label
-          htmlFor={`filter-${def.key}`}
-          className="flex items-center gap-1.5 text-label text-muted-foreground"
-        >
-          <span className="grid size-5 place-items-center rounded-full bg-primary/10 text-primary">
-            {filterIcon(def.type)}
-          </span>
-          {def.label}
-        </label>
-        <div className="relative">
-          <select
-            id={`filter-${def.key}`}
-            value={typeof value === "string" ? value : ""}
-            onChange={(event) => onChange(event.target.value || undefined)}
-            className={`${controlClass} appearance-none pe-10`}
-          >
-            <option value="">{t("common.all")}</option>
-            {def.options?.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-          <ChevronDown
-            className="pointer-events-none absolute inset-y-0 end-4 my-auto size-4 text-muted-foreground"
-            aria-hidden
-          />
-        </div>
-      </div>
-    );
+    const current = typeof value === "string" ? value : "";
+    const options = [{ value: "", label: t("common.all") }, ...(def.options ?? [])];
+    // ≤ 4 options render as chips; more render as the elegant list.
+    return options.length <= 4
+      ? optionChips(options, current, (v) => onChange(v || undefined))
+      : optionList(options, current, (v) => onChange(v || undefined));
   }
 
   if (def.type === "boolean") {
     const current = typeof value === "string" ? value : "";
-    return (
-      <div className="flex flex-col gap-1.5">
-        {labelBlock}
-        <div className="flex gap-1.5" role="radiogroup" aria-label={def.label}>
-          {[
-            { value: "", label: t("common.all") },
-            { value: "true", label: t("common.yes") },
-            { value: "false", label: t("common.no") },
-          ].map((option) => {
-            const selected = current === option.value;
-            return (
-              <button
-                key={option.value}
-                type="button"
-                role="radio"
-                aria-checked={selected}
-                onClick={() => onChange(option.value || undefined)}
-                className={cn(
-                  "h-10 flex-1 rounded-full border text-xs font-medium transition-colors",
-                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50",
-                  selected
-                    ? "border-primary/45 bg-primary/12 text-primary"
-                    : "border-border/70 bg-surface/60 text-muted-foreground hover:bg-surface hover:text-foreground",
-                )}
-              >
-                {option.label}
-              </button>
-            );
-          })}
-        </div>
-      </div>
+    return optionChips(
+      [
+        { value: "", label: t("common.all") },
+        { value: "true", label: t("common.yes") },
+        { value: "false", label: t("common.no") },
+      ],
+      current,
+      (v) => onChange(v || undefined),
     );
   }
 
   if (def.type === "date-range") {
     const range = typeof value === "object" && value != null ? value : {};
     return (
-      <div className="flex flex-col gap-1.5">
-        {labelBlock}
-        <div className="grid grid-cols-2 gap-2">
-          <input
-            type="date"
-            aria-label={`${def.label} — ${t("common.from")}`}
-            value={range.from ?? ""}
-            onChange={(event) => onChange({ ...range, from: event.target.value || undefined })}
-            className={controlClass}
-          />
-          <input
-            type="date"
-            aria-label={`${def.label} — ${t("common.to")}`}
-            value={range.to ?? ""}
-            onChange={(event) => onChange({ ...range, to: event.target.value || undefined })}
-            className={controlClass}
-          />
-        </div>
+      <div className="grid grid-cols-2 gap-2">
+        <input
+          type="date"
+          aria-label={`${def.label} — ${t("common.from")}`}
+          value={range.from ?? ""}
+          onChange={(event) => onChange({ ...range, from: event.target.value || undefined })}
+          className={controlClass}
+        />
+        <input
+          type="date"
+          aria-label={`${def.label} — ${t("common.to")}`}
+          value={range.to ?? ""}
+          onChange={(event) => onChange({ ...range, to: event.target.value || undefined })}
+          className={controlClass}
+        />
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col gap-1.5">
-      <label
-        htmlFor={`filter-${def.key}`}
-        className="flex items-center gap-1.5 text-label text-muted-foreground"
-      >
-        <span className="grid size-5 place-items-center rounded-full bg-primary/10 text-primary">
-          {filterIcon(def.type)}
-        </span>
-        {def.label}
-      </label>
-      <input
-        id={`filter-${def.key}`}
-        value={typeof value === "string" ? value : ""}
-        placeholder={def.placeholder}
-        onChange={(event) => onChange(event.target.value || undefined)}
-        className={controlClass}
-      />
-    </div>
+    <input
+      id={`filter-${def.key}`}
+      value={typeof value === "string" ? value : ""}
+      placeholder={def.placeholder}
+      onChange={(event) => onChange(event.target.value || undefined)}
+      className={controlClass}
+    />
   );
 }
 
@@ -279,31 +262,46 @@ export function RecordsSortPanel({
 }: RecordsSortPanelProps) {
   const { t } = useI18n();
 
+  /* Draft selection: tapping an option only moves the highlight — the sort
+   * commits on "Apply", the same contract as the filter sheet. Reset returns
+   * to whatever is currently applied. */
+  const [draft, setDraft] = React.useState(value);
+  React.useEffect(() => {
+    if (open) setDraft(value);
+  }, [open, value]);
+
+  const changed = draft !== value;
+
   return (
-    <Modal
+    <VortexFilterSheet
       open={open}
-      onClose={onClose}
+      onOpenChange={(next) => {
+        if (!next) onClose();
+      }}
       title={title ?? t("common.sort")}
-      size="sm"
-      desktop="popover-start"
-      sheetUntil="lg"
+      subtitle={changed ? undefined : t("common.sort")}
+      activeFiltersCount={changed ? 1 : 0}
+      onApply={() => onSubmit(draft)}
+      onReset={() => setDraft(value)}
+      applyLabel={t("records.apply")}
+      resetLabel={t("records.filters.clear_all")}
     >
-      <div className="flex flex-col gap-1" role="listbox" aria-label={t("common.sort")}>
+      <div className="flex flex-col gap-0.5" role="listbox" aria-label={t("common.sort")}>
         {options.map((option) => {
-          const selected = option.value === value;
+          const selected = option.value === draft;
           return (
             <button
               key={option.value}
               type="button"
               role="option"
               aria-selected={selected}
-              onClick={() => onSubmit(option.value)}
+              onClick={() => setDraft(option.value)}
               className={cn(
-                "flex items-center justify-between gap-3 rounded-full border border-transparent px-3.5 py-2.5 text-start text-sm transition-colors",
+                "flex items-center justify-between gap-3 rounded-xl border border-transparent px-3 py-2 text-start text-sm transition-colors",
                 "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50",
                 selected
-                  ? "border-primary/25 bg-primary/12 font-medium text-primary"
-                  : "text-foreground hover:border-border/70 hover:bg-surface-2/70",
+                  ? "border-primary/25 bg-primary/10 font-medium text-primary"
+                  : "text-foreground hover:border-border/60 hover:bg-surface-2/60",
               )}
             >
               <span className="truncate">{option.label}</span>
@@ -312,6 +310,6 @@ export function RecordsSortPanel({
           );
         })}
       </div>
-    </Modal>
+    </VortexFilterSheet>
   );
 }

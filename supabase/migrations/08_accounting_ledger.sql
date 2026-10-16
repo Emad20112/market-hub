@@ -7,6 +7,8 @@
 -- لا يحتوي أي بيانات أعمال أو تجارية. راجع supabase/MIGRATIONS_RULES.md
 -- ============================================================================
 
+CREATE SEQUENCE IF NOT EXISTS public.opening_balance_seq START 1;
+
 -- ── TABLES ────────────────────────────────────────────────────────────────
 CREATE TABLE public.accounts (
   id uuid DEFAULT gen_random_uuid() NOT NULL,

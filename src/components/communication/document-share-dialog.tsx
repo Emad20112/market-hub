@@ -27,10 +27,12 @@ export interface DocumentShareDialogProps {
   open: boolean;
   onClose: () => void;
   title: string;
-  documentType: "invoice" | "statement";
+  documentType: "invoice" | "statement" | "milling_document";
   customer?: CustomerContext | null;
   invoice?: InvoiceContext | null;
   statement?: StatementContext | null;
+  millingDocumentNumber?: string | null;
+  millingStatus?: string | null;
   onPrintPdf?: () => void;
   onExportExcel?: () => void;
   documentBlob?: Blob;
@@ -45,6 +47,8 @@ export function DocumentShareDialog({
   customer,
   invoice,
   statement,
+  millingDocumentNumber,
+  millingStatus,
   onPrintPdf,
   onExportExcel,
   documentBlob,
@@ -54,7 +58,12 @@ export function DocumentShareDialog({
   const isAr = lang === "ar";
   const [isSharing, setIsSharing] = React.useState(false);
 
-  const eventType = documentType === "invoice" ? "invoice_share" : "statement_share";
+  const eventType =
+    documentType === "milling_document"
+      ? "milling_document_share"
+      : documentType === "invoice"
+        ? "invoice_share"
+        : "statement_share";
 
   const messageContext = React.useMemo(() => {
     return buildUnifiedContext({
@@ -62,9 +71,11 @@ export function DocumentShareDialog({
       customer,
       invoice,
       statement,
+      millingDocumentNumber,
+      millingStatus,
       language: isAr ? "ar" : "en",
     });
-  }, [eventType, customer, invoice, statement, isAr]);
+  }, [eventType, customer, invoice, statement, millingDocumentNumber, millingStatus, isAr]);
 
   const rendered = React.useMemo(() => {
     return renderMessage(messageContext);
@@ -105,6 +116,14 @@ export function DocumentShareDialog({
             <span className="text-muted-foreground">{isAr ? "الجهة / العميل:" : "Customer:"}</span>
             <span className="text-foreground">{customer?.name || "—"}</span>
           </div>
+          {millingDocumentNumber && (
+            <div className="flex items-center justify-between">
+              <span className="text-muted-foreground">
+                {isAr ? "مستند الطحن:" : "Milling Doc #:"}
+              </span>
+              <span className="font-mono font-bold text-foreground">#{millingDocumentNumber}</span>
+            </div>
+          )}
           {invoice?.invoiceNumber && (
             <div className="flex items-center justify-between">
               <span className="text-muted-foreground">{isAr ? "رقم الفاتورة:" : "Invoice #:"}</span>

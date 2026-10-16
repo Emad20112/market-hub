@@ -553,9 +553,15 @@ export function PrintSettingsCard({ canEdit = true }: PrintSettingsCardProps) {
                               </>
                             ) : (
                               <>
-                                <option value="elegant">✨ قالب تنفيذي فاخر (Executive Luxury)</option>
-                                <option value="standard">📄 قالب قياسي مضغوط (Compact Commercial)</option>
-                                <option value="milling-clean">⭐ قالب الفاتورة الرسمية المبسطة</option>
+                                <option value="elegant">
+                                  ✨ قالب تنفيذي فاخر (Executive Luxury)
+                                </option>
+                                <option value="standard">
+                                  📄 قالب قياسي مضغوط (Compact Commercial)
+                                </option>
+                                <option value="milling-clean">
+                                  ⭐ قالب الفاتورة الرسمية المبسطة
+                                </option>
                                 <option value="formal">🏛️ قالب رسمي كلاسيكي</option>
                               </>
                             )}
