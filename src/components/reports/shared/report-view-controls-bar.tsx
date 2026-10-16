@@ -1,6 +1,8 @@
 import { ReportTemplateSelector } from "./report-template-selector";
 import { ReportTemplateCreatorDialog } from "./report-template-creator-dialog";
 import { ReportColumnVisibilityButton } from "./report-column-visibility-button";
+import { TemplateTypeIndicator } from "./template-type-indicator";
+import type { ReportViewTemplateType } from "@/lib/reports/types";
 import type { ReportDomain } from "@/lib/reports/types";
 import type { CustomReportTemplate } from "@/lib/reports/custom-templates-store";
 
@@ -13,6 +15,9 @@ interface ReportViewControlsBarProps {
   totalColumnsCount?: number;
   customTemplates?: CustomReportTemplate[];
   onCustomTemplatesChange?: () => void;
+  currentView?: ReportViewTemplateType;
+  onViewChange?: (view: ReportViewTemplateType) => void;
+  isCustomMultiMethod?: boolean;
   className?: string;
 }
 
@@ -25,6 +30,9 @@ export function ReportViewControlsBar({
   totalColumnsCount,
   customTemplates,
   onCustomTemplatesChange,
+  currentView,
+  onViewChange,
+  isCustomMultiMethod,
   className,
 }: ReportViewControlsBarProps) {
   return (
@@ -58,6 +66,13 @@ export function ReportViewControlsBar({
           totalCount={totalColumnsCount}
         />
       )}
+
+      {/* 4. أيقونات التنقل المصغرة بين القوالب الثلاثة */}
+      <TemplateTypeIndicator
+        currentView={currentView}
+        onViewChange={onViewChange}
+        isCustomMultiMethod={isCustomMultiMethod}
+      />
     </div>
   );
 }

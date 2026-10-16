@@ -32,6 +32,7 @@ import { searchReportFilterOptions } from "@/lib/reports/report-execution.functi
 import { ReportTemplateSelector } from "./report-template-selector";
 import { ReportTemplateCreatorDialog } from "./report-template-creator-dialog";
 import { ReportColumnVisibilityButton } from "./report-column-visibility-button";
+import { TemplateTypeIndicator } from "./template-type-indicator";
 
 interface ReportFiltersBarProps {
   filters: ReportFilterDefinition[];
@@ -48,6 +49,9 @@ interface ReportFiltersBarProps {
   onSelectReport?: (reportId: string) => void;
   visibleColumnsCount?: number;
   totalColumnsCount?: number;
+  currentView?: ReportViewTemplateType;
+  onViewChange?: (view: ReportViewTemplateType) => void;
+  isCustomMultiMethod?: boolean;
 }
 
 const optionSourceByControl = {
@@ -86,6 +90,9 @@ export function ReportFiltersBar({
   onSelectReport,
   visibleColumnsCount,
   totalColumnsCount,
+  currentView,
+  onViewChange,
+  isCustomMultiMethod,
 }: ReportFiltersBarProps) {
   const [searchDraft, setSearchDraft] = useState(values.search || "");
   const [optionsBySource, setOptionsBySource] = useState<
@@ -218,6 +225,13 @@ export function ReportFiltersBar({
               totalCount={totalColumnsCount || definition?.columns.length}
             />
           )}
+
+          {/* 4. أيقونات التنقل المصغرة بين القوالب الثلاثة مع تمييز قالب التجميع المخصص */}
+          <TemplateTypeIndicator
+            currentView={currentView}
+            onViewChange={onViewChange}
+            isCustomMultiMethod={isCustomMultiMethod}
+          />
         </div>
 
         {activeFiltersCount > 0 && (

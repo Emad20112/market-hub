@@ -42,7 +42,7 @@ export function ReportTemplateCreatorDialog({
   const [templateName, setTemplateName] = useState("");
   const [groupBy, setGroupBy] = useState<CustomReportTemplate["groupBy"]>("product");
   const [paymentMethodFilter, setPaymentMethodFilter] = useState("all");
-  const [viewTemplate, setViewTemplate] = useState<ReportViewTemplateType>("grouped_ranking");
+  const [viewTemplate, setViewTemplate] = useState<ReportViewTemplateType>("grouped");
 
   // Get base report columns for domain
   const domainReports = useMemo(() => ReportRegistry.getByDomain(currentDomain), [currentDomain]);
@@ -188,11 +188,11 @@ export function ReportTemplateCreatorDialog({
                 <SelectValue placeholder="طريقة العرض" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="grouped_ranking">
-                  كشف تجميعي وتحليلي مرتب (Grouped Ranking)
+                <SelectItem value="grouped">
+                  قالب التجميع والتحليل — تجميع متعدد الطرق (موصى به)
                 </SelectItem>
-                <SelectItem value="detailed_table">جدول كشف تفصيلي (Detailed Table)</SelectItem>
-                <SelectItem value="summary">ملخص مؤشرات مكثف (Summary KPIs)</SelectItem>
+                <SelectItem value="detailed_table">قالب الجدول التفصيلي (Detailed Table)</SelectItem>
+                <SelectItem value="chart">قالب الرسم البياني والمؤشرات (Chart View)</SelectItem>
               </SelectContent>
             </Select>
           </div>

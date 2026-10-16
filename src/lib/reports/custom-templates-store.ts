@@ -81,13 +81,23 @@ export function customTemplateToReportDefinition(tpl: CustomReportTemplate): Rep
     return col;
   });
 
-  return {
+  // أي قالب مخصص يجمع عدة طرق يعتبر قالباً تجميعياً افتراضياً
+  const viewTemplate: ReportViewTemplateType =
+    tpl.viewTemplate === "detailed_table" || tpl.viewTemplate === "chart"
+      ? tpl.viewTemplate
+      : "grouped";
+
+  const def: ReportDefinition & { customGroupBy?: string; isCustomMultiMethod?: boolean } = {
     ...baseReport,
     id: tpl.id,
     titleAr: tpl.name,
     titleEn: tpl.name,
     descriptionAr: tpl.description || `قالب مخصص: ${tpl.name}`,
-    viewTemplate: tpl.viewTemplate,
+    viewTemplate,
     columns,
+    customGroupBy: tpl.groupBy,
+    isCustomMultiMethod: true,
   };
+
+  return def;
 }

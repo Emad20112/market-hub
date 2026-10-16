@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect } from "react";
-import type { ReportDefinition } from "@/lib/reports/types";
+import { SlidersHorizontal, CheckSquare, Square, RotateCcw } from "lucide-react";
+import type { ReportDefinition, ReportViewTemplateType } from "@/lib/reports/types";
 import { SalesRegisterDataProvider } from "@/lib/reports/data-providers/sales-register";
 import { PurchaseRegisterDataProvider } from "@/lib/reports/data-providers/purchase-register";
 import { ReportHeader } from "../shared/report-header";
@@ -10,7 +11,14 @@ import { ReportPagination } from "../shared/report-pagination";
 import { ReportEmptyState, ReportErrorState } from "../shared/report-states";
 import { createReportColumnRegistry } from "@/lib/reports/registry/column-bridge";
 import { defaultVisibility, resolveVisibility } from "@/lib/records/column-registry";
-import { RecordsColumnPicker } from "@/components/ui/records-column-picker";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 import { ReportExportDialog } from "../shared/report-export-dialog";
 import type { ReportExportPayload } from "@/lib/reports/export/types";
 import { useReportCompanyInfo } from "@/hooks/use-report-company-info";
@@ -20,6 +28,9 @@ interface DetailedTableTemplateProps {
   onPrint?: () => void;
   onExport?: () => void;
   onSelectReport?: (reportId: string) => void;
+  currentView?: ReportViewTemplateType;
+  onViewChange?: (view: ReportViewTemplateType) => void;
+  isCustomMultiMethod?: boolean;
 }
 
 export function DetailedTableTemplate({
@@ -27,6 +38,9 @@ export function DetailedTableTemplate({
   onPrint,
   onExport,
   onSelectReport,
+  currentView = "detailed_table",
+  onViewChange,
+  isCustomMultiMethod,
 }: DetailedTableTemplateProps) {
   const { companyName, currencySymbol } = useReportCompanyInfo();
 
@@ -129,6 +143,10 @@ export function DetailedTableTemplate({
     }
   };
 
+  const visibleColumns = useMemo(() => {
+    return definition.columns.filter((c) => columnVisibility[c.key] !== false);
+  }, [definition.columns, columnVisibility]);
+
   return (
     <div className="flex flex-col gap-3 rounded-xl border border-border bg-card shadow-xs p-2 sm:p-3 overflow-hidden">
       <ReportHeader
@@ -153,10 +171,11 @@ export function DetailedTableTemplate({
         currentTemplate={definition.viewTemplate}
         loading={loading}
         onSelectReport={onSelectReport}
+        currentView={currentView}
+        onViewChange={onViewChange}
+        isCustomMultiMethod={isCustomMultiMethod}
         totalColumnsCount={definition.columns.length}
-        visibleColumnsCount={
-          definition.columns.filter((c) => columnVisibility[c.key] !== false).length
-        }
+        visibleColumnsCount={visibleColumns.length}
       />
 
       <ReportSummaryDeck
@@ -177,15 +196,13 @@ export function DetailedTableTemplate({
         />
       ) : (
         <ReportDataTable
-          columns={definition.columns}
+          columns={visibleColumns}
           rows={rows}
           loading={loading}
-          columnVisibility={columnVisibility}
           sortField={sortField}
           sortOrder={sortOrder}
           onSort={handleSort}
           currencySymbol={currencySymbol}
-          companyName={companyName}
         />
       )}
 
@@ -203,15 +220,74 @@ export function DetailedTableTemplate({
         />
       )}
 
-      <RecordsColumnPicker
-        open={isColumnPickerOpen}
-        onOpenChange={setIsColumnPickerOpen}
-        columns={columnRegistry.columns}
-        visibility={columnVisibility}
-        onVisibilityChange={(newVis) =>
-          setColumnVisibility(resolveVisibility(columnRegistry, newVis))
-        }
-      />
+      {/* حوار تخصيص ظهور الأعمدة وإخفائها */}
+      <Dialog open={isColumnPickerOpen} onOpenChange={setIsColumnPickerOpen}>
+        <DialogContent className="max-w-md p-4 text-xs">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-sm font-bold text-foreground">
+              <SlidersHorizontal className="h-4 w-4 text-primary" />
+              تخصيص الأعمدة المعروضة في التقرير
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="max-h-60 overflow-y-auto space-y-1.5 py-2">
+            {columnRegistry.columns.map((col) => {
+              const isVisible = columnVisibility[col.key] !== false;
+              const isEssential = col.essential;
+
+              return (
+                <div
+                  key={col.key}
+                  onClick={() => {
+                    if (isEssential) return;
+                    setColumnVisibility((prev) =>
+                      resolveVisibility(columnRegistry, { ...prev, [col.key]: !isVisible }),
+                    );
+                  }}
+                  className={`flex items-center justify-between p-2 rounded-lg transition-colors ${
+                    isEssential
+                      ? "bg-muted/40 opacity-70 cursor-not-allowed"
+                      : "hover:bg-muted cursor-pointer"
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    {isVisible ? (
+                      <CheckSquare className="h-4 w-4 text-primary" />
+                    ) : (
+                      <Square className="h-4 w-4 text-muted-foreground" />
+                    )}
+                    <span className="font-medium text-foreground">{col.labelAr}</span>
+                  </div>
+                  {isEssential && (
+                    <span className="text-[10px] text-muted-foreground">أساسي</span>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          <DialogFooter className="flex items-center justify-between gap-2 border-t border-border pt-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setColumnVisibility(defaultVisibility(columnRegistry))}
+              className="h-7 text-xs gap-1"
+            >
+              <RotateCcw className="h-3 w-3" />
+              استعادة الافتراضي
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              onClick={() => setIsColumnPickerOpen(false)}
+              className="h-7 text-xs font-semibold px-4"
+            >
+              إغلاق وحفظ
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <ReportExportDialog
         open={isExportDialogOpen}
