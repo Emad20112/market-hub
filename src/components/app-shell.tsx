@@ -31,6 +31,7 @@ import { setCompanySettingsCache } from "@/lib/format";
 import { checkBackupReminderStatus } from "@/lib/backup/reminder";
 import { useMillingMode, isRouteVisibleByMillingMode } from "@/lib/milling-mode";
 import { useTheme } from "@/lib/theme";
+import { ThemePaletteQuickSwitcher } from "@/components/theme/theme-palette-quick-switcher";
 import { getSidebarSections, type SidebarSection } from "@/lib/navigation";
 import { routeIcon } from "@/lib/navigation/route-icons";
 
@@ -46,12 +47,12 @@ const CATEGORY_STYLES: Record<
   }
 > = {
   command_center: {
-    iconBoxActive: "bg-blue-500/20 text-blue-500 ring-1 ring-blue-500/40",
-    iconBoxInactive: "bg-blue-500/10 text-blue-600 dark:text-blue-400 group-hover:bg-blue-500/20",
-    iconActive: "text-blue-500 stroke-[2.4]",
-    iconInactive: "text-blue-600 dark:text-blue-400 group-hover:scale-110",
-    accentPill: "bg-blue-500",
-    activeBg: "bg-gradient-to-r from-blue-500/15 via-blue-500/5 to-transparent border-blue-500/20",
+    iconBoxActive: "bg-primary/20 text-primary ring-1 ring-primary/40",
+    iconBoxInactive: "bg-primary/10 text-primary group-hover:bg-primary/20",
+    iconActive: "text-primary stroke-[2.4]",
+    iconInactive: "text-primary/75 group-hover:scale-110",
+    accentPill: "bg-primary",
+    activeBg: "bg-gradient-to-r from-primary/15 via-primary/5 to-transparent border-primary/20",
   },
   sales: {
     iconBoxActive: "bg-emerald-500/20 text-emerald-500 ring-1 ring-emerald-500/40",
@@ -711,6 +712,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 )}
               />
             </button>
+
+            {/* زر اختيار ثيم ولون النظام السريع */}
+            <ThemePaletteQuickSwitcher />
 
             {/* زر تبديل الوضع (فاتح / مظلم) */}
             <button
