@@ -46,7 +46,11 @@ import {
   type MillingServiceDocument,
 } from "@/lib/milling";
 import { PaymentMethodPicker } from "@/components/ui/payment-method";
-import { getPaymentMethodDefinition, toLegacyPaymentValue, paymentMethodLabel } from "@/lib/payments/payment-methods";
+import {
+  getPaymentMethodDefinition,
+  toLegacyPaymentValue,
+  paymentMethodLabel,
+} from "@/lib/payments/payment-methods";
 import { MillingDocumentWorkflow } from "@/components/milling/milling-document-workflow";
 import {
   MillingPanel,
@@ -99,7 +103,9 @@ function MillingIntakePage() {
   const [discount, setDiscount] = useState("0");
   const [paymentMethod, setPaymentMethod] = useState("cash");
   const [paid, setPaid] = useState("");
-  const [createdDocument, setCreatedDocument] = useState<MillingServiceDocumentCreated | null>(null);
+  const [createdDocument, setCreatedDocument] = useState<MillingServiceDocumentCreated | null>(
+    null,
+  );
 
   // مرشحات قائمة المستندات المفتوحة
   const [docSearch, setDocSearch] = useState("");
@@ -143,10 +149,14 @@ function MillingIntakePage() {
     queryKey: ["milling", "grain-items"],
     queryFn: fetchGrainItems,
   });
-  const serviceItem = useQuery({ queryKey: ["milling", "service-item"], queryFn: fetchServiceItem });
+  const serviceItem = useQuery({
+    queryKey: ["milling", "service-item"],
+    queryFn: fetchServiceItem,
+  });
 
   useEffect(() => {
-    if (!servicePrice && serviceItem.data) setServicePrice(String(serviceItem.data.sale_price ?? 0));
+    if (!servicePrice && serviceItem.data)
+      setServicePrice(String(serviceItem.data.sale_price ?? 0));
   }, [serviceItem.data, servicePrice]);
 
   const balances = useQuery({
@@ -240,10 +250,10 @@ function MillingIntakePage() {
 
   const canSubmit = Boolean(
     customerId &&
-      warehouseId &&
-      itemId &&
-      Boolean(serviceItem.data?.id) &&
-      (Number(bags) > 0 || Number(kg) > 0),
+    warehouseId &&
+    itemId &&
+    Boolean(serviceItem.data?.id) &&
+    (Number(bags) > 0 || Number(kg) > 0),
   );
 
   const filteredOpenDocs = useMemo(() => {
@@ -295,7 +305,9 @@ function MillingIntakePage() {
               type="button"
               onClick={() => setActiveTab("open_docs")}
               className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                activeTab === "open_docs" ? "bg-amber-500 text-white shadow-xs" : "text-muted-foreground"
+                activeTab === "open_docs"
+                  ? "bg-amber-500 text-white shadow-xs"
+                  : "text-muted-foreground"
               }`}
             >
               <FileText className="me-1.5 inline h-3.5 w-3.5" /> المستندات المفتوحة والبحث
@@ -459,7 +471,9 @@ function MillingIntakePage() {
                       <div className="flex items-center justify-between border-t border-amber-500/20 pt-2 text-xs font-semibold">
                         <span className="text-muted-foreground">إجمالي الفاتورة:</span>
                         <span className="text-foreground font-bold text-sm">
-                          {fmtNum(Math.max(0, (Number(servicePrice) || 0) - (Number(discount) || 0)))}
+                          {fmtNum(
+                            Math.max(0, (Number(servicePrice) || 0) - (Number(discount) || 0)),
+                          )}
                         </span>
                       </div>
                     </div>
@@ -527,7 +541,9 @@ function MillingIntakePage() {
                   onClick={() => submit.mutate()}
                   className="w-full rounded-xl bg-amber-500 px-4 py-3 text-sm font-bold text-white shadow-xs transition hover:bg-amber-600 disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  {submit.isPending ? "جارٍ تسجيل الاستلام والفاتورة…" : "تسجيل الاستلام وإصدار فاتورة الأجور"}
+                  {submit.isPending
+                    ? "جارٍ تسجيل الاستلام والفاتورة…"
+                    : "تسجيل الاستلام وإصدار فاتورة الأجور"}
                 </button>
               </div>
             </MillingPanel>

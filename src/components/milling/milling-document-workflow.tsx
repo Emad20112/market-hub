@@ -59,7 +59,9 @@ export function MillingDocumentWorkflow({
   const [kgOut, setKgOut] = useState("");
   const [outputs, setOutputs] = useState<CustodyLine[]>([{ itemId: "", bags: 0, kg: 0 }]);
   const [millingNotes, setMillingNotes] = useState("");
-  const [deliveryLines, setDeliveryLines] = useState<CustodyLine[]>([{ itemId: "", bags: 0, kg: 0 }]);
+  const [deliveryLines, setDeliveryLines] = useState<CustodyLine[]>([
+    { itemId: "", bags: 0, kg: 0 },
+  ]);
   const [deliveryNotes, setDeliveryNotes] = useState("");
 
   // الطباعة والمشاركة
@@ -132,13 +134,13 @@ export function MillingDocumentWorkflow({
 
   const hasGrainToProcess = Boolean(
     details?.intakeGrain &&
-      (details.intakeGrain.bagsRemaining > 0 || details.intakeGrain.kgRemaining > 0),
+    (details.intakeGrain.bagsRemaining > 0 || details.intakeGrain.kgRemaining > 0),
   );
 
   const canProcess = Boolean(
     grainItemId &&
-      (Number(bagsOut) > 0 || Number(kgOut) > 0) &&
-      outputs.some((line) => line.itemId && (line.bags > 0 || line.kg > 0)),
+    (Number(bagsOut) > 0 || Number(kgOut) > 0) &&
+    outputs.some((line) => line.itemId && (line.bags > 0 || line.kg > 0)),
   );
 
   const availableOutputsForDelivery = (details?.outputsSummary ?? []).filter(
@@ -174,7 +176,8 @@ export function MillingDocumentWorkflow({
           <div>
             <div className="flex items-center gap-2">
               <h3 className="text-sm font-bold text-foreground">
-                مستند المطحنة: <Mono className="text-primary font-bold">{document.document_number}</Mono>
+                مستند المطحنة:{" "}
+                <Mono className="text-primary font-bold">{document.document_number}</Mono>
               </h3>
               {details?.status === "DELIVERED" ? (
                 <Pill tone="emerald">تم التسليم بالكامل</Pill>
@@ -196,7 +199,15 @@ export function MillingDocumentWorkflow({
         <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
-            onClick={() => handlePrint(details?.status === "DELIVERED" ? "delivery" : details?.status === "PROCESSED" ? "milled" : "intake")}
+            onClick={() =>
+              handlePrint(
+                details?.status === "DELIVERED"
+                  ? "delivery"
+                  : details?.status === "PROCESSED"
+                    ? "milled"
+                    : "intake",
+              )
+            }
             className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-card px-3 py-1.5 text-xs font-bold text-foreground shadow-xs transition hover:bg-muted"
           >
             <Printer className="h-3.5 w-3.5 text-primary" />
@@ -269,9 +280,13 @@ export function MillingDocumentWorkflow({
             )}
           </div>
           <div className="flex items-center gap-3 font-mono">
-            <span>المستلم: {fmtNum(details.intakeGrain.bagsReceived)} كيس / {fmtNum(details.intakeGrain.kgReceived)} كجم</span>
+            <span>
+              المستلم: {fmtNum(details.intakeGrain.bagsReceived)} كيس /{" "}
+              {fmtNum(details.intakeGrain.kgReceived)} كجم
+            </span>
             <span className="font-bold text-foreground">
-              المتبقي للطحن: {fmtNum(details.intakeGrain.bagsRemaining)} كيس / {fmtNum(details.intakeGrain.kgRemaining)} كجم
+              المتبقي للطحن: {fmtNum(details.intakeGrain.bagsRemaining)} كيس /{" "}
+              {fmtNum(details.intakeGrain.kgRemaining)} كجم
             </span>
           </div>
         </div>
@@ -507,9 +522,7 @@ function LinesEditor({
   label: string;
 }) {
   const update = (index: number, patch: Partial<CustodyLine>) =>
-    setLines((rows) =>
-      rows.map((row, i) => (i === index ? { ...row, ...patch } : row)),
-    );
+    setLines((rows) => rows.map((row, i) => (i === index ? { ...row, ...patch } : row)));
 
   return (
     <div className="space-y-2">

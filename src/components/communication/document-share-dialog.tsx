@@ -118,7 +118,9 @@ export function DocumentShareDialog({
           </div>
           {millingDocumentNumber && (
             <div className="flex items-center justify-between">
-              <span className="text-muted-foreground">{isAr ? "مستند الطحن:" : "Milling Doc #:"}</span>
+              <span className="text-muted-foreground">
+                {isAr ? "مستند الطحن:" : "Milling Doc #:"}
+              </span>
               <span className="font-mono font-bold text-foreground">#{millingDocumentNumber}</span>
             </div>
           )}

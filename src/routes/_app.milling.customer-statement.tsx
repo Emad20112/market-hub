@@ -135,9 +135,7 @@ function CustomerStatementPage() {
 
   const term = search.trim().toLowerCase();
   const filteredCustomers = [...byCustomer.entries()].filter(([, list]) =>
-    term === ""
-      ? true
-      : list.some((r) => (r.customer_name_ar || "").toLowerCase().includes(term)),
+    term === "" ? true : list.some((r) => (r.customer_name_ar || "").toLowerCase().includes(term)),
   );
 
   const moneyRows = (money.data ?? []).filter((m) =>
@@ -256,7 +254,11 @@ function CustomerStatementPage() {
                         <button
                           type="button"
                           onClick={() =>
-                            handleShareStatement(customerId, list[0].customer_name_ar || "العميل", list)
+                            handleShareStatement(
+                              customerId,
+                              list[0].customer_name_ar || "العميل",
+                              list,
+                            )
                           }
                           className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1.5 text-[11px] font-bold text-emerald-700 dark:text-emerald-300 transition hover:bg-emerald-500/20"
                         >
@@ -375,7 +377,8 @@ function CustomerStatementPage() {
               <div>
                 <h2 className="text-sm font-bold text-foreground">فواتير أجور الطحن الرسمية</h2>
                 <p className="text-xs text-muted-foreground">
-                  كل فاتورة هنا منشأة ومثبتة في دفتر المبيعات والذمم والتحصيل؛ مع روابط مباشرة لمستند المطحنة.
+                  كل فاتورة هنا منشأة ومثبتة في دفتر المبيعات والذمم والتحصيل؛ مع روابط مباشرة
+                  لمستند المطحنة.
                 </p>
               </div>
             </div>

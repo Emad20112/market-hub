@@ -348,7 +348,9 @@ export const TEMPLATES: Record<CommunicationEventType, TemplateDefinition> = {
         statusText ? `⚙️ *الحالة:* ${statusText}` : "",
         `💵 *الإجمالي:* ${total}`,
         `✅ *المدفوع:* ${paid}`,
-        (inv?.remaining ?? 0) > 0 ? `⏳ *المتبقي المستحق:* *${remaining}*` : `✨ *الحالة المالية:* مسددة بالكامل`,
+        (inv?.remaining ?? 0) > 0
+          ? `⏳ *المتبقي المستحق:* *${remaining}*`
+          : `✨ *الحالة المالية:* مسددة بالكامل`,
         `\nشاكرين لكم ثقتكم ونسعد بخدمتكم دائماً.`,
       ].filter(Boolean);
 
@@ -372,7 +374,9 @@ export const TEMPLATES: Record<CommunicationEventType, TemplateDefinition> = {
         statusText ? `⚙️ *Status:* ${statusText}` : "",
         `💵 *Total:* ${total}`,
         `✅ *Paid:* ${paid}`,
-        (inv?.remaining ?? 0) > 0 ? `⏳ *Remaining Balance:* *${remaining}*` : `✨ *Status:* Fully Paid`,
+        (inv?.remaining ?? 0) > 0
+          ? `⏳ *Remaining Balance:* *${remaining}*`
+          : `✨ *Status:* Fully Paid`,
         `\nThank you for choosing us!`,
       ].filter(Boolean);
 

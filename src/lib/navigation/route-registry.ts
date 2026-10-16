@@ -516,7 +516,10 @@ export const ROUTE_REGISTRY: RouteSearchEntry[] = [
     titleEn: "Milling Service Desk",
     descriptionAr: "إصدار فاتورة أجور الطحن الرسمية واستلام حبوب العميل في مستند موحد",
     descriptionEn: "Official milling service invoice and custody document",
-    keywords: withSynonyms(["استلام", "فاتورة", "أجور", "طحن", "أمانة", "خدمة", "intake"], SEARCH_SYNONYMS.milling),
+    keywords: withSynonyms(
+      ["استلام", "فاتورة", "أجور", "طحن", "أمانة", "خدمة", "intake"],
+      SEARCH_SYNONYMS.milling,
+    ),
     category: "milling",
     moduleId: "milling_operations",
     requiredRoles: STOCK_OPS,

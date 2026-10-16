@@ -643,9 +643,14 @@ function SalesInvoicePage() {
 
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber-500/30 bg-amber-500/5 px-4 py-3">
         <p className="text-xs text-foreground">
-          {isRtl ? "خدمة الطحن لها فاتورة ومستند أمانة موحدان، وتُسجل حصراً من شاشة استقبال وفواتير الطحن." : "Milling services are recorded from the milling intake desk."}
+          {isRtl
+            ? "خدمة الطحن لها فاتورة ومستند أمانة موحدان، وتُسجل حصراً من شاشة استقبال وفواتير الطحن."
+            : "Milling services are recorded from the milling intake desk."}
         </p>
-        <Link to="/milling/intake" className="rounded-xl bg-amber-500 px-3 py-2 text-xs font-bold text-white hover:bg-amber-600">
+        <Link
+          to="/milling/intake"
+          className="rounded-xl bg-amber-500 px-3 py-2 text-xs font-bold text-white hover:bg-amber-600"
+        >
           {isRtl ? "فتح استقبال وفواتير الطحن" : "Open milling desk"}
         </Link>
       </div>

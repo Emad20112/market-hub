@@ -455,7 +455,10 @@ export async function fetchMillingDocumentDetails(
     const totalBagsIn = intakeLines.reduce((acc, l) => acc + l.bags_in, 0);
     const totalKgIn = intakeLines.reduce((acc, l) => acc + l.kg_in, 0);
     const milledLines = lines.filter(
-      (l) => l.entry_type === "MILLING" && l.item_id === firstIntake.item_id && l.bags_out + l.kg_out > 0,
+      (l) =>
+        l.entry_type === "MILLING" &&
+        l.item_id === firstIntake.item_id &&
+        l.bags_out + l.kg_out > 0,
     );
     const totalBagsMilled = milledLines.reduce((acc, l) => acc + l.bags_out, 0);
     const totalKgMilled = milledLines.reduce((acc, l) => acc + l.kg_out, 0);
@@ -477,13 +480,16 @@ export async function fetchMillingDocumentDetails(
   const outputLines = lines.filter(
     (l) => l.entry_type === "MILLING" && (l.bags_in > 0 || l.kg_in > 0),
   );
-  const outputsByItem = new Map<string, {
-    itemId: string;
-    nameAr: string;
-    itemClass: string;
-    bagsProduced: number;
-    kgProduced: number;
-  }>();
+  const outputsByItem = new Map<
+    string,
+    {
+      itemId: string;
+      nameAr: string;
+      itemClass: string;
+      bagsProduced: number;
+      kgProduced: number;
+    }
+  >();
 
   for (const o of outputLines) {
     const curr = outputsByItem.get(o.item_id) ?? {

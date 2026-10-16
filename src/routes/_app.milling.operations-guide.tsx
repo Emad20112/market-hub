@@ -43,7 +43,9 @@ export const Route = createFileRoute("/_app/milling/operations-guide")({
 });
 
 export function MillingOperationsGuidePage() {
-  const [activeTab, setActiveTab] = useState<"counter" | "own_grain" | "supplies" | "statement" | "faq">("counter");
+  const [activeTab, setActiveTab] = useState<
+    "counter" | "own_grain" | "supplies" | "statement" | "faq"
+  >("counter");
 
   return (
     <ModuleGuard moduleId="milling_operations">
@@ -61,11 +63,22 @@ export function MillingOperationsGuidePage() {
                 <ShieldCheck className="h-6 w-6" />
               </div>
               <div>
-                <h2 className="text-base font-bold text-foreground">القاعدة الحاكمة: اسأل نفسك دائماً «الحبوب هذه لمن؟»</h2>
+                <h2 className="text-base font-bold text-foreground">
+                  القاعدة الحاكمة: اسأل نفسك دائماً «الحبوب هذه لمن؟»
+                </h2>
                 <p className="mt-1 text-xs text-muted-foreground leading-relaxed">
-                  إذا كانت الحبوب <strong className="text-foreground">ملك العميل</strong>: المسار هو <strong className="text-amber-600 dark:text-amber-400">استقبال وفواتير الطحن</strong> (أمانة عينية + فاتورة خدمة، صفر أثر على مخزون المطحنة).
+                  إذا كانت الحبوب <strong className="text-foreground">ملك العميل</strong>: المسار هو{" "}
+                  <strong className="text-amber-600 dark:text-amber-400">
+                    استقبال وفواتير الطحن
+                  </strong>{" "}
+                  (أمانة عينية + فاتورة خدمة، صفر أثر على مخزون المطحنة).
                   <br />
-                  إذا كانت الحبوب <strong className="text-foreground">ملك المطحنة</strong>: المسار هو <strong className="text-sky-600 dark:text-sky-400">مشتريات ← تصنيع ذكي ← مبيعات</strong> (بضاعة تجارية تؤثر في المخزون والتكلفة والأرباح).
+                  إذا كانت الحبوب <strong className="text-foreground">ملك المطحنة</strong>: المسار
+                  هو{" "}
+                  <strong className="text-sky-600 dark:text-sky-400">
+                    مشتريات ← تصنيع ذكي ← مبيعات
+                  </strong>{" "}
+                  (بضاعة تجارية تؤثر في المخزون والتكلفة والأرباح).
                 </p>
               </div>
             </div>
@@ -113,11 +126,14 @@ export function MillingOperationsGuidePage() {
             <div className="rounded-2xl border border-border bg-card p-6 shadow-xs space-y-4">
               <div className="flex items-center gap-2.5 text-amber-600 dark:text-amber-400">
                 <Scale className="h-5 w-5" />
-                <h3 className="text-base font-bold text-foreground">استقبال وفواتير الطحن (/milling/intake)</h3>
+                <h3 className="text-base font-bold text-foreground">
+                  استقبال وفواتير الطحن (/milling/intake)
+                </h3>
               </div>
               <p className="text-xs text-muted-foreground leading-relaxed">
-                هذه هي <strong>الواجهة الوحيدة</strong> التي يتعامل معها عامل المطحنة عند تقديم خدمة طحن للزبائن.
-                تم إلغاء الشاشات المتفرقة والربط اليدوي المعقد؛ الآن تتم كل الخدمة (الاستلام، الفوترة، الدفع، الطحن، والتسليم) تحت رقم مستند واحد وفاتورة رسمية واحدة.
+                هذه هي <strong>الواجهة الوحيدة</strong> التي يتعامل معها عامل المطحنة عند تقديم خدمة
+                طحن للزبائن. تم إلغاء الشاشات المتفرقة والربط اليدوي المعقد؛ الآن تتم كل الخدمة
+                (الاستلام، الفوترة، الدفع، الطحن، والتسليم) تحت رقم مستند واحد وفاتورة رسمية واحدة.
               </p>
 
               {/* المراحل الثلاث للخدمة */}
@@ -134,18 +150,21 @@ export function MillingOperationsGuidePage() {
                   </div>
                   <h4 className="text-xs font-bold text-foreground">الاستلام والفوترة الفورية</h4>
                   <p className="text-[11px] text-muted-foreground leading-relaxed">
-                    1. اختر العميل (أو اضغط <strong>«+ جديد»</strong> لإضافته فوراً دون مغادرة الشاشة).
+                    1. اختر العميل (أو اضغط <strong>«+ جديد»</strong> لإضافته فوراً دون مغادرة
+                    الشاشة).
                     <br />
                     2. اختر صنف الحبوب (مثلاً: قمح بلدي) واكتب عدد الأكياس.
                     <br />
-                    3. يحسب النظام الوزن تلقائياً (الأكياس × سعة العبوة الرسمية 25/50 كجم) مع إمكانية التعديل يدوياً.
+                    3. يحسب النظام الوزن تلقائياً (الأكياس × سعة العبوة الرسمية 25/50 كجم) مع
+                    إمكانية التعديل يدوياً.
                     <br />
                     4. حدد سعر الخدمة وطريقة الدفع (نقداً / شبكة / آجل / مجزأ) والمبلغ المدفوع.
                     <br />
                     5. اضغط <strong>«تسجيل الاستلام وإصدار فاتورة الأجور»</strong>.
                   </p>
                   <div className="rounded-lg bg-emerald-500/10 p-2 text-[11px] text-emerald-700 dark:text-emerald-300 font-semibold">
-                    ✓ النتيجة: إنشاء مستند طحن + تسجيل أمانة عينية + إصدار فاتورة مبيعات رسمية برقم حقيقي في ثانية واحدة!
+                    ✓ النتيجة: إنشاء مستند طحن + تسجيل أمانة عينية + إصدار فاتورة مبيعات رسمية برقم
+                    حقيقي في ثانية واحدة!
                   </div>
                 </div>
 
@@ -161,11 +180,14 @@ export function MillingOperationsGuidePage() {
                   </div>
                   <h4 className="text-xs font-bold text-foreground">تسجيل نواتج الطحن</h4>
                   <p className="text-[11px] text-muted-foreground leading-relaxed">
-                    1. يظهر المستند المفتوح فوراً أسفل الكاونتر (أو تفتحه من تبويب «المستندات المفتوحة»).
+                    1. يظهر المستند المفتوح فوراً أسفل الكاونتر (أو تفتحه من تبويب «المستندات
+                    المفتوحة»).
                     <br />
-                    2. في قسم <strong>«2. عملية الطحن»</strong>، تظهر الحبوب المستلمة ورصيدها المتبقي للطحن.
+                    2. في قسم <strong>«2. عملية الطحن»</strong>، تظهر الحبوب المستلمة ورصيدها
+                    المتبقي للطحن.
                     <br />
-                    3. أدخل كمية الحبوب المطحونة، ثم أضف أسطر النواتج (مثال: دقيق أبيض 18 كيس 450 كجم، نخالة 2 كيس 45 كجم).
+                    3. أدخل كمية الحبوب المطحونة، ثم أضف أسطر النواتج (مثال: دقيق أبيض 18 كيس 450
+                    كجم، نخالة 2 كيس 45 كجم).
                     <br />
                     4. اضغط <strong>«تسجيل نواتج الطحن»</strong>.
                   </p>
@@ -186,7 +208,8 @@ export function MillingOperationsGuidePage() {
                   </div>
                   <h4 className="text-xs font-bold text-foreground">تسليم النواتج للعميل</h4>
                   <p className="text-[11px] text-muted-foreground leading-relaxed">
-                    1. في قسم <strong>«3. تسليم النواتج»</strong>، يظهر جدول النواتج الجاهزة ورصيدها المتبقي.
+                    1. في قسم <strong>«3. تسليم النواتج»</strong>، يظهر جدول النواتج الجاهزة ورصيدها
+                    المتبقي.
                     <br />
                     2. أدخل الكمية التي يستلمها العميل الآن (يمكن التسليم كلياً أو جزئياً).
                     <br />
@@ -207,10 +230,12 @@ export function MillingOperationsGuidePage() {
                 </h4>
                 <p className="text-xs text-muted-foreground leading-relaxed">
                   في أعلى بطاقة المستند يوجد زران سريعان:
-                  <br />
-                  - <strong>طباعة المستند:</strong> يفتح المعاينة الذكية (يدعم طابعات الفواتير الحرارية 80mm وطابعات الورق A4/A5). تتحدث محتويات المستند تلقائياً حسب مرحلته (فاتورة استلام ← فاتورة محدثة بنواتج الطحن ← سند تسليم أمانة).
-                  <br />
-                  - <strong>واتساب ومشاركة:</strong> يفتح رسالة مجهزة باسم العميل، رقم المستند، رقم الفاتورة، والمبلغ المتبقي مع رابط الفاتورة لمشاركتها مباشرة على واتساب بنقرة واحدة.
+                  <br />- <strong>طباعة المستند:</strong> يفتح المعاينة الذكية (يدعم طابعات الفواتير
+                  الحرارية 80mm وطابعات الورق A4/A5). تتحدث محتويات المستند تلقائياً حسب مرحلته
+                  (فاتورة استلام ← فاتورة محدثة بنواتج الطحن ← سند تسليم أمانة).
+                  <br />- <strong>واتساب ومشاركة:</strong> يفتح رسالة مجهزة باسم العميل، رقم
+                  المستند، رقم الفاتورة، والمبلغ المتبقي مع رابط الفاتورة لمشاركتها مباشرة على
+                  واتساب بنقرة واحدة.
                 </p>
               </div>
             </div>
@@ -223,11 +248,14 @@ export function MillingOperationsGuidePage() {
             <div className="rounded-2xl border border-border bg-card p-6 shadow-xs space-y-4">
               <div className="flex items-center gap-2.5 text-sky-600 dark:text-sky-400">
                 <Cog className="h-5 w-5" />
-                <h3 className="text-base font-bold text-foreground">قمح المطحنة التجاري والتصنيع الذكي</h3>
+                <h3 className="text-base font-bold text-foreground">
+                  قمح المطحنة التجاري والتصنيع الذكي
+                </h3>
               </div>
               <p className="text-xs text-muted-foreground leading-relaxed">
-                هذا المسار مخصص عندما تشتري المطحنة قمحاً لحسابها الخاص بهدف طحنه وبيعه للمستهلكين أو المتاجر.
-                هنا الحبوب والدقيق ملك للمطحنة بالكامل وتدخل في تقييم المخزون وتكلفة المبيعات وحساب الأرباح والخسائر.
+                هذا المسار مخصص عندما تشتري المطحنة قمحاً لحسابها الخاص بهدف طحنه وبيعه للمستهلكين
+                أو المتاجر. هنا الحبوب والدقيق ملك للمطحنة بالكامل وتدخل في تقييم المخزون وتكلفة
+                المبيعات وحساب الأرباح والخسائر.
               </p>
 
               <div className="space-y-3 pt-2">
@@ -238,8 +266,11 @@ export function MillingOperationsGuidePage() {
                   <div className="space-y-1">
                     <h4 className="text-xs font-bold text-foreground">شراء القمح وتوريده للمخزن</h4>
                     <p className="text-xs text-muted-foreground leading-relaxed">
-                      يتم عبر شاشة المشتريات العامة أو نقطة الشراء السريعة (<Link to="/purchases" className="text-primary underline">/purchases</Link>).
-                      يدخل القمح مخزون الشركة بتكلفة الشراء الحقيقية ويُسجل كأصل من أصول المخزون.
+                      يتم عبر شاشة المشتريات العامة أو نقطة الشراء السريعة (
+                      <Link to="/purchases" className="text-primary underline">
+                        /purchases
+                      </Link>
+                      ). يدخل القمح مخزون الشركة بتكلفة الشراء الحقيقية ويُسجل كأصل من أصول المخزون.
                     </p>
                   </div>
                 </div>
@@ -249,7 +280,13 @@ export function MillingOperationsGuidePage() {
                     ب
                   </span>
                   <div className="space-y-1">
-                    <h4 className="text-xs font-bold text-foreground">عملية «التصنيع الذكي» (<Link to="/milling/manufacture" className="text-primary underline">/milling/manufacture</Link>)</h4>
+                    <h4 className="text-xs font-bold text-foreground">
+                      عملية «التصنيع الذكي» (
+                      <Link to="/milling/manufacture" className="text-primary underline">
+                        /milling/manufacture
+                      </Link>
+                      )
+                    </h4>
                     <p className="text-xs text-muted-foreground leading-relaxed">
                       عند تشغيل الماكينة لطحن قمح الشركة:
                       <br />
@@ -257,7 +294,9 @@ export function MillingOperationsGuidePage() {
                       <br />
                       2. أضف النواتج المستخرجة (مثال: دقيق ممتاز + نخالة).
                       <br />
-                      3. يقوم النظام تلقائياً بخصم كمية القمح من المخزون، وإدخال النواتج بتكلفة محسوبة آلياً بنسبة أسعار بيعها (Relative Sales Value). الناتج الأخير يستقبل فارق التقريب تلقائياً لضمان تطابق إجمالي التكلفة بنسبة 100%.
+                      3. يقوم النظام تلقائياً بخصم كمية القمح من المخزون، وإدخال النواتج بتكلفة
+                      محسوبة آلياً بنسبة أسعار بيعها (Relative Sales Value). الناتج الأخير يستقبل
+                      فارق التقريب تلقائياً لضمان تطابق إجمالي التكلفة بنسبة 100%.
                     </p>
                   </div>
                 </div>
@@ -269,8 +308,9 @@ export function MillingOperationsGuidePage() {
                   <div className="space-y-1">
                     <h4 className="text-xs font-bold text-foreground">بيع الدقيق والمنتجات</h4>
                     <p className="text-xs text-muted-foreground leading-relaxed">
-                      يتم بيع الدقيق والنخالة كأي منتجات تجارية عبر نقطة البيع POS أو فواتير المبيعات.
-                      عند البيع يتم خصم المخزون واحتساب تكلفة البضاعة المباعة (COGS) بدقة بناءً على تكلفة التصنيع الذكي المحسوبة سابقاً.
+                      يتم بيع الدقيق والنخالة كأي منتجات تجارية عبر نقطة البيع POS أو فواتير
+                      المبيعات. عند البيع يتم خصم المخزون واحتساب تكلفة البضاعة المباعة (COGS) بدقة
+                      بناءً على تكلفة التصنيع الذكي المحسوبة سابقاً.
                     </p>
                   </div>
                 </div>
@@ -285,25 +325,36 @@ export function MillingOperationsGuidePage() {
             <div className="rounded-2xl border border-border bg-card p-6 shadow-xs space-y-4">
               <div className="flex items-center gap-2.5 text-violet-600 dark:text-violet-400">
                 <PackageMinus className="h-5 w-5" />
-                <h3 className="text-base font-bold text-foreground">المستهلكات التشغيلية (أكياس، خيط، زيت المطحنة)</h3>
+                <h3 className="text-base font-bold text-foreground">
+                  المستهلكات التشغيلية (أكياس، خيط، زيت المطحنة)
+                </h3>
               </div>
               <p className="text-xs text-muted-foreground leading-relaxed">
-                تحتاج المطحنة يومياً إلى مستهلكات في صالة الطحن (أكياس فارغة للتعبئة، بكرات خيط خياطة، زيوت تشحيم، فلاتر).
-                تتم إدارة هذه المواد لضمان عدم ضياعها أو سرقتها دون إرباك الحسابات.
+                تحتاج المطحنة يومياً إلى مستهلكات في صالة الطحن (أكياس فارغة للتعبئة، بكرات خيط
+                خياطة، زيوت تشحيم، فلاتر). تتم إدارة هذه المواد لضمان عدم ضياعها أو سرقتها دون إرباك
+                الحسابات.
               </p>
 
               <div className="grid gap-4 sm:grid-cols-2 pt-2">
                 <div className="rounded-xl border border-border/80 bg-surface-2/40 p-4 space-y-2">
                   <h4 className="text-xs font-bold text-foreground">1. شراء وتوريد المستهلكات</h4>
                   <p className="text-xs text-muted-foreground leading-relaxed">
-                    تُعرّف الأصناف بتصنيف <code>PACKAGING</code> أو <code>NON_STOCK_ITEM</code>، وتُشترى عبر المشتريات العادية إلى «مخزن المستهلكات» أو المستودع الرئيسي.
+                    تُعرّف الأصناف بتصنيف <code>PACKAGING</code> أو <code>NON_STOCK_ITEM</code>،
+                    وتُشترى عبر المشتريات العادية إلى «مخزن المستهلكات» أو المستودع الرئيسي.
                   </p>
                 </div>
                 <div className="rounded-xl border border-border/80 bg-surface-2/40 p-4 space-y-2">
-                  <h4 className="text-xs font-bold text-foreground">2. الصرف الداخلي اليومي (<Link to="/milling/consumables" className="text-primary underline">/milling/consumables</Link>)</h4>
+                  <h4 className="text-xs font-bold text-foreground">
+                    2. الصرف الداخلي اليومي (
+                    <Link to="/milling/consumables" className="text-primary underline">
+                      /milling/consumables
+                    </Link>
+                    )
+                  </h4>
                   <p className="text-xs text-muted-foreground leading-relaxed">
-                    عند تسليم العمال حزمة أكياس أو بكرة خيط لصالة الطحن: يدخل المسؤول ويحدد الصنف والكمية المصروفة.
-                    يُصدر النظام سند صرف ببادئة متميزة <strong>`CS-`</strong> (Consumables Supply) وتُنقص الكمية فوراً من رصيد المستهلكات.
+                    عند تسليم العمال حزمة أكياس أو بكرة خيط لصالة الطحن: يدخل المسؤول ويحدد الصنف
+                    والكمية المصروفة. يُصدر النظام سند صرف ببادئة متميزة <strong>`CS-`</strong>{" "}
+                    (Consumables Supply) وتُنقص الكمية فوراً من رصيد المستهلكات.
                   </p>
                 </div>
               </div>
@@ -317,42 +368,51 @@ export function MillingOperationsGuidePage() {
             <div className="rounded-2xl border border-border bg-card p-6 shadow-xs space-y-4">
               <div className="flex items-center gap-2.5 text-emerald-600 dark:text-emerald-400">
                 <Receipt className="h-5 w-5" />
-                <h3 className="text-base font-bold text-foreground">كشف حساب الأمانات والرقابة التشغيلية (/milling/customer-statement)</h3>
+                <h3 className="text-base font-bold text-foreground">
+                  كشف حساب الأمانات والرقابة التشغيلية (/milling/customer-statement)
+                </h3>
               </div>
               <p className="text-xs text-muted-foreground leading-relaxed">
-                شاشة رقابية شاملة تعرض الموقف الحقيقي لكل عميل بدون أي حسابات يدوية أو تخزين أرصدة ثابتة قد تخالف الواقع.
+                شاشة رقابية شاملة تعرض الموقف الحقيقي لكل عميل بدون أي حسابات يدوية أو تخزين أرصدة
+                ثابتة قد تخالف الواقع.
               </p>
 
               <div className="space-y-4 pt-2">
                 <div className="rounded-xl border border-border/80 bg-surface-2/40 p-4 space-y-2">
-                  <h4 className="text-xs font-bold text-foreground">التبويب العيني (كميات الحبوب والنواتج)</h4>
+                  <h4 className="text-xs font-bold text-foreground">
+                    التبويب العيني (كميات الحبوب والنواتج)
+                  </h4>
                   <p className="text-xs text-muted-foreground leading-relaxed">
-                    يعرض لكل عميل وصنف: ما تم استلامه، وما تم صرفه، والمتبقي الحالي في المطحنة (بالأكياس وبالكيلوجرام).
-                    عند النقر على زر <strong>«مشاركة الكشف»</strong>، يمكن إرسال ملخص الأمانات والمتبقي للعميل مباشرة عبر واتساب.
+                    يعرض لكل عميل وصنف: ما تم استلامه، وما تم صرفه، والمتبقي الحالي في المطحنة
+                    (بالأكياس وبالكيلوجرام). عند النقر على زر <strong>«مشاركة الكشف»</strong>، يمكن
+                    إرسال ملخص الأمانات والمتبقي للعميل مباشرة عبر واتساب.
                   </p>
                 </div>
 
                 <div className="rounded-xl border border-border/80 bg-surface-2/40 p-4 space-y-2">
-                  <h4 className="text-xs font-bold text-foreground">التبويب المالي (فواتير أجور الطحن والذمم)</h4>
+                  <h4 className="text-xs font-bold text-foreground">
+                    التبويب المالي (فواتير أجور الطحن والذمم)
+                  </h4>
                   <p className="text-xs text-muted-foreground leading-relaxed">
-                    يسرد جميع فواتير أجور الطحن الرسمية المرتبطة بالمستندات: قيمة الفاتورة، المدفوع، والمتبقي كذمة على العميل.
-                    يحتوي كل سطر على:
-                    <br />
-                    - زر <strong>«طباعة»</strong> لإعادة طباعة مستند وفاتورة الطحن بأي وقت.
-                    <br />
-                    - زر <strong>«فتح في الكاونتر»</strong> لفتح المستند ومتابعة نواتجه أو تسليمه فوراً.
-                    <br />
-                    - رابط مباشر للفاتورة في شاشة المبيعات لمتابعة السداد والتحصيل.
+                    يسرد جميع فواتير أجور الطحن الرسمية المرتبطة بالمستندات: قيمة الفاتورة، المدفوع،
+                    والمتبقي كذمة على العميل. يحتوي كل سطر على:
+                    <br />- زر <strong>«طباعة»</strong> لإعادة طباعة مستند وفاتورة الطحن بأي وقت.
+                    <br />- زر <strong>«فتح في الكاونتر»</strong> لفتح المستند ومتابعة نواتجه أو
+                    تسليمه فوراً.
+                    <br />- رابط مباشر للفاتورة في شاشة المبيعات لمتابعة السداد والتحصيل.
                   </p>
                 </div>
 
                 <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 space-y-2">
                   <h4 className="text-xs font-bold text-amber-700 dark:text-amber-300 flex items-center gap-2">
-                    <AlertTriangle className="h-4 w-4" /> تنبيه «الفاقد المكتشف» (الرقابة على الماكينات)
+                    <AlertTriangle className="h-4 w-4" /> تنبيه «الفاقد المكتشف» (الرقابة على
+                    الماكينات)
                   </h4>
                   <p className="text-xs text-muted-foreground leading-relaxed">
-                    لا يوجد حقل لإدخال الفاقد يدوياً في النظام (لأن ذلك يفتح باب التلاعب).
-                    بدلاً من ذلك، يقوم النظام آلياً بحساب: (وزن الحبوب المطحونة − إجمالي وزن النواتج المسجلة) لكل عملية طحن مستقلة. إذا تجاوز الفرق النسبة الطبيعية، يظهر تنبيه للمراجعة الرقابية للتأكد من نظافة الماكينات وعدم تسرب الدقيق.
+                    لا يوجد حقل لإدخال الفاقد يدوياً في النظام (لأن ذلك يفتح باب التلاعب). بدلاً من
+                    ذلك، يقوم النظام آلياً بحساب: (وزن الحبوب المطحونة − إجمالي وزن النواتج المسجلة)
+                    لكل عملية طحن مستقلة. إذا تجاوز الفرق النسبة الطبيعية، يظهر تنبيه للمراجعة
+                    الرقابية للتأكد من نظافة الماكينات وعدم تسرب الدقيق.
                   </p>
                 </div>
               </div>
@@ -385,13 +445,14 @@ export function MillingOperationsGuidePage() {
                 a: "يمكنك الذهاب إلى «كشف حساب الأمانات» (/milling/customer-statement) واختيار التبويب المالي، أو فتح تبويب «المستندات المفتوحة والبحث» في استقبال وفواتير الطحن والبحث برقم المستند أو اسم العميل، والضغط على زر «طباعة».",
               },
             ].map((item, idx) => (
-              <div key={idx} className="rounded-2xl border border-border bg-card p-5 shadow-xs space-y-2">
+              <div
+                key={idx}
+                className="rounded-2xl border border-border bg-card p-5 shadow-xs space-y-2"
+              >
                 <h4 className="text-xs font-bold text-foreground flex items-center gap-2">
                   <HelpCircle className="h-4 w-4 text-amber-500 shrink-0" /> {item.q}
                 </h4>
-                <p className="text-xs text-muted-foreground leading-relaxed ps-6">
-                  {item.a}
-                </p>
+                <p className="text-xs text-muted-foreground leading-relaxed ps-6">{item.a}</p>
               </div>
             ))}
           </div>
