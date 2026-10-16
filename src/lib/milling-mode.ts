@@ -13,7 +13,9 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
-export type MillingMode = "none" | "simplified" | "manufacturing" | "hybrid";
+export type MillingMode = "none" | "simplified";
+/** @deprecated الأوضاع القديمة — تُقرأ كـ 'simplified' للتوافق فقط. */
+export type LegacyMillingMode = "manufacturing" | "hybrid";
 
 export interface MillingModeConfig {
   mode: MillingMode;
@@ -91,16 +93,22 @@ export function getMillingMode(): MillingMode {
   if (typeof window === "undefined") return "simplified";
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (
-      raw &&
-      (raw === "none" || raw === "simplified" || raw === "manufacturing" || raw === "hybrid")
-    ) {
-      return raw as MillingMode;
+    const mode = (raw && normalizeMode(raw)) || null;
+    if (mode) {
+      return mode;
     }
     return "simplified";
   } catch {
     return "simplified";
   }
+}
+
+/** القيم القديمة (قبل التبسيط) تُطابَق على الوضع المبسط. */
+function normalizeMode(raw: string): MillingMode | null {
+  if (raw === "none" || raw === "simplified") return raw;
+  // 'manufacturing' و'hybrid' — أوضاع أُلغيت: تُقرأ كـ 'simplified'.
+  if (raw === "manufacturing" || raw === "hybrid") return "simplified";
+  return null;
 }
 
 export function saveMillingMode(mode: MillingMode): void {
@@ -143,14 +151,8 @@ export function useMillingMode() {
       .eq("id", 1)
       .maybeSingle()
       .then(({ data }: any) => {
-        const remoteMode = (data?.catalog_modules as any)?.millingMode;
-        if (
-          remoteMode &&
-          (remoteMode === "none" ||
-            remoteMode === "simplified" ||
-            remoteMode === "manufacturing" ||
-            remoteMode === "hybrid")
-        ) {
+        const remoteMode = normalizeMode((data?.catalog_modules as any)?.millingMode);
+        if (remoteMode) {
           if (remoteMode !== mode) {
             localStorage.setItem(STORAGE_KEY, remoteMode);
             setModeState(remoteMode);
@@ -172,60 +174,27 @@ export function useMillingMode() {
     return () => window.removeEventListener(EVENT_NAME, handler);
   }, []);
 
-  const isMillingActive = mode !== "none";
-  const isSimplifiedActive = mode === "simplified" || mode === "hybrid";
-  const isManufacturingActive = mode === "manufacturing" || mode === "hybrid";
+  const isMillingActive = mode === "simplified";
 
   return {
     mode,
     setMode: saveMillingMode,
     isMillingActive,
-    isSimplifiedActive,
-    isManufacturingActive,
   };
 }
 
 /**
  * Checks if a specific path or nav item is allowed under the current milling mode.
+ * بعد التبسيط: سؤال واحد فقط — هل المطحنة مفعّلة؟ (ق7)
  */
 export function isRouteVisibleByMillingMode(pathname: string, mode: MillingMode): boolean {
   const clean = pathname.replace(/^\/_app/, "").replace(/\/$/, "");
 
-  // If general business (no mill), hide all milling & production screens
   if (mode === "none") {
-    if (
-      clean === "/milling" ||
-      clean.startsWith("/milling/") ||
-      clean === "/production" ||
-      clean.startsWith("/production/")
-    ) {
-      return false;
-    }
+    if (clean === "/milling" || clean.startsWith("/milling/")) return false;
     return true;
   }
 
-  // If simplified mill:
-  if (mode === "simplified") {
-    // Hide industrial production and multi-screen jobs/intake/delivery
-    if (clean === "/production" || clean.startsWith("/production/")) return false;
-    if (
-      clean === "/milling/jobs" ||
-      clean === "/milling/intake" ||
-      clean === "/milling/delivery" ||
-      clean === "/milling/reports"
-    ) {
-      return false;
-    }
-    // Allow simplified unified desk, customer statement, operations guide
-    return true;
-  }
-
-  // If manufacturing mill:
-  if (mode === "manufacturing") {
-    // Show industrial production and advanced job routes
-    return true;
-  }
-
-  // Hybrid: allow everything
+  // simplified: كل شاشات المطحنة المبسطة ظاهرة.
   return true;
 }

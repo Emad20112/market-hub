@@ -48,7 +48,7 @@ DELETE FROM auth.users;
 يُدرج تصنيفات (`قمح`, `ذرة`, `شعير`, `مستلزمات تعبئة`) و**6 منتجات خام + منتجات مطحونة** بـ `sku` و`barcode`، مع `ON CONFLICT (sku) DO UPDATE`.
 
 **الملف:** `20261001000000_mill_complete_cleanup_and_seeding.sql`
-يُدرج **مستلزمات تعبئة كاملة** (أكياس PP، خيش) بأسعار تكلفة وبيع، ويعدّل `units`، ويُدرج `milling_unit_conversions`.
+يُدرج **مستلزمات تعبئة كاملة** (أكياس PP، خيش) بأسعار تكلفة وبيع، ويعدّل `units`، ويُدرج أصناف المستهلكات (أكياس، خيط، زيت).
 
 **الملف:** `20260912120000_*.sql`
 `INSERT INTO public.inventory ... 999999` — **مخزون وهمي**.
@@ -231,8 +231,8 @@ psql "$DATABASE_URL" -c "SELECT * FROM pg_constraint WHERE connamespace='public'
 ⑩  المصروفات (يشير إلى ②④⑨)
     └─ expense_entries → expense_lines → expense_payments → expense_approvals
 
-⑪  المطحنة (يشير إلى ④⑤⑥)
-    └─ milling_jobs, custody, outputs, unit_conversions
+⑪  المطحنة المبسطة (يشير إلى ④⑤⑥)
+    └─ custody_ledger + دوال RPC — جدول واحد، الرصيد مشتق
 
 ⑫  المنصة (مستقلة عن كل ما سبق)
     └─ platform_admins → platform_modules → platform_plans → tenant_subscriptions
@@ -257,10 +257,10 @@ psql "$DATABASE_URL" -c "SELECT * FROM pg_constraint WHERE connamespace='public'
 | 08 | `08_purchasing_and_returns.sql` | `purchase_invoices(+items)`, `purchase_returns(+items)` | 04, 05, 06 |
 | 09 | `09_accounting_ledger.sql` | `accounts`, `journal_entries`, `journal_lines`, `opening_balance_*` | 02, 06 |
 | 10 | `10_expenses.sql` | `expense_categories`, `expense_entries`, `expense_lines`, `expense_payments`, `expense_approvals`, `expense_attachments`, `expense_cost_centers`, `expense_projects` | 02, 04, 09 |
-| 11 | `11_milling_operations.sql` | `milling_*` (أوامر، أمانات، نواتج، تحويلات وحدات) | 04, 05, 06 |
+| 11 | `10_milling_custody.sql` | `custody_ledger` + دوال RPC (`custody_*`, `smart_manufacture`, `consume_internal_supplies`) | 04, 05, 06 |
 | 12 | `12_platform_and_subscriptions.sql` | `platform_admins`, `platform_modules`, `platform_plans`, `tenant_subscriptions` | 02 |
 | 13 | `13_audit_and_governance.sql` | `audit_logs`, `platform_audit_logs` | 02, 12 |
-| 14 | `14_reporting_views.sql` | كل الـ Views: `trial_balance`, `inventory_valuation`, `company_stock_positions`, `customer_owned_positions`, `customer_ledger_balances`, `invoice_ledger_status`, `production_ledger_status`, ... | 01–13 |
+| 14 | `14_reporting_views.sql` | كل الـ Views: `trial_balance`, `inventory_valuation`, `company_stock_positions`, `customer_owned_positions`, `customer_ledger_balances`, `invoice_ledger_status`, `custody_customer_statement`, `custody_service_money`, `custody_detected_loss`, ... | 01–13 |
 
 **الإجمالي: 14 ملفًا** بدل 132.
 
@@ -321,7 +321,6 @@ psql "$DATABASE_URL" -c "SELECT * FROM pg_constraint WHERE connamespace='public'
 → منتجات المطحنة من 20261204000000 و 20261001000000
 → مستلزمات التعبئة والأصناف الخام
 → التصنيفات (قمح، ذرة، شعير، مستلزمات تعبئة)
-→ milling_unit_conversions
 → Main Warehouse / Walk-in Customer
 ```
 
@@ -367,7 +366,7 @@ supabase/
 │   ├── 07_purchasing_and_returns.sql
 │   ├── 08_accounting_ledger.sql
 │   ├── 09_expenses.sql
-│   ├── 10_milling_and_production.sql
+│   ├── 10_milling_custody.sql
 │   ├── 11_platform_and_audit.sql
 │   ├── 12_reporting_views.sql
 │   ├── 13_foreign_keys_and_grants.sql
@@ -681,7 +680,7 @@ SELECT pg_get_functiondef('public.create_sale(uuid,uuid,text,numeric,numeric,tex
 | 07 | `purchasing_and_returns` | 15.2 KB | يعتمد على 05 و04 |
 | 08 | `accounting_ledger` | 33.2 KB | دليل الحسابات والقيود المزدوجة والأرصدة الافتتاحية |
 | 09 | `expenses` | 93.2 KB | يعتمد على 02 و08 |
-| 10 | `milling_and_production` | 105.9 KB | يعتمد على 05 و06 |
+| 10 | `milling_custody` | (انظر الملف) | يعتمد على 04 و05 و06 |
 | 11 | `platform_and_audit` | 4.5 KB | مستقل |
 | 12 | `reporting_views` | 30.4 KB | **مؤجَّل**: 30 view مرتبة حسب اعتمادها على بعضها |
 | 13 | `foreign_keys_and_grants` | 127.5 KB | **كل** المفاتيح الأجنبية + Triggers + سياسات RLS + الصلاحيات |
@@ -716,7 +715,6 @@ SELECT pg_get_functiondef('public.create_sale(uuid,uuid,text,numeric,numeric,tex
 | `INSERT INTO inventory ... 999999` (مخزون وهمي) | **حُذف** |
 | `UPDATE company_settings SET name = 'محل العدادات...'` | **حُذف** |
 | `Main Warehouse` / `Walk-in Customer` | `seeds/03_samples/sample-mill.sql` |
-| `milling_grain_grades` (تحمل `product_id` FK) | `seeds/03_samples/sample-mill.sql` |
 | `20260912111000_reset_for_meters_shop.sql` (TRUNCATE + DELETE users) | **مؤرشف — لم يُنقل** |
 
 ### 13.5 ما بقي داخل `seeds/01_system/` — ومبرر كل ملف
@@ -732,8 +730,10 @@ SELECT pg_get_functiondef('public.create_sale(uuid,uuid,text,numeric,numeric,tex
 | `07_document_numbering.sql` | بلاها يرفض محرّك الترقيم توليد أي رقم |
 | `08_payment_methods.sql` | كل دفعة تمر من هنا + إعداد المنشأة الافتراضي |
 
-**`milling_grain_grades` ليس مرجعيًا** لأنه يحمل مفتاحًا أجنبيًا إلى `products`، أي أنه
-يسمّي منتجًا حقيقيًا يشتريه مطحن معيّن — فمكانه `03_samples/`.
+**أصناف المطحنة (حبوب خام، نواتج، مستهلكات) ليست مرجعية** — كلها منتجات حقيقية
+تشتريها مطحنة معيّنة، فمكانها `03_samples/sample-mill.sql`. الحبوب أصناف
+`RAW_MATERIAL` والنواتج `FINISHED_GOOD/BY_PRODUCT` والخدمة صنف واحد
+«أجور طحن وتجهيز» (docs/milling/00 — ق5).
 
 ### 13.6 التحقق النهائي — نتائج فعلية
 
@@ -785,3 +785,69 @@ SELECT pg_get_functiondef('public.create_sale(uuid,uuid,text,numeric,numeric,tex
 الحصيلة: بقي عدد ملفات الترحيل **16**، ولا دالة معرَّفة مرتين (R-13/R-14).
 
 التفاصيل الكاملة في `TEAM_MERGE_REPORT.md` القسم 9.
+
+---
+
+## القسم 14 — تحديث ما بعد الإصلاح (Prettier + ESLint)
+
+> **التاريخ:** 2026-10-12 · **الحالة:** ✅ منفَّذ ومتحقَّق منه
+
+### 14.1 القياس الفعلي
+
+| المقياس | القيمة |
+|---|---|
+| `npm run lint` — النتيجة | `✖ 61 problems (0 errors, 61 warnings)` |
+| أخطاء | **0** |
+| تحذيرات | 61 (كلها `react-hooks/exhaustive-deps` و`react-refresh/only-export-components`) |
+| exit code | 0 |
+
+> التحذيرات المتبقية **ليست أخطاء تنسيق**، بل تحذيرات معمارية في React Hooks
+> وFast Refresh. لا تُصلَح آليًا ولا تُفشل البناء. تُعالَج في ممر منفصل إن لزم.
+
+### 14.2 الأخطاء التي أُصلحت في هذا الممر
+
+| # | الخطأ | الملف | الإصلاح |
+|---|---|---|---|
+| 1 | متغيرات `BRAND_SLUG`, `VAT_RATE` معلَّقة في JSX بلا استخدام (3 أسطر، `no-unused-vars`) | `src/routes/_app.settings.tsx` | حُذفت من الـ JSX مع الحفاظ على المنطق الذي يستهلكها |
+| 2 | مسافة بادئة/فواصل مخالفة لـ Prettier | ملفات المصادر المتأثرة | أُصلحت يدويًا ثم تحقُّق آلي |
+
+### 14.3 تنبيه على `git diff` — أسطر CRLF
+
+`git diff` يعرض عددًا كبيرًا من الأسطر المحذوفة والمضافة في الملفات التي لم
+يُغيَّر منطقها. **السبب:** اختلاف نهايات الأسطر (CRLF ↔ LF)، لا تعديل حقيقي.
+
+**قبل أي commit، تحقَّق من التغيير الحقيقي فقط:**
+
+```powershell
+git diff --ignore-cr-at-eol --stat
+git diff --ignore-cr-at-eol -- <file>
+```
+
+هذا يستبعد ضجيج CRLF ويعرض التعديل الفعلي في المنطق.
+
+### 14.4 الملفات المؤكَّدة سليمة (لا ضجيج)
+
+| الملف | الحالة |
+|---|---|
+| `supabase/MIGRATIONS_REFACTOR_PLAN.md` | ثابت — لا CRLF |
+| `supabase/SYSTEM_DATA_AUDIT_PLAN.md` | ثابت — لا CRLF |
+| ملفات `supabase/migrations/*.sql` | ثابتة |
+| ملفات `supabase/seeds/**` | ثابتة |
+
+> **الخلاصة:** ملفات قاعدة البيانات والترحيلات لم تتأثّر بضجيج CRLF. الضجيج
+> محصور في ملفات `src/**` والملفات الجذرية، وهو أثر تنسيق لا أثر منطقي.
+
+## تحديث 2026-10-13 — التبسيط المعتمد للمطحنة
+
+> المرجع: `docs/milling/00_خطة_التبسيط_المعتمدة.md` (القرارات ق1–ق10) و`02_خطة_الإصلاح_والتنفيذ.md`.
+
+| التغيير | التفصيل |
+|---|---|
+| استبدال ملف 10 | `10_milling_and_production.sql` → `10_milling_custody.sql`: جدول واحد `custody_ledger` + 5 دوال RPC للسجل + `smart_manufacture` + `consume_internal_supplies` |
+| حذف كامل | كل جداول `milling_*` القديمة وكل جداول `production_*` (BOM/أوامر/فاقد) — قاعدة تجريبية، إعادة بناء لا مهاجرة (ق1، ق6، ق8) |
+| إزالة enums | `milling_status` و`milling_output_type` من الملف 01 |
+| إزالة رابط فواتير | عمود `sales_invoices.milling_job_id` — البديل `custody_ledger.service_invoice_id` |
+| تسلسلات مملوكة | `milling_intake_seq`/`milling_service_seq`/`milling_delivery_seq` في الملف 10؛ حُذفت `milling_job_seq` و`production_order_seq` |
+| views جديدة | `custody_balances` · `custody_customer_statement` · `custody_service_money` · `custody_detected_loss` (بديل كل views `milling_*` عدا `milling_margin_report` و`milling_inventory_report` اللذين يبقيان) |
+| doc types | صف `production_order` أُزيل من ترقيم المستندات (seeds 07) |
+| التحقق | `supabase db reset` على قاعدة فارغة ينجح بلا خطأ (R-20) |

@@ -1,0 +1,23 @@
+diff --git a/src/lib/navigation/route-registry.ts b/src/lib/navigation/route-registry.ts
+--- a/src/lib/navigation/route-registry.ts
++++ b/src/lib/navigation/route-registry.ts
+@@ -463,6 +463,19 @@ export const ROUTE_REGISTRY: RouteSearchEntry[] = [
+     requiredRoles: FINANCE,
+     i18nKey: "nav.daily_journal",
+   },
++  {
++    id: "general-ledger",
++    path: "/general-ledger",
++    titleAr: "دفتر الأستاذ العام",
++    titleEn: "General Ledger",
++    descriptionAr: "حركة حساب واحد من القيود المرحّلة مع كشوف المطابقة",
++    descriptionEn: "Per-account movement from posted entries with reconciliation",
++    keywords: ["أستاذ", "دفتر", "حساب", "ledger", "general"],
++    category: "finance",
++    moduleId: "advanced_accounting",
++    requiredRoles: FINANCE,
++    i18nKey: "nav.general_ledger",
++  },
+   {
+     id: "trial-balance",
+     path: "/trial-balance",

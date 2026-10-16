@@ -1457,7 +1457,7 @@ GRANT EXECUTE ON FUNCTION public.can_author_payment_methods() TO authenticated, 
 --     يعني أن الـRPC وأي واجهة مستقبلية لا يمكن أن تختلفا.
 CREATE OR REPLACE FUNCTION public.payment_method_clean_label(p_label text)
 RETURNS text
-LANGUAGE sql
+LANGUAGE sql SET search_path = public
 IMMUTABLE
 AS $$
   SELECT nullif(btrim(coalesce(p_label, '')), '');
@@ -1480,7 +1480,7 @@ CREATE OR REPLACE FUNCTION public.update_payment_method_identity(
   p_icon_key  text DEFAULT NULL
 )
 RETURNS TABLE (id text, name_ar text, name_en text, icon_key text, is_system boolean)
-LANGUAGE plpgsql
+LANGUAGE plpgsql SET search_path = public
 SECURITY INVOKER
 AS $$
 DECLARE
@@ -1571,7 +1571,7 @@ CREATE OR REPLACE FUNCTION public.create_tenant_payment_method(
   p_requires_reference boolean DEFAULT true
 )
 RETURNS text
-LANGUAGE plpgsql
+LANGUAGE plpgsql SET search_path = public
 SECURITY INVOKER
 AS $$
 DECLARE
@@ -1740,7 +1740,7 @@ GRANT EXECUTE ON FUNCTION public.create_tenant_payment_method(text, text, text, 
 --     must never produce. The operator is told to disable it instead.
 CREATE OR REPLACE FUNCTION public.remove_tenant_payment_method(p_id text)
 RETURNS void
-LANGUAGE plpgsql
+LANGUAGE plpgsql SET search_path = public
 SECURITY INVOKER
 AS $$
 DECLARE

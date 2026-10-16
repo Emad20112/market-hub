@@ -32,7 +32,11 @@ project_id = "kwzqvgdyadylwnvjghqn"
 #   supabase/seeds/04_tests/    — مثبتات الاختبارات الآلية
 # راجع supabase/seeds/README.md و supabase/MIGRATIONS_RULES.md.
 enabled = true
-sql_paths = ["./seeds/01_system/*.sql"]
+sql_paths = [
+  "./seeds/01_system/*.sql",
+  "./seeds/03_samples/sample-mill.sql"
+]
+
 
 # ---------------------------------------------------------------------------
 # Edge Functions
@@ -86,6 +90,26 @@ enable_signup = true
 #     قبل النشر لعميل: اربط مزوّدًا حقيقيًا من لوحة Supabase.
 enable_signup = true
 enable_confirmations = false
+
+# مزوّد الهاتف — إصلاح 2026-10-13:
+# كان الدخول بالهاتف يفشل دائماً بـ {"error_code":"phone_provider_disabled"}
+# لأن GoTrue يرى GOTRUE_EXTERNAL_PHONE_ENABLED=false. قسم [auth.external.phone]
+# هو المخطط المعتمد الذي يحمل القيمة true لهذا المتغير — تحقّقنا منه بعد
+# supabase stop && start.
+#
+# لا مزوّد SMS هنا على قصد: بلا مزوّد تُطبع الرموز في سجل الحاوية ولا تُرسل،
+# وهو المطلوب في التطوير. قبل النشر لعميل: اربط مزوّداً حقيقياً من لوحة Supabase.
+[auth.external.phone]
+enabled = true
+enable_signup = true
+# قيم تطوير وهمية (placeholder) — المتطلب البنيوي من CLI لتفعيل المزوّد.
+# بلا مزوّد SMS فعلي تُطبع رموز التأكيد في سجل حاوية auth ولا تُرسل، وهو
+# المطلوب في التطوير. لا تضع أسراراً حقيقية هنا أبداً (R-17) — قبل النشر
+# لعميل: اربط مزوّداً حقيقياً من لوحة Supabase (Secrets هناك لا في الكود).
+client_id = "local-dev-placeholder"
+secret = "local-dev-placeholder-not-a-real-secret"
+turnstile_enabled = false
+sms_message_sending_enabled = false
 # ⚠️ لا يوجد مفتاح `template` في [auth.sms] في CLI 2.120 — المفتاحان المعترف
 #     بهما هنا هما `enable_signup` و`enable_confirmations` فقط. نص الرسالة
 #     يُضبط من لوحة Supabase (Auth ← Templates) لا من هذا الملف. وترك مفتاح

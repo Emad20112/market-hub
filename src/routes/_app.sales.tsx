@@ -199,7 +199,7 @@ export function SalesPage() {
       const { data, error } = await supabase
         .from("sales_invoices")
         .select(
-          "id,invoice_number,status,subtotal,discount,tax,total,paid,payment_method,note,created_at,customer_id,warehouse_id,milling_job_id,customers(id,name,phone),warehouses(name,name_ar)",
+          "id,invoice_number,status,subtotal,discount,tax,total,paid,payment_method,note,created_at,customer_id,warehouse_id,customers(id,name,phone),warehouses(name,name_ar)",
         )
         .order("created_at", { ascending: false })
         .range(from, to);

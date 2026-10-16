@@ -1,12 +1,18 @@
+/**
+ * /milling/operations-guide — دليل عمليات المطحنة (داخل النظام).
+ *
+ * مرآة مختصرة لـ docs/milling/03_دليل_التشغيل_لصاحب_المطحنة.md — بلغة
+ * المشغّل: شاشة، إجراء، نتيجة، وقاعدة لا تُكسر. كل مسار في الدليل موجود فعلاً.
+ */
 import { createFileRoute, Link } from "@tanstack/react-router";
 import {
   BookOpen,
   CheckCircle2,
   Cog,
+  PackageMinus,
   PackagePlus,
   Receipt,
   Truck,
-  Warehouse,
   Wheat,
 } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
@@ -28,187 +34,190 @@ const flows: {
   rule: string;
 }[] = [
   {
-    title: "1. طحن حبوب العميل للغير",
+    title: "1. طحن حبوب العميل للغير (الأمانات)",
     icon: Wheat,
     tone: "amber",
-    purpose: "العميل يملك الحبوب والنواتج؛ المطحنة تبيع خدمة الطحن فقط.",
+    purpose: "العميل يملك الحبوب والنواتج؛ المطحنة تبيع خدمة الطحن فقط. صفر أثر على مخزون المطحنة.",
     steps: [
       {
-        screen: "قبّان الميزان والاستلام",
+        screen: "استلام الأمانات",
         to: "/milling/intake",
-        action: "اختر العميل، الصومعة، درجة الحبوب، عدد الأكياس والوزن القائم والفارغ.",
-        result: "سند أمانات ووزن صافٍ؛ لا يدخل مخزون المطحنة.",
+        action: "اختر العميل والمخزن وصنف الحبوب، ثم اكتب عدد الأكياس و/أو الوزن بالكيلو.",
+        result: "رصيد عيني باسم العميل — لا مخزون لك ولا فاتورة. سطر واحد في السجل.",
       },
       {
-        screen: "صالة التشغيل وأوامر الطحن",
-        to: "/milling/jobs",
+        screen: "الطحن",
+        to: "/milling/milling",
         action:
-          "أنشئ عقد الطحن مباشرة بعد الوزن: الناتج المطلوب، الأكياس، أساس السعر (كيس أو طن) والسعر المتفق عليه.",
-        result: "يثبت السعر قبل التشغيل، ثم يفتح أمر طحن من العقد.",
+          "اختر الحبوب من رصيد العميل، وأدخل النواتج: سطر لكل ناتج (دقيق/نخالة/سميد) بالأكياس والكيلو.",
+        result:
+          "حبوبه نقصت ونواتجه زادت في رصيده. الفاقد يُكتشف تلقائياً في الكشف — لا حقل إدخال له.",
       },
       {
-        screen: "صالة التشغيل وأوامر الطحن",
-        to: "/milling/jobs",
-        action: "سجّل الدقيق والنخالة والفاقد الفعلي، ثم أقفل الأمر بعد مراجعة الكميات.",
-        result: "يبقى الناتج أمانة للعميل ولا يتحول لبضاعة للمطحنة.",
-      },
-      {
-        screen: "فاتورة أجور الطحن",
-        to: "/milling/jobs",
+        screen: "المبيعات (فاتورة الأجور)",
+        to: "/sales",
         action:
-          "من الأمر المقفل أصدر فاتورة الخدمة وحدد المدفوع أو الآجل. أضف الأكياس فقط إن وفرتها المطحنة.",
-        result: "إيراد خدمة وذمة مالية منفصلة؛ فاتورة واحدة لكل أمر.",
+          "فاتورة عادية ببند واحد «أجور طحن وتجهيز» — سعرها محفوظ على الصنف نفسه. ثم اربطها من الكشف.",
+        result: "إيراد خدمات منفصل عن مبيعات البضاعة + ذمة على العميل إن لم يدفع.",
       },
       {
-        screen: "بوابة التسليم وإذن الخروج",
+        screen: "تسليم النواتج",
         to: "/milling/delivery",
-        action: "اختر الناتج الجاهز، سجّل الكميات المسلّمة واطبع إذن الخروج للتوقيع.",
-        result: "يخفض رصيد أمانات العميل فقط.",
+        action: "اختر ما يبقى باسمه وسجّل المسلَّم — جزئي أو كامل.",
+        result: "يخفض رصيد أمانات العميل فقط. النظام يرفض تسليم أكثر من المتبقي.",
       },
     ],
-    rule: "لا تسجل قمح العميل أو دقيقه كمخزون أو كمبيعات للمطحنة.",
+    rule: "لا تسجل قمح العميل أو دقيقه كمخزون أو كمبيعات للمطحنة — أبداً.",
   },
   {
-    title: "2. شراء قمح المطحنة وإنتاج وبيع منتجاتها",
+    title: "2. قمح المطحنة الخاص (شراء وتصنيع وبيع)",
     icon: Cog,
     tone: "sky",
     purpose: "المطحنة تملك القمح والدقيق؛ كل حركة تؤثر في المخزون والتكلفة والربح.",
     steps: [
       {
-        screen: "نقطة المشتريات السريعة والتوريد",
+        screen: "المشتريات",
         to: "/purchase-pos",
         action:
-          "أنشئ المورد، اختر قمح المطحنة، أدخل الكمية والتكلفة وطريقة الدفع ثم احفظ فاتورة التوريد.",
-        result: "يزيد مخزون القمح وتظهر ذمة المورد عند الشراء الآجل.",
+          "فاتورة توريد عادية: المورد + الكمية + التكلفة. القمح يدخل مخزونك بتكلفته الحقيقية.",
+        result: "مخزون قمح صحيح وذمة مورد عند الشراء الآجل.",
       },
       {
-        screen: "المخزون",
-        to: "/inventory",
-        action: "تحقق من استلام القمح في المستودع الصحيح قبل بدء أي إنتاج.",
-        result: "رصيد خام صحيح وقابل للجرد.",
-      },
-      {
-        screen: "تشغيل المطحنة",
-        to: "/milling/jobs",
+        screen: "التصنيع الذكي",
+        to: "/milling/manufacture",
         action:
-          "لا تستخدم مسار أمانات العميل لإنتاج المطحنة. سجّل إنتاج الشركة فقط عبر مسار الإنتاج المعتمد بعد تهيئته.",
-        result: "خصم الخام وإضافة الدقيق والنخالة يجب أن يكونا بحركة مخزنية موثقة.",
+          "وارد: كمية القمح المطحون. صادر: سطر لكل ناتج (دقيق/نخالة) بالكيلو. التكلفة توزَّع آلياً حسب أسعار البيع النسبية.",
+        result:
+          "القمح يُنقص من مخزونك، والنواتج تدخل بتكلفة فعلية موزعة — فربحك عند البيع حقيقي لا وهمي.",
       },
       {
         screen: "المبيعات أو نقطة البيع",
         to: "/sales",
-        action: "بع الدقيق أو النخالة كأصناف مخزنية، واختر العميل والدفع والخصم ضمن الصلاحية.",
-        result: "تُخصم البضاعة، وتُنشأ فاتورة وذمة العميل عند البيع الآجل.",
+        action: "بيع الدقيق والنخالة كأي بضاعة.",
+        result: "خصم من المخزون + إيراد + تكلفة مبيعات محسوبة تلقائياً.",
       },
     ],
-    rule: "لا تخلط منتجات المطحنة مع نواتج عملاء الطحن؛ لكل منهما ملكية وتكلفة مختلفة.",
+    rule: "لا تستخدم مسار أمانات العميل لقمحك أنت — المسار البضاعة منفصل تماماً.",
   },
   {
-    title: "3. تخزين حبوب العميل للغير",
-    icon: Warehouse,
+    title: "3. المستهلكات (أكياس، خيط، زيت)",
+    icon: PackageMinus,
     tone: "violet",
-    purpose: "خدمة حفظ أمانات بلا طحن؛ العميل يبقى مالك الحبوب طوال المدة.",
+    purpose: "تُشترى كأصناف وتُصرف من مخزن المستهلكات — الرصيد لا يكذب.",
     steps: [
       {
-        screen: "قبّان الميزان والاستلام",
-        to: "/milling/intake",
-        action: "سجّل العميل والحبوب والوزن وموقع الصومعة، واطبع سند الاستلام.",
-        result: "رصيد أمانة قابل للمراجعة.",
+        screen: "المشتريات",
+        to: "/purchase-pos",
+        action: "فاتورة توريد عادية لأصناف المستهلكات.",
+        result: "تدخل مخزن المستهلكات كميات حقيقية.",
       },
       {
-        screen: "كشف حساب الأمانات المزدوج",
-        to: "/milling/customer-statement",
-        action: "راجع الرصيد العيني دورياً مع جرد الصومعة، وسجل أي حركة فقط بسندها الصحيح.",
-        result: "كشف عيني مستقل عن الذمة المالية.",
-      },
-      {
-        screen: "بوابة التسليم وإذن الخروج",
-        to: "/milling/delivery",
-        action: "عند طلب العميل، سلّم الكمية فعلياً بإذن خروج موقع.",
-        result: "يخفض الأمانة ولا ينشئ بيعاً.",
+        screen: "صرف مستهلكات داخلي",
+        to: "/milling/consumables",
+        action: "سطر لكل مستهلك استُخدم: صنف + كمية.",
+        result: "تُنقص من مخزون المستهلكات فوراً — لا أرصدة وهمية.",
       },
     ],
-    rule: "رسوم التخزين خدمة تُتفق وتفوتر بشكل مستقل؛ لا تحول الأمانة إلى مخزون تجاري.",
+    rule: "كل ما استُخدم فعلاً يُصرف يوم استخدامه — لا تراكم أرصدة وهمية.",
+  },
+  {
+    title: "4. كشف العميل (نهاية اليوم أو أي وقت)",
+    icon: Receipt,
+    tone: "emerald",
+    purpose: "كل أرقام العميل في شاشة واحدة: عيني ومالي، والفاقد المكتشف.",
+    steps: [
+      {
+        screen: "كشف حساب الأمانات",
+        to: "/milling/customer-statement",
+        action: "تبويب عيني: استُلم/صادر/متبقٍ لكل عميل وصنف. تبويب مالي: فواتير الأجور وسدادها.",
+        result: "لا حساب يدوي — كل الرقيم مشتقة من السجل. الفاقد المكتشف يظهر للمراجعة.",
+      },
+    ],
+    rule: "المتبقي باسم العميل هو الحقيقة — لا رصيد مخزَّن يتخلف عن الواقع.",
   },
 ];
 
 function MillingOperationsGuide() {
   return (
     <ModuleGuard moduleId="milling_operations">
-      <PageHeader
-        title="دليل عمليات المطحنة"
-        subtitle="خطوات تشغيلية متسلسلة: أين تدخل، ماذا تسجل، وما الأثر على المخزون والذمم."
-      />
-      <div className="mb-5 rounded-2xl border border-primary/20 bg-primary/5 p-4 text-sm leading-7 text-muted-foreground">
-        <BookOpen className="me-2 inline h-4 w-4 text-primary" />
-        ابدأ دائماً بتحديد الملكية: <b className="text-foreground">
-          هل الحبوب للمطحنة أم للعميل؟
-        </b>{" "}
-        هذا القرار يحدد الشاشة والمسار المحاسبي الصحيح.
-      </div>
-      <div className="space-y-5">
-        {flows.map((flow) => {
-          const Icon = flow.icon;
-          return (
-            <section
-              key={flow.title}
-              className="overflow-hidden rounded-2xl border border-border/70 bg-surface/80"
-            >
-              <header className="flex gap-3 border-b border-border/60 p-4">
-                <div className="grid size-10 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary">
-                  <Icon className="size-5" />
-                </div>
-                <div>
-                  <h2 className="font-bold text-foreground">{flow.title}</h2>
-                  <p className="mt-1 text-xs text-muted-foreground">{flow.purpose}</p>
-                </div>
-              </header>
-              <ol className="divide-y divide-border/50">
-                {flow.steps.map((step, index) => (
-                  <li
-                    key={`${flow.title}-${step.screen}-${index}`}
-                    className="grid gap-3 p-4 sm:grid-cols-[2rem_13rem_1fr]"
-                  >
-                    <span className="grid size-8 place-items-center rounded-full bg-surface-2 text-xs font-bold text-primary">
-                      {index + 1}
-                    </span>
+      <div className="mx-auto max-w-5xl space-y-5 p-4">
+        <PageHeader
+          title="دليل عمليات المطحنة"
+          subtitle="دورتان فقط: حبوب الغير (أمانات) وقمح المطحنة. كل ما عداها يدور حولهما."
+        />
+
+        {/* القاعدة الذهبية */}
+        <div className="rounded-2xl border border-amber-500/40 bg-amber-500/10 p-4">
+          <p className="flex items-center gap-2 text-sm font-bold text-amber-700 dark:text-amber-300">
+            <CheckCircle2 className="h-4 w-4" /> قبل أي تسجيل اسأل نفسك: الحبوب هذي مين؟
+          </p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            <strong>العميل</strong> → استلام ← طحن ← تسليم (مسار الأمانات، صفر مخزون).{" "}
+            <strong>المطحنة</strong> → مشتريات ← تصنيع ذكي ← بيع (مسار البضاعة، مخزون وتكلفة وربح).
+          </p>
+        </div>
+
+        {/* الدورات */}
+        {flows.map((flow) => (
+          <div
+            key={flow.title}
+            className="rounded-2xl border border-border/70 bg-surface-1/80 p-5 shadow-sm"
+          >
+            <div className="flex items-center gap-2.5">
+              <div className="grid h-9 w-9 place-items-center rounded-xl bg-amber-500/15 text-amber-600 dark:text-amber-400">
+                <flow.icon className="h-4 w-4" />
+              </div>
+              <div>
+                <h2 className="text-sm font-bold text-foreground">{flow.title}</h2>
+                <p className="text-xs text-muted-foreground">{flow.purpose}</p>
+              </div>
+            </div>
+
+            <ol className="mt-4 space-y-3">
+              {flow.steps.map((s, i) => (
+                <li
+                  key={i}
+                  className="flex gap-3 rounded-xl border border-border/60 bg-surface-2/40 p-3"
+                >
+                  <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-amber-500/20 text-[11px] font-black text-amber-700 dark:text-amber-300">
+                    {i + 1}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-bold text-foreground">{s.screen}</p>
+                    <p className="mt-0.5 text-xs text-muted-foreground">{s.action}</p>
+                    <p className="mt-1 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+                      ← {s.result}
+                    </p>
+                  </div>
+                  {s.to && (
                     <Link
-                      to={step.to}
-                      className="flex items-center gap-2 text-sm font-bold text-primary hover:underline"
+                      to={s.to}
+                      className="shrink-0 self-center rounded-lg border border-border px-2.5 py-1 text-[11px] font-bold text-foreground hover:bg-muted"
                     >
-                      <PackagePlus className="size-4" />
-                      {step.screen}
+                      افتح الشاشة
                     </Link>
-                    <div className="text-xs leading-6 text-muted-foreground">
-                      <p>{step.action}</p>
-                      <p className="mt-1 font-semibold text-foreground">
-                        <CheckCircle2 className="me-1 inline size-3.5 text-emerald-500" />
-                        النتيجة: {step.result}
-                      </p>
-                    </div>
-                  </li>
-                ))}
-              </ol>
-              <footer className="flex gap-2 bg-rose-500/5 px-4 py-3 text-xs text-rose-700 dark:text-rose-300">
-                <Receipt className="size-4 shrink-0" />
-                <b>قاعدة:</b> {flow.rule}
-              </footer>
-            </section>
-          );
-        })}
-      </div>
-      <section className="mt-5 grid gap-3 sm:grid-cols-3">
-        {[
-          ["يوميًا", "طابق أمانات العملاء مع الصوامع قبل إغلاق الدوام."],
-          ["قبل الفوترة", "راجع أن الأمر مقفل وأن السعر من العقد وليس من تقدير جديد."],
-          ["أسبوعيًا", "راجع تقارير الاستخلاص والفاقد وفواتير الخدمة غير المحصلة."],
-        ].map(([title, body]) => (
-          <div key={title} className="rounded-xl border border-border/70 bg-surface p-4">
-            <h3 className="font-bold text-foreground">{title}</h3>
-            <p className="mt-1 text-xs leading-6 text-muted-foreground">{body}</p>
+                  )}
+                </li>
+              ))}
+            </ol>
+
+            <p className="mt-3 flex items-start gap-1.5 rounded-xl bg-rose-500/10 px-3 py-2 text-xs font-semibold text-rose-600 dark:text-rose-300">
+              <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+              {flow.rule}
+            </p>
           </div>
         ))}
-      </section>
+
+        {/* للتوثيق الكامل */}
+        <div className="rounded-2xl border border-border/70 bg-surface-1/80 p-4 text-center">
+          <p className="text-xs text-muted-foreground">
+            الدليل الكامل بلغة صاحب المطحنة — مع مصفوفة الأمان والأسئلة الشائعة — في
+            <span className="mx-1 font-mono text-[11px] text-foreground">
+              docs/milling/03_دليل_التشغيل_لصاحب_المطحنة.md
+            </span>
+          </p>
+        </div>
+      </div>
     </ModuleGuard>
   );
 }

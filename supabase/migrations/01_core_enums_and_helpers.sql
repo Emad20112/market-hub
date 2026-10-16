@@ -138,23 +138,6 @@ CREATE TYPE public.item_tracking AS ENUM (
   'SERIAL'
 );
 
-CREATE TYPE public.milling_output_type AS ENUM (
-  'FLOUR_GRADE_1',
-  'FLOUR_GRADE_2',
-  'BRAN',
-  'SEMOLINA',
-  'WASTE'
-);
-
-CREATE TYPE public.milling_status AS ENUM (
-  'DRAFT',
-  'RECEIVED',
-  'PROCESSING',
-  'COMPLETED',
-  'DELIVERED',
-  'CANCELLED'
-);
-
 -- ── نوع حركة المخزون — بلا تكرار ───────────────────────────────────────────
 -- كان سابقًا عشرة قيم فيها تكرار فعلي: return_in ≡ sale_return،
 -- و return_out ≡ purchase_return. فأي تقرير للمرتجعات كان يجب أن يبحث عن
@@ -220,6 +203,7 @@ CREATE OR REPLACE FUNCTION public.derive_payment_status(p_paid numeric, p_total 
 RETURNS public.payment_status
 LANGUAGE sql
 IMMUTABLE
+SET search_path = public
 AS $function$
   SELECT CASE
     WHEN coalesce(p_total, 0) <= 0            THEN 'unpaid'::public.payment_status
