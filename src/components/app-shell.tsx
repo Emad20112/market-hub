@@ -206,9 +206,7 @@ const SidebarContents = memo(function SidebarContents({
           <img
             src={logoUrl}
             alt={t("app.name")}
-            className={cn(
-              "size-9 shrink-0 rounded-xl border border-border/60 bg-surface-2/90 p-1 object-contain shadow-md ring-1 ring-white/10",
-            )}
+            className="size-9 shrink-0 object-contain"
             onError={(event) => {
               event.currentTarget.style.visibility = "hidden";
             }}
