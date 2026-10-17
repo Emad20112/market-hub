@@ -587,6 +587,20 @@ export const ROUTE_REGISTRY: RouteSearchEntry[] = [
     requiredRoles: FINANCE,
     i18nKey: "nav.supplier_ledger",
   },
+  {
+    id: "chart-of-accounts",
+    path: "/chart-of-accounts",
+    titleAr: "شجرة دليل الحسابات",
+    titleEn: "Chart of Accounts Tree",
+    descriptionAr:
+      "الهيكل الشجري المحاسبي الموحد لكافة الحسابات الرئيسية والتجميعية والتشغيلية وأرصدتها",
+    descriptionEn: "Hierarchical Chart of Accounts tree with parent rollup and posting governance",
+    keywords: ["دليل", "شجرة", "حسابات", "أستاذ", "chart", "accounts", "tree", "coa"],
+    category: "finance",
+    moduleId: "advanced_accounting",
+    requiredRoles: FINANCE,
+    i18nKey: "nav.chart_of_accounts",
+  },
 
   // ── Milling ─────────────────────────────────────────────────────
   {

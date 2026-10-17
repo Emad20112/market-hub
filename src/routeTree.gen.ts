@@ -19,6 +19,7 @@ import { Route as AppBalanceSheetRouteImport } from './routes/_app.balance-sheet
 import { Route as AppBarcodesRouteImport } from './routes/_app.barcodes'
 import { Route as AppBatchesRouteImport } from './routes/_app.batches'
 import { Route as AppCatalogRouteImport } from './routes/_app.catalog'
+import { Route as AppChartOfAccountsRouteImport } from './routes/_app.chart-of-accounts'
 import { Route as AppCustomersRouteImport } from './routes/_app.customers'
 import { Route as AppDailyJournalRouteImport } from './routes/_app.daily-journal'
 import { Route as AppDashboardRouteImport } from './routes/_app.dashboard'
@@ -114,6 +115,11 @@ const AppBatchesRoute = AppBatchesRouteImport.update({
 const AppCatalogRoute = AppCatalogRouteImport.update({
   id: '/catalog',
   path: '/catalog',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppChartOfAccountsRoute = AppChartOfAccountsRouteImport.update({
+  id: '/chart-of-accounts',
+  path: '/chart-of-accounts',
   getParentRoute: () => AppRoute,
 } as any)
 const AppCustomersRoute = AppCustomersRouteImport.update({
@@ -364,6 +370,7 @@ export interface FileRoutesByFullPath {
   '/barcodes': typeof AppBarcodesRoute
   '/batches': typeof AppBatchesRoute
   '/catalog': typeof AppCatalogRoute
+  '/chart-of-accounts': typeof AppChartOfAccountsRoute
   '/customers': typeof AppCustomersRoute
   '/daily-journal': typeof AppDailyJournalRoute
   '/dashboard': typeof AppDashboardRoute
@@ -422,6 +429,7 @@ export interface FileRoutesByTo {
   '/barcodes': typeof AppBarcodesRoute
   '/batches': typeof AppBatchesRoute
   '/catalog': typeof AppCatalogRoute
+  '/chart-of-accounts': typeof AppChartOfAccountsRoute
   '/customers': typeof AppCustomersRoute
   '/daily-journal': typeof AppDailyJournalRoute
   '/dashboard': typeof AppDashboardRoute
@@ -482,6 +490,7 @@ export interface FileRoutesById {
   '/_app/barcodes': typeof AppBarcodesRoute
   '/_app/batches': typeof AppBatchesRoute
   '/_app/catalog': typeof AppCatalogRoute
+  '/_app/chart-of-accounts': typeof AppChartOfAccountsRoute
   '/_app/customers': typeof AppCustomersRoute
   '/_app/daily-journal': typeof AppDailyJournalRoute
   '/_app/dashboard': typeof AppDashboardRoute
@@ -542,6 +551,7 @@ export interface FileRouteTypes {
     | '/barcodes'
     | '/batches'
     | '/catalog'
+    | '/chart-of-accounts'
     | '/customers'
     | '/daily-journal'
     | '/dashboard'
@@ -653,6 +663,7 @@ export interface FileRouteTypes {
     | '/_app/barcodes'
     | '/_app/batches'
     | '/_app/catalog'
+    | '/_app/chart-of-accounts'
     | '/_app/customers'
     | '/_app/daily-journal'
     | '/_app/dashboard'
@@ -778,6 +789,13 @@ declare module '@tanstack/react-router' {
       path: '/catalog'
       fullPath: '/catalog'
       preLoaderRoute: typeof AppCatalogRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/chart-of-accounts': {
+      id: '/_app/chart-of-accounts'
+      path: '/chart-of-accounts'
+      fullPath: '/chart-of-accounts'
+      preLoaderRoute: typeof AppChartOfAccountsRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/customers': {
@@ -1144,6 +1162,7 @@ interface AppRouteChildren {
   AppBarcodesRoute: typeof AppBarcodesRoute
   AppBatchesRoute: typeof AppBatchesRoute
   AppCatalogRoute: typeof AppCatalogRoute
+  AppChartOfAccountsRoute: typeof AppChartOfAccountsRoute
   AppCustomersRoute: typeof AppCustomersRoute
   AppDailyJournalRoute: typeof AppDailyJournalRoute
   AppDashboardRoute: typeof AppDashboardRoute
@@ -1194,6 +1213,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppBarcodesRoute: AppBarcodesRoute,
   AppBatchesRoute: AppBatchesRoute,
   AppCatalogRoute: AppCatalogRoute,
+  AppChartOfAccountsRoute: AppChartOfAccountsRoute,
   AppCustomersRoute: AppCustomersRoute,
   AppDailyJournalRoute: AppDailyJournalRoute,
   AppDashboardRoute: AppDashboardRoute,
