@@ -8,11 +8,14 @@ import {
   Sparkles,
   X,
   Loader2,
-  CheckCircle2,
+  Check,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useI18n } from "@/lib/i18n";
 import { toast } from "sonner";
+import { CountrySelector } from "@/components/country-selector";
+import { COUNTRIES, Country, DEFAULT_COUNTRY } from "@/lib/country-data";
+import { formatPhoneE164 } from "@/lib/phone-utils";
 
 /**
  * CustomerFormDialog — the ONE customer form for the whole application.
@@ -50,6 +53,29 @@ export interface CustomerFormDialogProps {
   hint?: string;
 }
 
+function parseCustomerPhone(raw?: string | null): { country: Country; local: string } {
+  if (!raw || !raw.trim()) {
+    return { country: DEFAULT_COUNTRY, local: "" };
+  }
+  const clean = raw.trim();
+  // Check known dial codes
+  for (const c of COUNTRIES) {
+    if (clean.startsWith(c.dialCode)) {
+      return { country: c, local: clean.slice(c.dialCode.length).trim() };
+    }
+  }
+  for (const c of COUNTRIES) {
+    const dialNoPlus = c.dialCode.replace("+", "");
+    if (clean.startsWith("00" + dialNoPlus)) {
+      return { country: c, local: clean.slice(("00" + dialNoPlus).length).trim() };
+    }
+    if (clean.startsWith(dialNoPlus) && clean.length >= dialNoPlus.length + 6) {
+      return { country: c, local: clean.slice(dialNoPlus.length).trim() };
+    }
+  }
+  return { country: DEFAULT_COUNTRY, local: clean };
+}
+
 export function CustomerFormDialog({
   open,
   onClose,
@@ -61,11 +87,18 @@ export function CustomerFormDialog({
   const { t, lang } = useI18n();
   const isAr = lang === "ar";
   const [edit, setEdit] = useState<Partial<CustomerRecord>>(initial ?? {});
+  const [country, setCountry] = useState<Country>(DEFAULT_COUNTRY);
+  const [phone, setPhone] = useState<string>("");
   const [saving, setSaving] = useState(false);
 
   // Re-seed the form whenever the dialog opens for a new target.
   useEffect(() => {
-    if (open) setEdit(initial ?? {});
+    if (open) {
+      setEdit(initial ?? {});
+      const parsed = parseCustomerPhone(initial?.phone);
+      setCountry(parsed.country);
+      setPhone(parsed.local);
+    }
   }, [open, initial]);
 
   if (!open) return null;
@@ -74,20 +107,28 @@ export function CustomerFormDialog({
     if (saving) return;
     if (!edit?.name?.trim()) return toast.error(t("common.required"));
     setSaving(true);
+
+    let finalPhone: string | null = null;
+    if (phone.trim()) {
+      finalPhone = formatPhoneE164(phone.trim(), country.dialCode);
+    }
+
     const payload = {
       name: edit.name.trim(),
-      phone: edit.phone || null,
-      email: edit.email || null,
-      address: edit.address || null,
+      phone: finalPhone,
+      email: edit.email?.trim() || null,
+      address: edit.address?.trim() || null,
       credit_limit: Number(edit.credit_limit ?? 0),
       is_active: edit.is_active ?? true,
     };
+
     const { data, error } = edit.id
       ? await supabase.from("customers").update(payload).eq("id", edit.id).select("*").single()
       : await supabase.from("customers").insert(payload).select("*").single();
+
     setSaving(false);
     if (error) return toast.error(error.message);
-    toast.success(edit.id ? t("common.updated") : t("common.created"));
+    toast.success(edit.id ? t("common.updated") : (isAr ? "تمت إضافة العميل بنجاح" : "Customer created successfully"));
     if (data) onSaved?.(data as CustomerRecord);
     onSavedComplete?.();
     onClose();
@@ -128,7 +169,7 @@ export function CustomerFormDialog({
           <button
             type="button"
             onClick={onClose}
-            className="grid size-8 place-items-center rounded-full bg-surface-2 text-muted-foreground transition hover:text-foreground"
+            className="grid size-8 place-items-center rounded-full bg-surface-2 text-muted-foreground transition hover:text-foreground cursor-pointer"
           >
             <X className="size-4" />
           </button>
@@ -153,14 +194,14 @@ export function CustomerFormDialog({
                   {t("common.name")} <span className="text-rose-500">*</span>
                 </label>
                 <div className="relative">
-                  <User className="pointer-events-none absolute right-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                  <User className="pointer-events-none absolute start-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
                   <input
                     required
                     autoFocus
                     value={edit.name ?? ""}
                     onChange={(e) => setEdit({ ...edit, name: e.target.value })}
                     placeholder={isAr ? "اسم العميل أو المؤسسة" : "Customer or Company Name"}
-                    className="h-11 w-full rounded-2xl border border-border/80 bg-surface/80 px-4 pr-10 text-sm font-medium transition placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                    className="h-12 w-full rounded-2xl border border-border/80 bg-surface/80 px-4 ps-10 text-sm font-medium transition placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                   />
                 </div>
               </div>
@@ -172,51 +213,69 @@ export function CustomerFormDialog({
                 <Phone className="size-3.5 text-primary" />
                 <span>{isAr ? "بيانات الاتصال والتواصل" : "Contact Details"}</span>
               </div>
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <div>
-                  <label className="mb-1.5 block text-xs font-medium text-foreground">
-                    {t("common.phone")}
-                  </label>
-                  <div className="relative">
-                    <Phone className="pointer-events-none absolute right-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+
+              {/* Phone Input with Country Selector */}
+              <div>
+                <label className="mb-1.5 block text-xs font-medium text-foreground">
+                  {isAr ? "رقم الهاتف" : "Phone Number"}
+                </label>
+                <div className="flex gap-2">
+                  <CountrySelector
+                    value={country}
+                    onChange={setCountry}
+                    disabled={saving}
+                  />
+                  <div className="relative flex-1">
+                    <Phone className="pointer-events-none absolute start-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
                     <input
+                      type="tel"
                       dir="ltr"
-                      value={edit.phone ?? ""}
-                      onChange={(e) => setEdit({ ...edit, phone: e.target.value })}
-                      placeholder="+966 5x xxx xxxx"
-                      className="h-11 w-full rounded-2xl border border-border/80 bg-surface/80 px-4 pr-10 text-right text-sm font-medium transition placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                      disabled={saving}
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value)}
+                      placeholder="772217218"
+                      maxLength={15}
+                      className="h-12 w-full rounded-2xl border border-border/80 bg-surface/80 px-4 ps-10 text-right text-sm font-medium transition placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                     />
                   </div>
                 </div>
+                <p className="mt-1 text-[10px] text-muted-foreground">
+                  {isAr
+                    ? "الرمز الدولي الافتراضي: اليمن (+967). يمكنك تغيير الدولة من القائمة."
+                    : "Default dial code: Yemen (+967). You can select another country."}
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div>
                   <label className="mb-1.5 block text-xs font-medium text-foreground">
                     {t("common.email")}
                   </label>
                   <div className="relative">
-                    <Mail className="pointer-events-none absolute right-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                    <Mail className="pointer-events-none absolute start-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
                     <input
                       type="email"
                       dir="ltr"
                       value={edit.email ?? ""}
                       onChange={(e) => setEdit({ ...edit, email: e.target.value })}
                       placeholder="customer@domain.com"
-                      className="h-11 w-full rounded-2xl border border-border/80 bg-surface/80 px-4 pr-10 text-right text-sm font-medium transition placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                      className="h-12 w-full rounded-2xl border border-border/80 bg-surface/80 px-4 ps-10 text-right text-sm font-medium transition placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                     />
                   </div>
                 </div>
-              </div>
-              <div>
-                <label className="mb-1.5 block text-xs font-medium text-foreground">
-                  {isAr ? "العنوان أو المدينة" : "Address"}
-                </label>
-                <div className="relative">
-                  <MapPin className="pointer-events-none absolute right-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-                  <input
-                    value={edit.address ?? ""}
-                    onChange={(e) => setEdit({ ...edit, address: e.target.value })}
-                    placeholder={isAr ? "المدينة، الحي، الشارع" : "City, District, Street"}
-                    className="h-11 w-full rounded-2xl border border-border/80 bg-surface/80 px-4 pr-10 text-sm font-medium transition placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-                  />
+                <div>
+                  <label className="mb-1.5 block text-xs font-medium text-foreground">
+                    {isAr ? "العنوان أو المدينة" : "Address"}
+                  </label>
+                  <div className="relative">
+                    <MapPin className="pointer-events-none absolute start-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                    <input
+                      value={edit.address ?? ""}
+                      onChange={(e) => setEdit({ ...edit, address: e.target.value })}
+                      placeholder={isAr ? "المدينة، الحي، الشارع" : "City, District, Street"}
+                      className="h-12 w-full rounded-2xl border border-border/80 bg-surface/80 px-4 ps-10 text-sm font-medium transition placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                    />
+                  </div>
                 </div>
               </div>
             </div>
@@ -238,7 +297,7 @@ export function CustomerFormDialog({
                   step="any"
                   value={edit.credit_limit ?? 0}
                   onChange={(e) => setEdit({ ...edit, credit_limit: Number(e.target.value) })}
-                  className="h-11 w-full rounded-2xl border border-border/80 bg-surface/80 px-4 text-right font-mono text-sm font-medium transition focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  className="h-12 w-full rounded-2xl border border-border/80 bg-surface/80 px-4 text-right font-mono text-sm font-medium transition focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                 />
                 <p className="mt-1 text-[10px] text-muted-foreground">
                   {isAr
@@ -277,26 +336,39 @@ export function CustomerFormDialog({
             {hint ? <p className="text-[11px] text-muted-foreground">{hint}</p> : null}
           </div>
 
-          <div className="flex shrink-0 items-center justify-end gap-3 border-t border-border/60 pt-4 mt-3">
+          {/* Footer buttons styled exactly like the filter sheet footer in Vortex UI */}
+          <div className="flex items-center gap-2 w-full pt-4 mt-3 border-t border-border/60">
+            <button
+              type="submit"
+              disabled={saving}
+              className="flex-1 h-12 rounded-2xl bg-foreground text-background font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-lg shadow-foreground/15 hover:opacity-95 active:scale-[0.98] transition cursor-pointer disabled:opacity-50"
+            >
+              {saving ? (
+                <Loader2 className="size-4 animate-spin text-primary" />
+              ) : (
+                <Check className="size-4 text-primary" />
+              )}
+              <span>
+                {saving
+                  ? isAr
+                    ? "جاري الحفظ..."
+                    : "Saving..."
+                  : edit.id
+                    ? isAr
+                      ? "حفظ التعديلات"
+                      : "Save Changes"
+                    : isAr
+                      ? "إضافة عميل"
+                      : "Add Customer"}
+              </span>
+            </button>
             <button
               type="button"
               disabled={saving}
               onClick={onClose}
-              className="h-11 rounded-2xl border border-border/80 bg-surface px-5 text-xs font-bold text-muted-foreground transition hover:bg-surface-2 hover:text-foreground active:scale-95"
+              className="h-12 px-5 sm:px-6 rounded-2xl bg-muted/80 text-muted-foreground hover:text-foreground font-bold text-xs sm:text-sm flex items-center justify-center gap-1.5 transition active:scale-[0.98] cursor-pointer"
             >
-              {t("common.cancel")}
-            </button>
-            <button
-              type="submit"
-              disabled={saving}
-              className="flex h-11 items-center gap-2 rounded-2xl bg-primary px-6 text-xs font-bold text-primary-foreground shadow-md shadow-primary/25 transition hover:bg-primary/90 active:scale-95 disabled:opacity-50"
-            >
-              {saving ? (
-                <Loader2 className="size-4 animate-spin" />
-              ) : (
-                <CheckCircle2 className="size-4" />
-              )}
-              <span>{edit.id ? t("common.save_changes") : t("common.create")}</span>
+              <span>{isAr ? "إلغاء" : "Cancel"}</span>
             </button>
           </div>
         </form>
