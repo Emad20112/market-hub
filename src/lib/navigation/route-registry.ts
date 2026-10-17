@@ -559,6 +559,19 @@ export const ROUTE_REGISTRY: RouteSearchEntry[] = [
     requiredRoles: FINANCE,
     i18nKey: "nav.prepayments",
   },
+  {
+    id: "tax-declarations",
+    path: "/tax-declarations",
+    titleAr: "الإقرار والتسوية الضريبية",
+    titleEn: "Tax Declarations & Settlement",
+    descriptionAr: "احتساب إقرار القيمة المضافة وتسوية ضريبة المخرجات 2311 والمدخلات 1316",
+    descriptionEn: "VAT return declaration and 2311 vs 1316 settlement engine",
+    keywords: ["ضريبة", "إقرار", "تسوية", "مخرجات", "مدخلات", "tax", "vat"],
+    category: "finance",
+    moduleId: "advanced_accounting",
+    requiredRoles: FINANCE,
+    i18nKey: "nav.tax_declarations",
+  },
 
   // ── Milling ─────────────────────────────────────────────────────
   {
