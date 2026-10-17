@@ -287,7 +287,8 @@ BEGIN
       END IF;
     EXCEPTION WHEN others THEN
       v_skipped := v_skipped + 1;
-    END LOOP;
+    END;
+  END LOOP;
 
   RETURN jsonb_build_object(
     'date', p_date,

@@ -726,7 +726,7 @@ BEGIN
   RETURN v_id;
 END $function$;
 
-COMMENT ON FUNCTION public.post_stock_adjustment(uuid, uuid, text, date, jsonb) IS
+COMMENT ON FUNCTION public.post_stock_adjustment(uuid, text, text, date, jsonb) IS
   'T-09: تسوية مخزون بقيد أستاذ — نقص Dr 5921/Cr مخزون، فائض Dr مخزون/Cr 5911. (التوقيع والسلوك التشغيلي بلا تغيير — القيد إضافة).';
 
 -- ════════════════════

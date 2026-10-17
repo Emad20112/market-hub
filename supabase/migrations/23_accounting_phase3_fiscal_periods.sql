@@ -301,6 +301,7 @@ COMMENT ON FUNCTION public.create_journal_entry(text, date, text, uuid, boolean,
   'T-03/T-19: إنشاء قيد مزدوج مع فحص الدور، ومنع اليدوي على حسابات النظام، وسجل تدقيق، ومنع الترحيل في فترة مقفلة.';
 
 -- الغلاف الخلفي: التوقيع القديم 6 وسائط → 7 وسائط.
+DROP FUNCTION IF EXISTS public.create_journal_entry(text, date, text, uuid, boolean, jsonb);
 CREATE OR REPLACE FUNCTION public.create_journal_entry(
   p_memo          text,
   p_entry_date    date,
@@ -437,7 +438,7 @@ BEGIN
      AND status = 'POSTED'
    LIMIT 1;
   IF v_existing IS NOT NULL THEN
-    RAISE EXCEPTION 'السنة % أُقفلت بالفعل (قيد %).', p_year;
+    RAISE EXCEPTION 'السنة % أُقفلت بالفعل (قيد %).', p_year, v_existing;
   END IF;
 
   -- قيد الإقفال: عكس طبيعة كل حساب 4xxx/5xxx لجعل رصيده صفرًا.

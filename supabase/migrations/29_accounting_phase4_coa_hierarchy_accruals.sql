@@ -242,7 +242,7 @@ AS $$
       a.is_system,
       a.is_active,
       a.notes,
-      ARRAY[a.code] AS path
+      ARRAY[a.code::text] AS path
     FROM public.accounts a
     WHERE a.parent_id IS NULL
 
@@ -261,18 +261,19 @@ AS $$
       c.is_system,
       c.is_active,
       c.notes,
-      p.path || c.code AS path
+      p.path || c.code::text AS path
     FROM public.accounts c
     JOIN coa_tree p ON c.parent_id = p.id
   ),
   account_balances AS (
     -- مجاميع القيود المرحلة من دفتر اليومية لكل حساب
     SELECT
-      jl.account_code,
+      jl.account_id,
       round(coalesce(sum(jl.debit), 0), 2) AS debit,
       round(coalesce(sum(jl.credit), 0), 2) AS credit
-    FROM public.journal_entry_lines jl
-    GROUP BY jl.account_code
+    FROM public.journal_lines jl
+    JOIN public.journal_entries je ON je.id = jl.entry_id AND je.status = 'POSTED'
+    GROUP BY jl.account_id
   ),
   children_counts AS (
     SELECT parent_id, count(*) AS cnt
@@ -304,7 +305,7 @@ AS $$
     END AS current_balance,
     coalesce(cc.cnt, 0) AS children_count
   FROM coa_tree t
-  LEFT JOIN account_balances ab ON ab.account_code = t.code
+  LEFT JOIN account_balances ab ON ab.account_id = t.id
   LEFT JOIN children_counts cc ON cc.parent_id = t.id
   ORDER BY t.code ASC;
 $$;

@@ -280,7 +280,8 @@ BEGIN
     EXCEPTION WHEN others THEN
       -- تخطي ما تم إهلاكه سابقاً في نفس اليوم
       v_skipped := v_skipped + 1;
-    END LOOP;
+    END;
+  END LOOP;
 
   RETURN jsonb_build_object(
     'date', p_date,
