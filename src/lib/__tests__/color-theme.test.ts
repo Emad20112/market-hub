@@ -26,7 +26,8 @@ assert.equal(CURATED_THEMES.sapphire.id, "sapphire");
 assert.equal(CURATED_THEMES.sapphire.hex, "#2563EB");
 
 // 2. Verify exactly 6 curated themes exist with distinct identities
-const themeKeys = Object.keys(CURATED_THEMES) as AccentThemeId[];
+type CuratedThemeKey = Exclude<AccentThemeId, "custom">;
+const themeKeys = Object.keys(CURATED_THEMES) as CuratedThemeKey[];
 assert.equal(themeKeys.length, 6, "Must have exactly 6 curated themes");
 assert.deepEqual(
   [...themeKeys].sort(),
@@ -114,7 +115,7 @@ for (const themeKey of themeKeys) {
 
     assert.equal(report.themeId, themeKey);
     assert.equal(report.mode, mode);
-    assert.equal(report.primaryHex, CURATED_THEMES[themeKey].hex);
+    assert.equal(report.primaryHex, CURATED_THEMES[themeKey as CuratedThemeKey].hex);
     assert.ok(report.statusIntegrity.allIndependent, `Status independence compromised for ${themeKey} (${mode})`);
     assert.ok(report.statusIntegrity.successIndependent, `Success color conflict for ${themeKey}`);
     assert.ok(report.statusIntegrity.warningIndependent, `Warning color conflict for ${themeKey}`);

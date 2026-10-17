@@ -5,7 +5,8 @@ import {
   VortexFilterSection,
 } from "@/components/vortex-ui";
 import { paymentMethodLabel } from "@/lib/payments/payment-methods";
-import { SlidersHorizontal, Wallet, AlertTriangle, UserCheck } from "lucide-react";
+import { SlidersHorizontal, Wallet, AlertTriangle, UserCheck, Check } from "lucide-react";
+import { QuickFilterBar } from "@/components/ui/quick-filter-bar";
 /**
  * شاشة الديون — تعرض الأرصدة **من الدفتر** لا من العمود المخزَّن.
  *
@@ -263,7 +264,7 @@ function DebtsPage() {
               className="flex-1 bg-transparent outline-none placeholder:text-muted-foreground"
             />
           </div>
-          {/* Advanced Filter Button */}
+          {/* Advanced Filter Button — شيت الملاك (المحور 10) */}
           <button
             type="button"
             onClick={() => setAdvancedFilterOpen(true)}
@@ -273,23 +274,30 @@ function DebtsPage() {
             <span>فلترة متقدمة</span>
             {hasPhoneOnly && <span className="size-1.5 rounded-full bg-primary" />}
           </button>
-
-          <div className="flex rounded-full border border-input bg-surface p-1 text-xs">
-            {(["debt", "over_limit", "all"] as const).map((f) => (
-              <button
-                key={f}
-                onClick={() => setFilter(f)}
-                className={`rounded-full px-3 py-1.5 transition ${filter === f ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
-              >
-                {f === "debt"
-                  ? t("debts.filter.debtors")
-                  : f === "over_limit"
-                    ? t("debts.filter.over_limit")
-                    : t("debts.filter.all")}
-              </button>
-            ))}
-          </div>
         </div>
+
+        {/* شريط الفلاتر السريعة — QuickFilterBar ملون دائماً (المحور 8) */}
+        <QuickFilterBar
+          ariaLabel={t("debts.subtitle")}
+          items={[
+            { id: "all", label: t("debts.filter.all"), tone: "primary", count: rows.length },
+            {
+              id: "debt",
+              label: t("debts.filter.debtors"),
+              tone: "warning",
+              count: totals.debtors,
+            },
+            {
+              id: "over_limit",
+              label: t("debts.filter.over_limit"),
+              tone: "danger",
+              count: totals.overLimit,
+            },
+          ]}
+          value={filter}
+          onChange={(id) => setFilter(id as typeof filter)}
+          className="mb-3"
+        />
 
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
@@ -428,6 +436,43 @@ function DebtsPage() {
           load();
         }}
       />
+
+      {/* شيت الفلترة المتقدمة — جلد الملاك الموحد (المحور 10) */}
+      <VortexFilterSheet
+        open={advancedFilterOpen}
+        onOpenChange={setAdvancedFilterOpen}
+        lang={lang}
+        title={lang === "ar" ? "فلترة متقدمة" : "Advanced filters"}
+        subtitle={t("debts.subtitle")}
+        activeFiltersCount={hasPhoneOnly ? 1 : 0}
+        onApply={() => setAdvancedFilterOpen(false)}
+        onReset={() => {
+          setHasPhoneOnly(false);
+          setSearch("");
+        }}
+      >
+        <VortexFilterSection
+          title={lang === "ar" ? "بيانات الاتصال" : "Contact data"}
+          icon={<Users className="size-4" />}
+        >
+          <button
+            type="button"
+            onClick={() => setHasPhoneOnly(!hasPhoneOnly)}
+            className="flex w-full items-center justify-between rounded-xl border border-border/60 bg-surface px-3 py-2.5 text-sm transition hover:bg-surface-2/60"
+          >
+            <span>{lang === "ar" ? "لديه رقم هاتف فقط" : "Has phone number only"}</span>
+            <span
+              className={`flex size-5 items-center justify-center rounded-md border transition ${
+                hasPhoneOnly
+                  ? "border-primary bg-primary text-primary-foreground"
+                  : "border-border bg-surface"
+              }`}
+            >
+              {hasPhoneOnly && <Check className="size-3.5" />}
+            </span>
+          </button>
+        </VortexFilterSection>
+      </VortexFilterSheet>
 
       {selected && (
         <div className="fixed inset-0 z-50 grid place-items-center bg-background/80 backdrop-blur-sm p-4">

@@ -1,22 +1,15 @@
 import { useEffect, useState } from "react";
-import { Building2, X, Loader2 } from "lucide-react";
+import { Building2, X, Loader2, Lock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useI18n } from "@/lib/i18n";
 import { toast } from "sonner";
 
-/**
- * SupplierFormDialog — the ONE supplier form for the whole application.
- *
- * Extracted verbatim from `_app.suppliers.tsx` so the Suppliers page and the
- * Purchase POS "add supplier" action share the same fields, validation, payload,
- * table and permissions. Purchase POS previously carried a two-field mini form
- * that produced records missing email/address; this replaces it.
- *
- * Note on permissions: `suppliers` is guarded by RLS for owner/manager/accountant
- * only. Callers must decide whether to offer this dialog at all — this component
- * does not bypass RLS and will surface a permission error if invoked by a role
- * that cannot write.
- */
+export function isSystemCashSupplierName(name?: string | null): boolean {
+  if (!name) return false;
+  const n = name.trim().toLowerCase();
+  return n === "مورد نقدي" || n === "cash supplier" || n === "walk-in supplier";
+}
+
 export interface SupplierRecord {
   id: string;
   name: string;
@@ -56,16 +49,28 @@ export function SupplierFormDialog({
 
   if (!open) return null;
 
+  const isLockedCashSupplier = Boolean(edit.id && isSystemCashSupplierName(initial?.name));
+
   async function save() {
     if (saving) return;
     if (!edit?.name?.trim()) return toast.error(t("suppliers.name_required"));
+    if (isLockedCashSupplier) {
+      if (edit.name.trim() !== (initial?.name ?? "").trim()) {
+        toast.error(isAr ? "لا يمكن تعديل اسم «المورد النقدي» — حساب نظامي رسمي." : "Cannot change cash supplier name.");
+        return;
+      }
+      if (edit.is_active === false) {
+        toast.error(isAr ? "لا يمكن تعطيل «المورد النقدي» — أساسي للمشتريات." : "Cannot deactivate cash supplier.");
+        return;
+      }
+    }
     setSaving(true);
     const payload = {
       name: edit.name.trim(),
       phone: edit.phone || null,
       email: edit.email || null,
       address: edit.address || null,
-      is_active: edit.is_active ?? true,
+      is_active: isLockedCashSupplier ? true : (edit.is_active ?? true),
     };
     const { data, error } = edit.id
       ? await supabase.from("suppliers").update(payload).eq("id", edit.id).select("*").single()
@@ -111,15 +116,26 @@ export function SupplierFormDialog({
           className="flex min-h-0 flex-1 flex-col"
         >
           <div className="flex-1 overflow-y-auto space-y-3.5 pe-1 custom-scrollbar">
+            {isLockedCashSupplier && (
+              <div className="flex items-center gap-2 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-3 text-xs font-semibold text-amber-700 dark:text-amber-300">
+                <Lock className="size-4 shrink-0 text-amber-500" />
+                <span>
+                  {isAr
+                    ? "هذا حساب «المورد النقدي» النظامي المعتمد للمشتريات النقدية، واسمه وحالته محميان لضمان استقرار العمليات."
+                    : "Official Cash Supplier account; name and status are locked for system stability."}
+                </span>
+              </div>
+            )}
             <div>
               <label className="mb-1.5 block text-xs font-medium text-muted-foreground">
                 {t("common.name")} *
               </label>
               <input
-                autoFocus
+                disabled={isLockedCashSupplier}
+                autoFocus={!isLockedCashSupplier}
                 value={edit.name ?? ""}
                 onChange={(e) => setEdit({ ...edit, name: e.target.value })}
-                className="h-10 w-full rounded-xl border border-input bg-surface px-3 text-sm focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/20"
+                className="h-10 w-full rounded-xl border border-input bg-surface px-3 text-sm focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/20 disabled:cursor-not-allowed disabled:opacity-60"
               />
             </div>
             <div>
@@ -153,11 +169,12 @@ export function SupplierFormDialog({
                 className="h-10 w-full rounded-xl border border-input bg-surface px-3 text-sm focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/20"
               />
             </div>
-            <label className="flex items-center gap-2 text-sm pt-1 cursor-pointer">
+            <label className={`flex items-center gap-2 text-sm pt-1 ${isLockedCashSupplier ? "cursor-not-allowed opacity-60" : "cursor-pointer"}`}>
               <input
                 type="checkbox"
+                disabled={isLockedCashSupplier}
                 checked={edit.is_active ?? true}
-                onChange={(e) => setEdit({ ...edit, is_active: e.target.checked })}
+                onChange={(e) => !isLockedCashSupplier && setEdit({ ...edit, is_active: e.target.checked })}
                 className="h-4 w-4 rounded border-border text-primary focus:ring-primary/20"
               />
               {t("common.active")}

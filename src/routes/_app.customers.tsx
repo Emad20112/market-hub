@@ -1,3 +1,4 @@
+import { PrimaryAction } from "@/components/ui/primary-action";
 import { useModules } from "@/lib/modules";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -35,6 +36,7 @@ import {
   TrendingUp,
   ShieldCheck,
   Wheat,
+  Lock,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/page-header";
@@ -64,7 +66,10 @@ import { IconButton } from "@/components/ui/icon-button";
 import { useBreakpoint } from "@/design/breakpoints";
 import { useRealtimeTable } from "@/lib/realtime";
 import { QUERY_KEYS } from "@/lib/query-keys";
-import { CustomerFormDialog } from "@/components/contacts/customer-form-dialog";
+import {
+  CustomerFormDialog,
+  isSystemCashCustomerName,
+} from "@/components/contacts/customer-form-dialog";
 import {
   fetchCustodyBalances,
   fetchCustodyServiceMoney,
@@ -438,30 +443,46 @@ function CustomersPage() {
                 goStatement(r);
               }}
             />
-            <IconButton
-              size="sm"
-              variant="outline"
-              tooltip
-              ariaLabel={t("common.edit")}
-              icon={<Pencil />}
-              round
-              onClick={(event) => {
-                event.stopPropagation();
-                setEdit(r);
-              }}
-            />
-            <IconButton
-              size="sm"
-              variant="danger"
-              tooltip
-              ariaLabel={t("common.delete")}
-              icon={<Trash2 />}
-              round
-              onClick={(event) => {
-                event.stopPropagation();
-                void remove(r.id);
-              }}
-            />
+            {isSystemCashCustomerName(r.name) ? (
+              <span
+                title={
+                  lang === "ar"
+                    ? "حساب نظامي رسمي (نقدي) — محمي من التعديل والحذف"
+                    : "Official system entity (Cash) — protected from edit/delete"
+                }
+                className="inline-flex items-center gap-1 rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-1 text-[10px] font-bold text-amber-700 dark:text-amber-300"
+              >
+                <Lock className="size-3" />
+                {lang === "ar" ? "حساب رسمي" : "Official"}
+              </span>
+            ) : (
+              <>
+                <IconButton
+                  size="sm"
+                  variant="outline"
+                  tooltip
+                  ariaLabel={t("common.edit")}
+                  icon={<Pencil />}
+                  round
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    setEdit(r);
+                  }}
+                />
+                <IconButton
+                  size="sm"
+                  variant="danger"
+                  tooltip
+                  ariaLabel={t("common.delete")}
+                  icon={<Trash2 />}
+                  round
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    void remove(r.id);
+                  }}
+                />
+              </>
+            )}
           </div>
         ),
       },
@@ -600,13 +621,22 @@ function CustomersPage() {
 
   const remove = useCallback(
     async (id: string) => {
+      const target = rows.find((r) => r.id === id);
+      if (target && isSystemCashCustomerName(target.name)) {
+        toast.error(
+          lang === "ar"
+            ? "لا يمكن حذف «العميل النقدي» — هذا حساب نظامي رسمي معتمد للمبيعات الفورية."
+            : "Cannot delete Cash Customer — this is an official system entity.",
+        );
+        return;
+      }
       if (!confirm(t("common.confirm_delete"))) return;
       const { error } = await supabase.from("customers").delete().eq("id", id);
       if (error) return toast.error(error.message);
       toast.success(t("common.deleted"));
       await load();
     },
-    [t],
+    [t, rows, lang, load],
   );
 
   async function openCustomer(customer: Customer) {
@@ -715,7 +745,15 @@ function CustomersPage() {
         case "F2":
           if (active) {
             e.preventDefault();
-            setEdit(active);
+            if (isSystemCashCustomerName(active.name)) {
+              toast.info(
+                lang === "ar"
+                  ? "«العميل النقدي» حساب نظامي رسمي محمي من التعديل."
+                  : "Cash Customer is an official system entity and cannot be edited.",
+              );
+            } else {
+              setEdit(active);
+            }
           } else {
             toast.info(
               lang === "ar"
@@ -1142,14 +1180,27 @@ function CustomersPage() {
                       <FileText className="size-3.5" />
                     </button>
 
-                    {/* Edit Button (F2) */}
-                    <button
-                      onClick={() => setEdit(r)}
-                      title={lang === "ar" ? "تعديل (F2)" : "Edit (F2)"}
-                      className="grid size-8 place-items-center rounded-full bg-surface-2 hover:bg-surface-3 border border-border text-muted-foreground hover:text-foreground transition active:scale-95"
-                    >
-                      <Pencil className="size-3.5" />
-                    </button>
+                    {/* Edit Button (F2) or System Lock */}
+                    {isSystemCashCustomerName(r.name) ? (
+                      <span
+                        title={
+                          lang === "ar"
+                            ? "حساب نظامي رسمي (نقدي) — محمي من التعديل والحذف"
+                            : "Official system entity (Cash) — protected"
+                        }
+                        className="grid size-8 place-items-center rounded-full border border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400"
+                      >
+                        <Lock className="size-3.5" />
+                      </span>
+                    ) : (
+                      <button
+                        onClick={() => setEdit(r)}
+                        title={lang === "ar" ? "تعديل (F2)" : "Edit (F2)"}
+                        className="grid size-8 place-items-center rounded-full bg-surface-2 hover:bg-surface-3 border border-border text-muted-foreground hover:text-foreground transition active:scale-95"
+                      >
+                        <Pencil className="size-3.5" />
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>
@@ -1262,13 +1313,26 @@ function CustomersPage() {
                     >
                       <FileText className="size-3.5" />
                     </button>
-                    <button
-                      onClick={() => setEdit(r)}
-                      title={`${lang === "ar" ? "تعديل" : "Edit"} (F2)`}
-                      className="grid size-8 place-items-center rounded-lg border border-border bg-surface text-muted-foreground transition hover:bg-surface-2 hover:text-foreground"
-                    >
-                      <Pencil className="size-3.5" />
-                    </button>
+                    {isSystemCashCustomerName(r.name) ? (
+                      <span
+                        title={
+                          lang === "ar"
+                            ? "حساب نظامي رسمي (نقدي) — محمي من التعديل والحذف"
+                            : "Official system entity (Cash) — protected"
+                        }
+                        className="grid size-8 place-items-center rounded-lg border border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400"
+                      >
+                        <Lock className="size-3.5" />
+                      </span>
+                    ) : (
+                      <button
+                        onClick={() => setEdit(r)}
+                        title={`${lang === "ar" ? "تعديل" : "Edit"} (F2)`}
+                        className="grid size-8 place-items-center rounded-lg border border-border bg-surface text-muted-foreground transition hover:bg-surface-2 hover:text-foreground"
+                      >
+                        <Pencil className="size-3.5" />
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>

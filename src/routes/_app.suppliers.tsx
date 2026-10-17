@@ -1,3 +1,4 @@
+import { PrimaryAction } from "@/components/ui/primary-action";
 import { ModuleGuard } from "@/lib/modules";
 import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -14,6 +15,7 @@ import {
   Truck,
   PackageCheck,
   TrendingDown,
+  Lock,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/page-header";
@@ -25,6 +27,7 @@ import { WhatsAppButton } from "@/components/whatsapp-button";
 import { supplierMessage } from "@/lib/whatsapp-templates";
 import {
   SupplierFormDialog,
+  isSystemCashSupplierName,
   type SupplierRecord,
 } from "@/components/contacts/supplier-form-dialog";
 import { VortexMetricCard } from "@/components/vortex-ui";
@@ -263,6 +266,15 @@ function SuppliersPage() {
   const remove = useCallback(
     async (id: string) => {
       if (deleting) return;
+      const target = rows.find((s) => s.id === id);
+      if (target && isSystemCashSupplierName(target.name)) {
+        toast.error(
+          lang === "ar"
+            ? "لا يمكن حذف «المورد النقدي» — هذا حساب نظامي رسمي معتمد للمشتريات النقدية."
+            : "Cannot delete Cash Supplier — this is an official system entity.",
+        );
+        return;
+      }
       if (!confirm(t("suppliers.delete_confirm"))) return;
       setDeleting(id);
       try {
@@ -279,7 +291,7 @@ function SuppliersPage() {
         setDeleting(null);
       }
     },
-    [deleting, t, qc],
+    [deleting, t, qc, rows, lang],
   );
 
   /* Stable per-row handlers so a card is not re-created on every parent render. */
@@ -478,30 +490,46 @@ function SuppliersPage() {
         width: "w-[110px]",
         cell: (r) => (
           <div className="inline-flex items-center gap-1.5 pe-2">
-            <IconButton
-              size="sm"
-              variant="outline"
-              tooltip
-              ariaLabel={t("common.edit")}
-              icon={<Pencil />}
-              round
-              onClick={(event) => {
-                event.stopPropagation();
-                setEdit(r);
-              }}
-            />
-            <IconButton
-              size="sm"
-              variant="danger"
-              tooltip
-              ariaLabel={t("common.delete")}
-              icon={<Trash2 />}
-              round
-              onClick={(event) => {
-                event.stopPropagation();
-                void remove(r.id);
-              }}
-            />
+            {isSystemCashSupplierName(r.name) ? (
+              <span
+                title={
+                  isRtl
+                    ? "مورد نظامي رسمي (نقدي) — محمي من التعديل والحذف"
+                    : "Official system supplier (Cash) — protected"
+                }
+                className="inline-flex items-center gap-1 rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-1 text-[10px] font-bold text-amber-700 dark:text-amber-300"
+              >
+                <Lock className="size-3" />
+                {isRtl ? "مورد رسمي" : "Official"}
+              </span>
+            ) : (
+              <>
+                <IconButton
+                  size="sm"
+                  variant="outline"
+                  tooltip
+                  ariaLabel={t("common.edit")}
+                  icon={<Pencil />}
+                  round
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    setEdit(r);
+                  }}
+                />
+                <IconButton
+                  size="sm"
+                  variant="danger"
+                  tooltip
+                  ariaLabel={t("common.delete")}
+                  icon={<Trash2 />}
+                  round
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    void remove(r.id);
+                  }}
+                />
+              </>
+            )}
           </div>
         ),
       },
@@ -758,25 +786,36 @@ function SupplierRowActions({
       <span className="shrink-0">
         <WhatsAppButton phone={supplier.phone} message={whatsAppMessage} />
       </span>
-      <IconButton
-        size="sm"
-        variant="outline"
-        tooltip
-        ariaLabel={editLabel}
-        icon={<Pencil className="size-3.5" />}
-        round
-        onClick={() => onEdit(supplier)}
-      />
-      <IconButton
-        size="sm"
-        variant="danger"
-        tooltip
-        ariaLabel={deleteLabel}
-        icon={<Trash2 className="size-3.5" />}
-        round
-        loading={deleting}
-        onClick={() => onDelete(supplier.id)}
-      />
+      {isSystemCashSupplierName(supplier.name) ? (
+        <span
+          title="مورد نظامي رسمي (نقدي) — محمي من التعديل والحذف"
+          className="grid size-8 place-items-center rounded-full border border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400"
+        >
+          <Lock className="size-3.5" />
+        </span>
+      ) : (
+        <>
+          <IconButton
+            size="sm"
+            variant="outline"
+            tooltip
+            ariaLabel={editLabel}
+            icon={<Pencil className="size-3.5" />}
+            round
+            onClick={() => onEdit(supplier)}
+          />
+          <IconButton
+            size="sm"
+            variant="danger"
+            tooltip
+            ariaLabel={deleteLabel}
+            icon={<Trash2 className="size-3.5" />}
+            round
+            loading={deleting}
+            onClick={() => onDelete(supplier.id)}
+          />
+        </>
+      )}
     </div>
   );
 }

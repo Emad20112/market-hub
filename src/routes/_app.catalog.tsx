@@ -512,7 +512,7 @@ function CatalogTable({ tab }: { tab: Tab }) {
             <tbody className="divide-y divide-border/50">
               {isLoading &&
                 Array.from({ length: 4 }).map((_, i) => (
-                  <tr key={i} className="animate-pulse">
+                  <tr key={i} className="shimmer">
                     <td colSpan={6} className="px-4 py-4">
                       <div className="h-5 w-full rounded-xl bg-muted/50" />
                     </td>

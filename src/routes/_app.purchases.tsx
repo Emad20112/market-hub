@@ -1,3 +1,4 @@
+import { PrimaryAction } from "@/components/ui/primary-action";
 import { usePersistedViewMode } from "@/hooks/use-persisted-view-mode";
 import { cn } from "@/lib/utils";
 import { ModuleGuard, useModules } from "@/lib/modules";

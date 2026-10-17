@@ -39,11 +39,17 @@ interface JournalEntry {
   note: string;
 }
 
+/**
+ * T-16: دفتر اليومية من القيود الفعلية (journal_entries + journal_lines
+ * مع انضمام accounts) — لا من جداول تشغيلية ولا نصوص حسابية حُرّة.
+ * كل قيد له رقم سند حقيقي (entry_number) وحسابان من الدليل.
+ */
 function DailyJournalPage() {
   const { t, lang } = useI18n();
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().slice(0, 10));
   const [entries, setEntries] = useState<JournalEntry[]>([]);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     void loadJournal(selectedDate);
@@ -52,100 +58,100 @@ function DailyJournalPage() {
 
   async function loadJournal(dateStr: string) {
     setLoading(true);
-    const start = `${dateStr}T00:00:00`;
-    const end = `${dateStr}T23:59:59`;
+    setError(null);
+
+    /* القيود المرحّلة بتاريخ اليوم، مع سطورها وحسابها. */
+    const { data, error: qErr } = await supabase
+      .from("journal_entries" as never)
+      .select(
+        "id,entry_number,entry_date,memo,source_type,journal_lines(debit,credit,memo,accounts(code,name_ar))",
+      )
+      .eq("entry_date", dateStr)
+      .neq("status", "REVERSED")
+      .order("created_at");
+
+    if (qErr) {
+      setError(qErr.message);
+      setEntries([]);
+      setLoading(false);
+      return;
+    }
+
+    const sourceLabel = (s: string | null) => {
+      switch (s) {
+        case "sales_invoice":
+          return lang === "ar" ? "فاتورة مبيعات" : "Sales Invoice";
+        case "purchase_invoice":
+          return lang === "ar" ? "فاتورة مشتريات" : "Purchase Invoice";
+        case "expense":
+          return lang === "ar" ? "مصروف" : "Expense";
+        case "expense_payment":
+          return lang === "ar" ? "سداد مصروف" : "Expense Payment";
+        case "sales_return":
+          return lang === "ar" ? "مرتجع مبيعات" : "Sales Return";
+        case "purchase_return":
+          return lang === "ar" ? "مرتجع مشتريات" : "Purchase Return";
+        case "stock_adjustment":
+          return lang === "ar" ? "تسوية مخزون" : "Stock Adjustment";
+        case "customer_payment":
+        case "customer_advance_payment":
+          return lang === "ar" ? "تحصيل/دفعة من عميل" : "Customer Receipt";
+        case "opening_balance":
+          return lang === "ar" ? "رصيد افتتاحي" : "Opening Balance";
+        case "journal_reversal":
+          return lang === "ar" ? "عكس قيد" : "Entry Reversal";
+        default:
+          return lang === "ar" ? "قيد يدوي" : "Manual Entry";
+      }
+    };
 
     const journalList: JournalEntry[] = [];
-
-    // 1. Sales
-    const { data: sales } = await supabase
-      .from("sales_invoices")
-      .select("id,invoice_number,total,paid,payment_method,created_at,note,customers(name)")
-      .gte("created_at", start)
-      .lte("created_at", end);
-
-    (sales ?? []).forEach((s) => {
-      const isCredit = s.payment_method === "credit" || Number(s.paid) < Number(s.total);
-      journalList.push({
-        id: `SAL-${s.id.slice(0, 6)}`,
-        date: s.created_at,
-        voucherNo: s.invoice_number,
-        source: lang === "ar" ? "قيد فاتورة مبيعات" : "Sales Entry",
-        accountDebit: isCredit
-          ? lang === "ar"
-            ? `حـ/ العملاء (${s.customers?.name || "نقدي"})`
-            : `Customer: ${s.customers?.name || "Walk-in"}`
-          : lang === "ar"
-            ? "حـ/ النقدية / البنك"
-            : "Cash/Bank Account",
-        accountCredit: lang === "ar" ? "حـ/ إيرادات المبيعات" : "Sales Revenue Account",
-        amount: Number(s.total),
-        note:
-          s.note ||
-          (lang === "ar"
-            ? `إثبات مبيعات فاتورة ${s.invoice_number}`
-            : `Sales Invoice ${s.invoice_number}`),
-      });
-    });
-
-    // 2. Purchases
-    const { data: purchases } = await supabase
-      .from("purchase_invoices")
-      .select("id,invoice_number,total,paid,created_at,note,suppliers(name)")
-      .gte("created_at", start)
-      .lte("created_at", end);
-
-    (purchases ?? []).forEach((p) => {
-      journalList.push({
-        id: `PUR-${p.id.slice(0, 6)}`,
-        date: p.created_at,
-        voucherNo: p.invoice_number,
-        source: lang === "ar" ? "قيد فاتورة مشتريات" : "Purchase Entry",
-        accountDebit: lang === "ar" ? "حـ/ مخزون البضائع" : "Inventory Stock Account",
-        accountCredit:
-          lang === "ar"
-            ? `حـ/ الموردين (${p.suppliers?.name || "مورد"})`
-            : `Supplier: ${p.suppliers?.name || "Supplier"}`,
-        amount: Number(p.total),
-        note:
-          p.note ||
-          (lang === "ar"
-            ? `إثبات مشتريات امر ${p.invoice_number}`
-            : `Purchase Order ${p.invoice_number}`),
-      });
-    });
-
-    // 3. Expenses
-    const { data: exp } = await (supabase as any)
-      .from("expense_entries")
-      .select(
-        "id,reference,total_amount,expense_date,description,note,created_at,expense_lines(gross_amount,expense_categories(name_ar,name))",
-      )
-      .in("status", ["POSTED", "PARTIALLY_PAID", "PAID", "CLOSED"])
-      .gte("created_at", start)
-      .lte("created_at", end);
-
-    (exp ?? []).forEach((e: any) => {
-      const firstLine = e.expense_lines?.[0];
-      const cat = firstLine?.expense_categories;
-      const catName =
+    for (const e of (data ?? []) as unknown as Array<{
+      id: string;
+      entry_number: string;
+      entry_date: string;
+      memo: string;
+      source_type: string | null;
+      journal_lines: Array<{
+        debit: number | null;
+        credit: number | null;
+        memo: string | null;
+        accounts: { code: string; name_ar: string };
+      }>;
+    }>) {
+      const debitLines = (e.journal_lines ?? []).filter((l) => Number(l.debit ?? 0) > 0);
+      const creditLines = (e.journal_lines ?? []).filter((l) => Number(l.credit ?? 0) > 0);
+      const accName = (l: { accounts: { code: string; name_ar: string } }) =>
         lang === "ar"
-          ? cat?.name_ar || cat?.name || e.description || "عامة"
-          : cat?.name || cat?.name_ar || e.description || "General";
-      journalList.push({
-        id: e.id,
-        date: e.created_at || `${e.expense_date}T12:00:00`,
-        voucherNo: e.reference || `EXP-${e.id.slice(0, 6)}`,
-        source: lang === "ar" ? "قيد مصروف تشغيلي" : "Expense Entry",
-        accountDebit: lang === "ar" ? `حـ/ مصروفات (${catName})` : `Expense (${catName})`,
-        accountCredit: lang === "ar" ? "حـ/ الصندوق / الخزينة" : "Cash Fund",
-        amount: Number(e.total_amount || 0),
-        note:
-          e.note ||
-          e.description ||
-          (lang === "ar" ? "صرف مصروفات تشغيلية" : "Operating Expense Payment"),
-      });
-    });
+          ? `${l.accounts.name_ar} (${l.accounts.code})`
+          : `${l.accounts.code} — ${l.accounts.name_ar}`;
+
+      // كل قيد يُعرض بصفّين: مدين (من حـ/) ودائن (إلى حـ/) — بحسابات الدليل.
+      for (const dl of debitLines) {
+        journalList.push({
+          id: `${e.id}-D${journalList.length}`,
+          date: e.entry_date,
+          voucherNo: e.entry_number,
+          source: sourceLabel(e.source_type),
+          accountDebit: accName(dl),
+          accountCredit: creditLines.length > 0 ? accName(creditLines[0]) : "—",
+          amount: Number(dl.debit ?? 0),
+          note: e.memo,
+        });
+      }
+      for (const cl of creditLines) {
+        journalList.push({
+          id: `${e.id}-C${journalList.length}`,
+          date: e.entry_date,
+          voucherNo: e.entry_number,
+          source: sourceLabel(e.source_type),
+          accountDebit: debitLines.length > 0 ? accName(debitLines[0]) : "—",
+          accountCredit: accName(cl),
+          amount: Number(cl.credit ?? 0),
+          note: e.memo,
+        });
+      }
+    }
 
     journalList.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
     setEntries(journalList);

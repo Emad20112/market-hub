@@ -1,4 +1,4 @@
-import { Globe2, MapPin } from "lucide-react";
+import { Globe2, MapPin, Phone } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type InamaSoftFooterProps = {
@@ -9,12 +9,12 @@ export function InamaSoftFooter({ className }: InamaSoftFooterProps) {
   return (
     <footer
       className={cn(
-        "fixed inset-x-0 bottom-0 z-40 border-t border-border/60 bg-background/95 px-2 py-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] text-[10px] text-muted-foreground/80 shadow-[0_-4px_18px_rgba(0,0,0,0.06)] backdrop-blur-md transition-colors",
+        "sticky bottom-0 z-40 w-full border-t border-border/60 bg-background/95 px-3 py-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] text-[10px] text-muted-foreground/80 shadow-[0_-4px_18px_rgba(0,0,0,0.06)] backdrop-blur-md transition-colors",
         className,
       )}
       dir="rtl"
     >
-      <div className="mx-auto flex w-full max-w-[1400px] flex-wrap items-center justify-between gap-x-2 gap-y-1.5">
+      <div className="mx-auto flex w-full flex-wrap items-center justify-between gap-x-2 gap-y-1.5">
         {/* Left: subtle brand & copyright */}
         <div className="flex items-center gap-2">
           <img
@@ -30,8 +30,17 @@ export function InamaSoftFooter({ className }: InamaSoftFooterProps) {
           </span>
         </div>
 
-        {/* Right: contact — أرقام الدعم لا تُعرض على الشاشة؛ الموقع الرسمي فقط */}
+        {/* Right: contact */}
         <div className="flex items-center gap-1.5 sm:gap-3">
+          <a
+            href="tel:+967772217218"
+            dir="ltr"
+            className="inline-flex items-center gap-1 font-semibold text-foreground/80 transition-colors hover:text-foreground"
+          >
+            <Phone className="h-3 w-3" />
+            <span>772217218</span>
+          </a>
+          <span className="hidden sm:inline">·</span>
           <a
             href="https://inama-soft.vercel.app"
             target="_blank"

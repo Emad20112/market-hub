@@ -1027,10 +1027,7 @@ function InventoryPage() {
           {isLoading ? (
             <div className="space-y-3">
               {Array.from({ length: 6 }).map((_, i) => (
-                <div
-                  key={i}
-                  className="card-mullak h-20 animate-pulse rounded-2xl bg-surface-2/40"
-                />
+                <div key={i} className="card-mullak h-20 shimmer rounded-2xl bg-surface-2/40" />
               ))}
             </div>
           ) : inventoryLoadError ? (

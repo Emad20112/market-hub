@@ -10,6 +10,7 @@ import {
   type StatementCompanyInfo,
 } from "@/lib/statements/company";
 import { openStatementPrintWindow } from "@/lib/statements/print";
+import { companyCreditLine } from "@/lib/printing/identity";
 
 export interface LuxuryReportHeader {
   label: string;
@@ -259,8 +260,7 @@ export async function printLuxuryReport(options: LuxuryReportOptions): Promise<v
       <div class="brand">
         <div class="brand-txt" style="text-align:${ar ? "right" : "left"};">
           <b>${escapeHtml(company.brand.name)}</b>
-          <div>Mousa Gamil Al-Awadhi - Ibb, Yemen</div>
-          <div dir="ltr">inma-soft.vercel.app &nbsp; +967 772 217 218</div>
+          <div dir="ltr">${escapeHtml(companyCreditLine())}</div>
         </div>
         <img src="/inama-soft-logo.ico" alt="${escapeHtml(company.brand.name)}" />
       </div>

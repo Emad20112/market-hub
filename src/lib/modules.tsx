@@ -184,12 +184,19 @@ export const SYSTEM_MODULES: PlatformModule[] = [
     },
     category: "enterprise",
     dependencies: ["core", "expenses"],
-    navItems: ["/daily-journal", "/trial-balance", "/income-statement", "/balance-sheet"],
+    navItems: [
+      "/daily-journal",
+      "/general-ledger",
+      "/trial-balance",
+      "/income-statement",
+      "/balance-sheet",
+    ],
     routes: [
       "/_app/daily-journal",
       "/_app/trial-balance",
       "/_app/income-statement",
       "/_app/balance-sheet",
+      "/_app.general-ledger",
     ],
   },
   {
@@ -207,6 +214,8 @@ export const SYSTEM_MODULES: PlatformModule[] = [
      */
     navItems: [
       "/milling/intake",
+      "/milling/milling",
+      "/milling/delivery",
       "/milling/manufacture",
       "/milling/consumables",
       "/milling/customer-statement",

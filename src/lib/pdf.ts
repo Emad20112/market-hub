@@ -35,6 +35,8 @@ export interface InvoiceDoc {
   date: string;
   partyLabel: string;
   partyName: string;
+  partyPhone?: string;
+  balance?: number;
   warehouse?: string;
   payment?: string;
   status?: string;
@@ -44,6 +46,7 @@ export interface InvoiceDoc {
   discount: number;
   total: number;
   paid?: number;
+  notes?: string;
   company?: {
     name?: string;
     address?: string;

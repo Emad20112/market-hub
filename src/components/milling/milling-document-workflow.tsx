@@ -155,7 +155,7 @@ export function MillingDocumentWorkflow({
     if (!details) return;
     const docData = buildMillingDocumentUnifiedDoc(details, stage);
     setPrintRequest({
-      documentType: "mill_document",
+      documentType: stage === "delivery" ? "delivery_note" : "mill_document",
       doc: docData,
     });
   };
@@ -346,6 +346,23 @@ export function MillingDocumentWorkflow({
                     />
                   </MillingField>
                 </div>
+
+                {details?.intakeGrain && (
+                  <div className="rounded-xl border border-blue-500/20 bg-blue-500/5 p-2.5 text-xs flex flex-wrap items-center justify-between gap-2">
+                    <span className="text-blue-900 dark:text-blue-200">
+                      <strong>المتبقي كحبوب خام لم تُطحن:</strong>{" "}
+                      {fmtNum(
+                        Math.max(0, details.intakeGrain.bagsRemaining - (Number(bagsOut) || 0)),
+                      )}{" "}
+                      كيس (
+                      {fmtNum(Math.max(0, details.intakeGrain.kgRemaining - (Number(kgOut) || 0)))}{" "}
+                      كجم)
+                    </span>
+                    <span className="text-[11px] font-semibold text-blue-700 dark:text-blue-300">
+                      ✓ يبقى في رصيد العميل العيني ولا يُسجل كفاقد.
+                    </span>
+                  </div>
+                )}
 
                 <LinesEditor
                   lines={outputs}

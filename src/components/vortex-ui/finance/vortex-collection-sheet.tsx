@@ -280,8 +280,11 @@ export function VortexCollectionSheet({
     customMessage || (receipt ? buildTemplateMessage(receipt, selectedTemplate) : "");
   // The former success screen stays here temporarily for the message-template
   // state, but the user is now shown the shared voucher-details body instead.
-  const showLegacyReceiptScreen = receipt === null;
-
+  // NOTE: typed explicitly as boolean (not a bare aliased const) so TypeScript's
+  // aliased-condition narrowing doesn't narrow `receipt` to `never` inside the
+  // `receipt ?` branch below (which made every `receipt.x` access inside the
+  // legacy block report `never`).
+  const showLegacyReceiptScreen: boolean = !receipt;
   const shareWhatsApp = () => {
     if (!receipt) return;
     const text = encodeURIComponent(activeMessageText);
