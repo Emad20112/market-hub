@@ -9,6 +9,7 @@ import {
   X,
   Loader2,
   CheckCircle2,
+  Lock,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useI18n } from "@/lib/i18n";
@@ -50,6 +51,12 @@ export interface CustomerFormDialogProps {
   hint?: string;
 }
 
+export function isSystemCashCustomerName(name?: string | null): boolean {
+  if (!name) return false;
+  const n = name.trim().toLowerCase();
+  return n === "عميل نقدي" || n === "walk-in" || n === "walk-in customer" || n === "cash customer";
+}
+
 export function CustomerFormDialog({
   open,
   onClose,
@@ -70,9 +77,29 @@ export function CustomerFormDialog({
 
   if (!open) return null;
 
+  const isLockedCashCustomer = Boolean(edit.id && isSystemCashCustomerName(initial?.name));
+
   async function save() {
     if (saving) return;
     if (!edit?.name?.trim()) return toast.error(t("common.required"));
+    if (isLockedCashCustomer) {
+      if (edit.name.trim() !== (initial?.name ?? "").trim()) {
+        toast.error(
+          isAr
+            ? "لا يمكن تعديل اسم «العميل النقدي» — حساب نظامي رسمي."
+            : "Cannot change cash customer name.",
+        );
+        return;
+      }
+      if (edit.is_active === false) {
+        toast.error(
+          isAr
+            ? "لا يمكن تعطيل «العميل النقدي» — أساسي لنقاط البيع."
+            : "Cannot deactivate cash customer.",
+        );
+        return;
+      }
+    }
     setSaving(true);
     const payload = {
       name: edit.name.trim(),
@@ -80,7 +107,7 @@ export function CustomerFormDialog({
       email: edit.email || null,
       address: edit.address || null,
       credit_limit: Number(edit.credit_limit ?? 0),
-      is_active: edit.is_active ?? true,
+      is_active: isLockedCashCustomer ? true : (edit.is_active ?? true),
     };
     const { data, error } = edit.id
       ? await supabase.from("customers").update(payload).eq("id", edit.id).select("*").single()
@@ -144,6 +171,16 @@ export function CustomerFormDialog({
           <div className="flex-1 overflow-y-auto space-y-4 pe-1 custom-scrollbar">
             {/* Section 1: Identity */}
             <div className="space-y-3">
+              {isLockedCashCustomer && (
+                <div className="flex items-center gap-2 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-3 text-xs font-semibold text-amber-700 dark:text-amber-300">
+                  <Lock className="size-4 shrink-0 text-amber-500" />
+                  <span>
+                    {isAr
+                      ? "هذا حساب «العميل النقدي» النظامي المعتمد للمبيعات الفورية، واسمه وحالته محميان لضمان استقرار نقاط البيع."
+                      : "This is the official Cash Customer account; name and status are locked for POS integrity."}
+                  </span>
+                </div>
+              )}
               <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                 <Sparkles className="size-3.5 text-primary" />
                 <span>{isAr ? "البيانات الأساسية" : "Primary Information"}</span>
@@ -156,11 +193,12 @@ export function CustomerFormDialog({
                   <User className="pointer-events-none absolute right-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
                   <input
                     required
-                    autoFocus
+                    disabled={isLockedCashCustomer}
+                    autoFocus={!isLockedCashCustomer}
                     value={edit.name ?? ""}
                     onChange={(e) => setEdit({ ...edit, name: e.target.value })}
                     placeholder={isAr ? "اسم العميل أو المؤسسة" : "Customer or Company Name"}
-                    className="h-11 w-full rounded-2xl border border-border/80 bg-surface/80 px-4 pr-10 text-sm font-medium transition placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                    className="h-11 w-full rounded-2xl border border-border/80 bg-surface/80 px-4 pr-10 text-sm font-medium transition placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:cursor-not-allowed disabled:opacity-60"
                   />
                 </div>
               </div>
@@ -260,10 +298,14 @@ export function CustomerFormDialog({
                 </div>
                 <button
                   type="button"
-                  onClick={() => setEdit({ ...edit, is_active: !(edit.is_active ?? true) })}
-                  className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                    (edit.is_active ?? true) ? "bg-primary" : "bg-muted"
-                  }`}
+                  disabled={isLockedCashCustomer}
+                  onClick={() =>
+                    !isLockedCashCustomer &&
+                    setEdit({ ...edit, is_active: !(edit.is_active ?? true) })
+                  }
+                  className={`relative inline-flex h-6 w-11 shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                    isLockedCashCustomer ? "cursor-not-allowed opacity-60" : "cursor-pointer"
+                  } ${(edit.is_active ?? true) ? "bg-primary" : "bg-muted"}`}
                 >
                   <span
                     className={`pointer-events-none inline-block size-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${

@@ -11,6 +11,8 @@
 import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
+import { toSystemDigits } from "@/lib/format-preferences";
+
 /* ------------------------------------------------------------------ panel */
 
 export function MillingPanel({ children, className }: { children: ReactNode; className?: string }) {
@@ -80,8 +82,19 @@ export function MillingField({
   );
 }
 
-export function MillingInput(props: React.InputHTMLAttributes<HTMLInputElement>) {
-  return <input {...props} className={cn(fieldBase, props.className)} />;
+export function MillingInput({ onWheel, ...props }: React.InputHTMLAttributes<HTMLInputElement>) {
+  return (
+    <input
+      {...props}
+      onWheel={(e) => {
+        if (props.type === "number") {
+          (e.target as HTMLElement).blur();
+        }
+        onWheel?.(e);
+      }}
+      className={cn(fieldBase, props.className)}
+    />
+  );
 }
 
 export function MillingSelect(props: React.SelectHTMLAttributes<HTMLSelectElement>) {
@@ -99,9 +112,17 @@ export function MillingTextarea(props: React.TextareaHTMLAttributes<HTMLTextArea
 
 /* ------------------------------------------------------------------ bits */
 
-export function Mono({ children, className }: { children: ReactNode; className?: string }) {
+export function Mono({
+  children,
+  className,
+  dir,
+}: {
+  children: ReactNode;
+  className?: string;
+  dir?: "ltr" | "rtl";
+}) {
   return (
-    <span className={cn("font-mono text-xs tabular-nums text-foreground", className)}>
+    <span className={cn("font-mono text-xs tabular-nums text-foreground", className)} dir={dir}>
       {children}
     </span>
   );
@@ -184,10 +205,14 @@ export function QueryErrorGuard({ error }: { error: unknown }) {
   );
 }
 
-/** رقم بتنسيق عددي نظيف للعرض. */
+/** رقم بتنسيق عددي نظيف للعرض — فواصل آلاف وأرقام النظام. */
 export function fmtNum(n: number | null | undefined): string {
   const v = Number(n ?? 0);
-  return v.toLocaleString("ar-EG", { maximumFractionDigits: 2 });
+  const base = new Intl.NumberFormat("en-US", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  }).format(v);
+  return toSystemDigits(base);
 }
 
 /* ------------------------------------------------------------------ table */

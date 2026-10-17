@@ -1,20 +1,9 @@
 import * as React from "react";
-import {
-  ArrowDownUp,
-  CalendarDays,
-  Check,
-  ChevronDown,
-  Filter as FilterIcon,
-  ListFilter,
-  Search,
-  ToggleLeft,
-  X,
-} from "lucide-react";
+import { ArrowDownUp, Filter as FilterIcon, X } from "lucide-react";
 
 import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
 import { SearchInput } from "@/components/ui/search-input";
-import { Modal } from "@/components/ui/modal";
+import { RecordsFilterPanel, RecordsSortPanel } from "@/components/ui/records-panels";
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                             */
@@ -477,57 +466,21 @@ interface FilterPanelProps {
   onSubmit: (values: FilterValues) => void;
 }
 
-function FilterPanel({ open, onClose, definitions, values, copy, onSubmit }: FilterPanelProps) {
-  const [draft, setDraft] = React.useState<FilterValues>(values);
-
-  React.useEffect(() => {
-    if (open) setDraft(values);
-  }, [open, values]);
-
-  const activeCount = countActive(draft);
-
+/**
+ * المحور 10 — الترحيل الموحّد: لوحة الفلترة/الترتيب المحلية أُهملت وكل لوحات
+ * TableToolbar تُفوَّض الآن إلى جلد الملاك «شيت الفلترة الجانبي المتقدم»
+ * (RecordsFilterPanel / RecordsSortPanel) — فينتقل **كل شاشات النظام** التي
+ * تستخدم TableToolbar دفعة واحدة، بلا أي تعديل على استدعاءاتها.
+ */
+function FilterPanel({ open, onClose, definitions, values, onSubmit }: FilterPanelProps) {
   return (
-    <Modal
+    <RecordsFilterPanel
       open={open}
       onClose={onClose}
-      title={copy.filterTitle}
-      description={
-        activeCount > 0 ? format(copy.filterApplied, { count: activeCount }) : copy.filterHint
-      }
-      size="sm"
-      desktop="popover-start"
-      sheetUntil="lg"
-      eyebrow={copy.removeOptionLabel}
-      footer={
-        <div className="flex w-full items-center gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => setDraft({})}
-            disabled={activeCount === 0}
-            className="flex-1"
-            block={false}
-          >
-            {copy.clear}
-          </Button>
-          <Button type="button" onClick={() => onSubmit(draft)} className="flex-1" block={false}>
-            {copy.apply}
-          </Button>
-        </div>
-      }
-    >
-      <div className="flex flex-col gap-4">
-        {definitions.map((def) => (
-          <FilterControl
-            key={def.key}
-            def={def}
-            value={draft[def.key]}
-            copy={copy}
-            onChange={(v) => setDraft((d) => ({ ...d, [def.key]: v }))}
-          />
-        ))}
-      </div>
-    </Modal>
+      definitions={definitions}
+      values={values}
+      onSubmit={onSubmit}
+    />
   );
 }
 
@@ -552,203 +505,15 @@ interface SortPanelProps {
   onSubmit: (value: string) => void;
 }
 
-function SortPanel({ open, onClose, options, value, copy, onSubmit }: SortPanelProps) {
+function SortPanel({ open, onClose, options, value, onSubmit }: SortPanelProps) {
   return (
-    <Modal
+    <RecordsSortPanel
       open={open}
       onClose={onClose}
-      title={copy.sortTitle}
-      description={copy.sortHint}
-      size="sm"
-      desktop="popover-start"
-      sheetUntil="lg"
-      eyebrow={copy.sortOptionsLabel}
-    >
-      <div className="flex flex-col gap-1" role="listbox" aria-label={copy.sortOptionsLabel}>
-        {options.map((o) => {
-          const selected = o.value === value;
-          return (
-            <button
-              key={o.value}
-              type="button"
-              role="option"
-              aria-selected={selected}
-              onClick={() => onSubmit(o.value)}
-              className={cn(
-                "flex items-center justify-between gap-3 rounded-full border border-transparent px-3.5 py-2.5 text-start text-sm transition-colors",
-                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50",
-                selected
-                  ? "border-primary/25 bg-primary/12 font-medium text-primary"
-                  : "text-foreground hover:border-border/70 hover:bg-surface-2/70",
-              )}
-            >
-              <span className="flex min-w-0 items-center gap-2.5 truncate">
-                <span className="grid size-7 shrink-0 place-items-center rounded-full bg-surface-2 text-muted-foreground [&_svg]:size-3.5">
-                  <ArrowDownUp />
-                </span>
-                <span className="truncate">{o.label}</span>
-              </span>
-              {selected ? <Check className="size-4 shrink-0" aria-hidden /> : null}
-            </button>
-          );
-        })}
-      </div>
-    </Modal>
-  );
-}
-
-/* ------------------------------------------------------------------ */
-/*  Filter control                                                    */
-/* ------------------------------------------------------------------ */
-
-interface FilterControlProps {
-  def: FilterDefinition;
-  value: FilterValues[string];
-  copy: Required<TableToolbarLabels>;
-  onChange: (value: FilterValues[string]) => void;
-}
-
-const controlClass =
-  "h-11 w-full rounded-full border border-border/70 bg-surface/55 px-4 text-sm text-foreground shadow-[inset_0_1px_0_0_oklch(1_0_0/0.06)] backdrop-blur-xl transition-[border-color,box-shadow,background-color] duration-200 placeholder:text-muted-foreground/70 hover:border-primary/30 hover:bg-surface/75 focus:border-primary/60 focus:bg-surface/85 focus:outline-none focus:ring-4 focus:ring-primary/12";
-
-function filterIcon(type: FilterDefinition["type"]) {
-  const Icon =
-    type === "date-range"
-      ? CalendarDays
-      : type === "text"
-        ? Search
-        : type === "boolean"
-          ? ToggleLeft
-          : ListFilter;
-  return <Icon className="size-3.5" aria-hidden />;
-}
-
-function FilterControl({ def, value, copy, onChange }: FilterControlProps) {
-  if (def.type === "select") {
-    return (
-      <div className="flex flex-col gap-1.5">
-        <label
-          htmlFor={`filter-${def.key}`}
-          className="flex items-center gap-1.5 text-label text-muted-foreground"
-        >
-          <span className="grid size-5 place-items-center rounded-full bg-primary/10 text-primary">
-            {filterIcon(def.type)}
-          </span>
-          {def.label}
-        </label>
-        <div className="relative">
-          <select
-            id={`filter-${def.key}`}
-            value={typeof value === "string" ? value : ""}
-            onChange={(e) => onChange(e.target.value || undefined)}
-            className={`${controlClass} appearance-none pe-10`}
-          >
-            <option value="">{copy.all}</option>
-            {def.options?.map((o) => (
-              <option key={o.value} value={o.value}>
-                {o.label}
-              </option>
-            ))}
-          </select>
-          <ChevronDown
-            className="pointer-events-none absolute inset-y-0 end-4 my-auto size-4 text-muted-foreground"
-            aria-hidden
-          />
-        </div>
-      </div>
-    );
-  }
-
-  if (def.type === "boolean") {
-    const current = typeof value === "string" ? value : "";
-    return (
-      <div className="flex flex-col gap-1.5">
-        <span className="flex items-center gap-1.5 text-label text-muted-foreground">
-          <span className="grid size-5 place-items-center rounded-full bg-primary/10 text-primary">
-            {filterIcon(def.type)}
-          </span>
-          {def.label}
-        </span>
-        <div className="flex gap-1.5" role="radiogroup" aria-label={def.label}>
-          {[
-            { v: "", l: copy.all },
-            { v: "true", l: copy.yes },
-            { v: "false", l: copy.no },
-          ].map((opt) => {
-            const selected = current === opt.v;
-            return (
-              <button
-                key={opt.v}
-                type="button"
-                role="radio"
-                aria-checked={selected}
-                onClick={() => onChange(opt.v || undefined)}
-                className={cn(
-                  "h-10 flex-1 rounded-full border text-xs font-medium transition-colors",
-                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50",
-                  selected
-                    ? "border-primary/45 bg-primary/12 text-primary"
-                    : "border-border/70 bg-surface/60 text-muted-foreground hover:bg-surface hover:text-foreground",
-                )}
-              >
-                {opt.l}
-              </button>
-            );
-          })}
-        </div>
-      </div>
-    );
-  }
-
-  if (def.type === "date-range") {
-    const range = typeof value === "object" && value != null ? value : {};
-    return (
-      <div className="flex flex-col gap-1.5">
-        <span className="flex items-center gap-1.5 text-label text-muted-foreground">
-          <span className="grid size-5 place-items-center rounded-full bg-primary/10 text-primary">
-            {filterIcon(def.type)}
-          </span>
-          {def.label}
-        </span>
-        <div className="grid grid-cols-2 gap-2">
-          <input
-            type="date"
-            aria-label={`${def.label} من`}
-            value={range.from ?? ""}
-            onChange={(e) => onChange({ ...range, from: e.target.value || undefined })}
-            className={controlClass}
-          />
-          <input
-            type="date"
-            aria-label={`${def.label} إلى`}
-            value={range.to ?? ""}
-            onChange={(e) => onChange({ ...range, to: e.target.value || undefined })}
-            className={controlClass}
-          />
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="flex flex-col gap-1.5">
-      <label
-        htmlFor={`filter-${def.key}`}
-        className="flex items-center gap-1.5 text-label text-muted-foreground"
-      >
-        <span className="grid size-5 place-items-center rounded-full bg-primary/10 text-primary">
-          {filterIcon(def.type)}
-        </span>
-        {def.label}
-      </label>
-      <input
-        id={`filter-${def.key}`}
-        value={typeof value === "string" ? value : ""}
-        placeholder={def.placeholder}
-        onChange={(e) => onChange(e.target.value || undefined)}
-        className={controlClass}
-      />
-    </div>
+      options={options}
+      value={value}
+      onSubmit={onSubmit}
+    />
   );
 }
 

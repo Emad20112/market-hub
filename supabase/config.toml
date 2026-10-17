@@ -1,36 +1,42 @@
+# ---------------------------------------------------------------------------
+# هويّة المشروع (Project Identifier)
+# ---------------------------------------------------------------------------
 project_id = "kwzqvgdyadylwnvjghqn"
 
+
+# ---------------------------------------------------------------------------
+# البيانات الافتتاحية والمثبتات (Database Seeding)
+# ---------------------------------------------------------------------------
 [db.seed]
 # يُشغَّل تلقائيًا فقط ما يجعل النظام "نظامًا".
 #
-# supabase/seeds/01_system/ يحوي الصفوف التي لا يعمل النظام بدونه:
-#   * 01_modules            — التطبيق يقرأ هذه الأكواد لتحديد الشاشات المتاحة
-#   * 02_plans              — باقات الاشتراك
-#   * 03_chart_of_accounts  — محرّك الترحيل يحلّ أكوادًا مثل '4111'
-#   * 04_units              — كل منتج يحمل وحدة
-#   * 05_expense_categories — نموذج المصروف يشترط تصنيفًا، مربوطة بحساباتها
-#   * 06_platform_admins    — بلا مسؤول منصة لا تُدار الباقات ولا الوحدات
-#   * 07_document_numbering — بلاها يرفض محرّك الترقيم توليد أي رقم
-#   * 08_payment_methods    — كل دفعة تمر منها + إعداد المنشأة الافتراضي
+# supabase/seeds/01_system/ يحوي الصفوف التي لا يعمل النظام بدونها:
+#   * 01_modules            — التطبيق يقرأ هذه الأكواد لتحديد الشاشات المتاحة.
+#   * 02_plans              — باقات الاشتراك.
+#   * 03_chart_of_accounts  — محرّك الترحيل يحلّ أكوادًا مثل '4111'.
+#   * 04_units              — كل منتج يحمل وحدة.
+#   * 05_expense_categories — نموذج المصروف يشترط تصنيفًا، مربوطة بحساباتها.
+#   * 06_platform_admins    — بلا مسؤول منصة لا تُدار الباقات ولا الوحدات.
+#   * 07_document_numbering — بلاها يرفض محرّك الترقيم توليد أي رقم.
+#   * 08_payment_methods    — كل دفعة تمر منها + إعداد المنشأة الافتراضي.
 #
-# ممنوع أن يحوي هذا المسار بيانات أعمال أو هوية شركة:
-#   * بيانات الأعمال (منتجات، عملاء، موردون، فواتير، مخزون) = قيود مُختلقة
-#     داخل دفاتر العميل
-#   * company_settings = الكتابة على اسم العميل وعملته ورقمه الضريبي
+# ⚠️ ممنوع أن يحوي هذا المسار بيانات أعمال أو هوية شركة:
+#   * بيانات الأعمال (منتجات، عملاء، موردون، فواتير، مخزون) = قيود مُختلقة داخل دفاتر العميل.
+#   * company_settings = الكتابة على اسم العميل وعملته ورقمه الضريبي.
 #
 # استثناء مقصود: 06_platform_admins يُنشئ صفوف auth.users حقيقية. هذا مبرَّر
 # لأنه حساب **المنصة** لا حساب عميل: وجوده شرط لعمل اللوحة الإدارية، وهو
-# نفسه في كل نسخة للنظام. حسابات المتجر تبقى ممنوعة تمامًا هنا — يملكها
-# العميل وتُبنى من التطبيق.
+# نفسه في كل نسخة للنظام. حسابات المتجر تبقى ممنوعة تمامًا هنا — يملكها العميل وتُبنى من التطبيق.
 #
 # ملاحظة: جدول packaging_types يبدأ فارغًا عن قصد. «شوال» و«كيس» لا يحملان
 # وزنًا ولا يصفان شيئًا يحتاجه كل عميل، والمنتج الحقيقي هو «كيس 50 كجم».
 #
 # ملفات العيّنات اختيارية وخارج هذا المسار:
-#   supabase/seeds/02_company/  — هوية العميل وأرصدته الافتتاحية
-#   supabase/seeds/03_samples/  — بيانات عرض لكل نشاط (مطحنة…)
-#   supabase/seeds/04_tests/    — مثبتات الاختبارات الآلية
+#   supabase/seeds/02_company/  — هوية العميل وأرصدته الافتتاحية.
+#   supabase/seeds/03_samples/  — بيانات عرض لكل نشاط (مطحنة…).
+#   supabase/seeds/04_tests/    — مثبتات الاختبارات الآلية.
 # راجع supabase/seeds/README.md و supabase/MIGRATIONS_RULES.md.
+
 enabled = true
 sql_paths = [
   "./seeds/01_system/*.sql",
@@ -39,87 +45,55 @@ sql_paths = [
 
 
 # ---------------------------------------------------------------------------
-# Edge Functions
+# دوال الحافة (Edge Functions)
 # ---------------------------------------------------------------------------
 # admin-create-user provisions store staff accounts (Auth user + profile +
 # store role) through the Supabase Admin API. That API requires a secret key
-# which must never reach the browser, so this function is the only place the
-# key is used.
+# which must never reach the browser, so this function is the only place the key is used.
 #
 # verify_jwt = true -> calls without a bearer token are rejected by the
 # platform before the function body runs. The function additionally re-derives
-# the caller's permissions from the database, so a valid token alone is never
-# sufficient to create a user.
+# the caller's permissions from the database, so a valid token alone is never sufficient to create a user.
 [functions.admin-create-user]
 verify_jwt = true
 
+
 # ---------------------------------------------------------------------------
-# Auth — الدخول بالبريد وبالهاتف
+# نظام المصادقة والحماية (Authentication)
 # ---------------------------------------------------------------------------
-# تفعيل قسم الهاتف يسمح بـ signInWithPassword بالهاتف مباشرةً لدى GoTrue،
-# بدل الاعتماد على البريد الوهمي (967771234567@vortex.local) الذي كان
-# الطريق الوحيد قبل ذلك. الفرق:
-#
-#   بالبريد الوهمي : حساب واحد ببريد صناعي، والدخول بالهاتف يعمل لأن
-#                    الواجهة تحوّل الرقم إلى ذلك البريد قبل الإرسال.
-#   بالهاتف الحقيقي: الهاتف حقل مصادقة مستقل لدى GoTrue، فيعمل الدخول برقم
-#                    الهاتف حقيقةً، ويبقى البريد الحقيقي يعمل في الوقت نفسه.
-#                    ويمكن إرسال OTP لاحقًا بلا تغيير في المخطط.
-#
-# إرسال SMS معطّل عمدًا: لا مزوّد رسائل في بيئة التطوير، ورسائل حقيقية
-# تستهلك رصيدًا وتحتاج موافقة. الـ OTP يُطبع في سجلّ حاوية auth بدل إرساله،
-# وهو كافٍ تمامًا محليًا.
-#
-# ⚠️ لا يوجد مفتاح اسمه `enable_phone` في CLI 2.120 — وهذا كان سبب خطأ:
-#     'auth' has invalid keys: enable_phone
-#     مخطط CLI مُحكم الإغلاق: أي مفتاح لا يعرفه في القسم يُرفض ويمنع
-#     `db reset` و`start` كليهما. تفعيل الهاتف يتم عبر قسم `[auth.sms]` أدناه.
 [auth]
 enable_signup = true
 
+
+# ── قسم رسائل الهاتف (SMS Configuration) ───────────────────────────────────
 [auth.sms]
 # تسجيل الدخول بكلمة مرور أو OTP عبر الهاتف.
 #
-# هذا القسم وحده هو ما يفعل الهاتف. `enable_signup = true` يضبط
-# GOTRUE_SMS_AUTOCONFIRM ويفتح مسار الهاتف لدى GoTrue، فلا حاجة لأي مفتاح
-# آخر في [auth].
+# ⚠️ لا يوجد مفتاح اسمه `enable_phone` في CLI 2.120 — وهذا كان سبب خطأ: 'auth' has invalid keys: enable_phone
+# مخطط CLI مُحكم الإغلاق: أي مفتاح لا يعرفه في القسم يُرفض ويمنع `db reset` و`start` كليهما [auth].
 #
-# ⚠️ لا مزوّد SMS هنا على قصد: بلا مزوّد تُطبع الرموز في سجلّ الحاوية ولا
-#     تُرسل — وهو المطلوب في التطوير. لو أضفت [auth.sms.twilio] بمفاتيح وهمية
-#     (placeholder) فسيرفضه CLI أيضًا أو تحاول GoTrue الاتصال بـTwilio وتفشل.
-#     قبل النشر لعميل: اربط مزوّدًا حقيقيًا من لوحة Supabase.
-enable_signup = true
+# [تم الإيقاف حالياً]: تم تحويل القيمة إلى false لإيقاف الهاتف بناءً على طلب الإدارة.
+enable_signup = false
 enable_confirmations = false
 
-# مزوّد الهاتف — إصلاح 2026-10-13:
-# كان الدخول بالهاتف يفشل دائماً بـ {"error_code":"phone_provider_disabled"}
-# لأن GoTrue يرى GOTRUE_EXTERNAL_PHONE_ENABLED=false. قسم [auth.external.phone]
-# هو المخطط المعتمد الذي يحمل القيمة true لهذا المتغير — تحقّقنا منه بعد
-# supabase stop && start.
-#
-# لا مزوّد SMS هنا على قصد: بلا مزوّد تُطبع الرموز في سجل الحاوية ولا تُرسل،
-# وهو المطلوب في التطوير. قبل النشر لعميل: اربط مزوّداً حقيقياً من لوحة Supabase.
+
+# ── مزوّد الهاتف الخارجي (External Phone Provider) ────────────────────────
 [auth.external.phone]
-enabled = true
-enable_signup = true
-# قيم تطوير وهمية (placeholder) — المتطلب البنيوي من CLI لتفعيل المزوّد.
-# بلا مزوّد SMS فعلي تُطبع رموز التأكيد في سجل حاوية auth ولا تُرسل، وهو
-# المطلوب في التطوير. لا تضع أسراراً حقيقية هنا أبداً (R-17) — قبل النشر
-# لعميل: اربط مزوّداً حقيقياً من لوحة Supabase (Secrets هناك لا في الكود).
+# مزوّد الهاتف — إصلاح 2026-10-13:
+# كان الدخول بالهاتف يفشل دائماً بـ {"error_code":"phone_provider_disabled"} لأن GoTrue يرى GOTRUE_EXTERNAL_PHONE_ENABLED=false.
+# قسم [auth.external.phone] هو المخطط المعتمد للتحكم بالمزود السحابي والمحلي.
+#
+# [وضع الإيقاف الحالي]: تم تعيين التفعيل إلى false لإيقاف مسار الهاتف تماماً وحذف المفاتيح الإضافية المرفوضة من الـ CLI.
+enabled = false
 client_id = "local-dev-placeholder"
 secret = "local-dev-placeholder-not-a-real-secret"
-turnstile_enabled = false
-sms_message_sending_enabled = false
-# ⚠️ لا يوجد مفتاح `template` في [auth.sms] في CLI 2.120 — المفتاحان المعترف
-#     بهما هنا هما `enable_signup` و`enable_confirmations` فقط. نص الرسالة
-#     يُضبط من لوحة Supabase (Auth ← Templates) لا من هذا الملف. وترك مفتاح
-#     غير معروف هنا يُنتج نفس خطأ `invalid keys` الذي منع db reset.
+
+# ⚠️ لا يوجد مفتاح `template` في [auth.sms] في CLI 2.120 — المفتاحان المعترف بهما هنا هما `enable_signup` و`enable_confirmations` فقط.
+# نص الرسالة يُضبط من لوحة Supabase (Auth ← Templates) لا من هذا الملف. وترك مفتاح غير معروف هنا يُنتج نفس خطأ `invalid keys` الذي منع db reset [auth].
 #
 # ── مزوّد SMS ────────────────────────────────────────────────────────────────
-# لا مزوّد مُعلن هنا عن قصد. CLI 2.120 يقبل مزوّدًا حقيقيًا فقط
-# (twilio / twilio_verify / messagebird / textlocal / vonage) بمفاتيح صحيحة،
-# ولا يقبل قيمًا وهمية. وفي التطوير لا نحتاج مزوّدًا أصلًا: تأكيد الهاتف
-# محليًا ينجح بلا إرسال (sms_autoconfirm مفعّل في البيئة المحلية)، والرمز
-# يُطبع في سجلّ حاوية auth.
+# لا مزوّد مُعلن هنا عن قصد. CLI 2.120 يقبل مزوّدًا حقيقيًا فقط (twilio / twilio_verify / messagebird / textlocal / vonage) 
+# بمفاتيح صحيحة، ولا يقبل قيمًا وهمية. وفي التطوير لا نحتاج مزوّدًا أصلًا: تأكيد الهاتف محليًا ينجح بلا إرسال 
+# (sms_autoconfirm مفعّل في البيئة المحلية)، والرمز يُطبع في سجلّ حاوية auth.
 #
 # ⚠️ قبل النشر لعميل حقيقي: أضف قسم مزوّد حقيقيًا هنا أو في لوحة Supabase.

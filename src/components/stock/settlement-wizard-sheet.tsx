@@ -918,7 +918,7 @@ function RowSkeletons({ count }: { count: number }) {
   return (
     <ul className="space-y-2">
       {Array.from({ length: Math.max(3, count) }).map((_, i) => (
-        <li key={i} className="h-14 animate-pulse rounded-xl bg-muted/50" />
+        <li key={i} className="h-14 shimmer rounded-xl bg-muted/50" />
       ))}
     </ul>
   );

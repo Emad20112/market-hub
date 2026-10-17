@@ -341,11 +341,12 @@ export function LoadMoreFooter({
 /* ------------------------------------------------------------------ */
 
 /** Compact "refreshing" hint a screen can place beside its own header. */
-export function RecordsRefreshing({ label = "جارٍ التحديث…" }: { label?: string }) {
+export function RecordsRefreshing({ label }: { label?: string }) {
+  const { t } = useI18n();
   return (
     <span className="inline-flex items-center gap-1.5 text-[11px] text-muted-foreground">
       <RefreshCw className="size-3 animate-spin" aria-hidden />
-      {label}
+      {label ?? t("records.refreshing")}
     </span>
   );
 }

@@ -31,16 +31,18 @@ import {
 import type { UnifiedDocumentData, InvoiceTemplateId } from "@/lib/templates";
 
 export type LuxuryPaperFormat = PrintPaperId;
-import type { InvoiceDoc } from "@/lib/pdf";
+import { generateInvoicePdfBlob, type InvoiceDoc } from "@/lib/pdf";
 import { toast } from "sonner";
 
 export type PrintMethodType = "thermal" | "page";
 
 export interface LuxuryPrintPreviewModalProps {
   open: boolean;
-  onClose: () => void;
+  onClose?: () => void;
+  onOpenChange?: (open: boolean) => void;
   /** Document data in either UnifiedDocumentData or legacy InvoiceDoc format */
   doc?: UnifiedDocumentData | InvoiceDoc | null;
+  document?: UnifiedDocumentData | InvoiceDoc | null;
   /** Full PrintRequest if available */
   request?: PrintRequest | null;
   documentType?: PrintingDocumentType;
@@ -109,7 +111,9 @@ function toUnifiedData(
 export function LuxuryPrintPreviewModal({
   open,
   onClose,
+  onOpenChange,
   doc,
+  document,
   request,
   documentType = "customer_invoice",
   title,
@@ -119,6 +123,11 @@ export function LuxuryPrintPreviewModal({
   customerPhone,
   customerName,
 }: LuxuryPrintPreviewModalProps) {
+  const activeDoc = document ?? doc;
+  const handleModalClose = () => {
+    if (onClose) onClose();
+    if (onOpenChange) onOpenChange(false);
+  };
   // Determine initial print method (thermal vs page)
   const initialMethod: PrintMethodType = useMemo(() => {
     if (defaultFormat === "thermal-58" || defaultFormat === "thermal-80") return "thermal";
@@ -232,8 +241,8 @@ export function LuxuryPrintPreviewModal({
 
   const unifiedDoc = useMemo(() => {
     if (request?.doc) return request.doc;
-    return toUnifiedData(doc, documentType);
-  }, [request, doc, documentType]);
+    return toUnifiedData(activeDoc, documentType);
+  }, [request, activeDoc, documentType]);
 
   // Derive active theme from chosen template
   const activeTheme: PrintTheme = useMemo(() => {
@@ -300,6 +309,8 @@ export function LuxuryPrintPreviewModal({
     }
   }, [activeRequest]);
 
+  const [isSharingPdf, setIsSharingPdf] = useState(false);
+
   if (!open) return null;
 
   const handlePrint = async () => {
@@ -326,6 +337,73 @@ export function LuxuryPrintPreviewModal({
       : `https://wa.me/?text=${encodeURIComponent(msg)}`;
 
     window.open(url, "_blank", "noopener,noreferrer");
+  };
+
+  const handlePdfShare = async () => {
+    setIsSharingPdf(true);
+    try {
+      const invDoc: InvoiceDoc = {
+        title: unifiedDoc.title || "مستند رسمي",
+        number: unifiedDoc.number || "—",
+        date: unifiedDoc.date || new Date().toLocaleDateString("ar-YE"),
+        partyLabel: unifiedDoc.partyLabel || "العميل",
+        partyName: customerName || unifiedDoc.partyName || "",
+        partyPhone: customerPhone || unifiedDoc.partyPhone || "",
+        warehouse: unifiedDoc.warehouse || "",
+        payment: unifiedDoc.payment || "",
+        status: unifiedDoc.status || "",
+        subtotal: unifiedDoc.subtotal || unifiedDoc.total || 0,
+        tax: unifiedDoc.tax || 0,
+        discount: unifiedDoc.discount || 0,
+        total: unifiedDoc.total || 0,
+        paid: unifiedDoc.paid,
+        balance: unifiedDoc.balance,
+        notes: unifiedDoc.notes,
+        currency: unifiedDoc.currency || "ر.ي",
+        lines: (unifiedDoc.lines || []).map((l) => ({
+          product: l.product,
+          qty: Number(l.qty || 1),
+          price: Number(l.price || 0),
+          total: Number(l.total || Number(l.qty || 1) * Number(l.price || 0)),
+          code: l.code || l.unit || "",
+        })),
+      };
+
+      const blob = await generateInvoicePdfBlob(invDoc);
+      const fileName = `${unifiedDoc.number || "document"}.pdf`;
+      const file = new File([blob], fileName, { type: "application/pdf" });
+
+      if (
+        navigator.share &&
+        typeof navigator.canShare === "function" &&
+        navigator.canShare({ files: [file] })
+      ) {
+        await navigator.share({
+          title: `${unifiedDoc.title || "مستند"} #${unifiedDoc.number}`,
+          text: `مرفق ملف PDF الخاص بـ ${unifiedDoc.title || "المستند"} رقم: ${unifiedDoc.number}`,
+          files: [file],
+        });
+        toast.success("تم فتح نافذة المشاركة بنجاح");
+      } else {
+        // Fallback: تنزيل ملف الـ PDF مباشرة للمستخدم
+        const url = URL.createObjectURL(blob);
+        const a = window.document.createElement("a");
+        a.href = url;
+        a.download = fileName;
+        window.document.body.appendChild(a);
+        a.click();
+        window.document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        toast.success("تم تجهيز وتحميل ملف الـ PDF بنجاح، يمكنك مشاركته الآن.");
+      }
+    } catch (err: any) {
+      if (err.name !== "AbortError") {
+        console.error("PDF share error:", err);
+        toast.error("تعذر مشاركة ملف الـ PDF: " + (err.message || "خطأ غير متوقع"));
+      }
+    } finally {
+      setIsSharingPdf(false);
+    }
   };
 
   const modalTitle = title || unifiedDoc.title || PRINTING_LABELS[rtl ? "ar" : "en"].preview;
@@ -509,6 +587,19 @@ export function LuxuryPrintPreviewModal({
                   <>
                     <button
                       type="button"
+                      onClick={() => setActiveTemplate("milling-master")}
+                      className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                        activeTemplate === "milling-master"
+                          ? "bg-primary text-primary-foreground shadow-xs"
+                          : "text-muted-foreground hover:text-foreground hover:bg-surface"
+                      }`}
+                    >
+                      <Scale className="h-3 w-3 text-amber-400" />
+                      <span>خدمات وسندات المطحنة</span>
+                    </button>
+
+                    <button
+                      type="button"
                       onClick={() => setActiveTemplate("elegant")}
                       className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
                         activeTemplate === "elegant"
@@ -541,7 +632,6 @@ export function LuxuryPrintPreviewModal({
                           : "text-muted-foreground hover:text-foreground hover:bg-surface"
                       }`}
                     >
-                      <Scale className="h-3 w-3 text-amber-300" />
                       <span>مبسط كلاسيكي</span>
                     </button>
                   </>
@@ -708,6 +798,21 @@ export function LuxuryPrintPreviewModal({
               className="rounded-xl h-10 px-4"
             >
               إغلاق
+            </Button>
+
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={isSharingPdf}
+              onClick={handlePdfShare}
+              className="rounded-xl h-10 px-3.5 gap-1.5 text-sky-600 dark:text-sky-400 border-sky-500/30 hover:bg-sky-500/10"
+              title="مشاركة أو تنزيل ملف PDF معتمد"
+            >
+              <Share2 className="h-4 w-4 shrink-0" />
+              <span className="text-xs font-bold">
+                {isSharingPdf ? "جارٍ التجهيز…" : "مشاركة PDF"}
+              </span>
             </Button>
 
             <Button

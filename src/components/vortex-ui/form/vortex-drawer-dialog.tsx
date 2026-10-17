@@ -32,6 +32,14 @@ export interface VortexDrawerDialogProps {
   bodyClassName?: string;
   dismissible?: boolean;
   hideClose?: boolean;
+  /**
+   * اتجاه الظهور على سطح المكتب فقط:
+   * - "center" (افتراضي): نافذة عائمة بالمنتصف.
+   * - "left": لوحة تنزلق بأناقة من يسار الشاشة (موفور للنوافذ ذات الحقول
+   *   الكثيرة كشيت الفلترة/الترتيب لتوفير المساحة).
+   * الجوال غير متأثر إطلاقاً — يبقى Bottom Sheet من الأسفل.
+   */
+  desktopSide?: "center" | "left";
 }
 
 /**
@@ -55,20 +63,26 @@ export function VortexDrawerDialog({
   bodyClassName,
   dismissible = true,
   hideClose = false,
+  desktopSide = "center",
 }: VortexDrawerDialogProps) {
   const breakpoint = useBreakpoint();
   const isMobile = breakpoint === "xs" || breakpoint === "sm";
 
   // Desktop Presentation
   if (!isMobile) {
+    // "left": لوحة جانبية أنيقة تنزلق من يسار الشاشة (المحور 10 — توفير المساحة
+    // في الابتوب). الجوال يبقى Bottom Sheet كما هو دون أي تغيير.
+    const isLeftPanel = desktopSide === "left";
     return (
       <DialogPrimitive.Root open={open} onOpenChange={dismissible ? onOpenChange : undefined}>
         <DialogPrimitive.Portal>
           <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm transition-all duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0" />
           <DialogPrimitive.Content
             className={cn(
-              "fixed left-1/2 top-1/2 z-50 flex max-h-[92vh] w-[95vw] -translate-x-1/2 -translate-y-1/2 flex-col rounded-2xl border border-border/70 bg-card/95 text-card-foreground shadow-2xl backdrop-blur-2xl transition-all duration-200 focus:outline-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%]",
-              sizeClasses[size],
+              isLeftPanel
+                ? "fixed inset-y-0 left-0 z-50 flex max-h-full w-[420px] max-w-[92vw] flex-col rounded-none rounded-e-2xl border-y-0 border-s-0 border-e border-border/70 bg-card/95 text-card-foreground shadow-2xl backdrop-blur-2xl transition-all duration-300 ease-out focus:outline-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:slide-out-to-left data-[state=open]:slide-in-from-left"
+                : "fixed left-1/2 top-1/2 z-50 flex max-h-[92vh] w-[95vw] -translate-x-1/2 -translate-y-1/2 flex-col rounded-2xl border border-border/70 bg-card/95 text-card-foreground shadow-2xl backdrop-blur-2xl transition-all duration-200 focus:outline-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%]",
+              !isLeftPanel && sizeClasses[size],
               className,
             )}
             onPointerDownOutside={(e) => {
@@ -83,7 +97,7 @@ export function VortexDrawerDialog({
               <div className="flex shrink-0 items-start justify-between border-b border-border/50 px-6 py-4.5 bg-muted/20">
                 <div className="flex items-center gap-3">
                   {icon && (
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-primary/20 bg-primary/10 text-primary shadow-sm">
+                    <div className="flex size-10 shrink-0 items-center justify-center rounded-full border border-border bg-primary/10 text-primary shadow-sm">
                       {icon}
                     </div>
                   )}
@@ -159,7 +173,7 @@ export function VortexDrawerDialog({
             <div className="flex shrink-0 items-center justify-between border-b border-border/40 px-5 pb-3">
               <div className="flex items-center gap-2.5">
                 {icon && (
-                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-primary/20 bg-primary/10 text-primary">
+                  <div className="flex size-8 shrink-0 items-center justify-center rounded-full border border-border bg-primary/10 text-primary">
                     {icon}
                   </div>
                 )}

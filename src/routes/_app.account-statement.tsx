@@ -204,7 +204,7 @@ export function AccountStatementPage() {
   const handleTabChange = (tab: MainTab) => {
     setMainTab(tab);
     void navigate({
-      search: (prev: Record<string, unknown>) => ({ ...prev, tab }),
+      search: { tab } as never,
       replace: true,
     });
   };

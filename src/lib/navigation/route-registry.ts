@@ -512,8 +512,8 @@ export const ROUTE_REGISTRY: RouteSearchEntry[] = [
   {
     id: "milling-intake",
     path: "/milling/intake",
-    titleAr: "استقبال وفواتير الطحن",
-    titleEn: "Milling Service Desk",
+    titleAr: "استلام وفواتير",
+    titleEn: "Receipt & Invoices",
     descriptionAr: "إصدار فاتورة أجور الطحن الرسمية واستلام حبوب العميل في مستند موحد",
     descriptionEn: "Official milling service invoice and custody document",
     keywords: withSynonyms(
@@ -578,14 +578,17 @@ export const ROUTE_REGISTRY: RouteSearchEntry[] = [
   {
     id: "milling-statement",
     path: "/milling/customer-statement",
-    titleAr: "كشف حساب الأمانات",
-    titleEn: "Milling Customer Statement",
-    descriptionAr: "كشف أمانات العملاء: عيني ومالي، وفاقد مكتشف",
-    descriptionEn: "Customer custody statement: physical, financial, detected loss",
-    keywords: withSynonyms(["كشف", "أمانات", "statement"], SEARCH_SYNONYMS.milling),
+    titleAr: "الأمانات",
+    titleEn: "Customer Custody",
+    descriptionAr: "إدارة واستعراض أمانات العملاء، الأرصدة، الطحن والتسليم السريع، ومطابقة السجلات",
+    descriptionEn: "Customer custody balances, milling, fast delivery, and ledger reconciliation",
+    keywords: withSynonyms(
+      ["أمانات", "أمانة", "كشف", "طحن", "تسليم", "custody"],
+      SEARCH_SYNONYMS.milling,
+    ),
     category: "milling",
     moduleId: "milling_operations",
-    requiredRoles: FINANCE,
+    requiredRoles: STOCK,
     i18nKey: "nav.milling_statement",
   },
   {
