@@ -66,6 +66,7 @@ export const ROUTE_ACCESS: Record<string, RouteAccessRule> = {
   "/expenses": { allowedRoles: FINANCE },
   "/finance": { allowedRoles: FINANCE },
   "/daily-journal": { allowedRoles: FINANCE },
+  "/general-ledger": { allowedRoles: FINANCE },
   "/trial-balance": { allowedRoles: FINANCE },
   "/income-statement": { allowedRoles: FINANCE },
   "/balance-sheet": { allowedRoles: FINANCE },

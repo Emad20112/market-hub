@@ -76,7 +76,6 @@ enable_signup = true
 enable_signup = false
 enable_confirmations = false
 
-
 # ── مزوّد الهاتف الخارجي (External Phone Provider) ────────────────────────
 [auth.external.phone]
 # مزوّد الهاتف — إصلاح 2026-10-13:
