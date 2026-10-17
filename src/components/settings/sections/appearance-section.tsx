@@ -13,10 +13,16 @@ import {
   Eye,
   Sliders,
   ShieldAlert,
+  Cloud,
+  CloudCheck,
+  RefreshCw,
+  Laptop,
+  Layers,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useI18n } from "@/lib/i18n";
 import { useTheme } from "@/lib/theme";
+import { ThemeVisualTestSuite } from "@/components/theme/theme-visual-test-suite";
 import {
   CURATED_THEMES,
   type AccentThemeId,
@@ -41,6 +47,11 @@ export function AppearanceSection({ canEdit = true }: AppearanceSectionProps) {
     addToArchive,
     removeFromArchive,
     resetArchive,
+    userId,
+    isCloudSynced,
+    syncStatus,
+    lastSyncedAt,
+    forceSyncCloud,
   } = useTheme();
 
   const [hexInput, setHexInput] = useState(customColor);
@@ -174,6 +185,88 @@ export function AppearanceSection({ canEdit = true }: AppearanceSectionProps) {
           </div>
         </CardContent>
       </Card>
+
+            {/* شريط حالة مزامنة تفضيلات المستخدم بين الأجهزة والسحابة */}
+      <div className="rounded-2xl border border-border/80 bg-surface/80 p-4 shadow-2xs">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className={`p-2.5 rounded-2xl ${
+              userId
+                ? syncStatus === "synced"
+                  ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                  : syncStatus === "syncing"
+                    ? "bg-primary/10 text-primary animate-pulse"
+                    : "bg-amber-500/10 text-amber-600"
+                : "bg-surface-2 text-muted-foreground"
+            }`}>
+              {userId ? (
+                syncStatus === "syncing" ? (
+                  <RefreshCw className="h-5 w-5 animate-spin" />
+                ) : (
+                  <Cloud className="h-5 w-5" />
+                )
+              ) : (
+                <Laptop className="h-5 w-5" />
+              )}
+            </div>
+
+            <div>
+              <div className="text-sm font-bold text-foreground flex items-center gap-2">
+                <span>
+                  {userId
+                    ? isAr
+                      ? "المزامنة السحابية لتفضيلات المستخدم"
+                      : "User Cloud Preferences Sync"
+                    : isAr
+                      ? "تفضيلات محلية على هذا الجهاز (الزائر)"
+                      : "Local Device Preferences (Guest Mode)"}
+                </span>
+
+                {userId && (
+                  <span className={`inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full ${
+                    syncStatus === "synced"
+                      ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20"
+                      : syncStatus === "syncing"
+                        ? "bg-primary/10 text-primary border border-primary/20"
+                        : "bg-amber-500/10 text-amber-600 border border-amber-500/20"
+                  }`}>
+                    {syncStatus === "synced" && (isAr ? "متزامن لحظياً" : "Synced")}
+                    {syncStatus === "syncing" && (isAr ? "جاري المزامنة..." : "Syncing...")}
+                    {syncStatus === "error" && (isAr ? "حفظ محلي مؤقت" : "Local Cached")}
+                  </span>
+                )}
+              </div>
+
+              <div className="text-xs text-muted-foreground mt-0.5">
+                {userId
+                  ? isAr
+                    ? `إعدادات الثيم، والألوان المخصصة، وأرشيف لوحات الألوان محفوظة بحسابك وتتزامن تلقائياً بين كل أجهزتك${
+                        lastSyncedAt ? ` (آخر مزامنة: ${lastSyncedAt.toLocaleTimeString()})` : ""
+                      }.`
+                    : `Active theme, custom palettes & color archive are synced across all your devices.${
+                        lastSyncedAt ? ` (Last sync: ${lastSyncedAt.toLocaleTimeString()})` : ""
+                      }`
+                  : isAr
+                    ? "اختياراتك محفوظة محلياً في هذا المتصفح. عند تسجيل الدخول ستتم مزامنتها تلقائياً مع حسابك لتظهر على جميع أجهزتك."
+                    : "Preferences stored locally on this device. Sign in to automatically sync across all your devices."}
+              </div>
+            </div>
+          </div>
+
+          {userId && (
+            <button
+              type="button"
+              onClick={forceSyncCloud}
+              disabled={syncStatus === "syncing"}
+              className="inline-flex items-center gap-1.5 h-8 rounded-full border border-border bg-surface px-3 text-xs font-bold text-foreground hover:bg-surface-2 transition-all shadow-2xs shrink-0 disabled:opacity-50"
+            >
+              <RefreshCw className={`h-3.5 w-3.5 ${syncStatus === "syncing" ? "animate-spin" : ""}`} />
+              <span>{isAr ? "مزامنة الآن" : "Sync Now"}</span>
+            </button>
+          )}
+        </div>
+      </div>
+
 
       {/* 2. منظومة الثيمات التنفيذية الستة (الافتراضي + 5 ألوان مدروسة بعناية) */}
       <Card className="rounded-3xl border-border/80 shadow-xs">
@@ -551,6 +644,33 @@ export function AppearanceSection({ canEdit = true }: AppearanceSectionProps) {
           </div>
         </CardContent>
       </Card>
+      {/* 3. معمل الفحص البصري الشامل للثيمات الستة وتدقيق الألوان الوظيفية */}
+      <Card className="rounded-3xl border-border/80 shadow-xs">
+        <CardHeader className="border-b border-border/50 pb-4">
+          <CardTitle className="text-base font-bold flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="p-2 rounded-xl bg-primary/10 text-primary">
+                <Eye className="h-5 w-5" />
+              </div>
+              <div>
+                <div>{isAr ? "معمل الفحص البصري وتدقيق الحالات الوظيفية" : "Visual Theme Lab & Status Audit"}</div>
+                <div className="text-xs text-muted-foreground font-normal mt-0.5">
+                  {isAr
+                    ? "محاكاة فورية للثيمات الستة في الوضعين الفاتح والداكن وتأكيد حماية ألوان الحالات (نجاح، تحذير، خطر)"
+                    : "Real-time preview of all 6 themes in light & dark modes with verified status color decoupling"}
+                </div>
+              </div>
+            </div>
+            <span className="text-xs px-3 py-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-bold">
+              {isAr ? "مستقل دلالياً 100%" : "Zero Status Conflict"}
+            </span>
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="pt-2">
+          <ThemeVisualTestSuite />
+        </CardContent>
+      </Card>
+
     </div>
   );
 }

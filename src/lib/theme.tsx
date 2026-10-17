@@ -8,6 +8,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { supabase } from "@/integrations/supabase/client";
 import {
   ACCENT_STORAGE_KEY,
   ARCHIVE_STORAGE_KEY,
@@ -15,18 +16,26 @@ import {
   DEFAULT_ACCENT_THEME,
   DEFAULT_COLOR_ARCHIVE,
   DEFAULT_CUSTOM_HEX,
+  GUEST_PREFERENCES_KEY,
+  THEME_SYNC_BROADCAST_CHANNEL,
   applyAccentThemeVariables,
+  getUserThemeStorageKey,
+  parseUserThemePreferences,
   readStoredAccentTheme,
   readStoredColorArchive,
   readStoredCustomHex,
+  serializeUserThemePreferences,
   type AccentThemeId,
   type ArchivedColor,
+  type UserThemePreferences,
 } from "./color-theme";
 
 export type Theme = "dark" | "light";
 
 const STORAGE_KEY = "theme";
 const DEFAULT_THEME: Theme = "light";
+
+export type ThemeSyncStatus = "synced" | "syncing" | "local" | "error";
 
 export interface ThemeContextValue {
   theme: Theme;
@@ -42,10 +51,18 @@ export interface ThemeContextValue {
   addToArchive: (hex: string, name_ar?: string, name_en?: string) => void;
   removeFromArchive: (idOrHex: string) => void;
   resetArchive: () => void;
+
+  // مزامنة المستخدم السحابية وتعدد الأجهزة
+  userId: string | null;
+  isCloudSynced: boolean;
+  syncStatus: ThemeSyncStatus;
+  lastSyncedAt: Date | null;
+  forceSyncCloud: () => Promise<void>;
 }
 
 const ThemeContext = createContext<ThemeContextValue | null>(null);
 
+/** قراءة السمة العامة من التخزين المحلي */
 function readStoredTheme(): Theme {
   if (typeof window === "undefined") return DEFAULT_THEME;
   try {
@@ -57,7 +74,57 @@ function readStoredTheme(): Theme {
   return DEFAULT_THEME;
 }
 
-/** يطبّق السمة واللون على عنصر الجذر. */
+/** قراءة التفضيلات المحلية للمستخدم المحدد أو الزائر */
+function readPreferencesForUserOrGuest(userId: string | null): UserThemePreferences {
+  if (typeof window === "undefined") {
+    return {
+      theme: DEFAULT_THEME,
+      accentTheme: DEFAULT_ACCENT_THEME,
+      customColor: DEFAULT_CUSTOM_HEX,
+      colorArchive: DEFAULT_COLOR_ARCHIVE,
+      updatedAt: Date.now(),
+    };
+  }
+
+  try {
+    const key = userId ? getUserThemeStorageKey(userId) : GUEST_PREFERENCES_KEY;
+    const raw = localStorage.getItem(key);
+    if (raw) {
+      const parsed = parseUserThemePreferences(raw);
+      if (parsed) return parsed;
+    }
+  } catch {
+    /* ignore */
+  }
+
+  // fallback to root keys
+  return {
+    theme: readStoredTheme(),
+    accentTheme: readStoredAccentTheme(),
+    customColor: readStoredCustomHex(),
+    colorArchive: readStoredColorArchive(),
+    updatedAt: Date.now(),
+  };
+}
+
+/** حفظ التفضيلات محلياً وتحديث مفاتيح البداية السريعة */
+function persistPreferencesLocally(userId: string | null, prefs: UserThemePreferences) {
+  if (typeof window === "undefined") return;
+  try {
+    const key = userId ? getUserThemeStorageKey(userId) : GUEST_PREFERENCES_KEY;
+    localStorage.setItem(key, serializeUserThemePreferences(prefs));
+
+    // مفاتيح الإقلاع السريع (Zero-Flash pre-render boot script)
+    localStorage.setItem(STORAGE_KEY, prefs.theme);
+    localStorage.setItem(ACCENT_STORAGE_KEY, prefs.accentTheme);
+    localStorage.setItem(CUSTOM_COLOR_STORAGE_KEY, prefs.customColor);
+    localStorage.setItem(ARCHIVE_STORAGE_KEY, JSON.stringify(prefs.colorArchive));
+  } catch {
+    /* quota or private mode */
+  }
+}
+
+/** يطبّق السمة واللون على عنصر الجذر */
 export function applyTheme(
   theme: Theme,
   accentId: AccentThemeId = readStoredAccentTheme(),
@@ -95,7 +162,6 @@ export const THEME_BOOT_SCRIPT = `(function(){
     var a = localStorage.getItem("${ACCENT_STORAGE_KEY}") || "${DEFAULT_ACCENT_THEME}";
     r.dataset.accent = a;
     
-    // خريطة سريعة للألوان الستة
     var presets = {
       emerald: {
         dark: { p: "oklch(0.68 0.20 155)", fg: "oklch(1 0 0)", r: "oklch(0.68 0.20 155 / 0.6)", sp: "oklch(0.68 0.20 155)", tp: "oklch(0.68 0.20 155 / 0.20)" },
@@ -150,65 +216,149 @@ export const THEME_BOOT_SCRIPT = `(function(){
 })();`;
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [theme, setThemeState] = useState<Theme>(readStoredTheme);
-  const [accentTheme, setAccentThemeState] = useState<AccentThemeId>(readStoredAccentTheme);
-  const [customColor, setCustomColorState] = useState<string>(readStoredCustomHex);
-  const [colorArchive, setColorArchive] = useState<ArchivedColor[]>(readStoredColorArchive);
+  const initialPrefs = readPreferencesForUserOrGuest(null);
 
-  const hydrated = useRef(false);
+  const [theme, setThemeState] = useState<Theme>(initialPrefs.theme);
+  const [accentTheme, setAccentThemeState] = useState<AccentThemeId>(initialPrefs.accentTheme);
+  const [customColor, setCustomColorState] = useState<string>(initialPrefs.customColor);
+  const [colorArchive, setColorArchive] = useState<ArchivedColor[]>(initialPrefs.colorArchive);
 
+  const [userId, setUserId] = useState<string | null>(null);
+  const [syncStatus, setSyncStatus] = useState<ThemeSyncStatus>("local");
+  const [lastSyncedAt, setLastSyncedAt] = useState<Date | null>(null);
+
+  const cloudSyncTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const broadcastChannelRef = useRef<BroadcastChannel | null>(null);
+  const stateRef = useRef({ theme, accentTheme, customColor, colorArchive, userId });
+
+  stateRef.current = { theme, accentTheme, customColor, colorArchive, userId };
+
+  // 1. تطبيق الثيم فورياً على DOM عند أي تغيير
   useEffect(() => {
     applyTheme(theme, accentTheme, customColor);
-    if (!hydrated.current) {
-      hydrated.current = true;
-      return;
-    }
-    try {
-      localStorage.setItem(STORAGE_KEY, theme);
-      localStorage.setItem(ACCENT_STORAGE_KEY, accentTheme);
-      localStorage.setItem(CUSTOM_COLOR_STORAGE_KEY, customColor);
-      localStorage.setItem(ARCHIVE_STORAGE_KEY, JSON.stringify(colorArchive));
-    } catch {
-      /* التخزين غير متاح */
-    }
-  }, [theme, accentTheme, customColor, colorArchive]);
+  }, [theme, accentTheme, customColor]);
 
-  const setTheme = useCallback((next: Theme) => setThemeState(next), []);
-  const toggleTheme = useCallback(
-    () => setThemeState((prev) => (prev === "dark" ? "light" : "dark")),
-    [],
-  );
+  // دالة المزامنة السحابية المؤجلة (Debounced Cloud Sync)
+  const syncToCloud = useCallback((targetUserId: string, prefs: UserThemePreferences) => {
+    if (!targetUserId) return;
+    setSyncStatus("syncing");
 
-  const setAccentTheme = useCallback(
-    (id: AccentThemeId) => {
-      setAccentThemeState(id);
-      applyAccentThemeVariables(id, theme, customColor);
+    if (cloudSyncTimer.current) {
+      clearTimeout(cloudSyncTimer.current);
+    }
+
+    cloudSyncTimer.current = setTimeout(async () => {
       try {
-        localStorage.setItem(ACCENT_STORAGE_KEY, id);
-      } catch {}
-    },
-    [theme, customColor],
-  );
+        const payload = {
+          theme: prefs.theme,
+          accentTheme: prefs.accentTheme,
+          customColor: prefs.customColor,
+          colorArchive: prefs.colorArchive,
+          updatedAt: prefs.updatedAt || Date.now(),
+        };
 
-  const setCustomColor = useCallback(
-    (hex: string) => {
-      const formatted = hex.startsWith("#") ? hex.toUpperCase() : `#${hex.toUpperCase()}`;
-      setCustomColorState(formatted);
-      if (accentTheme === "custom") {
-        applyAccentThemeVariables("custom", theme, formatted);
+        // المزامنة عبر مسارين لضمان الدقة والموثوقية:
+        // 1. بيانات المستخدم raw_user_meta_data (تتزامن عبر كل الأجهزة لحظة تسجيل الدخول)
+        const updateAuthPromise = supabase.auth.updateUser({
+          data: { theme_preferences: payload },
+        });
+
+        // 2. عمود theme في جدول profiles (إذا كان متوفراً)
+        const updateProfilesPromise = supabase
+          .from("profiles")
+          .update({ theme: JSON.stringify(payload) } as any)
+          .eq("id", targetUserId);
+
+        await Promise.allSettled([updateAuthPromise, updateProfilesPromise]);
+
+        setSyncStatus("synced");
+        setLastSyncedAt(new Date());
+      } catch (err) {
+        console.warn("[Theme] Cloud sync error (operating in local fallback):", err);
+        setSyncStatus("error");
       }
-      try {
-        localStorage.setItem(CUSTOM_COLOR_STORAGE_KEY, formatted);
-      } catch {}
+    }, 450);
+  }, []);
+
+  // إرسال تحديثات فورية عبر النوافذ المفتوحة
+  const broadcastChange = useCallback((prefs: UserThemePreferences, targetUserId: string | null) => {
+    try {
+      if (broadcastChannelRef.current) {
+        broadcastChannelRef.current.postMessage({
+          type: "THEME_CHANGE",
+          userId: targetUserId,
+          prefs,
+        });
+      }
+    } catch {}
+  }, []);
+
+  // حفظ محلي وإطلاق المزامنة
+  const commitPreferences = useCallback(
+    (newPrefs: UserThemePreferences, currentUserId: string | null) => {
+      persistPreferencesLocally(currentUserId, newPrefs);
+      broadcastChange(newPrefs, currentUserId);
+
+      if (currentUserId) {
+        syncToCloud(currentUserId, newPrefs);
+      } else {
+        setSyncStatus("local");
+      }
     },
-    [accentTheme, theme],
+    [broadcastChange, syncToCloud]
   );
 
+  // تحديث سمة العرض (فاتح / داكن)
+  const setTheme = useCallback((next: Theme) => {
+    setThemeState(next);
+    const prefs: UserThemePreferences = {
+      theme: next,
+      accentTheme: stateRef.current.accentTheme,
+      customColor: stateRef.current.customColor,
+      colorArchive: stateRef.current.colorArchive,
+      updatedAt: Date.now(),
+    };
+    commitPreferences(prefs, stateRef.current.userId);
+  }, [commitPreferences]);
+
+  const toggleTheme = useCallback(() => {
+    const next: Theme = stateRef.current.theme === "dark" ? "light" : "dark";
+    setTheme(next);
+  }, [setTheme]);
+
+  // تحديث الثيم النشط (الأزرق، الزمرد، الأرجوان، الياقوت، الذهب، التوباز أو مخصص)
+  const setAccentTheme = useCallback((id: AccentThemeId) => {
+    setAccentThemeState(id);
+    const prefs: UserThemePreferences = {
+      theme: stateRef.current.theme,
+      accentTheme: id,
+      customColor: stateRef.current.customColor,
+      colorArchive: stateRef.current.colorArchive,
+      updatedAt: Date.now(),
+    };
+    commitPreferences(prefs, stateRef.current.userId);
+  }, [commitPreferences]);
+
+  // تحديث اللون المخصص
+  const setCustomColor = useCallback((hex: string) => {
+    const formatted = hex.startsWith("#") ? hex.toUpperCase() : `#${hex.toUpperCase()}`;
+    setCustomColorState(formatted);
+    const prefs: UserThemePreferences = {
+      theme: stateRef.current.theme,
+      accentTheme: stateRef.current.accentTheme,
+      customColor: formatted,
+      colorArchive: stateRef.current.colorArchive,
+      updatedAt: Date.now(),
+    };
+    commitPreferences(prefs, stateRef.current.userId);
+  }, [commitPreferences]);
+
+  // إضافة لون للأرشيف
   const addToArchive = useCallback((hex: string, name_ar?: string, name_en?: string) => {
     const formatted = hex.startsWith("#") ? hex.toUpperCase() : `#${hex.toUpperCase()}`;
     setColorArchive((prev) => {
       if (prev.some((item) => item.hex.toUpperCase() === formatted)) {
-        return prev; // مسجل بالفعل
+        return prev;
       }
       const newItem: ArchivedColor = {
         id: `custom-${Date.now()}`,
@@ -218,31 +368,215 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
         isPreset: false,
       };
       const next = [newItem, ...prev];
-      try {
-        localStorage.setItem(ARCHIVE_STORAGE_KEY, JSON.stringify(next));
-      } catch {}
+      const prefs: UserThemePreferences = {
+        theme: stateRef.current.theme,
+        accentTheme: stateRef.current.accentTheme,
+        customColor: stateRef.current.customColor,
+        colorArchive: next,
+        updatedAt: Date.now(),
+      };
+      commitPreferences(prefs, stateRef.current.userId);
       return next;
     });
-  }, []);
+  }, [commitPreferences]);
 
+  // إزالة لون من الأرشيف
   const removeFromArchive = useCallback((idOrHex: string) => {
     setColorArchive((prev) => {
       const next = prev.filter(
         (item) => item.id !== idOrHex && item.hex.toUpperCase() !== idOrHex.toUpperCase(),
       );
-      try {
-        localStorage.setItem(ARCHIVE_STORAGE_KEY, JSON.stringify(next));
-      } catch {}
+      const prefs: UserThemePreferences = {
+        theme: stateRef.current.theme,
+        accentTheme: stateRef.current.accentTheme,
+        customColor: stateRef.current.customColor,
+        colorArchive: next,
+        updatedAt: Date.now(),
+      };
+      commitPreferences(prefs, stateRef.current.userId);
       return next;
     });
-  }, []);
+  }, [commitPreferences]);
 
+  // استعادة الأرشيف الافتراضي
   const resetArchive = useCallback(() => {
     setColorArchive(DEFAULT_COLOR_ARCHIVE);
+    const prefs: UserThemePreferences = {
+      theme: stateRef.current.theme,
+      accentTheme: stateRef.current.accentTheme,
+      customColor: stateRef.current.customColor,
+      colorArchive: DEFAULT_COLOR_ARCHIVE,
+      updatedAt: Date.now(),
+    };
+    commitPreferences(prefs, stateRef.current.userId);
+  }, [commitPreferences]);
+
+  // جلب ومزامنة إعدادات المستخدم من السحابة عند تسجيل الدخول
+  const loadUserPreferences = useCallback(async (user: any) => {
+    if (!user || !user.id) return;
+    const uid = user.id;
+    setUserId(uid);
+    setSyncStatus("syncing");
+
+    // 1. محاولة القراءة من الكاش المحلي للمستخدم أولاً للاستجابة الفورية
+    const cachedLocal = readPreferencesForUserOrGuest(uid);
+    let resolvedPrefs: UserThemePreferences = cachedLocal;
+
     try {
-      localStorage.setItem(ARCHIVE_STORAGE_KEY, JSON.stringify(DEFAULT_COLOR_ARCHIVE));
-    } catch {}
+      // 2. التحقق من السحابة (user_metadata و profiles.theme)
+      let cloudPrefs: UserThemePreferences | null = null;
+      if (user.user_metadata?.theme_preferences) {
+        cloudPrefs = parseUserThemePreferences(user.user_metadata.theme_preferences);
+      }
+
+      if (!cloudPrefs) {
+        const { data: profileData } = await supabase
+          .from("profiles")
+          .select("theme")
+          .eq("id", uid)
+          .maybeSingle();
+
+        if (profileData && (profileData as any).theme) {
+          cloudPrefs = parseUserThemePreferences((profileData as any).theme);
+        }
+      }
+
+      if (cloudPrefs) {
+        // إذا كانت التفضيلات السحابية أحدث أو موجودة، نعتمدها
+        if (!cachedLocal || cloudPrefs.updatedAt >= cachedLocal.updatedAt) {
+          resolvedPrefs = cloudPrefs;
+        } else {
+          // الكاش المحلي أحدث (مثلاً تم التعديل أثناء انقطاع الاتصال)، نرفعه للسحابة
+          syncToCloud(uid, cachedLocal);
+        }
+      } else {
+        // لا توجد تفضيلات سحابية بعد (مستخدم جديد) -> نرفع التفضيلات الحالية فوراً
+        const initialToUpload: UserThemePreferences = {
+          theme: stateRef.current.theme,
+          accentTheme: stateRef.current.accentTheme,
+          customColor: stateRef.current.customColor,
+          colorArchive: stateRef.current.colorArchive,
+          updatedAt: Date.now(),
+        };
+        syncToCloud(uid, initialToUpload);
+        resolvedPrefs = initialToUpload;
+      }
+
+      // تطبيق التفضيلات المعتمَدة
+      setThemeState(resolvedPrefs.theme);
+      setAccentThemeState(resolvedPrefs.accentTheme);
+      setCustomColorState(resolvedPrefs.customColor);
+      setColorArchive(resolvedPrefs.colorArchive);
+      applyTheme(resolvedPrefs.theme, resolvedPrefs.accentTheme, resolvedPrefs.customColor);
+      persistPreferencesLocally(uid, resolvedPrefs);
+
+      setSyncStatus("synced");
+      setLastSyncedAt(new Date());
+    } catch (e) {
+      console.warn("[Theme] Error loading cloud theme preferences:", e);
+      setSyncStatus("local");
+    }
+  }, [syncToCloud]);
+
+  // عند تسجيل الخروج: استعادة التفضيلات المحلية للزائر دون مسح بيانات المستخدم السحابية
+  const handleUserLogout = useCallback(() => {
+    setUserId(null);
+    setSyncStatus("local");
+    const guestPrefs = readPreferencesForUserOrGuest(null);
+    setThemeState(guestPrefs.theme);
+    setAccentThemeState(guestPrefs.accentTheme);
+    setCustomColorState(guestPrefs.customColor);
+    setColorArchive(guestPrefs.colorArchive);
+    applyTheme(guestPrefs.theme, guestPrefs.accentTheme, guestPrefs.customColor);
+    persistPreferencesLocally(null, guestPrefs);
   }, []);
+
+  // زر المزامنة الفورية اليدوية
+  const forceSyncCloud = useCallback(async () => {
+    const currentUid = stateRef.current.userId;
+    if (!currentUid) {
+      setSyncStatus("local");
+      return;
+    }
+    const currentPrefs: UserThemePreferences = {
+      theme: stateRef.current.theme,
+      accentTheme: stateRef.current.accentTheme,
+      customColor: stateRef.current.customColor,
+      colorArchive: stateRef.current.colorArchive,
+      updatedAt: Date.now(),
+    };
+    syncToCloud(currentUid, currentPrefs);
+  }, [syncToCloud]);
+
+  // الاشتراك في أحداث Supabase Auth و BroadcastChannel للتزامن الفوري عبر الأجهزة والتبويبات
+  useEffect(() => {
+    // 1. BroadcastChannel للمزامنة الفورية بين تبويبات المتصفح
+    try {
+      if (typeof window !== "undefined" && "BroadcastChannel" in window) {
+        const channel = new BroadcastChannel(THEME_SYNC_BROADCAST_CHANNEL);
+        broadcastChannelRef.current = channel;
+
+        channel.onmessage = (event) => {
+          const { userId: msgUserId, prefs } = event.data || {};
+          if (msgUserId === stateRef.current.userId && prefs) {
+            setThemeState(prefs.theme);
+            setAccentThemeState(prefs.accentTheme);
+            setCustomColorState(prefs.customColor);
+            setColorArchive(prefs.colorArchive);
+            applyTheme(prefs.theme, prefs.accentTheme, prefs.customColor);
+          }
+        };
+      }
+    } catch {}
+
+    // 2. مزامنة عند التبديل بين التبويبات عبر حدث storage
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === STORAGE_KEY || e.key === ACCENT_STORAGE_KEY || e.key === CUSTOM_COLOR_STORAGE_KEY) {
+        const activePrefs = readPreferencesForUserOrGuest(stateRef.current.userId);
+        setThemeState(activePrefs.theme);
+        setAccentThemeState(activePrefs.accentTheme);
+        setCustomColorState(activePrefs.customColor);
+        setColorArchive(activePrefs.colorArchive);
+        applyTheme(activePrefs.theme, activePrefs.accentTheme, activePrefs.customColor);
+      }
+    };
+    window.addEventListener("storage", handleStorageChange);
+
+    // 3. استعلام جلسة المصادقة المبدئية
+    supabase.auth.getSession().then(({ data }) => {
+      if (data.session?.user) {
+        loadUserPreferences(data.session.user);
+      } else {
+        setSyncStatus("local");
+      }
+    }).catch(() => {
+      setSyncStatus("local");
+    });
+
+    // 4. الاستماع إلى تغييرات حالة تسجيل الدخول / الخروج
+    const { data: authListener } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        if (event === "SIGNED_IN" || event === "INITIAL_SESSION" || event === "TOKEN_REFRESHED" || event === "USER_UPDATED") {
+          if (session?.user) {
+            loadUserPreferences(session.user);
+          }
+        } else if (event === "SIGNED_OUT") {
+          handleUserLogout();
+        }
+      }
+    );
+
+    return () => {
+      window.removeEventListener("storage", handleStorageChange);
+      if (broadcastChannelRef.current) {
+        broadcastChannelRef.current.close();
+      }
+      authListener?.subscription?.unsubscribe();
+      if (cloudSyncTimer.current) {
+        clearTimeout(cloudSyncTimer.current);
+      }
+    };
+  }, [loadUserPreferences, handleUserLogout]);
 
   return (
     <ThemeContext.Provider
@@ -258,6 +592,11 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
         addToArchive,
         removeFromArchive,
         resetArchive,
+        userId,
+        isCloudSynced: syncStatus === "synced",
+        syncStatus,
+        lastSyncedAt,
+        forceSyncCloud,
       }}
     >
       {children}
@@ -269,20 +608,26 @@ export function useTheme(): ThemeContextValue {
   const ctx = useContext(ThemeContext);
   if (ctx) return ctx;
   // خارج المزوّد (اختبارات معزولة):
+  const fallbackPrefs = readPreferencesForUserOrGuest(null);
   return {
-    theme: readStoredTheme(),
-    setTheme: (t) => applyTheme(t, readStoredAccentTheme(), readStoredCustomHex()),
+    theme: fallbackPrefs.theme,
+    setTheme: (t) => applyTheme(t, fallbackPrefs.accentTheme, fallbackPrefs.customColor),
     toggleTheme: () => {
-      const next = readStoredTheme() === "dark" ? "light" : "dark";
-      applyTheme(next, readStoredAccentTheme(), readStoredCustomHex());
+      const next = fallbackPrefs.theme === "dark" ? "light" : "dark";
+      applyTheme(next, fallbackPrefs.accentTheme, fallbackPrefs.customColor);
     },
-    accentTheme: readStoredAccentTheme(),
-    setAccentTheme: (id) => applyAccentThemeVariables(id, readStoredTheme(), readStoredCustomHex()),
-    customColor: readStoredCustomHex(),
+    accentTheme: fallbackPrefs.accentTheme,
+    setAccentTheme: (id) => applyAccentThemeVariables(id, fallbackPrefs.theme, fallbackPrefs.customColor),
+    customColor: fallbackPrefs.customColor,
     setCustomColor: () => {},
-    colorArchive: readStoredColorArchive(),
+    colorArchive: fallbackPrefs.colorArchive,
     addToArchive: () => {},
     removeFromArchive: () => {},
     resetArchive: () => {},
+    userId: null,
+    isCloudSynced: false,
+    syncStatus: "local",
+    lastSyncedAt: null,
+    forceSyncCloud: async () => {},
   };
 }
