@@ -19,6 +19,7 @@ import { renderThermalTemplate } from "./thermal";
 import { renderThermalMillingTemplate } from "./thermal-milling";
 import { renderThermalQrTemplate } from "./thermal-qr";
 import { renderMillingCleanTemplate } from "./milling-clean";
+import { renderMillingMasterTemplate, renderMillingThermalTemplate } from "./milling-master";
 import { renderStandardTemplate } from "./standard";
 import { renderElegantTemplate } from "./elegant";
 import { renderInventoryThermalTemplate, renderInventoryStandardTemplate } from "./inventory";
@@ -32,6 +33,7 @@ export { renderThermalTemplate } from "./thermal";
 export { renderThermalMillingTemplate } from "./thermal-milling";
 export { renderThermalQrTemplate } from "./thermal-qr";
 export { renderMillingCleanTemplate } from "./milling-clean";
+export { renderMillingMasterTemplate, renderMillingThermalTemplate } from "./milling-master";
 export { renderStandardTemplate } from "./standard";
 export { renderElegantTemplate } from "./elegant";
 export { renderInventoryThermalTemplate, renderInventoryStandardTemplate } from "./inventory";
@@ -68,6 +70,17 @@ export function getTemplateRenderer(
   if (id === "thermal-milling") return renderThermalMillingTemplate;
   if (id === "thermal-qr") return renderThermalQrTemplate;
   if (id === "milling-clean") return renderMillingCleanTemplate;
+  if (id === "milling-master") {
+    return (doc, labels, rtl, options) => {
+      if (
+        options?.paperProfileId?.startsWith("thermal") ||
+        doc.options?.paperSize?.startsWith("thermal")
+      ) {
+        return renderMillingThermalTemplate(doc, labels, rtl, options);
+      }
+      return renderMillingMasterTemplate(doc, labels, rtl, options);
+    };
+  }
   if (id === "formal")
     return (doc, labels, rtl, options) => renderFormalTemplate(doc, labels, rtl, options);
 
@@ -225,6 +238,27 @@ registerTemplate(
     supportedDocTypes: ALL_SUPPORTED_DOC_TYPES,
   },
   renderMillingCleanTemplate,
+);
+
+registerTemplate(
+  {
+    id: "milling-master",
+    nameAr: "قالب خدمات المطحنة والتسليم المعتمد",
+    nameEn: "Milling Service & Delivery Master",
+    category: "standard",
+    paperSize: "A4",
+    supportedPaperProfiles: ["a4", "a5", "thermal-80", "thermal-58"],
+    supportedDocTypes: ALL_SUPPORTED_DOC_TYPES,
+  },
+  (doc, labels, rtl, options) => {
+    if (
+      options?.paperProfileId?.startsWith("thermal") ||
+      doc.options?.paperSize?.startsWith("thermal")
+    ) {
+      return renderMillingThermalTemplate(doc, labels, rtl, options);
+    }
+    return renderMillingMasterTemplate(doc, labels, rtl, options);
+  },
 );
 
 registerTemplate(
