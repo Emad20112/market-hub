@@ -92,6 +92,7 @@ const ICONS: Record<string, LucideIcon> = {
   "balance-sheet": Landmark,
   "fiscal-periods": CalendarRange,
   "fiscal-year-close": CalendarClock,
+  "fixed-assets": Building2,
   milling: Scale,
   "milling-intake": PackagePlus,
   "milling-milling": Cog,

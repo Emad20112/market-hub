@@ -27,6 +27,7 @@ import { Route as AppExpensesRouteImport } from './routes/_app.expenses'
 import { Route as AppFinanceRouteImport } from './routes/_app.finance'
 import { Route as AppFiscalPeriodsRouteImport } from './routes/_app.fiscal-periods'
 import { Route as AppFiscalYearCloseRouteImport } from './routes/_app.fiscal-year-close'
+import { Route as AppFixedAssetsRouteImport } from './routes/_app.fixed-assets'
 import { Route as AppGeneralLedgerRouteImport } from './routes/_app.general-ledger'
 import { Route as AppIncomeStatementRouteImport } from './routes/_app.income-statement'
 import { Route as AppInventoryRouteImport } from './routes/_app.inventory'
@@ -150,6 +151,11 @@ const AppFiscalPeriodsRoute = AppFiscalPeriodsRouteImport.update({
 const AppFiscalYearCloseRoute = AppFiscalYearCloseRouteImport.update({
   id: '/fiscal-year-close',
   path: '/fiscal-year-close',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppFixedAssetsRoute = AppFixedAssetsRouteImport.update({
+  id: '/fixed-assets',
+  path: '/fixed-assets',
   getParentRoute: () => AppRoute,
 } as any)
 const AppGeneralLedgerRoute = AppGeneralLedgerRouteImport.update({
@@ -348,6 +354,7 @@ export interface FileRoutesByFullPath {
   '/finance': typeof AppFinanceRoute
   '/fiscal-periods': typeof AppFiscalPeriodsRoute
   '/fiscal-year-close': typeof AppFiscalYearCloseRoute
+  '/fixed-assets': typeof AppFixedAssetsRoute
   '/general-ledger': typeof AppGeneralLedgerRoute
   '/income-statement': typeof AppIncomeStatementRoute
   '/inventory': typeof AppInventoryRoute
@@ -402,6 +409,7 @@ export interface FileRoutesByTo {
   '/finance': typeof AppFinanceRoute
   '/fiscal-periods': typeof AppFiscalPeriodsRoute
   '/fiscal-year-close': typeof AppFiscalYearCloseRoute
+  '/fixed-assets': typeof AppFixedAssetsRoute
   '/general-ledger': typeof AppGeneralLedgerRoute
   '/income-statement': typeof AppIncomeStatementRoute
   '/inventory': typeof AppInventoryRoute
@@ -458,6 +466,7 @@ export interface FileRoutesById {
   '/_app/finance': typeof AppFinanceRoute
   '/_app/fiscal-periods': typeof AppFiscalPeriodsRoute
   '/_app/fiscal-year-close': typeof AppFiscalYearCloseRoute
+  '/_app/fixed-assets': typeof AppFixedAssetsRoute
   '/_app/general-ledger': typeof AppGeneralLedgerRoute
   '/_app/income-statement': typeof AppIncomeStatementRoute
   '/_app/inventory': typeof AppInventoryRoute
@@ -514,6 +523,7 @@ export interface FileRouteTypes {
     | '/finance'
     | '/fiscal-periods'
     | '/fiscal-year-close'
+    | '/fixed-assets'
     | '/general-ledger'
     | '/income-statement'
     | '/inventory'
@@ -621,6 +631,7 @@ export interface FileRouteTypes {
     | '/_app/finance'
     | '/_app/fiscal-periods'
     | '/_app/fiscal-year-close'
+    | '/_app/fixed-assets'
     | '/_app/general-ledger'
     | '/_app/income-statement'
     | '/_app/inventory'
@@ -790,6 +801,13 @@ declare module '@tanstack/react-router' {
       path: '/fiscal-year-close'
       fullPath: '/fiscal-year-close'
       preLoaderRoute: typeof AppFiscalYearCloseRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/fixed-assets': {
+      id: '/_app/fixed-assets'
+      path: '/fixed-assets'
+      fullPath: '/fixed-assets'
+      preLoaderRoute: typeof AppFixedAssetsRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/general-ledger': {
@@ -1080,6 +1098,7 @@ interface AppRouteChildren {
   AppFinanceRoute: typeof AppFinanceRoute
   AppFiscalPeriodsRoute: typeof AppFiscalPeriodsRoute
   AppFiscalYearCloseRoute: typeof AppFiscalYearCloseRoute
+  AppFixedAssetsRoute: typeof AppFixedAssetsRoute
   AppGeneralLedgerRoute: typeof AppGeneralLedgerRoute
   AppIncomeStatementRoute: typeof AppIncomeStatementRoute
   AppInventoryRoute: typeof AppInventoryRoute
@@ -1126,6 +1145,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppFinanceRoute: AppFinanceRoute,
   AppFiscalPeriodsRoute: AppFiscalPeriodsRoute,
   AppFiscalYearCloseRoute: AppFiscalYearCloseRoute,
+  AppFixedAssetsRoute: AppFixedAssetsRoute,
   AppGeneralLedgerRoute: AppGeneralLedgerRoute,
   AppIncomeStatementRoute: AppIncomeStatementRoute,
   AppInventoryRoute: AppInventoryRoute,

@@ -533,6 +533,19 @@ export const ROUTE_REGISTRY: RouteSearchEntry[] = [
     requiredRoles: FINANCE,
     i18nKey: "nav.fiscal_year_close",
   },
+  {
+    id: "fixed-assets",
+    path: "/fixed-assets",
+    titleAr: "الأصول الثابتة",
+    titleEn: "Fixed Assets",
+    descriptionAr: "إدارة الأصول الرأسمالية وإهلاكها الدوري واستبعادها",
+    descriptionEn: "Fixed assets register, depreciation and disposal",
+    keywords: ["أصول", "ثابتة", "إهلاك", "assets", "fixed", "depreciation"],
+    category: "finance",
+    moduleId: "advanced_accounting",
+    requiredRoles: FINANCE,
+    i18nKey: "nav.fixed_assets",
+  },
 
   // ── Milling ─────────────────────────────────────────────────────
   {
