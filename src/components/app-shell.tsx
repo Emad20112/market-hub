@@ -301,7 +301,13 @@ const SidebarContents = memo(function SidebarContents({
                       : pathname === entryPath ||
                         (entryPath !== "/dashboard" && pathname.startsWith(`${entryPath}/`));
                   const Icon = routeIcon(it.id);
-                  const title = it.i18nKey ? t(it.i18nKey) : isAr ? it.titleAr : it.titleEn;
+                  const translated = it.i18nKey ? t(it.i18nKey) : undefined;
+                  const title =
+                    translated && translated !== it.i18nKey
+                      ? translated
+                      : isAr
+                        ? it.titleAr
+                        : it.titleEn;
                   const catStyle = CATEGORY_STYLES[sec.category] || CATEGORY_STYLES.command_center;
 
                   return (
