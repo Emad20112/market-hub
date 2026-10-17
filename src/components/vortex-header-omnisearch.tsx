@@ -113,6 +113,8 @@ export const VortexHeaderOmnisearch = memo(function VortexHeaderOmnisearch({
       // اختصار البحث الرئيسي المخصص للهيدر
       if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key.toLowerCase() === "k") {
         e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
         setIsOpen(true);
         setTimeout(() => inputRef.current?.focus(), 50);
       }
@@ -125,8 +127,8 @@ export const VortexHeaderOmnisearch = memo(function VortexHeaderOmnisearch({
       }
     };
 
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
+    window.addEventListener("keydown", handleKeyDown, { capture: true });
+    return () => window.removeEventListener("keydown", handleKeyDown, { capture: true });
   }, [isOpen]);
 
   // البحث التسامحي في البيانات عبر Supabase
