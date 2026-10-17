@@ -33,6 +33,8 @@ import { ReportTemplateSelector } from "./report-template-selector";
 import { ReportTemplateCreatorDialog } from "./report-template-creator-dialog";
 import { ReportColumnVisibilityButton } from "./report-column-visibility-button";
 import { TemplateTypeIndicator } from "./template-type-indicator";
+import { UnifiedDimensionFilterControl } from "./unified-dimension-filter-control";
+import { getDomainDimensions, type ReportDimensionKey } from "@/lib/reports/registry/groupby-registry";
 
 interface ReportFiltersBarProps {
   filters: ReportFilterDefinition[];
@@ -56,6 +58,8 @@ interface ReportFiltersBarProps {
   currentView?: ReportViewTemplateType;
   onViewChange?: (view: ReportViewTemplateType) => void;
   isCustomMultiMethod?: boolean;
+  selectedDimensions?: ReportDimensionKey[];
+  onToggleDimension?: (dimension: ReportDimensionKey) => void;
 }
 
 const optionSourceByControl = {
@@ -101,6 +105,8 @@ export function ReportFiltersBar({
   currentView,
   onViewChange,
   isCustomMultiMethod,
+  selectedDimensions = [],
+  onToggleDimension,
 }: ReportFiltersBarProps) {
   const [searchDraft, setSearchDraft] = useState(values.search || "");
   const [optionsBySource, setOptionsBySource] = useState<
@@ -109,6 +115,11 @@ export function ReportFiltersBar({
   const [, setOptionsLoading] = useState(false);
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const [selectedPreset, setSelectedPreset] = useState("this_month");
+
+  const domainDimensions = useMemo(
+    () => getDomainDimensions(definition?.domain || "sales"),
+    [definition?.domain]
+  );
 
   const selectableFilters = useMemo(
     () => filters.filter((f) => f.controlType in optionSourceByControl),
@@ -122,19 +133,11 @@ export function ReportFiltersBar({
   }, [searchDraft, values.search, onChange]);
 
   useEffect(() => {
-    const sources = [
-      ...new Set(
-        selectableFilters.map(
-          (filter) =>
-            optionSourceByControl[filter.controlType as keyof typeof optionSourceByControl],
-        ),
-      ),
-    ];
-    if (sources.length === 0) return;
     let active = true;
     setOptionsLoading(true);
+    const domainSources = ["customers", "suppliers", "warehouses", "products", "branches"] as const;
     Promise.all(
-      sources.map(
+      domainSources.map(
         async (source) => [source, await searchReportFilterOptions({ data: { source } })] as const,
       ),
     )
@@ -147,7 +150,7 @@ export function ReportFiltersBar({
     return () => {
       active = false;
     };
-  }, [selectableFilters]);
+  }, []);
 
   function handlePresetChange(preset: string) {
     setSelectedPreset(preset);
@@ -509,136 +512,132 @@ export function ReportFiltersBar({
           </div>
         </div>
 
-        {/* ── البطاقة 2: أطراف التعامل والأصناف (شبكة مرنة قابلة للتمدد التلقائي) ── */}
-        <div className="flex flex-col gap-2 rounded-lg border border-border bg-muted/20 p-2 shadow-xs">
+        {/* ── البطاقة 2 و 3 الموحدة: أطراف التعامل، المخزون، والخيارات (تجميع + فلترة موحدة في نفس المكون) ── */}
+        <div className="flex flex-col gap-2 rounded-lg border border-border bg-muted/20 p-2 shadow-xs md:col-span-2">
           <div className="flex items-center justify-between border-b border-border pb-1.5">
             <span className="text-[11px] font-bold text-foreground flex items-center gap-1.5">
               <Users className="h-3 w-3 text-primary" />
-              أطراف التعامل والمخزون
+              أبعاد التجميع والفلترة الموحدة
             </span>
-            <span className="text-[9px] text-muted-foreground">العميل / الصنف</span>
+            <span className="text-[9px] text-muted-foreground">
+              اضغط <strong className="text-primary">(+) باليسار</strong> لإضافة البعد للأعمدة والتجميع | اضغط <strong className="text-primary">باليمين</strong> لتحديد خيارات الفلترة
+            </span>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 flex-1 content-start">
-            {selectableFilters.length > 0 ? (
-              selectableFilters.map((filter) => {
-                const source =
-                  optionSourceByControl[filter.controlType as keyof typeof optionSourceByControl];
-                const options = optionsBySource[source] || [];
-                const currentValue = values[filter.key] || "all";
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 flex-1 content-start">
+            {/* 1. بعد وفلتر العميل */}
+            {domainDimensions.some((d) => d.key === "customer") && (
+              <UnifiedDimensionFilterControl
+                label="العميل"
+                icon={Users}
+                dimensionKey="customer"
+                isGrouped={selectedDimensions.includes("customer")}
+                onToggleGroup={() => onToggleDimension?.("customer")}
+                options={optionsBySource["customers"] || []}
+                selectedIds={values.customerIds || (values.customerId ? [values.customerId] : [])}
+                onChangeSelectedIds={(ids) => {
+                  onChange("customerIds", ids.length > 0 ? ids : undefined);
+                  onChange("customerId", undefined);
+                }}
+                disabled={loading}
+              />
+            )}
 
-                return (
-                  <div key={filter.key} className="space-y-0.5 min-w-0">
-                    <label
-                      className="text-[10px] font-medium text-foreground block truncate mb-0.5"
-                      title={filter.labelAr}
-                    >
-                      {filter.labelAr}
-                    </label>
-                    <Select
-                      value={currentValue}
-                      onValueChange={(val) => onChange(filter.key, val === "all" ? undefined : val)}
-                    >
-                      <SelectTrigger className="h-[26px] text-[10px] px-2 py-0.5 w-full">
-                        <SelectValue placeholder={`كل ${filter.labelAr}`} />
-                      </SelectTrigger>
-                      <SelectContent className="max-h-[220px]">
-                        <SelectItem value="all" className="text-[11px] py-1">
-                          كل {filter.labelAr}
-                        </SelectItem>
-                        {options.map((opt) => (
-                          <SelectItem key={opt.id} value={opt.id} className="text-[11px] py-1">
-                            {opt.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                );
-              })
-            ) : (
-              <div className="col-span-full flex flex-col items-center justify-center h-full py-3 text-center text-[10px] text-muted-foreground">
-                <span>لا توجد فلاتر أطراف خاصة بهذا التقرير</span>
-                <span className="text-[9px] mt-0.5 text-muted-foreground/80">
-                  يتم تطبيق التصفية العامة تلقائياً
-                </span>
-              </div>
+            {/* 2. بعد وفلتر المورد */}
+            {domainDimensions.some((d) => d.key === "supplier") && (
+              <UnifiedDimensionFilterControl
+                label="المورد"
+                icon={Users}
+                dimensionKey="supplier"
+                isGrouped={selectedDimensions.includes("supplier")}
+                onToggleGroup={() => onToggleDimension?.("supplier")}
+                options={optionsBySource["suppliers"] || []}
+                selectedIds={values.supplierIds || (values.supplierId ? [values.supplierId] : [])}
+                onChangeSelectedIds={(ids) => {
+                  onChange("supplierIds", ids.length > 0 ? ids : undefined);
+                  onChange("supplierId", undefined);
+                }}
+                disabled={loading}
+              />
+            )}
+
+            {/* 3. بعد وفلتر الصنف / المنتج */}
+            {domainDimensions.some((d) => d.key === "product") && (
+              <UnifiedDimensionFilterControl
+                label="المنتج / الصنف"
+                icon={Layers}
+                dimensionKey="product"
+                isGrouped={selectedDimensions.includes("product")}
+                onToggleGroup={() => onToggleDimension?.("product")}
+                options={optionsBySource["products"] || []}
+                selectedIds={values.productIds || (values.productId ? [values.productId] : [])}
+                onChangeSelectedIds={(ids) => {
+                  onChange("productIds", ids.length > 0 ? ids : undefined);
+                  onChange("productId", undefined);
+                }}
+                disabled={loading}
+              />
+            )}
+
+            {/* 4. بعد وفلتر الفرع */}
+            {domainDimensions.some((d) => d.key === "branch") && (
+              <UnifiedDimensionFilterControl
+                label="الفرع"
+                icon={Layers}
+                dimensionKey="branch"
+                isGrouped={selectedDimensions.includes("branch")}
+                onToggleGroup={() => onToggleDimension?.("branch")}
+                options={optionsBySource["branches"] || []}
+                selectedIds={values.branchIds || (values.branchId ? [values.branchId] : [])}
+                onChangeSelectedIds={(ids) => {
+                  onChange("branchIds", ids.length > 0 ? ids : undefined);
+                  onChange("branchId", undefined);
+                }}
+                disabled={loading}
+              />
+            )}
+
+            {/* 5. بعد وفلتر المستودع */}
+            {domainDimensions.some((d) => d.key === "warehouse") && (
+              <UnifiedDimensionFilterControl
+                label="المستودع"
+                icon={Layers}
+                dimensionKey="warehouse"
+                isGrouped={selectedDimensions.includes("warehouse")}
+                onToggleGroup={() => onToggleDimension?.("warehouse")}
+                options={optionsBySource["warehouses"] || []}
+                selectedIds={values.warehouseIds || (values.warehouseId ? [values.warehouseId] : [])}
+                onChangeSelectedIds={(ids) => {
+                  onChange("warehouseIds", ids.length > 0 ? ids : undefined);
+                  onChange("warehouseId", undefined);
+                }}
+                disabled={loading}
+              />
+            )}
+
+            {/* 6. بعد وفلتر طريقة الدفع */}
+            {domainDimensions.some((d) => d.key === "payment_method") && (
+              <UnifiedDimensionFilterControl
+                label="طريقة الدفع"
+                icon={Layers}
+                dimensionKey="payment_method"
+                isGrouped={selectedDimensions.includes("payment_method")}
+                onToggleGroup={() => onToggleDimension?.("payment_method")}
+                options={PAYMENT_METHODS.map((pm) => ({ id: pm.value, label: pm.label }))}
+                selectedIds={values.paymentMethods || (values.paymentMethod ? [values.paymentMethod] : [])}
+                onChangeSelectedIds={(ids) => {
+                  onChange("paymentMethods", ids.length > 0 ? ids : undefined);
+                  onChange("paymentMethod", undefined);
+                }}
+                disabled={loading}
+              />
             )}
           </div>
-        </div>
 
-        {/* ── البطاقة 3: الفلاتر المعتمدة والموحدة (شبكة مرنة قابلة للتمدد التلقائي) ── */}
-        <div className="flex flex-col gap-2 rounded-lg border border-border bg-muted/20 p-2 shadow-xs md:col-span-2 lg:col-span-1">
-          <div className="flex items-center justify-between border-b border-border pb-1.5">
-            <span className="text-[11px] font-bold text-foreground flex items-center gap-1.5">
-              <Layers className="h-3 w-3 text-primary" />
-              الفلاتر المعتمدة والخيارات
-            </span>
-            <span className="text-[9px] text-muted-foreground">خيارات تشغيلية</span>
-          </div>
-
-          <div className="flex flex-col justify-between flex-1 gap-1.5">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 content-start">
-              {/* فلتر طريقة الدفع الموحد */}
-              <div className="space-y-0.5 min-w-0">
-                <label className="text-[10px] font-medium text-foreground block truncate mb-0.5">
-                  طريقة الدفع
-                </label>
-                <Select
-                  value={values.paymentMethod || "all"}
-                  onValueChange={(val) =>
-                    onChange("paymentMethod", val === "all" ? undefined : val)
-                  }
-                >
-                  <SelectTrigger className="h-[26px] text-[10px] px-2 py-0.5 w-full">
-                    <SelectValue placeholder="كل طرق الدفع" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all" className="text-[11px] py-1">
-                      كل طرق الدفع
-                    </SelectItem>
-                    {PAYMENT_METHODS.map((pm) => (
-                      <SelectItem key={pm.value} value={pm.value} className="text-[11px] py-1">
-                        {pm.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* فلتر حالة الفاتورة / العملية الموحد */}
-              <div className="space-y-0.5 min-w-0">
-                <label className="text-[10px] font-medium text-foreground block truncate mb-0.5">
-                  حالة الفاتورة / العملية
-                </label>
-                <Select
-                  value={values.status || "all"}
-                  onValueChange={(val) => onChange("status", val === "all" ? undefined : val)}
-                >
-                  <SelectTrigger className="h-[26px] text-[10px] px-2 py-0.5 w-full">
-                    <SelectValue placeholder="كل الحالات" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all" className="text-[11px] py-1">
-                      كل الحالات
-                    </SelectItem>
-                    {INVOICE_STATUSES.map((st) => (
-                      <SelectItem key={st.value} value={st.value} className="text-[11px] py-1">
-                        {st.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            {/* سطر دلالي مصغر للمصدر والحبيبة في أسفل البطاقة */}
-            <div className="pt-1.5 border-t border-border/50 text-[9px] text-muted-foreground flex items-center justify-between">
-              <span className="truncate">
-                المصدر: {definition?.dataSourceName || "سجل العمليات"}
-              </span>
-              <span className="truncate font-mono">{definition?.rowGrainAr || "حركة مفصلة"}</span>
-            </div>
+          {/* سطر دلالي سفلي */}
+          <div className="pt-1.5 border-t border-border/50 text-[9px] text-muted-foreground flex items-center justify-between">
+            <span className="truncate">المصدر: {definition?.dataSourceName || "سجل العمليات"}</span>
+            <span className="truncate font-mono">{definition?.rowGrainAr || "حركة مفصلة"}</span>
           </div>
         </div>
       </div>

@@ -88,31 +88,24 @@ export function DetailedTableTemplate({
         sort: { field: sortField, order: sortOrder },
       });
 
-      if (result && result.rows && result.rows.length > 0) {
+      if (result && result.rows) {
         setRows(result.rows);
         setMetrics(result.metrics || {});
-        setTotalRowCount(result.totalRowCount || result.rows.length);
+        setTotalRowCount(result.totalRowCount ?? result.rows.length);
       } else {
-        // توفير بيانات تجريبية واقعية للمعاينة دائماً عند فراغ قاعدة البيانات
-        const demo = generateDemoReportRows(definition);
-        setRows(demo.rows);
-        setMetrics(demo.metrics);
-        setTotalRowCount(demo.totalRowCount);
+        setRows([]);
+        setMetrics({});
+        setTotalRowCount(0);
       }
 
       if (showFeedback) {
-        toast.success("تم تحديث ومعاينة بيانات التقرير بنجاح");
+        toast.success("تم تحديث بيانات التقرير بنجاح");
       }
-    } catch {
-      // توفير بيانات تجريبية واقعية للمعاينة دائماً بدلاً من شاشة الخطأ
-      const demo = generateDemoReportRows(definition);
-      setRows(demo.rows);
-      setMetrics(demo.metrics);
-      setTotalRowCount(demo.totalRowCount);
-
-      if (showFeedback) {
-        toast.success("تم تشغيل المعاينة بنجاح بالبيانات النموذجية");
-      }
+    } catch (err: any) {
+      setError(err?.message || "حدث خطأ أثناء تحميل بيانات التقرير");
+      setRows([]);
+      setMetrics({});
+      setTotalRowCount(0);
     } finally {
       setLoading(false);
     }
@@ -196,6 +189,10 @@ export function DetailedTableTemplate({
         isCustomMultiMethod={isCustomMultiMethod}
         totalColumnsCount={definition.columns.length}
         visibleColumnsCount={visibleColumns.length}
+        selectedDimensions={[]}
+        onToggleDimension={(dimKey) => {
+          onViewChange?.("grouped");
+        }}
       />
 
       {error ? (

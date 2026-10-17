@@ -54,7 +54,7 @@ const inventoryRequestSchema = z.object({
 });
 const productOptionsSchema = z.object({ search: z.string().trim().max(80).optional() });
 const filterOptionsSchema = z.object({
-  source: z.enum(["customers", "suppliers", "warehouses", "products"]),
+  source: z.enum(["customers", "suppliers", "warehouses", "products", "branches"]),
   search: z.string().trim().max(80).optional(),
 });
 const groupedSalesRequestSchema = z.object({
@@ -64,7 +64,22 @@ const groupedSalesRequestSchema = z.object({
   sort: sortSchema,
   groupBy: z
     .enum(["product", "customer", "branch", "warehouse", "payment_method"])
-    .default("product"),
+    .optional(),
+  dimensions: z
+    .array(z.enum(["product", "customer", "branch", "warehouse", "payment_method"]))
+    .optional(),
+});
+const groupedPurchasesRequestSchema = z.object({
+  reportId: z.string().min(1),
+  filters: PurchaseRegisterFilterSchema,
+  pagination: paginationSchema,
+  sort: sortSchema,
+  groupBy: z
+    .enum(["supplier", "product", "warehouse", "payment_method"])
+    .optional(),
+  dimensions: z
+    .array(z.enum(["supplier", "product", "warehouse", "payment_method"]))
+    .optional(),
 });
 
 const SALES_SORT_FIELDS = new Set([
@@ -114,12 +129,28 @@ export const executeSalesRegisterReport = createServerFn({ method: "POST" })
     const applyFilters = (query: any) => {
       if (filters.startDate) query = query.gte("created_at", boundaries.startIso);
       if (filters.endDate) query = query.lte("created_at", boundaries.endIso);
-      if (filters.customerId) query = query.eq("customer_id", filters.customerId);
-      if (filters.productId) query = query.eq("product_id", filters.productId);
-      query = filters.status
-        ? query.eq("status", filters.status)
-        : query.neq("status", "cancelled");
-      if (filters.paymentMethod) query = query.eq("payment_method", filters.paymentMethod);
+      if (filters.customerIds && filters.customerIds.length > 0) {
+        query = query.in("customer_id", filters.customerIds);
+      } else if (filters.customerId) {
+        query = query.eq("customer_id", filters.customerId);
+      }
+      if (filters.productIds && filters.productIds.length > 0) {
+        query = query.in("product_id", filters.productIds);
+      } else if (filters.productId) {
+        query = query.eq("product_id", filters.productId);
+      }
+      if (filters.statuses && filters.statuses.length > 0) {
+        query = query.in("status", filters.statuses);
+      } else if (filters.status) {
+        query = query.eq("status", filters.status);
+      } else {
+        query = query.neq("status", "cancelled");
+      }
+      if (filters.paymentMethods && filters.paymentMethods.length > 0) {
+        query = query.in("payment_method", filters.paymentMethods);
+      } else if (filters.paymentMethod) {
+        query = query.eq("payment_method", filters.paymentMethod);
+      }
       const term = searchTerm(filters.search);
       if (term)
         query = query.or(
@@ -140,126 +171,9 @@ export const executeSalesRegisterReport = createServerFn({ method: "POST" })
       metricsResult = { data: null, error: true };
     }
 
-    if (pageResult.error || !pageResult.data || pageResult.data.length === 0) {
-      const fallbackRows = [
-        {
-          invoice_item_id: "item-01",
-          invoice_id: "inv-001",
-          invoice_number: "INV-2026-001",
-          created_at: new Date().toISOString(),
-          customer_id: "cust-01",
-          customer_name: "مؤسسة الأمل للتجارة",
-          status: "completed",
-          payment_method: "cash",
-          product_id: "prod-01",
-          sku: "FG-WHEAT-50",
-          item_name: "Wheat Flour 50kg",
-          item_name_ar: "دقيق فاخر 50 كجم",
-          quantity: 35,
-          unit_price: 150,
-          discount: 150,
-          tax: 0,
-          total: 5100,
-          line_type: "product",
-          stock_effect: "out",
-          uom_id: null,
-          line_cost: 3850,
-        },
-        {
-          invoice_item_id: "item-02",
-          invoice_id: "inv-002",
-          invoice_number: "INV-2026-002",
-          created_at: new Date().toISOString(),
-          customer_id: "cust-02",
-          customer_name: "شركة البركة للمواد الغذائية",
-          status: "completed",
-          payment_method: "card",
-          product_id: "prod-02",
-          sku: "FG-BRAN-40",
-          item_name: "Wheat Bran 40kg",
-          item_name_ar: "نخالة قمح 40 كجم",
-          quantity: 22,
-          unit_price: 65,
-          discount: 30,
-          tax: 0,
-          total: 1400,
-          line_type: "product",
-          stock_effect: "out",
-          uom_id: null,
-          line_cost: 990,
-        },
-        {
-          invoice_item_id: "item-03",
-          invoice_id: "inv-003",
-          invoice_number: "INV-2026-003",
-          created_at: new Date().toISOString(),
-          customer_id: "cust-03",
-          customer_name: "سوبرماركت التوفيق",
-          status: "completed",
-          payment_method: "cash",
-          product_id: "prod-03",
-          sku: "RM-WHEAT-A",
-          item_name: "Raw Wheat Grade A",
-          item_name_ar: "قمح خام صنف أ",
-          quantity: 15,
-          unit_price: 120,
-          discount: 0,
-          tax: 0,
-          total: 1800,
-          line_type: "product",
-          stock_effect: "out",
-          uom_id: null,
-          line_cost: 1425,
-        },
-        {
-          invoice_item_id: "item-04",
-          invoice_id: "inv-004",
-          invoice_number: "INV-2026-004",
-          created_at: new Date().toISOString(),
-          customer_id: "cust-01",
-          customer_name: "مؤسسة الأمل للتجارة",
-          status: "completed",
-          payment_method: "bank_transfer",
-          product_id: "prod-04",
-          sku: "FG-SEMOLINA-25",
-          item_name: "Semolina 25kg",
-          item_name_ar: "سميد ناعم 25 كجم",
-          quantity: 40,
-          unit_price: 85,
-          discount: 100,
-          tax: 0,
-          total: 3300,
-          line_type: "product",
-          stock_effect: "out",
-          uom_id: null,
-          line_cost: 2400,
-        },
-        {
-          invoice_item_id: "item-05",
-          invoice_id: "inv-005",
-          invoice_number: "INV-2026-005",
-          created_at: new Date().toISOString(),
-          customer_id: "cust-04",
-          customer_name: "مخابز الشرق الحديثة",
-          status: "completed",
-          payment_method: "credit",
-          product_id: "prod-01",
-          sku: "FG-WHEAT-50",
-          item_name: "Wheat Flour 50kg",
-          item_name_ar: "دقيق فاخر 50 كجم",
-          quantity: 50,
-          unit_price: 150,
-          discount: 250,
-          tax: 0,
-          total: 7250,
-          line_type: "product",
-          stock_effect: "out",
-          uom_id: null,
-          line_cost: 5500,
-        },
-      ];
-      pageResult = { data: fallbackRows, count: fallbackRows.length };
-      metricsResult = { data: fallbackRows };
+    if (pageResult.error || !pageResult.data) {
+      pageResult = { data: [], count: 0 };
+      metricsResult = { data: [] };
     }
 
     let grossSales = 0,
@@ -352,11 +266,28 @@ export const executePurchaseRegisterReport = createServerFn({ method: "POST" })
     const applyFilters = (query: any) => {
       if (filters.startDate) query = query.gte("created_at", boundaries.startIso);
       if (filters.endDate) query = query.lte("created_at", boundaries.endIso);
-      if (filters.supplierId) query = query.eq("supplier_id", filters.supplierId);
-      if (filters.productId) query = query.eq("product_id", filters.productId);
-      query = filters.status
-        ? query.eq("status", filters.status)
-        : query.neq("status", "cancelled");
+      if (filters.supplierIds && filters.supplierIds.length > 0) {
+        query = query.in("supplier_id", filters.supplierIds);
+      } else if (filters.supplierId) {
+        query = query.eq("supplier_id", filters.supplierId);
+      }
+      if (filters.productIds && filters.productIds.length > 0) {
+        query = query.in("product_id", filters.productIds);
+      } else if (filters.productId) {
+        query = query.eq("product_id", filters.productId);
+      }
+      if (filters.statuses && filters.statuses.length > 0) {
+        query = query.in("status", filters.statuses);
+      } else if (filters.status) {
+        query = query.eq("status", filters.status);
+      } else {
+        query = query.neq("status", "cancelled");
+      }
+      if (filters.paymentMethods && filters.paymentMethods.length > 0) {
+        query = query.in("payment_method", filters.paymentMethods);
+      } else if (filters.paymentMethod) {
+        query = query.eq("payment_method", filters.paymentMethod);
+      }
       const term = searchTerm(filters.search);
       if (term)
         query = query.or(
@@ -415,7 +346,10 @@ export const executeSalesGroupedReport = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((data: unknown) => groupedSalesRequestSchema.parse(data))
   .handler(async ({ data, context }) => {
-    const { filters, groupBy } = data;
+    const { filters, groupBy, dimensions } = data;
+    const activeDimensions: Array<"product" | "customer" | "branch" | "warehouse" | "payment_method"> =
+      dimensions && dimensions.length > 0 ? dimensions : [groupBy || "product"];
+
     const page = data.pagination?.page ?? 1;
     const pageSize = data.pagination?.pageSize ?? 50;
     const boundaries = resolveDateRangeBoundaries(filters.startDate, filters.endDate);
@@ -424,14 +358,32 @@ export const executeSalesGroupedReport = createServerFn({ method: "POST" })
     let query = supabase
       .from("sales_register")
       .select(
-        "invoice_id,customer_id,product_id,sku,item_name,item_name_ar,quantity,unit_price,discount,tax,total,line_cost",
+        "invoice_id,customer_id,product_id,sku,item_name,item_name_ar,quantity,unit_price,discount,tax,total,line_cost,payment_method",
       );
     if (filters.startDate) query = query.gte("created_at", boundaries.startIso);
     if (filters.endDate) query = query.lte("created_at", boundaries.endIso);
-    if (filters.customerId) query = query.eq("customer_id", filters.customerId);
-    if (filters.productId) query = query.eq("product_id", filters.productId);
-    query = filters.status ? query.eq("status", filters.status) : query.neq("status", "cancelled");
-    if (filters.paymentMethod) query = query.eq("payment_method", filters.paymentMethod);
+    if (filters.customerIds && filters.customerIds.length > 0) {
+      query = query.in("customer_id", filters.customerIds);
+    } else if (filters.customerId) {
+      query = query.eq("customer_id", filters.customerId);
+    }
+    if (filters.productIds && filters.productIds.length > 0) {
+      query = query.in("product_id", filters.productIds);
+    } else if (filters.productId) {
+      query = query.eq("product_id", filters.productId);
+    }
+    if (filters.statuses && filters.statuses.length > 0) {
+      query = query.in("status", filters.statuses);
+    } else if (filters.status) {
+      query = query.eq("status", filters.status);
+    } else {
+      query = query.neq("status", "cancelled");
+    }
+    if (filters.paymentMethods && filters.paymentMethods.length > 0) {
+      query = query.in("payment_method", filters.paymentMethods);
+    } else if (filters.paymentMethod) {
+      query = query.eq("payment_method", filters.paymentMethod);
+    }
     const term = searchTerm(filters.search);
     if (term)
       query = query.or(
@@ -449,78 +401,7 @@ export const executeSalesGroupedReport = createServerFn({ method: "POST" })
     }
 
     if (queryError || !sourceRows || sourceRows.length === 0) {
-      sourceRows = [
-        {
-          invoice_id: "inv-001",
-          customer_id: "cust-01",
-          product_id: "prod-01",
-          sku: "FG-WHEAT-50",
-          item_name: "Wheat Flour 50kg",
-          item_name_ar: "دقيق فاخر 50 كجم",
-          quantity: 35,
-          unit_price: 150,
-          discount: 150,
-          tax: 0,
-          total: 5100,
-          line_cost: 3850,
-        },
-        {
-          invoice_id: "inv-002",
-          customer_id: "cust-02",
-          product_id: "prod-02",
-          sku: "FG-BRAN-40",
-          item_name: "Wheat Bran 40kg",
-          item_name_ar: "نخالة قمح 40 كجم",
-          quantity: 22,
-          unit_price: 65,
-          discount: 30,
-          tax: 0,
-          total: 1400,
-          line_cost: 990,
-        },
-        {
-          invoice_id: "inv-003",
-          customer_id: "cust-03",
-          product_id: "prod-03",
-          sku: "RM-WHEAT-A",
-          item_name: "Raw Wheat Grade A",
-          item_name_ar: "قمح خام صنف أ",
-          quantity: 15,
-          unit_price: 120,
-          discount: 0,
-          tax: 0,
-          total: 1800,
-          line_cost: 1425,
-        },
-        {
-          invoice_id: "inv-004",
-          customer_id: "cust-01",
-          product_id: "prod-04",
-          sku: "FG-SEMOLINA-25",
-          item_name: "Semolina 25kg",
-          item_name_ar: "سميد ناعم 25 كجم",
-          quantity: 40,
-          unit_price: 85,
-          discount: 100,
-          tax: 0,
-          total: 3300,
-          line_cost: 2400,
-        },
-        {
-          invoice_id: "inv-005",
-          customer_id: "cust-04",
-          product_id: "prod-01",
-          sku: "FG-WHEAT-50",
-          item_name: "Wheat Flour 50kg",
-          item_name_ar: "دقيق فاخر 50 كجم",
-          quantity: 50,
-          unit_price: 150,
-          discount: 250,
-          tax: 0,
-          total: 7250,
-          line_cost: 5500,
-        },
-      ];
+      sourceRows = [];
     }
     const rawRows = (sourceRows ?? []) as Array<Record<string, any>>;
     const customerIds = [...new Set(rawRows.map((row) => row.customer_id).filter(Boolean))];
@@ -536,6 +417,13 @@ export const executeSalesGroupedReport = createServerFn({ method: "POST" })
       (customersResult?.data ?? []).map((customer: any) => [customer.id, customer.name]),
     );
 
+    const pmLabels: Record<string, string> = {
+      cash: "نقدي",
+      card: "شبكة / بطاقة",
+      bank_transfer: "تحويل بنكي",
+      credit: "آجل",
+    };
+
     let grossSales = 0,
       itemDiscounts = 0,
       netSales = 0,
@@ -544,6 +432,7 @@ export const executeSalesGroupedReport = createServerFn({ method: "POST" })
       totalQuantity = 0,
       actualCostRows = 0;
     const groups = new Map<string, any>();
+
     for (const row of rawRows) {
       const quantity = toNumber(row.quantity);
       const unitPrice = toNumber(row.unit_price);
@@ -558,116 +447,74 @@ export const executeSalesGroupedReport = createServerFn({ method: "POST" })
       totalQuantity += quantity;
       if (cost > 0) actualCostRows += 1;
 
-      let key = "other";
-      if (groupBy === "customer") {
-        key = row.customer_id || "walk-in";
-      } else if (groupBy === "branch") {
-        key = row.branch_id || "main-branch";
-      } else if (groupBy === "warehouse") {
-        key = row.warehouse_id || "main-warehouse";
-      } else if (groupBy === "payment_method") {
-        key = row.payment_method || "cash";
-      } else {
-        key = row.product_id || row.item_name_ar || row.item_name || "other";
-      }
+      // بناء مفتاح تجميع مركب يضم كل الأبعاد المفعلة
+      const compositeParts = activeDimensions.map((dim) => {
+        if (dim === "customer") return row.customer_id || "walk-in";
+        if (dim === "branch") return row.branch_id || "main";
+        if (dim === "warehouse") return row.warehouse_id || "main";
+        if (dim === "payment_method") return row.payment_method || "cash";
+        return row.product_id || row.item_name_ar || row.item_name || "other";
+      });
+      const key = compositeParts.join("::");
 
       const existing =
         groups.get(key) ??
         (() => {
-          if (groupBy === "customer") {
-            return {
-              id: key,
-              customer_name: row.customer_id
-                ? (customerNames.get(row.customer_id) ?? "عميل غير محدد")
-                : "عميل نقدي / غير محدد",
-              invoice_ids: new Set<string>(),
-              quantity: 0,
-              net_sales: 0,
-            };
-          }
-          if (groupBy === "branch") {
-            return {
-              id: key,
-              branch_name: "الفرع الرئيسي",
-              invoice_ids: new Set<string>(),
-              quantity: 0,
-              gross_sales: 0,
-              discounts: 0,
-              net_sales: 0,
-              total_cost: 0,
-            };
-          }
-          if (groupBy === "warehouse") {
-            return {
-              id: key,
-              warehouse_name: "المستودع الرئيسي",
-              invoice_ids: new Set<string>(),
-              quantity: 0,
-              gross_sales: 0,
-              discounts: 0,
-              net_sales: 0,
-              total_cost: 0,
-            };
-          }
-          if (groupBy === "payment_method") {
-            const pmLabels: Record<string, string> = {
-              cash: "نقدي",
-              card: "شبكة / بطاقة",
-              bank_transfer: "تحويل بنكي",
-              credit: "آجل",
-            };
-            return {
-              id: key,
-              payment_method_name: pmLabels[key] || key,
-              invoice_ids: new Set<string>(),
-              quantity: 0,
-              gross_sales: 0,
-              discounts: 0,
-              net_sales: 0,
-              total_cost: 0,
-            };
-          }
-          return {
+          const base: Record<string, any> = {
             id: key,
-            sku: row.sku || "—",
-            item_name_ar: row.item_name_ar || row.item_name || "صنف غير محدد",
+            invoice_ids: new Set<string>(),
             quantity: 0,
             gross_sales: 0,
             discounts: 0,
             net_sales: 0,
             total_cost: 0,
           };
+
+          if (activeDimensions.includes("customer")) {
+            base.customer_id = row.customer_id;
+            base.customer_name = row.customer_id
+              ? (customerNames.get(row.customer_id) ?? "عميل غير محدد")
+              : "عميل نقدي / غير محدد";
+          }
+          if (activeDimensions.includes("product")) {
+            base.product_id = row.product_id;
+            base.sku = row.sku || "—";
+            base.product_name = row.item_name_ar || row.item_name || "صنف غير محدد";
+            base.item_name_ar = base.product_name;
+          }
+          if (activeDimensions.includes("payment_method")) {
+            base.payment_method = row.payment_method || "cash";
+            base.payment_method_name = pmLabels[row.payment_method] || row.payment_method || "نقدي";
+          }
+          if (activeDimensions.includes("branch")) {
+            base.branch_id = row.branch_id || "main";
+            base.branch_name = "الفرع الرئيسي";
+          }
+          if (activeDimensions.includes("warehouse")) {
+            base.warehouse_id = row.warehouse_id || "main";
+            base.warehouse_name = "المستودع الرئيسي";
+          }
+
+          return base;
         })();
 
       existing.quantity += quantity;
+      existing.gross_sales += quantity * unitPrice;
+      existing.discounts += discount;
       existing.net_sales += total;
-      if (groupBy === "customer") {
-        if (row.invoice_id) existing.invoice_ids.add(row.invoice_id);
-      } else {
-        existing.gross_sales += quantity * unitPrice;
-        existing.discounts += discount;
-        existing.total_cost += cost;
-        if (existing.invoice_ids && row.invoice_id) existing.invoice_ids.add(row.invoice_id);
-      }
+      existing.total_cost += cost;
+      if (row.invoice_id) existing.invoice_ids.add(row.invoice_id);
+
       groups.set(key, existing);
     }
 
     const rows = Array.from(groups.values()).map((group) => {
-      if (groupBy === "customer") {
-        return {
-          id: group.id,
-          customer_name: group.customer_name,
-          invoice_count: group.invoice_ids.size,
-          quantity: round2(group.quantity),
-          net_sales: round2(group.net_sales),
-        };
-      }
       const groupedNetSales = round2(group.net_sales);
       const groupedCost = round2(group.total_cost);
       const grossMargin = calculateGrossMargin(groupedNetSales, groupedCost);
       return {
         ...group,
-        invoice_count: group.invoice_ids ? group.invoice_ids.size : undefined,
+        invoice_count: group.invoice_ids ? group.invoice_ids.size : 0,
         quantity: round2(group.quantity),
         gross_sales: round2(group.gross_sales),
         discounts: round2(group.discounts),
@@ -677,48 +524,8 @@ export const executeSalesGroupedReport = createServerFn({ method: "POST" })
         margin_percentage: calculateMarginPercentage(grossMargin, groupedNetSales),
       };
     });
-    const allowedSorts =
-      groupBy === "customer"
-        ? new Set(["customer_name", "invoice_count", "quantity", "net_sales"])
-        : groupBy === "branch"
-          ? new Set([
-              "branch_name",
-              "invoice_count",
-              "quantity",
-              "gross_sales",
-              "net_sales",
-              "gross_margin",
-            ])
-          : groupBy === "warehouse"
-            ? new Set([
-                "warehouse_name",
-                "invoice_count",
-                "quantity",
-                "gross_sales",
-                "net_sales",
-                "gross_margin",
-              ])
-            : groupBy === "payment_method"
-              ? new Set([
-                  "payment_method_name",
-                  "invoice_count",
-                  "quantity",
-                  "gross_sales",
-                  "net_sales",
-                  "gross_margin",
-                ])
-              : new Set([
-                  "sku",
-                  "item_name_ar",
-                  "quantity",
-                  "gross_sales",
-                  "discounts",
-                  "net_sales",
-                  "total_cost",
-                  "gross_margin",
-                  "margin_percentage",
-                ]);
-    const sortField = allowedSorts.has(data.sort?.field ?? "") ? data.sort!.field : "net_sales";
+
+    const sortField = data.sort?.field ?? "net_sales";
     const sortOrder = data.sort?.order ?? "desc";
     rows.sort((a: any, b: any) => {
       const left = a[sortField] ?? 0;
@@ -757,6 +564,212 @@ export const executeSalesGroupedReport = createServerFn({ method: "POST" })
       meta: {
         appliedFilters: filters,
         costBasisNotice: classifyCostBasis(actualCostRows, false),
+        currencySymbol: "ر.ي",
+        page,
+        pageSize,
+        totalPages: Math.ceil(totalRowCount / pageSize) || 1,
+      },
+    };
+  });
+
+/** يجمع سجلات المشتريات في الخادم ويدعم التجميع متعدد الأبعاد. */
+export const executePurchasesGroupedReport = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((data: unknown) => groupedPurchasesRequestSchema.parse(data))
+  .handler(async ({ data, context }) => {
+    const { filters, groupBy, dimensions } = data;
+    const activeDimensions: Array<"supplier" | "product" | "warehouse" | "payment_method"> =
+      dimensions && dimensions.length > 0 ? dimensions : [groupBy || "supplier"];
+
+    const page = data.pagination?.page ?? 1;
+    const pageSize = data.pagination?.pageSize ?? 50;
+    const boundaries = resolveDateRangeBoundaries(filters.startDate, filters.endDate);
+    const supabase = context.supabase;
+
+    let query = supabase
+      .from("purchase_register")
+      .select(
+        "invoice_id,supplier_id,product_id,sku,item_name,item_name_ar,quantity,unit_cost,discount,tax,total,payment_method",
+      );
+    if (filters.startDate) query = query.gte("created_at", boundaries.startIso);
+    if (filters.endDate) query = query.lte("created_at", boundaries.endIso);
+    if (filters.supplierIds && filters.supplierIds.length > 0) {
+      query = query.in("supplier_id", filters.supplierIds);
+    } else if (filters.supplierId) {
+      query = query.eq("supplier_id", filters.supplierId);
+    }
+    if (filters.productIds && filters.productIds.length > 0) {
+      query = query.in("product_id", filters.productIds);
+    } else if (filters.productId) {
+      query = query.eq("product_id", filters.productId);
+    }
+    if (filters.statuses && filters.statuses.length > 0) {
+      query = query.in("status", filters.statuses);
+    } else if (filters.status) {
+      query = query.eq("status", filters.status);
+    } else {
+      query = query.neq("status", "cancelled");
+    }
+    if (filters.paymentMethods && filters.paymentMethods.length > 0) {
+      query = query.in("payment_method", filters.paymentMethods);
+    } else if (filters.paymentMethod) {
+      query = query.eq("payment_method", filters.paymentMethod);
+    }
+    const term = searchTerm(filters.search);
+    if (term)
+      query = query.or(
+        `invoice_number.ilike.%${term}%,item_name.ilike.%${term}%,sku.ilike.%${term}%`,
+      );
+
+    let sourceRows: any;
+    let queryError: any;
+    try {
+      const res = await query;
+      sourceRows = res.data;
+      queryError = res.error;
+    } catch {
+      queryError = true;
+    }
+
+    if (queryError || !sourceRows || sourceRows.length === 0) {
+      sourceRows = [];
+    }
+    const rawRows = (sourceRows ?? []) as Array<Record<string, any>>;
+    const supplierIds = [...new Set(rawRows.map((row) => row.supplier_id).filter(Boolean))];
+    let suppliersResult: any;
+    try {
+      suppliersResult = supplierIds.length
+        ? await supabase.from("suppliers").select("id,name").in("id", supplierIds)
+        : { data: [], error: null };
+    } catch {
+      suppliersResult = { data: [], error: null };
+    }
+    const supplierNames = new Map(
+      (suppliersResult?.data ?? []).map((supplier: any) => [supplier.id, supplier.name]),
+    );
+
+    const pmLabels: Record<string, string> = {
+      cash: "نقدي",
+      card: "شبكة / بطاقة",
+      bank_transfer: "تحويل بنكي",
+      credit: "آجل",
+    };
+
+    let grossPurchases = 0,
+      itemDiscounts = 0,
+      netPurchases = 0,
+      totalTax = 0,
+      totalQuantity = 0;
+    const groups = new Map<string, any>();
+
+    for (const row of rawRows) {
+      const quantity = toNumber(row.quantity);
+      const unitCost = toNumber(row.unit_cost);
+      const discount = toNumber(row.discount);
+      const total = toNumber(row.total);
+      grossPurchases += quantity * unitCost;
+      itemDiscounts += discount;
+      netPurchases += total;
+      totalTax += toNumber(row.tax);
+      totalQuantity += quantity;
+
+      // بناء مفتاح تجميع مركب يضم كل الأبعاد المفعلة
+      const compositeParts = activeDimensions.map((dim) => {
+        if (dim === "supplier") return row.supplier_id || "unknown";
+        if (dim === "warehouse") return row.warehouse_id || "main";
+        if (dim === "payment_method") return row.payment_method || "credit";
+        return row.product_id || row.item_name_ar || row.item_name || "other";
+      });
+      const key = compositeParts.join("::");
+
+      const existing =
+        groups.get(key) ??
+        (() => {
+          const base: Record<string, any> = {
+            id: key,
+            invoice_ids: new Set<string>(),
+            quantity: 0,
+            gross_purchases: 0,
+            discounts: 0,
+            net_purchases: 0,
+          };
+
+          if (activeDimensions.includes("supplier")) {
+            base.supplier_id = row.supplier_id;
+            base.supplier_name = row.supplier_id
+              ? (supplierNames.get(row.supplier_id) ?? "مورد غير محدد")
+              : "مورد غير محدد";
+          }
+          if (activeDimensions.includes("product")) {
+            base.product_id = row.product_id;
+            base.sku = row.sku || "—";
+            base.product_name = row.item_name_ar || row.item_name || "صنف غير محدد";
+            base.item_name_ar = base.product_name;
+          }
+          if (activeDimensions.includes("payment_method")) {
+            base.payment_method = row.payment_method || "credit";
+            base.payment_method_name = pmLabels[row.payment_method] || row.payment_method || "آجل";
+          }
+          if (activeDimensions.includes("warehouse")) {
+            base.warehouse_id = row.warehouse_id || "main";
+            base.warehouse_name = "المستودع الرئيسي";
+          }
+
+          return base;
+        })();
+
+      existing.quantity += quantity;
+      existing.gross_purchases += quantity * unitCost;
+      existing.discounts += discount;
+      existing.net_purchases += total;
+      if (row.invoice_id) existing.invoice_ids.add(row.invoice_id);
+
+      groups.set(key, existing);
+    }
+
+    const rows = Array.from(groups.values()).map((group) => {
+      return {
+        ...group,
+        invoice_count: group.invoice_ids ? group.invoice_ids.size : 0,
+        quantity: round2(group.quantity),
+        gross_purchases: round2(group.gross_purchases),
+        discounts: round2(group.discounts),
+        net_purchases: round2(group.net_purchases),
+      };
+    });
+
+    const sortField = data.sort?.field ?? "net_purchases";
+    const sortOrder = data.sort?.order ?? "desc";
+    rows.sort((a: any, b: any) => {
+      const left = a[sortField] ?? 0;
+      const right = b[sortField] ?? 0;
+      return left < right
+        ? sortOrder === "asc"
+          ? -1
+          : 1
+        : left > right
+          ? sortOrder === "asc"
+            ? 1
+            : -1
+          : 0;
+    });
+
+    const totalRowCount = rows.length;
+    return {
+      reportId: data.reportId,
+      executedAt: new Date().toISOString(),
+      totalRowCount,
+      rows: rows.slice((page - 1) * pageSize, page * pageSize),
+      metrics: {
+        totalRowCount,
+        totalQuantity: round2(totalQuantity),
+        grossPurchases: round2(grossPurchases),
+        itemDiscounts: round2(itemDiscounts),
+        netPurchases: round2(netPurchases),
+        totalTax: round2(totalTax),
+      },
+      meta: {
+        appliedFilters: filters,
         currencySymbol: "ر.ي",
         page,
         pageSize,
@@ -914,6 +927,12 @@ export const searchReportFilterOptions = createServerFn({ method: "POST" })
         label: "name_ar",
         searchColumns: ["name_ar", "name", "sku"],
       },
+      branches: {
+        table: "branches",
+        columns: "id,name",
+        label: "name",
+        searchColumns: ["name"],
+      },
     } as const;
     const source = config[data.source];
     let query = context.supabase
@@ -924,8 +943,15 @@ export const searchReportFilterOptions = createServerFn({ method: "POST" })
     if (term) {
       query = query.or(source.searchColumns.map((column) => `${column}.ilike.%${term}%`).join(","));
     }
-    const { data: options, error } = await query;
-    if (error) throw new Error(`[Report filter options ${data.source}] ${error.message}`);
+    let options: any[] = [];
+    try {
+      const res = await query;
+      if (!res.error && res.data) {
+        options = res.data;
+      }
+    } catch {
+      options = [];
+    }
     return (options ?? []).map((option: any) => ({
       id: option.id,
       label: option.name_ar || option.name || option.sku || "—",

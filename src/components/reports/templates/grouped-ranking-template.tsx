@@ -1,8 +1,12 @@
 import { useState, useMemo, useEffect } from "react";
-import type { ReportDefinition, ReportViewTemplateType } from "@/lib/reports/types";
-import { executeSalesGroupedReport } from "@/lib/reports/report-execution.functions";
+import type { ReportColumnDefinition, ReportDefinition, ReportViewTemplateType } from "@/lib/reports/types";
+import {
+  executeSalesGroupedReport,
+  executePurchasesGroupedReport,
+} from "@/lib/reports/report-execution.functions";
 import { ReportHeader } from "../shared/report-header";
 import { ReportFiltersBar } from "../shared/report-filters-bar";
+import { ReportDimensionsBar } from "../shared/report-dimensions-bar";
 import { ReportDataTable } from "../shared/report-data-table";
 import { ReportPagination } from "../shared/report-pagination";
 import { ReportEmptyState, ReportErrorState } from "../shared/report-states";
@@ -11,7 +15,7 @@ import { defaultVisibility } from "@/lib/records/column-registry";
 import { ReportExportDialog } from "../shared/report-export-dialog";
 import type { ReportExportPayload } from "@/lib/reports/export/types";
 import { useReportCompanyInfo } from "@/hooks/use-report-company-info";
-import { generateDemoReportRows } from "@/lib/reports/demo-sample-data";
+import { getDomainDimensions, type ReportDimensionKey } from "@/lib/reports/registry/groupby-registry";
 import { toast } from "sonner";
 
 interface GroupedRankingTemplateProps {
@@ -58,73 +62,119 @@ export function GroupedRankingTemplate({
   const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
   const [exportDialogMode, setExportDialogMode] = useState<"print" | "export">("print");
 
+  const defaultInitialDimension = useMemo<ReportDimensionKey>(() => {
+    if (definition.id === "rep-customers-sales-turnover" || definition.id === "rep-sales-customer") {
+      return "customer";
+    }
+    if (definition.id === "rep-suppliers-payables" || definition.domain === "suppliers") {
+      return "supplier";
+    }
+    if (definition.domain === "purchases" || definition.dataProviderId === "dp-purchase-register") {
+      return "supplier";
+    }
+    if (definition.id === "rep-sales-branch") return "branch";
+    if (definition.id === "rep-sales-warehouse") return "warehouse";
+    if (definition.id === "rep-sales-payment-method") return "payment_method";
+    return (definition as any).customGroupBy || "product";
+  }, [definition.id, definition.domain, definition.dataProviderId]);
+
+  const [selectedDimensions, setSelectedDimensions] = useState<ReportDimensionKey[]>([defaultInitialDimension]);
+
+  // تحديث البعد عند تغير التقرير
+  useEffect(() => {
+    setSelectedDimensions([defaultInitialDimension]);
+  }, [defaultInitialDimension]);
+
+  // حساب الأعمدة الديناميكية: أعمدة الأبعاد المختارة أولاً، ثم أعمدة المؤشرات والحسابات
+  const computedColumns = useMemo<ReportColumnDefinition[]>(() => {
+    const domainDimensions = getDomainDimensions(definition.domain || "sales");
+    const activeDimensionConfigs = domainDimensions.filter((d) => selectedDimensions.includes(d.key));
+    const dimensionColumns = activeDimensionConfigs.flatMap((d) => d.columns);
+
+    // استخراج أعمدة المقاييس الحسابية من تعريف التقرير
+    const metricColumns = definition.columns.filter(
+      (col) =>
+        ![
+          "customer_name",
+          "product_name",
+          "sku",
+          "payment_method_name",
+          "branch_name",
+          "warehouse_name",
+          "supplier_name",
+        ].includes(col.key),
+    );
+
+    return [...dimensionColumns, ...metricColumns];
+  }, [definition.columns, definition.domain, selectedDimensions]);
+
   const columnRegistry = useMemo(
-    () => createReportColumnRegistry(definition.id, definition.columns),
-    [definition.id, definition.columns],
+    () => createReportColumnRegistry(definition.id, computedColumns),
+    [definition.id, computedColumns],
   );
 
   const [columnVisibility, setColumnVisibility] = useState<Record<string, boolean>>(() =>
     defaultVisibility(columnRegistry),
   );
 
-  // تحديث الأعمدة عند تغيير التقرير
+  // تحديث رؤية الأعمدة عند تغير الأعمدة المجمعة
   useEffect(() => {
-    setColumnVisibility(defaultVisibility(createReportColumnRegistry(definition.id, definition.columns)));
-  }, [definition.id]);
-
-  const groupBy =
-    definition.id === "rep-customers-sales-turnover" || definition.id === "rep-sales-customer"
-      ? "customer"
-      : definition.id === "rep-sales-branch"
-        ? "branch"
-        : definition.id === "rep-sales-warehouse"
-          ? "warehouse"
-          : definition.id === "rep-sales-payment-method"
-            ? "payment_method"
-            : (definition as any).customGroupBy || "product";
+    setColumnVisibility((prev) => {
+      const next = defaultVisibility(columnRegistry);
+      return { ...next, ...prev };
+    });
+  }, [columnRegistry]);
 
   async function fetchData(showFeedback = false) {
     setLoading(true);
     setError(null);
     try {
-      const result = await executeSalesGroupedReport({
-        data: {
-          reportId: definition.id,
-          filters,
-          pagination: { page, pageSize },
-          sort: { field: sortField, order: sortOrder },
-          groupBy,
-        },
-      });
+      const isPurchases =
+        definition.dataProviderId === "dp-purchase-register" ||
+        definition.domain === "purchases" ||
+        definition.domain === "suppliers";
 
-      if (result && result.rows && result.rows.length > 0) {
+      const result = isPurchases
+        ? await executePurchasesGroupedReport({
+            data: {
+              reportId: definition.id,
+              filters,
+              pagination: { page, pageSize },
+              sort: { field: sortField, order: sortOrder },
+              dimensions: selectedDimensions as Array<"supplier" | "product" | "warehouse" | "payment_method">,
+            },
+          })
+        : await executeSalesGroupedReport({
+            data: {
+              reportId: definition.id,
+              filters,
+              pagination: { page, pageSize },
+              sort: { field: sortField, order: sortOrder },
+              dimensions: selectedDimensions as Array<"product" | "customer" | "branch" | "warehouse" | "payment_method">,
+            },
+          });
+
+      if (result && result.rows) {
         setRows(result.rows);
         setMetrics(result.metrics || {});
-        setTotalRowCount(result.totalRowCount || result.rows.length);
+        setTotalRowCount(result.totalRowCount ?? result.rows.length);
         if ((result as any).costBasisNotice) {
           setCostBasisNotice((result as any).costBasisNotice);
         }
       } else {
-        // توفير بيانات تجريبية واقعية للمعاينة دائماً عند فراغ قاعدة البيانات
-        const demo = generateDemoReportRows(definition);
-        setRows(demo.rows);
-        setMetrics(demo.metrics);
-        setTotalRowCount(demo.totalRowCount);
+        setRows([]);
+        setMetrics({});
+        setTotalRowCount(0);
       }
 
       if (showFeedback) {
-        toast.success("تم تحديث ومعاينة بيانات التقرير بنجاح");
+        toast.success("تم تحديث ومعاينة بيانات التقرير التجميعي بنجاح");
       }
-    } catch {
-      // توفير بيانات تجريبية واقعية للمعاينة دائماً بدلاً من شاشة الخطأ
-      const demo = generateDemoReportRows(definition);
-      setRows(demo.rows);
-      setMetrics(demo.metrics);
-      setTotalRowCount(demo.totalRowCount);
-
-      if (showFeedback) {
-        toast.success("تم تشغيل المعاينة بنجاح بالبيانات النموذجية");
-      }
+    } catch (err: any) {
+      setError(err?.message || "حدث خطأ أثناء تحميل بيانات التقرير التجميعي");
+      setRows([]);
+      setMetrics({});
+      setTotalRowCount(0);
     } finally {
       setLoading(false);
     }
@@ -132,7 +182,7 @@ export function GroupedRankingTemplate({
 
   useEffect(() => {
     fetchData(false);
-  }, [filters, page, pageSize, sortField, sortOrder, definition.id]);
+  }, [filters, page, pageSize, sortField, sortOrder, definition.id, selectedDimensions]);
 
   const totalPages = Math.ceil(totalRowCount / pageSize) || 1;
 
@@ -173,8 +223,8 @@ export function GroupedRankingTemplate({
   };
 
   const visibleColumns = useMemo(() => {
-    return definition.columns.filter((c) => columnVisibility[c.key] !== false);
-  }, [definition.columns, columnVisibility]);
+    return computedColumns.filter((c) => columnVisibility[c.key] !== false);
+  }, [computedColumns, columnVisibility]);
 
   return (
     <div className="flex flex-col gap-3 rounded-xl border border-border bg-card shadow-xs p-2 sm:p-3 overflow-hidden">
@@ -182,6 +232,20 @@ export function GroupedRankingTemplate({
         definition={definition}
         companyName={companyName}
         costBasisNotice={costBasisNotice}
+      />
+
+      {/* ── شريط اختيار الأبعاد التجميعية المتعددة (العميل + المنتج + طريقة الدفع + الفرع ...) ── */}
+      <ReportDimensionsBar
+        domain={definition.domain || "sales"}
+        selectedDimensions={selectedDimensions}
+        onChangeDimensions={(dims) => {
+          setSelectedDimensions(dims);
+          setPage(1);
+        }}
+        onResetToDetailed={() => {
+          onViewChange?.("detailed_table");
+        }}
+        disabled={loading}
       />
 
       <ReportFiltersBar
@@ -194,7 +258,7 @@ export function GroupedRankingTemplate({
         }}
         onReset={() => setFilters({})}
         onPreview={() => fetchData(true)}
-        columns={definition.columns}
+        columns={computedColumns}
         columnVisibility={columnVisibility}
         onChangeVisibility={setColumnVisibility}
         onResetVisibility={() => setColumnVisibility(defaultVisibility(columnRegistry))}
@@ -206,8 +270,17 @@ export function GroupedRankingTemplate({
         currentView={currentView}
         onViewChange={onViewChange}
         isCustomMultiMethod={isCustomMultiMethod}
-        totalColumnsCount={definition.columns.length}
+        totalColumnsCount={computedColumns.length}
         visibleColumnsCount={visibleColumns.length}
+        selectedDimensions={selectedDimensions}
+        onToggleDimension={(dimKey) => {
+          if (selectedDimensions.includes(dimKey)) {
+            setSelectedDimensions(selectedDimensions.filter((d) => d !== dimKey));
+          } else {
+            setSelectedDimensions([...selectedDimensions, dimKey]);
+          }
+          setPage(1);
+        }}
       />
 
       {error ? (

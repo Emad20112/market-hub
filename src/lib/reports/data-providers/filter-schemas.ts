@@ -22,9 +22,17 @@ export const SortSchema = z.object({
 
 export const SalesRegisterFilterSchema = DateRangeFilterSchema.extend({
   customerId: z.string().uuid().optional(),
+  customerIds: z.array(z.string().uuid()).optional(),
   productId: z.string().uuid().optional(),
+  productIds: z.array(z.string().uuid()).optional(),
   status: z.string().optional(),
+  statuses: z.array(z.string()).optional(),
   paymentMethod: z.string().optional(),
+  paymentMethods: z.array(z.string()).optional(),
+  branchId: z.string().uuid().optional(),
+  branchIds: z.array(z.string().uuid()).optional(),
+  warehouseId: z.string().uuid().optional(),
+  warehouseIds: z.array(z.string().uuid()).optional(),
   search: z.string().optional(),
 });
 
@@ -32,8 +40,11 @@ export type SalesRegisterFilters = z.infer<typeof SalesRegisterFilterSchema>;
 
 export const InventoryMovementsFilterSchema = DateRangeFilterSchema.extend({
   productId: z.string().uuid().optional(),
+  productIds: z.array(z.string().uuid()).optional(),
   warehouseId: z.string().uuid().optional(),
+  warehouseIds: z.array(z.string().uuid()).optional(),
   movementType: z.string().optional(),
+  movementTypes: z.array(z.string()).optional(),
   search: z.string().optional(),
 });
 
@@ -41,9 +52,17 @@ export type InventoryMovementsFilters = z.infer<typeof InventoryMovementsFilterS
 
 export const PurchaseRegisterFilterSchema = DateRangeFilterSchema.extend({
   supplierId: z.string().uuid().optional(),
+  supplierIds: z.array(z.string().uuid()).optional(),
   productId: z.string().uuid().optional(),
+  productIds: z.array(z.string().uuid()).optional(),
+  warehouseId: z.string().uuid().optional(),
+  warehouseIds: z.array(z.string().uuid()).optional(),
   status: z.string().optional(),
+  statuses: z.array(z.string()).optional(),
+  paymentMethod: z.string().optional(),
+  paymentMethods: z.array(z.string()).optional(),
   search: z.string().optional(),
 });
 
 export type PurchaseRegisterFilters = z.infer<typeof PurchaseRegisterFilterSchema>;
+
