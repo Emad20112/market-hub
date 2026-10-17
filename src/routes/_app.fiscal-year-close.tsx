@@ -1,30 +1,29 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { supabase } from "../lib/supabase";
-import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
-import { Button } from "../components/ui/button";
-import { Input } from "../components/ui/input";
-import { Label } from "../components/ui/label";
-import { Alert, AlertDescription, AlertTitle } from "../components/ui/alert";
-import { Badge } from "../components/ui/badge";
-import { Separator } from "../components/ui/separator";
+import { supabase } from "@/integrations/supabase/client";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
 import { Loader2, Lock, Unlock, AlertTriangle, CheckCircle2 } from "lucide-react";
-import { FINANCE } from "../lib/navigation/route-access";
-import { useAuth } from "../lib/auth";
-import { useI18n } from "../lib/i18n";
+import { useAuth } from "@/lib/auth";
+import { useI18n } from "@/lib/i18n";
 
 export const Route = createFileRoute("/_app/fiscal-year-close")({
+  head: () => ({ meta: [{ title: "إقفال السنة المالية — Vortex ERP" }] }),
   component: FiscalYearClosePage,
 });
 
 type Period = {
-  id: number;
+  id: string;
   fiscal_year: number;
-  period_number: number;
+  period_no: number;
   start_date: string;
   end_date: string;
-  status: string;
+  status: "OPEN" | "CLOSED";
   closed_at: string | null;
 };
 
@@ -50,38 +49,43 @@ function FiscalYearClosePage() {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [confirmText, setConfirmText] = useState("");
 
-  const canManage = profile?.role === "owner" || profile?.role === "admin";
+  const canManage =
+    profile?.role === "owner" || profile?.role === "manager" || profile?.role === "accountant";
 
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
       const { data: allPeriods, error: pErr } = await supabase
-        .from("fiscal_periods")
-        .select("id,fiscal_year,period_number,start_date,end_date,status,closed_at")
+        .from("fiscal_periods" as never)
+        .select("id,fiscal_year,period_no,start_date,end_date,status,closed_at")
         .order("fiscal_year", { ascending: false })
-        .order("period_number", { ascending: true });
+        .order("period_no", { ascending: true });
       if (pErr) throw pErr;
-      const list = (allPeriods ?? []) as Period[];
+      const list = (allPeriods ?? []) as unknown as Period[];
       setPeriods(list);
       const ys = Array.from(new Set(list.map((p) => p.fiscal_year))).sort((a, b) => b - a);
       setYears(ys);
       setSelectedYear((prev) => prev ?? ys[0] ?? null);
 
       if (selectedYear != null) {
-        const { data: tb, error: tbErr } = await supabase
-          .from("journal_lines_with_accounts")
-          .select("debit,credit,journal_entry_id")
+        const { data: entries, error: entErr } = await supabase
+          .from("journal_entries")
+          .select("id,total_debit,total_credit")
+          .eq("status", "POSTED")
           .gte("entry_date", `${selectedYear}-01-01`)
           .lte("entry_date", `${selectedYear}-12-31`);
-        if (tbErr) throw tbErr;
-        const rows = (tb ?? []) as { debit: number; credit: number; journal_entry_id: number }[];
-        const uniqueEntries = new Set(rows.map((r) => r.journal_entry_id));
+        if (entErr) throw entErr;
+        const rows = (entries ?? []) as {
+          id: string;
+          total_debit: number;
+          total_credit: number;
+        }[];
         setSummary({
           fiscal_year: selectedYear,
-          total_debit: rows.reduce((s, r) => s + (Number(r.debit) || 0), 0),
-          total_credit: rows.reduce((s, r) => s + (Number(r.credit) || 0), 0),
-          entry_count: uniqueEntries.size,
+          total_debit: rows.reduce((s, r) => s + (Number(r.total_debit) || 0), 0),
+          total_credit: rows.reduce((s, r) => s + (Number(r.total_credit) || 0), 0),
+          entry_count: rows.length,
         });
       }
     } catch (e) {
@@ -101,9 +105,12 @@ function FiscalYearClosePage() {
     setError(null);
     setNotice(null);
     try {
-      const { error: fnErr } = await supabase.rpc("close_fiscal_year", {
-        p_fiscal_year: selectedYear,
-      });
+      const { error: fnErr } = await supabase.rpc(
+        "close_fiscal_year" as never,
+        {
+          p_year: selectedYear,
+        } as never,
+      );
       if (fnErr) throw fnErr;
       setNotice(`تم إقفال السنة المالية ${selectedYear} بنجاح`);
       setConfirmOpen(false);
@@ -123,11 +130,14 @@ function FiscalYearClosePage() {
     setError(null);
     setNotice(null);
     try {
-      const { error: fnErr } = await supabase.rpc("open_fiscal_year", {
-        p_fiscal_year: selectedYear,
-      });
+      const { error: fnErr } = await supabase.rpc(
+        "open_fiscal_year" as never,
+        {
+          p_year: selectedYear,
+        } as never,
+      );
       if (fnErr) throw fnErr;
-      setNotice(`تم إعادة فتح السنة المالية ${selectedYear}`);
+      setNotice(`تم فتح السنة المالية ${selectedYear}`);
       await qc.invalidateQueries();
       await load();
     } catch (e) {
@@ -138,7 +148,7 @@ function FiscalYearClosePage() {
   }
 
   const yearPeriods = periods.filter((p) => p.fiscal_year === selectedYear);
-  const allClosed = yearPeriods.length > 0 && yearPeriods.every((p) => p.status === "closed");
+  const allClosed = yearPeriods.length > 0 && yearPeriods.every((p) => p.status === "CLOSED");
   const balanced = summary ? Math.abs(summary.total_debit - summary.total_credit) < 0.01 : false;
 
   return (
@@ -255,12 +265,12 @@ function FiscalYearClosePage() {
                     <tbody>
                       {yearPeriods.map((p) => (
                         <tr key={p.id} className="border-b last:border-0">
-                          <td className="p-2">{p.period_number}</td>
+                          <td className="p-2">{p.period_no}</td>
                           <td className="p-2">{p.start_date}</td>
                           <td className="p-2">{p.end_date}</td>
                           <td className="p-2">
-                            <Badge variant={p.status === "closed" ? "default" : "secondary"}>
-                              {p.status === "closed" ? t("مقفلة") : t("مفتوحة")}
+                            <Badge variant={p.status === "CLOSED" ? "default" : "secondary"}>
+                              {p.status === "CLOSED" ? t("مقفلة") : t("مفتوحة")}
                             </Badge>
                           </td>
                         </tr>
@@ -273,13 +283,21 @@ function FiscalYearClosePage() {
                   <div className="flex flex-wrap gap-2">
                     {!allClosed && (
                       <Button onClick={() => setConfirmOpen(true)} disabled={!balanced || acting}>
-                        {acting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Lock className="h-4 w-4" />}
+                        {acting ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Lock className="h-4 w-4" />
+                        )}
                         {t("إقفال السنة")}
                       </Button>
                     )}
                     {allClosed && (
                       <Button variant="outline" onClick={openYear} disabled={acting}>
-                        {acting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Unlock className="h-4 w-4" />}
+                        {acting ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Unlock className="h-4 w-4" />
+                        )}
                         {t("إعادة فتح السنة")}
                       </Button>
                     )}
@@ -292,7 +310,9 @@ function FiscalYearClosePage() {
                       {t("تأكيد إقفال السنة")} {selectedYear}
                     </p>
                     <p className="text-sm text-muted-foreground">
-                      {t("سيتم مقفلة جميع الفترات ولن يمكن إضافة قيود على هذه السنة إلا بعد إعادة الفتح. اكتب رقم السنة للتأكيد:")}
+                      {t(
+                        "سيتم قفل جميع الفترات ولن يمكن إضافة قيود على هذه السنة إلا بعد إعادة الفتح. اكتب رقم السنة للتأكيد:",
+                      )}
                     </p>
                     <Input
                       value={confirmText}
@@ -321,3 +341,4 @@ function FiscalYearClosePage() {
     </div>
   );
 }
+export default FiscalYearClosePage;

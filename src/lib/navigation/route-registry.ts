@@ -507,6 +507,32 @@ export const ROUTE_REGISTRY: RouteSearchEntry[] = [
     requiredRoles: FINANCE,
     i18nKey: "nav.balance_sheet",
   },
+  {
+    id: "fiscal-periods",
+    path: "/fiscal-periods",
+    titleAr: "الفترات المالية",
+    titleEn: "Fiscal Periods",
+    descriptionAr: "إدارة الفترات المالية والسنوات المحاسبية وإقفالها",
+    descriptionEn: "Manage and close accounting periods and fiscal years",
+    keywords: ["فترات", "مالية", "سنة", "إقفال", "fiscal", "periods"],
+    category: "finance",
+    moduleId: "advanced_accounting",
+    requiredRoles: FINANCE,
+    i18nKey: "nav.fiscal_periods",
+  },
+  {
+    id: "fiscal-year-close",
+    path: "/fiscal-year-close",
+    titleAr: "إقفال السنة المالية",
+    titleEn: "Fiscal Year Close",
+    descriptionAr: "إقفال السنة وترحيل الأرباح والخسائر إلى الأرباح المحتجزة",
+    descriptionEn: "Close fiscal year and roll over P&L into retained earnings",
+    keywords: ["إقفال", "سنة", "أرباح محتجزة", "close", "fiscal"],
+    category: "finance",
+    moduleId: "advanced_accounting",
+    requiredRoles: FINANCE,
+    i18nKey: "nav.fiscal_year_close",
+  },
 
   // ── Milling ─────────────────────────────────────────────────────
   {

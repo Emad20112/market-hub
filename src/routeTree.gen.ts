@@ -25,6 +25,8 @@ import { Route as AppDashboardRouteImport } from './routes/_app.dashboard'
 import { Route as AppDebtsRouteImport } from './routes/_app.debts'
 import { Route as AppExpensesRouteImport } from './routes/_app.expenses'
 import { Route as AppFinanceRouteImport } from './routes/_app.finance'
+import { Route as AppFiscalPeriodsRouteImport } from './routes/_app.fiscal-periods'
+import { Route as AppFiscalYearCloseRouteImport } from './routes/_app.fiscal-year-close'
 import { Route as AppGeneralLedgerRouteImport } from './routes/_app.general-ledger'
 import { Route as AppIncomeStatementRouteImport } from './routes/_app.income-statement'
 import { Route as AppInventoryRouteImport } from './routes/_app.inventory'
@@ -138,6 +140,16 @@ const AppExpensesRoute = AppExpensesRouteImport.update({
 const AppFinanceRoute = AppFinanceRouteImport.update({
   id: '/finance',
   path: '/finance',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppFiscalPeriodsRoute = AppFiscalPeriodsRouteImport.update({
+  id: '/fiscal-periods',
+  path: '/fiscal-periods',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppFiscalYearCloseRoute = AppFiscalYearCloseRouteImport.update({
+  id: '/fiscal-year-close',
+  path: '/fiscal-year-close',
   getParentRoute: () => AppRoute,
 } as any)
 const AppGeneralLedgerRoute = AppGeneralLedgerRouteImport.update({
@@ -334,6 +346,8 @@ export interface FileRoutesByFullPath {
   '/debts': typeof AppDebtsRoute
   '/expenses': typeof AppExpensesRoute
   '/finance': typeof AppFinanceRoute
+  '/fiscal-periods': typeof AppFiscalPeriodsRoute
+  '/fiscal-year-close': typeof AppFiscalYearCloseRoute
   '/general-ledger': typeof AppGeneralLedgerRoute
   '/income-statement': typeof AppIncomeStatementRoute
   '/inventory': typeof AppInventoryRoute
@@ -386,6 +400,8 @@ export interface FileRoutesByTo {
   '/debts': typeof AppDebtsRoute
   '/expenses': typeof AppExpensesRoute
   '/finance': typeof AppFinanceRoute
+  '/fiscal-periods': typeof AppFiscalPeriodsRoute
+  '/fiscal-year-close': typeof AppFiscalYearCloseRoute
   '/general-ledger': typeof AppGeneralLedgerRoute
   '/income-statement': typeof AppIncomeStatementRoute
   '/inventory': typeof AppInventoryRoute
@@ -440,6 +456,8 @@ export interface FileRoutesById {
   '/_app/debts': typeof AppDebtsRoute
   '/_app/expenses': typeof AppExpensesRoute
   '/_app/finance': typeof AppFinanceRoute
+  '/_app/fiscal-periods': typeof AppFiscalPeriodsRoute
+  '/_app/fiscal-year-close': typeof AppFiscalYearCloseRoute
   '/_app/general-ledger': typeof AppGeneralLedgerRoute
   '/_app/income-statement': typeof AppIncomeStatementRoute
   '/_app/inventory': typeof AppInventoryRoute
@@ -494,6 +512,8 @@ export interface FileRouteTypes {
     | '/debts'
     | '/expenses'
     | '/finance'
+    | '/fiscal-periods'
+    | '/fiscal-year-close'
     | '/general-ledger'
     | '/income-statement'
     | '/inventory'
@@ -599,6 +619,8 @@ export interface FileRouteTypes {
     | '/_app/debts'
     | '/_app/expenses'
     | '/_app/finance'
+    | '/_app/fiscal-periods'
+    | '/_app/fiscal-year-close'
     | '/_app/general-ledger'
     | '/_app/income-statement'
     | '/_app/inventory'
@@ -754,6 +776,20 @@ declare module '@tanstack/react-router' {
       path: '/finance'
       fullPath: '/finance'
       preLoaderRoute: typeof AppFinanceRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/fiscal-periods': {
+      id: '/_app/fiscal-periods'
+      path: '/fiscal-periods'
+      fullPath: '/fiscal-periods'
+      preLoaderRoute: typeof AppFiscalPeriodsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/fiscal-year-close': {
+      id: '/_app/fiscal-year-close'
+      path: '/fiscal-year-close'
+      fullPath: '/fiscal-year-close'
+      preLoaderRoute: typeof AppFiscalYearCloseRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/general-ledger': {
@@ -1042,6 +1078,8 @@ interface AppRouteChildren {
   AppDebtsRoute: typeof AppDebtsRoute
   AppExpensesRoute: typeof AppExpensesRoute
   AppFinanceRoute: typeof AppFinanceRoute
+  AppFiscalPeriodsRoute: typeof AppFiscalPeriodsRoute
+  AppFiscalYearCloseRoute: typeof AppFiscalYearCloseRoute
   AppGeneralLedgerRoute: typeof AppGeneralLedgerRoute
   AppIncomeStatementRoute: typeof AppIncomeStatementRoute
   AppInventoryRoute: typeof AppInventoryRoute
@@ -1086,6 +1124,8 @@ const AppRouteChildren: AppRouteChildren = {
   AppDebtsRoute: AppDebtsRoute,
   AppExpensesRoute: AppExpensesRoute,
   AppFinanceRoute: AppFinanceRoute,
+  AppFiscalPeriodsRoute: AppFiscalPeriodsRoute,
+  AppFiscalYearCloseRoute: AppFiscalYearCloseRoute,
   AppGeneralLedgerRoute: AppGeneralLedgerRoute,
   AppIncomeStatementRoute: AppIncomeStatementRoute,
   AppInventoryRoute: AppInventoryRoute,

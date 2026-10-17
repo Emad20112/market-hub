@@ -88,9 +88,7 @@ function FiscalPeriodsPage() {
 
   // فتح سنة جديدة
   const [openYearOpen, setOpenYearOpen] = useState(false);
-  const [openYearValue, setOpenYearValue] = useState(
-    String(new Date().getFullYear() + 1),
-  );
+  const [openYearValue, setOpenYearValue] = useState(String(new Date().getFullYear() + 1));
 
   // إقفال سنة مالية (T-20)
   const [closeYear, setCloseYear] = useState<number | null>(null);
@@ -124,9 +122,7 @@ function FiscalPeriodsPage() {
 
   // رصيد كل سنة من trial_balance المقصوص على الفترة — نعرض هنا الإجماليات فقط
   // عبر الاستعلام المباشر من trial_balance (عرض مهاجرة 20) لكل سنة منفردة.
-  const [yearSummaries, setYearSummaries] = useState<Record<number, YearSummary>>(
-    {},
-  );
+  const [yearSummaries, setYearSummaries] = useState<Record<number, YearSummary>>({});
 
   const loadYearSummary = useCallback(async (year: number) => {
     const start = `${year}-01-01`;
@@ -156,9 +152,12 @@ function FiscalPeriodsPage() {
     setBusy(true);
     setActionError(null);
     const year = Number(openYearValue);
-    const { error: rpcErr } = await supabase.rpc("open_fiscal_year" as never, {
-      p_year: year,
-    } as never);
+    const { error: rpcErr } = await supabase.rpc(
+      "open_fiscal_year" as never,
+      {
+        p_year: year,
+      } as never,
+    );
     setBusy(false);
     if (rpcErr) {
       setActionError(rpcErr.message);
@@ -172,10 +171,13 @@ function FiscalPeriodsPage() {
     setBusy(true);
     setActionError(null);
     const target = p.status === "OPEN" ? "CLOSED" : "OPEN";
-    const { error: rpcErr } = await supabase.rpc("set_period_status" as never, {
-      p_period_id: p.id,
-      p_status: target,
-    } as never);
+    const { error: rpcErr } = await supabase.rpc(
+      "set_period_status" as never,
+      {
+        p_period_id: p.id,
+        p_status: target,
+      } as never,
+    );
     setBusy(false);
     if (rpcErr) {
       setActionError(rpcErr.message);
@@ -188,9 +190,12 @@ function FiscalPeriodsPage() {
     if (closeYear == null) return;
     setBusy(true);
     setActionError(null);
-    const { error: rpcErr } = await supabase.rpc("close_fiscal_year" as never, {
-      p_year: closeYear,
-    } as never);
+    const { error: rpcErr } = await supabase.rpc(
+      "close_fiscal_year" as never,
+      {
+        p_year: closeYear,
+      } as never,
+    );
     setBusy(false);
     setCloseConfirm(false);
     if (rpcErr) {
@@ -283,9 +288,7 @@ function FiscalPeriodsPage() {
                     <TableCell>{p.start_date}</TableCell>
                     <TableCell>{p.end_date}</TableCell>
                     <TableCell>
-                      <Badge
-                        variant={p.status === "OPEN" ? "secondary" : "destructive"}
-                      >
+                      <Badge variant={p.status === "OPEN" ? "secondary" : "destructive"}>
                         {p.status === "OPEN" ? "مفتوحة" : "مقفلة"}
                       </Badge>
                     </TableCell>
@@ -339,8 +342,8 @@ function FiscalPeriodsPage() {
           <DialogHeader>
             <DialogTitle>فتح سنة مالية جديدة</DialogTitle>
             <DialogDescription>
-              سيُنشأ 12 فترة شهرية (01…12). لا يُكتب أي قيد افتتاحي — أرصدة السنة
-              الجديدة مشتقة تلقائيًا من القيود القائمة.
+              سيُنشأ 12 فترة شهرية (01…12). لا يُكتب أي قيد افتتاحي — أرصدة السنة الجديدة مشتقة
+              تلقائيًا من القيود القائمة.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-2">
@@ -371,17 +374,14 @@ function FiscalPeriodsPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>إقفال السنة المالية {closeYear}</AlertDialogTitle>
             <AlertDialogDescription>
-              سيُنشأ قيد إقفال بتاريخ 31/12/{closeYear} يُصفّر كل حسابات الإيرادات
-              (4xxx) والمصروفات (5xxx) ويرحّل صافي النتيجة إلى الأرباح المحتجزة
-              (3911). لا يمكن التراجع إلا بعكس القيد. يجب ألا تكون فترة ديسمبر
-              مقفلة، وأن تكون كل فترات السنة مقفلة قبل الإقفال.
+              سيُنشأ قيد إقفال بتاريخ 31/12/{closeYear} يُصفّر كل حسابات الإيرادات (4xxx) والمصروفات
+              (5xxx) ويرحّل صافي النتيجة إلى الأرباح المحتجزة (3911). لا يمكن التراجع إلا بعكس
+              القيد. يجب ألا تكون فترة ديسمبر مقفلة، وأن تكون كل فترات السنة مقفلة قبل الإقفال.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>إلغاء</AlertDialogCancel>
-            <AlertDialogAction onClick={() => void doCloseYear()}>
-              تأكيد الإقفال
-            </AlertDialogAction>
+            <AlertDialogAction onClick={() => void doCloseYear()}>تأكيد الإقفال</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
