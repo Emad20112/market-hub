@@ -546,6 +546,19 @@ export const ROUTE_REGISTRY: RouteSearchEntry[] = [
     requiredRoles: FINANCE,
     i18nKey: "nav.fixed_assets",
   },
+  {
+    id: "prepayments",
+    path: "/prepayments",
+    titleAr: "المصروفات والإيرادات المقدمة",
+    titleEn: "Prepayments & Deferred",
+    descriptionAr: "إدارة العقود الممتدة وتوزيع الأقساط الدورية آلياً",
+    descriptionEn: "Prepaid expenses and deferred revenue amortization schedules",
+    keywords: ["مقدم", "مؤجل", "إيجار", "توزيع", "prepayments", "deferred"],
+    category: "finance",
+    moduleId: "advanced_accounting",
+    requiredRoles: FINANCE,
+    i18nKey: "nav.prepayments",
+  },
 
   // ── Milling ─────────────────────────────────────────────────────
   {
