@@ -52,6 +52,7 @@ import { Route as AppSalesReturnsRouteImport } from './routes/_app.sales-returns
 import { Route as AppSettingsRouteImport } from './routes/_app.settings'
 import { Route as AppSettlementsRouteImport } from './routes/_app.settlements'
 import { Route as AppSuppliersRouteImport } from './routes/_app.suppliers'
+import { Route as AppSupplierLedgerRouteImport } from './routes/_app.supplier-ledger'
 import { Route as AppTaxDeclarationsRouteImport } from './routes/_app.tax-declarations'
 import { Route as AppTransfersRouteImport } from './routes/_app.transfers'
 import { Route as AppTrialBalanceRouteImport } from './routes/_app.trial-balance'
@@ -280,6 +281,11 @@ const AppSuppliersRoute = AppSuppliersRouteImport.update({
   path: '/suppliers',
   getParentRoute: () => AppRoute,
 } as any)
+const AppSupplierLedgerRoute = AppSupplierLedgerRouteImport.update({
+  id: '/supplier-ledger',
+  path: '/supplier-ledger',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppTaxDeclarationsRoute = AppTaxDeclarationsRouteImport.update({
   id: '/tax-declarations',
   path: '/tax-declarations',
@@ -391,6 +397,7 @@ export interface FileRoutesByFullPath {
   '/settings': typeof AppSettingsRoute
   '/settlements': typeof AppSettlementsRoute
   '/suppliers': typeof AppSuppliersRoute
+  '/supplier-ledger': typeof AppSupplierLedgerRoute
   '/tax-declarations': typeof AppTaxDeclarationsRoute
   '/transfers': typeof AppTransfersRoute
   '/trial-balance': typeof AppTrialBalanceRoute
@@ -448,6 +455,7 @@ export interface FileRoutesByTo {
   '/settings': typeof AppSettingsRoute
   '/settlements': typeof AppSettlementsRoute
   '/suppliers': typeof AppSuppliersRoute
+  '/supplier-ledger': typeof AppSupplierLedgerRoute
   '/tax-declarations': typeof AppTaxDeclarationsRoute
   '/transfers': typeof AppTransfersRoute
   '/trial-balance': typeof AppTrialBalanceRoute
@@ -507,6 +515,7 @@ export interface FileRoutesById {
   '/_app/settings': typeof AppSettingsRoute
   '/_app/settlements': typeof AppSettlementsRoute
   '/_app/suppliers': typeof AppSuppliersRoute
+  '/_app/supplier-ledger': typeof AppSupplierLedgerRoute
   '/_app/tax-declarations': typeof AppTaxDeclarationsRoute
   '/_app/transfers': typeof AppTransfersRoute
   '/_app/trial-balance': typeof AppTrialBalanceRoute
@@ -566,6 +575,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/settlements'
     | '/suppliers'
+    | '/supplier-ledger'
     | '/tax-declarations'
     | '/transfers'
     | '/trial-balance'
@@ -676,6 +686,7 @@ export interface FileRouteTypes {
     | '/_app/settings'
     | '/_app/settlements'
     | '/_app/suppliers'
+    | '/_app/supplier-ledger'
     | '/_app/tax-declarations'
     | '/_app/transfers'
     | '/_app/trial-balance'
@@ -1000,6 +1011,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppSuppliersRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/supplier-ledger': {
+      id: '/_app/supplier-ledger'
+      path: '/supplier-ledger'
+      fullPath: '/supplier-ledger'
+      preLoaderRoute: typeof AppSupplierLedgerRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/tax-declarations': {
       id: '/_app/tax-declarations'
       path: '/tax-declarations'
@@ -1159,6 +1177,7 @@ interface AppRouteChildren {
   AppSettingsRoute: typeof AppSettingsRoute
   AppSettlementsRoute: typeof AppSettlementsRoute
   AppSuppliersRoute: typeof AppSuppliersRoute
+  AppSupplierLedgerRoute: typeof AppSupplierLedgerRoute
   AppTaxDeclarationsRoute: typeof AppTaxDeclarationsRoute
   AppTransfersRoute: typeof AppTransfersRoute
   AppTrialBalanceRoute: typeof AppTrialBalanceRoute
@@ -1208,6 +1227,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppSettingsRoute: AppSettingsRoute,
   AppSettlementsRoute: AppSettlementsRoute,
   AppSuppliersRoute: AppSuppliersRoute,
+  AppSupplierLedgerRoute: AppSupplierLedgerRoute,
   AppTaxDeclarationsRoute: AppTaxDeclarationsRoute,
   AppTransfersRoute: AppTransfersRoute,
   AppTrialBalanceRoute: AppTrialBalanceRoute,

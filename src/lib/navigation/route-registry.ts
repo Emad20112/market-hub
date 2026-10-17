@@ -572,6 +572,21 @@ export const ROUTE_REGISTRY: RouteSearchEntry[] = [
     requiredRoles: FINANCE,
     i18nKey: "nav.tax_declarations",
   },
+  {
+    id: "supplier-ledger",
+    path: "/supplier-ledger",
+    titleAr: "دفتر أستاذ الموردين وسندات الصرف",
+    titleEn: "Supplier Ledger & Payment Vouchers",
+    descriptionAr:
+      "كشف حساب المورد التفصيلي، وسندات الصرف النقدية والبنكية مع الترحيل المحاسبي الذري",
+    descriptionEn:
+      "Detailed supplier statement, cash and bank payment vouchers with atomic journal posting",
+    keywords: ["مورد", "دفتر", "سند صرف", "سداد", "كشف حساب", "supplier", "ledger", "voucher"],
+    category: "finance",
+    moduleId: "advanced_accounting",
+    requiredRoles: FINANCE,
+    i18nKey: "nav.supplier_ledger",
+  },
 
   // ── Milling ─────────────────────────────────────────────────────
   {
