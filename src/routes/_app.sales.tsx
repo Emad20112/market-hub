@@ -1610,9 +1610,9 @@ export function SalesPage() {
           {/* Infinite Scroll Sentinel & Auto-update when reaching bottom */}
           <div ref={sentinelRef} className="py-6 flex flex-col items-center justify-center gap-2">
             {isFetchingNextPage ? (
-              <div className="flex items-center gap-2 text-xs text-muted-foreground font-medium animate-pulse">
+              <div className="flex items-center gap-2 text-xs text-muted-foreground font-medium">
                 <Loader2 className="size-4 animate-spin text-primary" />
-                <span>{isRtl ? "جاري تحميل المزيد من الفواتير..." : "Loading more invoices…"}</span>
+                <span>{t("records.loading_more")}</span>
               </div>
             ) : hasNextPage ? (
               <button
@@ -1620,13 +1620,11 @@ export function SalesPage() {
                 onClick={() => void fetchNextPage()}
                 className="flex items-center gap-2 rounded-2xl border border-border/80 bg-surface px-6 py-2.5 text-xs font-bold text-foreground shadow-sm hover:bg-surface-2 transition active:scale-95 cursor-pointer"
               >
-                <span>{isRtl ? "عرض المزيد من الفواتير" : "Load more invoices"}</span>
+                <span>{t("records.load_more")}</span>
               </button>
             ) : rows.length > 0 ? (
               <span className="text-[11px] text-muted-foreground/60 font-medium">
-                {isRtl
-                  ? `تم عرض جميع الفواتير المسجلة (${toSystemDigits(rows.length.toString())})`
-                  : `All registered invoices loaded (${toSystemDigits(rows.length.toString())})`}
+                {t("records.all_loaded").replace("{count}", toSystemDigits(rows.length.toString()))}
               </span>
             ) : null}
           </div>

@@ -8,7 +8,7 @@ $env:Path = "C:\Program Files\nodejs;C:\Users\mousa\AppData\Roaming\npm;" + $env
 $cli = "node_modules\supabase\dist\supabase.js"
 
 Write-Host "== 1. سكيما public نظيفة ==" -ForegroundColor Cyan
-node $cli db query "CREATE SCHEMA IF NOT EXISTS public; GRANT ALL ON SCHEMA public TO postgres; GRANT ALL ON SCHEMA public TO public; GRANT USAGE ON SCHEMA public TO anon, authenticated, service_role; TRUNCATE TABLE supabase_migrations.schema_migrations;" --linked | Out-Null
+node $cli db query "DROP SCHEMA IF EXISTS public CASCADE; CREATE SCHEMA public; GRANT ALL ON SCHEMA public TO postgres; GRANT ALL ON SCHEMA public TO public; GRANT USAGE ON SCHEMA public TO anon, authenticated, service_role; TRUNCATE TABLE supabase_migrations.schema_migrations;" --linked | Out-Null
 if ($LASTEXITCODE -ne 0) { throw "فشل تهيئة السكيما" }
 
 Write-Host "== 2. تطبيق الترحيلات ==" -ForegroundColor Cyan

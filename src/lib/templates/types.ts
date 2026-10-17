@@ -29,6 +29,11 @@ export interface DocumentLine {
   discount?: number;
   tax?: number;
   note?: string;
+  previousQty?: number; // الكمية السابقة قبل التسليم
+  remainingQty?: number; // الكمية المتبقية بعد التسليم
+  previousKg?: number;
+  remainingKg?: number;
+  currentKg?: number;
 }
 
 export interface CompanyDetails {
@@ -61,6 +66,8 @@ export interface CustomFieldOptions {
   showBarcode?: boolean;
   showQrCode?: boolean;
   accentColor?: string; // لون القالب المخصص اختياري
+  paperProfileId?: string;
+  paperSize?: string;
 }
 
 export interface UnifiedDocumentData {

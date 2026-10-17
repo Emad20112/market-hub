@@ -58,6 +58,7 @@ export {
   // print vouchers (05 §بند 8.4)
   buildCustodyVoucher,
   custodyVoucherToDoc,
+  buildCustodyDeliveryDoc,
   buildMillingDocumentUnifiedDoc,
   type CustodyVoucherData,
   // helpers

@@ -21,6 +21,7 @@ import {
   Activity,
 } from "lucide-react";
 import { reportLovableError } from "../lib/lovable-error-reporting";
+import { getCachedCompanyProfile, DEFAULT_COMPANY_PROFILE } from "@/lib/printing/company-profile";
 
 export type ErrorLayer =
   | "database"
@@ -262,10 +263,14 @@ export function VortexSmartError({ error, reset }: { error: any; reset: () => vo
   };
 
   /* رقم الدعم يبقى في الخلفية فقط (زر واتساب) — لا يُعرض على الشاشة أبداً.
-   * المصدر الرسمي: متغير البيئة، مع fallback ثابت للعمل حتى بدونه. */
+   * المصدر الرسمي: Company Profile (footerContact)، ثم متغير البيئة،
+   * ثم fallback ثابت حتى يعمل الزر حتى بدون أي إعداد.
+   * (حوكمة المحور 11.2: ممنوع عرض الأرقام نصاً في أي شاشة — هذا الزر يفتح واتساب فقط). */
   const supportPhone =
     (import.meta as { env?: Record<string, string | undefined> }).env?.VITE_SUPPORT_WHATSAPP ??
-    "+967772217218";
+    (getCachedCompanyProfile().footerContact || DEFAULT_COMPANY_PROFILE.footerContact || "")
+      .split(" · ")[0]
+      .replace(/[^+\\d]/g, "");
 
   const errorSummary =
     `*تقرير فحص فني ذكي - Vortex ERP*

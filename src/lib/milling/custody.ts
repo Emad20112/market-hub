@@ -18,6 +18,7 @@
 
 import { supabase } from "@/integrations/supabase/client";
 import { paymentMethodLabel } from "@/lib/payments/payment-methods";
+import { formatFormalDateTime } from "@/lib/format-preferences";
 import type { UnifiedDocumentData } from "@/lib/templates/types";
 
 /* The generated types do not know the custody schema yet. Widening the global
@@ -36,6 +37,7 @@ export interface ProductOption {
   name_ar: string | null;
   item_class: string;
   sale_price: number;
+  cost_price?: number | null;
   /** سعة العبوة بالكجم إن كان الصنف معبّأً — تُستخدم لاحتساب الوزن تلقائياً. */
   package_weight_kg: number | null;
 }
@@ -122,6 +124,8 @@ export interface MillingServiceDocument {
   warehouses?: { name: string; name_ar: string | null } | null;
   sales_invoices?: {
     invoice_number: string;
+    subtotal?: number;
+    discount?: number;
     total: number;
     paid: number;
     payment_method: string | null;
@@ -208,7 +212,7 @@ export function translateCustodyError(msg: string): string {
 export async function fetchGrainItems(): Promise<ProductOption[]> {
   const { data, error } = await db
     .from("products")
-    .select("id, sku, name, name_ar, item_class, sale_price, package_weight_kg")
+    .select("id, sku, name, name_ar, item_class, sale_price, cost_price, package_weight_kg")
     .eq("item_class", "RAW_MATERIAL")
     .eq("is_active", true)
     .order("name_ar");
@@ -221,7 +225,7 @@ export async function fetchGrainItems(): Promise<ProductOption[]> {
 export async function fetchOutputItems(): Promise<ProductOption[]> {
   const { data, error } = await db
     .from("products")
-    .select("id, sku, name, name_ar, item_class, sale_price, package_weight_kg")
+    .select("id, sku, name, name_ar, item_class, sale_price, cost_price, package_weight_kg")
     .in("item_class", ["FINISHED_GOOD", "BY_PRODUCT"])
     .eq("is_active", true)
     .order("name_ar");
@@ -365,7 +369,7 @@ export async function fetchMillingServiceDocument(
       `id, document_number, customer_id, warehouse_id, sales_invoice_id, status,
        received_at, processed_at, delivered_at,
        customers(name, phone), warehouses(name, name_ar),
-       sales_invoices(invoice_number, total, paid, payment_method, payment_status)`,
+       sales_invoices(invoice_number, subtotal, discount, total, paid, payment_method, payment_status)`,
     )
     .eq("id", documentId)
     .maybeSingle();
@@ -384,7 +388,7 @@ export async function fetchMillingDocuments(options?: {
       `id, document_number, customer_id, warehouse_id, sales_invoice_id, status,
        received_at, processed_at, delivered_at, created_at,
        customers(name, phone), warehouses(name, name_ar),
-       sales_invoices(invoice_number, total, paid, payment_method, payment_status)`,
+       sales_invoices(invoice_number, subtotal, discount, total, paid, payment_method, payment_status)`,
     )
     .order("created_at", { ascending: false })
     .limit(100);
@@ -534,16 +538,18 @@ export function buildMillingDocumentUnifiedDoc(
   details: MillingDocumentDetails,
   stage: "intake" | "milled" | "delivery" = "intake",
 ): UnifiedDocumentData {
-  const inv = details.sales_invoices;
-  const subtotal = Number(inv?.total ?? 0);
+  const inv = details.sales_invoices as any;
+  const subtotal = Number(inv?.subtotal ?? inv?.total ?? 0);
+  const discount = Number(inv?.discount ?? 0);
+  const total = Number(inv?.total ?? Math.max(0, subtotal - discount));
   const paid = Number(inv?.paid ?? 0);
-  const remaining = Math.max(0, subtotal - paid);
+  const remaining = Math.max(0, total - paid);
   const title =
     stage === "delivery"
-      ? "سند تسليم أمانة وفاتورة أجور طحن"
+      ? "سند تسليم أمانة وفاتورة أجور"
       : stage === "milled"
-        ? "فاتورة أجور طحن وسند استلام أمانة (محدّث بالنواتج)"
-        : "فاتورة أجور طحن وسند استلام أمانة";
+        ? "فاتورة أجور وسند استلام أمانة (محدّث بالنواتج)"
+        : "فاتورة أجور وسند استلام أمانة";
 
   const lines: any[] = [];
 
@@ -563,23 +569,36 @@ export function buildMillingDocumentUnifiedDoc(
   // أسطر النواتج إن كانت المرحلة طحن أو تسليم
   if (stage !== "intake" && details.outputsSummary.length > 0) {
     for (const out of details.outputsSummary) {
+      const deliveredBags = out.bagsDelivered || 0;
+      const deliveredKg = out.kgDelivered || 0;
       lines.push({
         product: `ناتج طحن: ${out.nameAr}`,
-        qty: out.bagsProduced > 0 ? out.bagsProduced : out.kgProduced,
+        qty:
+          stage === "delivery" && deliveredBags > 0
+            ? deliveredBags
+            : out.bagsProduced > 0
+              ? out.bagsProduced
+              : out.kgProduced,
         unit: out.bagsProduced > 0 ? "كيس" : "كجم",
+        previousQty: out.bagsProduced,
+        remainingQty: out.bagsRemaining,
+        previousKg: out.kgProduced,
+        remainingKg: out.kgRemaining,
+        currentKg: deliveredKg,
         price: 0,
         total: 0,
-        note: `الوزن المسجل: ${out.kgProduced} كجم | المسلّم: ${out.bagsDelivered} كيس (${out.kgDelivered} كجم) | المتبقي: ${out.bagsRemaining} كيس (${out.kgRemaining} كجم)`,
+        note: `المسجل: ${out.bagsProduced} كيس | المسلّم: ${out.bagsDelivered} كيس | المتبقي: ${out.bagsRemaining} كيس`,
       });
     }
   }
 
   // سطر فاتورة أجور الطحن الرسمية
+  const bagCount = details.intakeGrain?.bagsReceived || 0;
   lines.push({
     product: `أجور طحن وتجهيز (${details.intakeGrain?.nameAr || "حبوب"})`,
-    qty: 1,
-    unit: "خدمة",
-    price: subtotal,
+    qty: bagCount > 0 ? bagCount : 1,
+    unit: bagCount > 0 ? "كيس" : "خدمة",
+    price: bagCount > 0 ? Number((subtotal / bagCount).toFixed(2)) : subtotal,
     total: subtotal,
     note: inv?.invoice_number ? `فاتورة مبيعات رسمية #${inv.invoice_number}` : undefined,
   });
@@ -592,11 +611,11 @@ export function buildMillingDocumentUnifiedDoc(
         : "مستلم — بانتظار الطحن";
 
   return {
-    docType: "mill_document",
+    docType: stage === "delivery" ? "delivery_note" : "mill_document",
     title,
     number: details.document_number,
     relatedRef: inv?.invoice_number ? `فاتورة رسمية #${inv.invoice_number}` : undefined,
-    date: new Date(details.received_at).toLocaleString("ar-EG"),
+    date: formatFormalDateTime(details.received_at).date,
     partyLabel: "صاحب الأمانة / العميل:",
     partyName: details.customers?.name || "عميل أمانة",
     partyPhone: details.customers?.phone || undefined,
@@ -605,13 +624,13 @@ export function buildMillingDocumentUnifiedDoc(
     status: statusLabel,
     lines,
     subtotal,
-    discount: 0,
-    total: subtotal,
+    discount,
+    total,
     paid,
     balance: remaining,
     payment: inv?.payment_method ? paymentMethodLabel(inv.payment_method) : "نقداً",
     notes:
-      "حبوب ونواتج ملك العميل (أمانة عينية خارج مخزون المنشأة). أجور الطحن مثبتة بالفاتورة الرسمية المبينة أعلاه.",
+      "حبوب ونواتج ملك العميل (أمانة عينية خارج مخزون المنشأة). أجور الخدمة مثبتة بالفاتورة الرسمية المبينة أعلاه.",
     options: {
       showFinancialDetails: true,
       showPaymentInfo: true,
@@ -995,33 +1014,111 @@ export async function buildCustodyVoucher(docNumber: string): Promise<CustodyVou
 }
 
 /** يحوّل سند الأمانة إلى UnifiedDocumentData لمحرك الطباعة القياسي. */
-export function custodyVoucherToDoc(v: CustodyVoucherData) {
+export function custodyVoucherToDoc(v: CustodyVoucherData): UnifiedDocumentData {
+  const isDelivery = v.entryType === "DELIVERY";
   const title = VOUCHER_TITLES[v.entryType];
   return {
-    docType: "mill_document" as const,
+    docType: isDelivery ? ("delivery_note" as const) : ("mill_document" as const),
     title,
     number: v.docNumber,
     date: new Date(v.createdAt).toLocaleString("ar-EG"),
-    partyLabel: "صاحب الأمانة:",
+    partyLabel: "صاحب الأمانة / العميل:",
     partyName: v.customerName,
     partyPhone: v.customerPhone ?? undefined,
     warehouse: v.warehouseName,
-    movementType: "أمانة — بلا أثر مخزني أو مالي",
+    movementType: isDelivery ? "تسليم أمانات عينية للعميل" : "أمانة — بلا أثر مخزني أو مالي",
     status: "مسجّل",
-    lines: v.lines.map((l) => ({
+    lines: v.lines.map((l: any) => ({
       product: l.item,
       qty: l.bags > 0 ? l.bags : l.kg,
       unit: l.bags > 0 ? "كيس" : "كجم",
       price: 0,
       total: 0,
-      note: l.bags > 0 && l.kg > 0 ? `${l.kg} كجم` : undefined,
+      note: l.note || (l.bags > 0 && l.kg > 0 ? `${l.kg} كجم` : undefined),
+      previousQty: l.previousBags,
+      remainingQty: l.remainingBags,
+      previousKg: l.previousKg,
+      remainingKg: l.remainingKg,
+      currentKg: l.kg,
     })),
-    notes: v.notes ?? "حبوب/نواتج ملك العميل — أمانة لا ذمة. صفر أثر على مخزون المطحنة.",
+    notes:
+      v.notes ??
+      (isDelivery
+        ? "تم تسليم الأمانات للعميل بحالة ممتازة."
+        : "حبوب/نواتج ملك العميل — أمانة لا ذمة. صفر أثر على مخزون المطحنة."),
     options: {
       showFinancialDetails: false,
       showPaymentInfo: false,
       showBarcode: true,
       showQrCode: true,
+      showSignatures: true,
+    },
+  };
+}
+
+/** بناء سند تسليم أمانات مخصص بالدفعات (الرصيد السابق، المسلّم الآن، المتبقي). */
+export function buildCustodyDeliveryDoc({
+  docNumber,
+  customerName,
+  customerPhone,
+  warehouseName,
+  lines,
+  notes,
+  date,
+}: {
+  docNumber: string;
+  customerName: string;
+  customerPhone?: string | null;
+  warehouseName: string;
+  lines: {
+    itemName: string;
+    previousBags: number;
+    previousKg: number;
+    deliveredBags: number;
+    deliveredKg: number;
+    remainingBags: number;
+    remainingKg: number;
+    unit?: string;
+    note?: string;
+  }[];
+  notes?: string;
+  date?: string;
+}): UnifiedDocumentData {
+  return {
+    docType: "delivery_note",
+    title: "سند تسليم أمانات نواتج طحن",
+    number: docNumber,
+    date: date || new Date().toLocaleString("ar-EG"),
+    partyLabel: "العميل المستلم:",
+    partyName: customerName,
+    partyPhone: customerPhone || undefined,
+    warehouse: warehouseName,
+    movementType: "صرف وتسليم أمانات عينية (دفعات)",
+    status: "تم التسليم",
+    lines: lines.map((l) => ({
+      product: l.itemName,
+      qty: l.deliveredBags > 0 ? l.deliveredBags : l.deliveredKg,
+      unit: l.unit || (l.deliveredBags > 0 ? "كيس" : "كجم"),
+      price: 0,
+      total: 0,
+      previousQty: l.previousBags,
+      remainingQty: l.remainingBags,
+      previousKg: l.previousKg,
+      remainingKg: l.remainingKg,
+      currentKg: l.deliveredKg,
+      note:
+        l.note || (l.deliveredBags > 0 && l.deliveredKg > 0 ? `${l.deliveredKg} كجم` : undefined),
+    })),
+    notes: notes || "تم تسليم الأمانات الموضحة أعلاه للعميل / السائق بموجب إذن الصرف المعتمد.",
+    options: {
+      showFinancialDetails: false,
+      showPaymentInfo: false,
+      showBarcode: true,
+      showQrCode: true,
+      showSignatures: true,
+      showCustomerInfo: true,
+      showCompanyInfo: true,
+      showNotes: true,
     },
   };
 }

@@ -710,10 +710,7 @@ function TransfersPage() {
           {isLoading ? (
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
               {Array.from({ length: 8 }).map((_, i) => (
-                <div
-                  key={i}
-                  className="card-mullak h-44 animate-pulse rounded-2xl bg-surface-2/40"
-                />
+                <div key={i} className="card-mullak h-44 shimmer rounded-2xl bg-surface-2/40" />
               ))}
             </div>
           ) : sortedRows.length === 0 ? (
@@ -816,10 +813,7 @@ function TransfersPage() {
           {isLoading ? (
             <div className="space-y-3">
               {Array.from({ length: 6 }).map((_, i) => (
-                <div
-                  key={i}
-                  className="card-mullak h-20 animate-pulse rounded-2xl bg-surface-2/40"
-                />
+                <div key={i} className="card-mullak h-20 shimmer rounded-2xl bg-surface-2/40" />
               ))}
             </div>
           ) : sortedRows.length === 0 ? (

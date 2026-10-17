@@ -31,6 +31,7 @@ import { setCompanySettingsCache } from "@/lib/format";
 import { checkBackupReminderStatus } from "@/lib/backup/reminder";
 import { useMillingMode, isRouteVisibleByMillingMode } from "@/lib/milling-mode";
 import { useTheme } from "@/lib/theme";
+import { ThemePaletteQuickSwitcher } from "@/components/theme/theme-palette-quick-switcher";
 import { getSidebarSections, type SidebarSection } from "@/lib/navigation";
 import { routeIcon } from "@/lib/navigation/route-icons";
 
@@ -46,12 +47,12 @@ const CATEGORY_STYLES: Record<
   }
 > = {
   command_center: {
-    iconBoxActive: "bg-blue-500/20 text-blue-500 ring-1 ring-blue-500/40",
-    iconBoxInactive: "bg-blue-500/10 text-blue-600 dark:text-blue-400 group-hover:bg-blue-500/20",
-    iconActive: "text-blue-500 stroke-[2.4]",
-    iconInactive: "text-blue-600 dark:text-blue-400 group-hover:scale-110",
-    accentPill: "bg-blue-500",
-    activeBg: "bg-gradient-to-r from-blue-500/15 via-blue-500/5 to-transparent border-blue-500/20",
+    iconBoxActive: "bg-primary/20 text-primary ring-1 ring-primary/40",
+    iconBoxInactive: "bg-primary/10 text-primary group-hover:bg-primary/20",
+    iconActive: "text-primary stroke-[2.4]",
+    iconInactive: "text-primary/75 group-hover:scale-110",
+    accentPill: "bg-primary",
+    activeBg: "bg-gradient-to-r from-primary/15 via-primary/5 to-transparent border-primary/20",
   },
   sales: {
     iconBoxActive: "bg-emerald-500/20 text-emerald-500 ring-1 ring-emerald-500/40",
@@ -209,9 +210,7 @@ const SidebarContents = memo(function SidebarContents({
           <img
             src={logoUrl}
             alt={t("app.name")}
-            className={cn(
-              "size-9 shrink-0 rounded-xl border border-border/60 bg-surface-2/90 p-1 object-contain shadow-md ring-1 ring-white/10",
-            )}
+            className="size-9 shrink-0 object-contain"
             onError={(event) => {
               event.currentTarget.style.visibility = "hidden";
             }}
@@ -310,7 +309,13 @@ const SidebarContents = memo(function SidebarContents({
                       : pathname === entryPath ||
                         (entryPath !== "/dashboard" && pathname.startsWith(`${entryPath}/`));
                   const Icon = routeIcon(it.id);
-                  const title = it.i18nKey ? t(it.i18nKey) : isAr ? it.titleAr : it.titleEn;
+                  const translated = it.i18nKey ? t(it.i18nKey) : undefined;
+                  const title =
+                    translated && translated !== it.i18nKey
+                      ? translated
+                      : isAr
+                        ? it.titleAr
+                        : it.titleEn;
                   const catStyle = CATEGORY_STYLES[sec.category] || CATEGORY_STYLES.command_center;
 
                   return (
@@ -722,6 +727,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               />
             </button>
 
+            {/* زر اختيار ثيم ولون النظام السريع */}
+            <ThemePaletteQuickSwitcher />
+
             {/* زر تبديل الوضع (فاتح / مظلم) */}
             <button
               onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
@@ -783,12 +791,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           {isPosRoute ? (
             <div className="flex-1 min-h-0 flex flex-col p-3 sm:p-5 pb-16">{children}</div>
           ) : (
-            <>
-              <div className="mx-auto w-full max-w-[1400px] px-2 py-3 sm:px-1 sm:py-4 lg:px-1 lg:py-6">
+            <div className="flex min-h-full w-full flex-col">
+              <div className="mx-auto w-full max-w-[1400px] flex-1 px-2 py-3 sm:px-1 sm:py-4 lg:px-1 lg:py-6">
                 {children}
               </div>
               <InamaSoftFooter />
-            </>
+            </div>
           )}
         </main>
       </div>

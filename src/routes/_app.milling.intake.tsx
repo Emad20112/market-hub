@@ -1,15 +1,9 @@
 /**
- * /milling/intake — كاونتر المطحنة الموحد.
+ * /milling/intake — استلام وفواتير (كاونتر المطحنة ونقطة الخدمة الموحدة).
  *
  * العميل + الحبوب + الأكياس + السعة + الوزن التلقائي
- * + أجرة الطحن + الخصم + طريقة الدفع + المدفوع/الآجل
- * = مستند مطحنة واحد + فاتورة مبيعات رسمية حقيقية في نفس المعاملة.
- *
- * يدعم:
- *   1. إنشاء مستند جديد مع فاتورته الرسمية مباشرة.
- *   2. فتح أي مستند قائم لاحقاً عبر ?docId= أو من قائمة متابعة المستندات والبحث.
- *   3. الضبط المحكم للوزن الآلي حسب سعة العبوة الرسمية للصنف.
- * المرجع: docs/milling/07_تدقيق_ما_قبل_التسليم_والفجوات.md
+ * + أجرة الطحن (أكياس × سعر الكيس) + الخصم + طريقة الدفع + المدفوع/الآجل
+ * = مستند أمانة واحد + فاتورة مبيعات رسمية في نفس المعاملة الفورية.
  */
 import { createFileRoute, useSearch, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -24,26 +18,38 @@ import {
   Sparkles,
   ChevronLeft,
   X,
-  Filter,
   UserPlus,
+  Printer,
+  Share2,
+  Check,
+  CreditCard,
+  Banknote,
+  AlertCircle,
+  Phone,
+  Wallet,
+  RefreshCw,
+  ArrowRight,
 } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/page-header";
 import { ModuleGuard } from "@/lib/modules";
 import { CustomerFormDialog } from "@/components/contacts/customer-form-dialog";
+import { LuxuryPrintPreviewModal } from "@/components/luxury-print-preview-modal";
+import { DocumentShareDialog } from "@/components/communication/document-share-dialog";
 import { supabase } from "@/integrations/supabase/client";
 import {
   createMillingServiceDocument,
   fetchGrainItems,
   fetchServiceItem,
   fetchCustodyBalances,
-  fetchMillingDocuments,
   fetchMillingServiceDocument,
+  fetchMillingDocumentDetails,
+  buildMillingDocumentUnifiedDoc,
   capacityKgOf,
-  syncAutoWeightOnItemChange,
   type MillingServiceDocumentCreated,
   type ProductOption,
   type MillingServiceDocument,
+  type MillingDocumentDetails,
 } from "@/lib/milling";
 import { PaymentMethodPicker } from "@/components/ui/payment-method";
 import {
@@ -64,19 +70,24 @@ import {
   MillingEmpty,
   fmtNum,
 } from "@/components/milling/milling-ui";
+import { getCompanyCurrencySymbol } from "@/lib/format";
+import type { UnifiedDocumentData } from "@/lib/templates/types";
 
 export const Route = createFileRoute("/_app/milling/intake")({
   validateSearch: (search: Record<string, unknown>): { docId?: string } => ({
     docId: typeof search.docId === "string" ? search.docId : undefined,
   }),
-  head: () => ({ meta: [{ title: "استقبال وفواتير الطحن — فورتكس ERP" }] }),
+  head: () => ({ meta: [{ title: "استلام وفواتير — فورتكس ERP" }] }),
   component: MillingIntakePage,
 });
 
 interface CustomerOption {
   id: string;
   name: string;
+  phone?: string | null;
+  balance?: number | null;
 }
+
 interface WarehouseOption {
   id: string;
   name_ar: string | null;
@@ -84,39 +95,50 @@ interface WarehouseOption {
   is_default?: boolean;
 }
 
+const PRESET_CAPACITIES = [50, 40, 25, 20, 10];
+
 function MillingIntakePage() {
   const qc = useQueryClient();
   const navigate = useNavigate();
   const { docId: initialDocId } = useSearch({ from: "/_app/milling/intake" });
 
-  const [activeTab, setActiveTab] = useState<"new" | "open_docs">("new");
+  const currencySymbol = useMemo(() => getCompanyCurrencySymbol(), []);
+
+  // الحقول الأساسية — تبدأ فارغة لتفادي إزعاج الـ 0
   const [customerId, setCustomerId] = useState("");
   const [quickCustomerOpen, setQuickCustomerOpen] = useState(false);
   const [warehouseId, setWarehouseId] = useState("");
   const [itemId, setItemId] = useState("");
+  const [capacityKg, setCapacityKg] = useState<string>("50");
   const [bags, setBags] = useState("");
   const [kg, setKg] = useState("");
-  /** هل الوزن الحالي محسوب تلقائياً من (أكياس × سعة الكيس)؟ */
-  const [kgAuto, setKgAuto] = useState(false);
+  const [kgAuto, setKgAuto] = useState(true);
   const [notes, setNotes] = useState("");
+
+  // الفاتورة والمالية
+  const [feePerBag, setFeePerBag] = useState<string>("");
   const [servicePrice, setServicePrice] = useState("");
-  const [discount, setDiscount] = useState("0");
+  const [discount, setDiscount] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("cash");
   const [paid, setPaid] = useState("");
+
+  // المستند والطباعة
   const [createdDocument, setCreatedDocument] = useState<MillingServiceDocumentCreated | null>(
     null,
   );
+  const [activeDetails, setActiveDetails] = useState<MillingDocumentDetails | null>(null);
+  const [printDoc, setPrintDoc] = useState<UnifiedDocumentData | null>(null);
+  const [printModalOpen, setPrintModalOpen] = useState(false);
+  const [shareDialogOpen, setShareDialogOpen] = useState(false);
+  const [showWorkflow, setShowWorkflow] = useState(false);
 
-  // مرشحات قائمة المستندات المفتوحة
-  const [docSearch, setDocSearch] = useState("");
-  const [docStatusFilter, setDocStatusFilter] = useState<string>("ALL");
-
+  // استعلام العملاء مع الهاتف والرصيد
   const customers = useQuery({
     queryKey: ["milling", "customers"],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("customers")
-        .select("id, name")
+        .select("id, name, phone, balance")
         .eq("is_active", true)
         .order("name");
       if (error) throw error;
@@ -124,6 +146,12 @@ function MillingIntakePage() {
     },
   });
 
+  const selectedCustomer = useMemo(
+    () => (customers.data ?? []).find((c) => c.id === customerId),
+    [customers.data, customerId],
+  );
+
+  // استعلام المستودعات
   const warehouses = useQuery({
     queryKey: ["milling", "warehouses"],
     queryFn: async () => {
@@ -137,7 +165,7 @@ function MillingIntakePage() {
     },
   });
 
-  /* المستودع الافتراضي يُحدد تلقائياً — لا يختاره المستخدم كل مرة. */
+  // تحديد المستودع الافتراضي تلقائياً
   useEffect(() => {
     if (warehouseId) return;
     const list = warehouses.data ?? [];
@@ -145,602 +173,906 @@ function MillingIntakePage() {
     if (preferred) setWarehouseId(preferred.id);
   }, [warehouses.data, warehouseId]);
 
+  // استعلام أصناف الحبوب الخام
   const grainItems = useQuery({
     queryKey: ["milling", "grain-items"],
     queryFn: fetchGrainItems,
   });
+
+  // استعلام صنف خدمة أجور الطحن
   const serviceItem = useQuery({
     queryKey: ["milling", "service-item"],
     queryFn: fetchServiceItem,
   });
 
+  // ضبط السعر الافتراضي لطحن الكيس من صنف الخدمة
   useEffect(() => {
-    if (!servicePrice && serviceItem.data)
-      setServicePrice(String(serviceItem.data.sale_price ?? 0));
-  }, [serviceItem.data, servicePrice]);
+    if (!feePerBag && serviceItem.data) {
+      const defaultRate = String(serviceItem.data.sale_price || 1000);
+      setFeePerBag(defaultRate);
+    }
+  }, [serviceItem.data, feePerBag]);
 
+  // رصيد أمانات العميل
   const balances = useQuery({
     queryKey: ["milling", "balances", customerId, warehouseId],
     queryFn: () => fetchCustodyBalances(customerId || undefined, warehouseId || undefined),
     enabled: Boolean(customerId && warehouseId),
   });
 
-  // قائمة المستندات المفتوحة للمتابعة والبحث
-  const openDocumentsQuery = useQuery({
-    queryKey: ["milling", "open-documents", docStatusFilter],
-    queryFn: () => fetchMillingDocuments({ status: docStatusFilter }),
-  });
-
   // فتح مستند تلقائياً إذا كان ممرراً عبر الرابط ?docId=
   const loadedDocQuery = useQuery({
     queryKey: ["milling", "single-doc", initialDocId],
-    queryFn: () => (initialDocId ? fetchMillingServiceDocument(initialDocId) : null),
+    queryFn: () => (initialDocId ? fetchMillingDocumentDetails(initialDocId) : null),
     enabled: Boolean(initialDocId),
   });
 
   useEffect(() => {
     if (loadedDocQuery.data) {
+      const d = loadedDocQuery.data;
       setCreatedDocument({
-        document_id: loadedDocQuery.data.id,
-        document_number: loadedDocQuery.data.document_number,
-        invoice_id: loadedDocQuery.data.sales_invoice_id,
-        invoice_number: loadedDocQuery.data.sales_invoices?.invoice_number || "—",
+        document_id: d.id,
+        document_number: d.document_number,
+        invoice_id: d.sales_invoice_id,
+        invoice_number: d.sales_invoices?.invoice_number || "—",
       });
+      setActiveDetails(d);
+      setPrintDoc(buildMillingDocumentUnifiedDoc(d, "intake"));
     }
   }, [loadedDocQuery.data]);
 
-  /** سعة كيس الصنف المختار — من بيانات الصنف في القاعدة. */
-  const selectedGrainItem = (grainItems.data ?? []).find((g) => g.id === itemId);
-  const bagCapacity = capacityKgOf(selectedGrainItem);
+  // احتساب الإجمالي التلقائي للأكياس والوزن وسعر الخدمة
+  const selectedGrainItem = useMemo(
+    () => (grainItems.data ?? []).find((g) => g.id === itemId),
+    [grainItems.data, itemId],
+  );
 
-  function changeBags(v: string) {
-    setBags(v);
-    const n = Number(v) || 0;
-    if (bagCapacity && (kgAuto || kg === "" || Number(kg) === 0)) {
-      setKg(n > 0 ? String(n * bagCapacity) : "");
-      setKgAuto(n > 0);
+  // عند تغيير صنف الحبوب: ملء سعة الكيس تلقائياً إن وجدت
+  function handleGrainItemChange(newId: string) {
+    setItemId(newId);
+    const item = (grainItems.data ?? []).find((g) => g.id === newId);
+    if (item && item.package_weight_kg && item.package_weight_kg > 0) {
+      const capStr = String(item.package_weight_kg);
+      setCapacityKg(capStr);
+      const bagCount = Number(bags) || 0;
+      if (bagCount > 0 && kgAuto) {
+        setKg(String(bagCount * item.package_weight_kg));
+      }
     }
   }
 
-  function changeKg(v: string) {
+  // اختيار سعة الكيس من الأزرار السريعة
+  function handleSelectCapacity(cap: number) {
+    const capStr = String(cap);
+    setCapacityKg(capStr);
+    const bagCount = Number(bags) || 0;
+    if (bagCount > 0 && (kgAuto || kg === "")) {
+      setKg(String(bagCount * cap));
+      setKgAuto(true);
+    }
+  }
+
+  // عند تغيير عدد الأكياس (المحدد الأساسي)
+  function handleBagsChange(v: string) {
+    setBags(v);
+    const bagCount = Number(v) || 0;
+    const cap = Number(capacityKg) || 0;
+
+    // 1. حساب الوزن الإجمالي تلقائياً
+    if (cap > 0 && (kgAuto || kg === "" || Number(kg) === 0)) {
+      setKg(bagCount > 0 ? String(bagCount * cap) : "");
+      setKgAuto(true);
+    }
+
+    // 2. حساب إجمالي خدمة الطحن تلقائياً (أكياس × سعر الكيس)
+    const rate = Number(feePerBag) || 0;
+    if (rate > 0) {
+      const calculatedSubtotal = bagCount > 0 ? bagCount * rate : rate;
+      setServicePrice(bagCount > 0 ? String(calculatedSubtotal) : "");
+    }
+  }
+
+  // عند تعديل سعر طحن الكيس الواحد
+  function handleFeePerBagChange(v: string) {
+    setFeePerBag(v);
+    const rate = Number(v) || 0;
+    const bagCount = Number(bags) || 0;
+    if (rate > 0) {
+      const calculatedSubtotal = bagCount > 0 ? bagCount * rate : rate;
+      setServicePrice(String(calculatedSubtotal));
+    }
+  }
+
+  // عند تعديل الوزن يدوياً
+  function handleKgChange(v: string) {
     setKg(v);
     setKgAuto(false);
   }
 
-  function handleGrainItemChange(newId: string) {
-    setItemId(newId);
-    const nextItem = (grainItems.data ?? []).find((g) => g.id === newId);
-    const synced = syncAutoWeightOnItemChange(nextItem, bags, kgAuto, kg);
-    setKg(synced.kg);
-    setKgAuto(synced.isAuto);
+  // الحسابات المالية اللحظية (نمط الكاشير POS)
+  const bagCount = Number(bags) || 0;
+  const currentSubtotal = useMemo(() => {
+    if (servicePrice !== "") return Number(servicePrice) || 0;
+    const rate = Number(feePerBag) || 0;
+    return bagCount > 0 ? bagCount * rate : rate;
+  }, [servicePrice, feePerBag, bagCount]);
+
+  const currentDiscount = Number(discount) || 0;
+  const grandTotal = Math.max(0, currentSubtotal - currentDiscount);
+
+  const isCredit = paymentMethod === "credit";
+  const currentPaid = isCredit ? 0 : Number(paid) || 0;
+  const remainingDue = Math.max(0, grandTotal - currentPaid);
+
+  // مساعدة سريعة لتسديد كامل المبلغ أو جعله آجلاً
+  function handlePayFull() {
+    setPaid(String(grandTotal));
+    if (paymentMethod === "credit") setPaymentMethod("cash");
   }
 
-  const submit = useMutation({
-    mutationFn: () =>
-      createMillingServiceDocument({
-        customerId,
-        warehouseId,
-        grainItemId: itemId,
-        bags: Number(bags) || 0,
-        kg: Number(kg) || 0,
-        serviceItemId: serviceItem.data?.id ?? "",
-        serviceUnitPrice: Number(servicePrice) || 0,
-        discount: Number(discount) || 0,
-        paymentMethod: toLegacyPaymentValue(paymentMethod),
-        paid: paymentMethod === "credit" ? 0 : Number(paid) || 0,
-        notes: notes || undefined,
-      }),
-    onSuccess: (res) => {
-      if (!res.ok) {
-        toast.error(res.message || "تعذر تسجيل الاستلام.");
-        return;
-      }
-      setCreatedDocument(res.data ?? null);
-      toast.success("تم إنشاء مستند الطحن وفاتورة المبيعات الرسمية بنجاح.");
-      setItemId("");
-      setBags("");
-      setKg("");
-      setKgAuto(false);
-      setNotes("");
-      setPaid("");
-      void qc.invalidateQueries({ queryKey: ["milling"] });
-    },
-    onError: (err) => toast.error(err instanceof Error ? err.message : "خطأ غير متوقع"),
-  });
+  function handleSetFullCredit() {
+    setPaymentMethod("credit");
+    setPaid("");
+  }
+
+  const isOverpaid = !isCredit && currentPaid > grandTotal;
 
   const canSubmit = Boolean(
     customerId &&
     warehouseId &&
     itemId &&
     Boolean(serviceItem.data?.id) &&
-    (Number(bags) > 0 || Number(kg) > 0),
+    (bagCount > 0 || Number(kg) > 0) &&
+    !isOverpaid,
   );
 
-  const filteredOpenDocs = useMemo(() => {
-    let list = openDocumentsQuery.data ?? [];
-    if (docSearch.trim()) {
-      const q = docSearch.trim().toLowerCase();
-      list = list.filter(
-        (d) =>
-          (d.document_number || "").toLowerCase().includes(q) ||
-          (d.customers?.name || "").toLowerCase().includes(q) ||
-          (d.sales_invoices?.invoice_number || "").toLowerCase().includes(q),
-      );
-    }
-    return list;
-  }, [openDocumentsQuery.data, docSearch]);
+  const submit = useMutation({
+    mutationFn: async () =>
+      createMillingServiceDocument({
+        customerId,
+        warehouseId,
+        grainItemId: itemId,
+        bags: bagCount,
+        kg: Number(kg) || 0,
+        serviceItemId: serviceItem.data?.id ?? "",
+        serviceUnitPrice: currentSubtotal,
+        discount: currentDiscount,
+        paymentMethod: toLegacyPaymentValue(paymentMethod),
+        paid: isCredit ? 0 : Number(paid) || 0,
+        notes: notes.trim() || undefined,
+      }),
+    onSuccess: async (res) => {
+      if (!res.ok) {
+        toast.error(res.message || "تعذر تسجيل الاستلام.");
+        return;
+      }
+      const created = res.data ?? null;
+      setCreatedDocument(created);
+      toast.success("تم تسجيل الاستلام وإصدار الفاتورة الرسمية بنجاح.");
 
-  const openDocument = (doc: MillingServiceDocument) => {
-    setCreatedDocument({
-      document_id: doc.id,
-      document_number: doc.document_number,
-      invoice_id: doc.sales_invoice_id,
-      invoice_number: doc.sales_invoices?.invoice_number || "—",
-    });
-    // Scroll to workflow
-    window.scrollTo({ top: 400, behavior: "smooth" });
-  };
+      // تحميل التفاصيل فوراً لتجهيز الفاتورة الفاخرة للطباعة والمشاركة
+      if (created?.document_id) {
+        try {
+          const details = await fetchMillingDocumentDetails(created.document_id);
+          if (details) {
+            setActiveDetails(details);
+            const uDoc = buildMillingDocumentUnifiedDoc(details, "intake");
+            setPrintDoc(uDoc);
+            // فتح نافذة المعاينة والطباعة الفاخرة تلقائياً للسرعة
+            setPrintModalOpen(true);
+          }
+        } catch (e) {
+          console.error("Failed to load details for printing:", e);
+        }
+      }
+
+      // تفريغ حقول العملية لتجهيز الاستلام التالي
+      setItemId("");
+      setBags("");
+      setKg("");
+      setKgAuto(true);
+      setNotes("");
+      setPaid("");
+      setDiscount("");
+      setServicePrice("");
+
+      void qc.invalidateQueries({ queryKey: ["milling"] });
+    },
+    onError: (err) => toast.error(err instanceof Error ? err.message : "خطأ غير متوقع"),
+  });
+
+  // إعادة ضبط الكاونتر لاستلام جديد
+  function handleResetCounter() {
+    setCreatedDocument(null);
+    setActiveDetails(null);
+    setPrintDoc(null);
+    setShowWorkflow(false);
+    setItemId("");
+    setBags("");
+    setKg("");
+    setKgAuto(true);
+    setNotes("");
+    setPaid("");
+    setDiscount("");
+    setServicePrice("");
+  }
 
   return (
     <ModuleGuard moduleId="milling_operations">
       <div className="mx-auto max-w-7xl space-y-4 p-4">
+        {/* شريط العنوان الرسمي */}
         <PageHeader
-          title="استقبال وفواتير الطحن"
-          subtitle="إصدار فاتورة أجور الطحن الرسمية واستلام أمانة العميل ومتابعة الطحن والتسليم في معاملة واحدة."
+          title="استلام وفواتير"
+          subtitle="تسجيل استلام حبوب العميل وإصدار فاتورة أجور الطحن الرسمية في معاملة واحدة سريعة وموحدة."
         />
 
-        {/* التبويبات العلوية: إنشاء مستند جديد / المستندات المفتوحة */}
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/80 pb-3">
-          <div className="flex rounded-xl bg-muted p-1 border border-border">
-            <button
-              type="button"
-              onClick={() => setActiveTab("new")}
-              className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                activeTab === "new" ? "bg-amber-500 text-white shadow-xs" : "text-muted-foreground"
-              }`}
-            >
-              <Scale className="me-1.5 inline h-3.5 w-3.5" /> استلام جديد وفاتورة طحن
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveTab("open_docs")}
-              className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                activeTab === "open_docs"
-                  ? "bg-amber-500 text-white shadow-xs"
-                  : "text-muted-foreground"
-              }`}
-            >
-              <FileText className="me-1.5 inline h-3.5 w-3.5" /> المستندات المفتوحة والبحث
-              {(openDocumentsQuery.data ?? []).length > 0 && (
-                <span className="ms-1.5 rounded-full bg-white/20 px-1.5 py-0.2 text-[10px]">
-                  {(openDocumentsQuery.data ?? []).length}
-                </span>
-              )}
-            </button>
-          </div>
+        {/* شريط الإشعار بالعملية النشطة بعد الحفظ أو الفتح */}
+        {createdDocument && (
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-4 shadow-sm">
+            <div className="flex items-center gap-3">
+              <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-emerald-500 text-white shadow-xs">
+                <CheckCircle2 className="h-5 w-5" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-sm font-bold text-foreground">
+                    تم إنشاء المستند وفاتورة الخدمة بنجاح
+                  </h3>
+                  <span className="rounded-md bg-emerald-600/20 px-2 py-0.5 text-[11px] font-bold text-emerald-700 dark:text-emerald-300">
+                    رسمي
+                  </span>
+                </div>
+                <div className="mt-0.5 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+                  <span>
+                    مستند الأمانة:{" "}
+                    <Mono className="font-bold text-foreground">
+                      {createdDocument.document_number}
+                    </Mono>
+                  </span>
+                  <span>•</span>
+                  <span>
+                    الفاتورة الرسمية:{" "}
+                    <Mono className="font-bold text-foreground">
+                      #{createdDocument.invoice_number}
+                    </Mono>
+                  </span>
+                </div>
+              </div>
+            </div>
 
-          {createdDocument && (
-            <div className="flex items-center gap-2 rounded-xl bg-primary/10 border border-primary/20 px-3 py-1.5 text-xs">
-              <span className="font-bold text-primary">المستند النشط:</span>
-              <Mono className="font-bold text-foreground">{createdDocument.document_number}</Mono>
+            <div className="flex flex-wrap items-center gap-2">
               <button
                 type="button"
-                onClick={() => setCreatedDocument(null)}
-                className="text-muted-foreground hover:text-foreground text-[11px] ms-1"
-                title="إغلاق المستند النشط"
+                onClick={() => setPrintModalOpen(true)}
+                className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-3.5 py-2 text-xs font-bold text-primary-foreground shadow-xs transition hover:bg-primary/90"
               >
-                <X className="h-3.5 w-3.5" />
+                <Printer className="h-4 w-4" />
+                معاينة وطباعة الفاتورة الفاخرة
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setShareDialogOpen(true)}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-card px-3 py-2 text-xs font-bold text-foreground shadow-xs transition hover:bg-muted"
+              >
+                <Share2 className="h-4 w-4 text-emerald-600" />
+                مشاركة واتساب
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setShowWorkflow(!showWorkflow)}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-card px-3 py-2 text-xs font-bold text-foreground shadow-xs transition hover:bg-muted"
+              >
+                <Clock className="h-4 w-4 text-amber-500" />
+                {showWorkflow ? "إخفاء مسار الطحن" : "متابعة الطحن والتسليم"}
+              </button>
+
+              <button
+                type="button"
+                onClick={handleResetCounter}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-border/80 bg-muted/60 px-3 py-2 text-xs font-semibold text-muted-foreground transition hover:bg-muted hover:text-foreground"
+                title="تفريغ الكاونتر وبدء استلام جديد"
+              >
+                <RefreshCw className="h-3.5 w-3.5" />
+                استلام جديد
               </button>
             </div>
-          )}
-        </div>
+          </div>
+        )}
 
-        {/* تبويب: مستند جديد (الاستلام والفاتورة) */}
-        {activeTab === "new" && (
-          <div className="grid gap-4 lg:grid-cols-5">
-            {/* النموذج */}
-            <MillingPanel className="lg:col-span-3">
-              <MillingSectionTitle
-                icon={<Scale className="h-4 w-4" />}
-                title="استلام وفاتورة أجور طحن"
-                subtitle="سجل الأمانة العينية والفاتورة الرسمية ينشآن معاً، بلا شاشات متعددة أو ربط يدوي."
-              />
-              <div className="space-y-4 p-4">
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <MillingField label="صاحب الأمانة / العميل *">
-                    <div className="flex items-center gap-1.5">
-                      <MillingSelect
-                        value={customerId}
-                        onChange={(e) => setCustomerId(e.target.value)}
-                        className="flex-1"
-                      >
-                        <option value="">اختر العميل…</option>
-                        {(customers.data ?? []).map((c) => (
-                          <option key={c.id} value={c.id}>
-                            {c.name}
-                          </option>
-                        ))}
-                      </MillingSelect>
-                      <button
-                        type="button"
-                        onClick={() => setQuickCustomerOpen(true)}
-                        className="inline-flex shrink-0 items-center gap-1 rounded-xl border border-primary/30 bg-primary/10 px-2.5 py-2 text-xs font-bold text-primary shadow-xs transition hover:bg-primary/20"
-                        title="إضافة عميل جديد سريعاً دون مغادرة الكاونتر"
-                      >
-                        <UserPlus className="h-3.5 w-3.5" />
-                        <span className="hidden sm:inline">جديد</span>
-                      </button>
-                    </div>
-                  </MillingField>
-                  <MillingField
-                    label="المخزن *"
-                    hint="المستودع الافتراضي مُحدد تلقائياً — غيّره عند الحاجة فقط."
-                  >
+        {/* مسار الطحن والتسليم التكميلي عند الطلب */}
+        {createdDocument && showWorkflow && (
+          <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
+            <MillingDocumentWorkflow
+              document={createdDocument}
+              onClose={() => setShowWorkflow(false)}
+            />
+          </div>
+        )}
+
+        {/* الكاونتر الرئيسي: شبكة استلام وحبوب (يمين) + سلة فواتير ودفع كاشير (يسار) */}
+        <div className="grid gap-4 lg:grid-cols-12">
+          {/* الجانب الأيمن: بيانات الاستلام وحبوب العميل (7 أعمدة) */}
+          <MillingPanel className="lg:col-span-7">
+            <MillingSectionTitle
+              icon={<Scale className="h-4 w-4" />}
+              title="بيانات استلام حبوب العميل"
+              subtitle="تسجيل الأمانة العينية بدقة الأكياس والسعة والوزن التلقائي."
+            />
+
+            <div className="space-y-4 p-4">
+              {/* العميل والمستودع */}
+              <div className="grid gap-3 sm:grid-cols-2">
+                <MillingField label="صاحب الأمانة / العميل *">
+                  <div className="flex items-center gap-1.5">
                     <MillingSelect
-                      value={warehouseId}
-                      onChange={(e) => setWarehouseId(e.target.value)}
+                      value={customerId}
+                      onChange={(e) => setCustomerId(e.target.value)}
+                      className="flex-1 font-medium"
                     >
-                      <option value="">اختر المخزن…</option>
-                      {(warehouses.data ?? []).map((w) => (
-                        <option key={w.id} value={w.id}>
-                          {w.name_ar || w.name}
+                      <option value="">اختر العميل…</option>
+                      {(customers.data ?? []).map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.name} {c.phone ? `(${c.phone})` : ""}
                         </option>
                       ))}
                     </MillingSelect>
-                  </MillingField>
-                </div>
+                    <button
+                      type="button"
+                      onClick={() => setQuickCustomerOpen(true)}
+                      className="inline-flex shrink-0 items-center gap-1 rounded-xl border border-primary/30 bg-primary/10 px-3 py-2 text-xs font-bold text-primary shadow-xs transition hover:bg-primary/20"
+                      title="إضافة عميل جديد سريعاً دون مغادرة الكاونتر"
+                    >
+                      <UserPlus className="h-3.5 w-3.5" />
+                      <span>جديد</span>
+                    </button>
+                  </div>
+                </MillingField>
 
                 <MillingField
-                  label="صنف الحبوب المستلمة *"
-                  hint="من أصناف المواد الخام المسجلة — تُحدد سعة الكيس منها تلقائياً."
+                  label="المستودع *"
+                  hint="المستودع الافتراضي محدد تلقائياً — بدّله عند الحاجة."
                 >
                   <MillingSelect
-                    value={itemId}
-                    onChange={(e) => handleGrainItemChange(e.target.value)}
+                    value={warehouseId}
+                    onChange={(e) => setWarehouseId(e.target.value)}
                   >
-                    <option value="">اختر الصنف…</option>
-                    {(grainItems.data ?? []).map((g: ProductOption) => (
-                      <option key={g.id} value={g.id}>
-                        {g.name_ar || g.name}
-                        {g.package_weight_kg ? ` (${g.package_weight_kg} كجم)` : ""}
+                    <option value="">اختر المستودع…</option>
+                    {(warehouses.data ?? []).map((w) => (
+                      <option key={w.id} value={w.id}>
+                        {w.name_ar || w.name} {w.is_default ? "(الافتراضي)" : ""}
                       </option>
                     ))}
                   </MillingSelect>
                 </MillingField>
+              </div>
 
-                {/* قسم الفاتورة الرسمية المدمجة في نفس المعاملة */}
-                <div className="rounded-xl border border-amber-500/25 bg-amber-500/5 p-3.5 space-y-3">
-                  <div className="flex items-center justify-between text-xs font-bold text-foreground">
-                    <div className="flex items-center gap-2">
-                      <ReceiptText className="h-4 w-4 text-amber-600" /> فاتورة أجور الطحن الرسمية
-                    </div>
-                    <span className="text-[11px] font-normal text-muted-foreground">
-                      فاتورة مبيعات حقيقية برقم رسمي
+              {/* بطاقة معلومات العميل المختار (هاتف ورصيد حالي) */}
+              {selectedCustomer && (
+                <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border/80 bg-surface-2/60 px-3.5 py-2 text-xs">
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-foreground">{selectedCustomer.name}</span>
+                    {selectedCustomer.phone && (
+                      <span className="flex items-center gap-1 text-muted-foreground">
+                        <Phone className="h-3 w-3 text-muted-foreground" />
+                        <Mono className="[direction:ltr]">{selectedCustomer.phone}</Mono>
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-muted-foreground">رصيد الحساب المالي:</span>
+                    <span
+                      className={`font-bold tabular-nums ${
+                        Number(selectedCustomer.balance ?? 0) > 0
+                          ? "text-rose-600 dark:text-rose-400"
+                          : "text-emerald-600 dark:text-emerald-400"
+                      }`}
+                    >
+                      {fmtNum(Math.abs(Number(selectedCustomer.balance ?? 0)))} {currencySymbol}
+                      {Number(selectedCustomer.balance ?? 0) > 0 ? " (عليه)" : " (له/خالص)"}
                     </span>
                   </div>
-                  {serviceItem.data ? (
-                    <div className="space-y-3">
-                      <p className="text-[11px] text-muted-foreground">
-                        بند الخدمة:{" "}
-                        <strong className="text-foreground">
-                          {serviceItem.data.name_ar || serviceItem.data.name}
-                        </strong>
-                      </p>
-                      <div className="grid gap-3 sm:grid-cols-3">
-                        <MillingField label="سعر الخدمة">
-                          <MillingInput
-                            type="number"
-                            min={0}
-                            step="0.01"
-                            value={servicePrice}
-                            onChange={(e) => setServicePrice(e.target.value)}
-                          />
-                        </MillingField>
-                        <MillingField label="الخصم">
-                          <MillingInput
-                            type="number"
-                            min={0}
-                            step="0.01"
-                            value={discount}
-                            onChange={(e) => setDiscount(e.target.value)}
-                          />
-                        </MillingField>
-                        <MillingField label="المدفوع نقداً/شبكة">
-                          <MillingInput
-                            type="number"
-                            min={0}
-                            step="0.01"
-                            disabled={paymentMethod === "credit"}
-                            value={paymentMethod === "credit" ? "0" : paid}
-                            onChange={(e) => setPaid(e.target.value)}
-                          />
-                        </MillingField>
-                      </div>
-                      <MillingField label="طريقة الدفع">
-                        <PaymentMethodPicker
-                          context="sales"
-                          value={paymentMethod}
-                          onChange={(method) => {
-                            setPaymentMethod(method);
-                            if (getPaymentMethodDefinition(method)?.isCreditTerm) setPaid("0");
-                          }}
-                          ensureIds={[paymentMethod]}
-                          ariaLabel="طريقة دفع فاتورة الطحن"
-                        />
-                      </MillingField>
-                      <div className="flex items-center justify-between border-t border-amber-500/20 pt-2 text-xs font-semibold">
-                        <span className="text-muted-foreground">إجمالي الفاتورة:</span>
-                        <span className="text-foreground font-bold text-sm">
-                          {fmtNum(
-                            Math.max(0, (Number(servicePrice) || 0) - (Number(discount) || 0)),
-                          )}
-                        </span>
-                      </div>
-                    </div>
-                  ) : (
-                    <p className="text-xs text-rose-600">
-                      يلزم تعريف صنف خدمة نشط لأجور الطحن قبل إنشاء الفاتورة.
-                    </p>
-                  )}
                 </div>
+              )}
 
-                {/* الأكياس والوزن مع الحساب التلقائي المحكم */}
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <MillingField label="عدد الأكياس">
+              {/* نوع الحبوب المستلمة */}
+              <MillingField
+                label="نوع الحبوب المستلمة *"
+                hint="قائمة الحبوب الخام المعرفة في النظام — تُملأ سعة العبوة تلقائياً إن وجدت."
+              >
+                <MillingSelect
+                  value={itemId}
+                  onChange={(e) => handleGrainItemChange(e.target.value)}
+                  className="font-medium"
+                >
+                  <option value="">اختر نوع الحبوب…</option>
+                  {(grainItems.data ?? []).map((g: ProductOption) => (
+                    <option key={g.id} value={g.id}>
+                      {g.name_ar || g.name}
+                      {g.package_weight_kg ? ` — سعة كيس ${g.package_weight_kg} كجم` : ""}
+                    </option>
+                  ))}
+                </MillingSelect>
+              </MillingField>
+
+              {/* سعة الكيس (الوحدات المتاحة للاختيار السريع + مخصص) */}
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-semibold text-muted-foreground">
+                    سعة الكيس / العبوة (كجم)
+                  </label>
+                  <span className="text-[11px] text-muted-foreground">
+                    اختر السعة المتوفرة أو أدخل سعة مخصصة
+                  </span>
+                </div>
+                <div className="flex flex-wrap items-center gap-1.5">
+                  {PRESET_CAPACITIES.map((cap) => {
+                    const isSelected = Number(capacityKg) === cap;
+                    return (
+                      <button
+                        key={cap}
+                        type="button"
+                        onClick={() => handleSelectCapacity(cap)}
+                        className={`rounded-xl px-3 py-1.5 text-xs font-bold transition ${
+                          isSelected
+                            ? "bg-amber-500 text-white shadow-xs"
+                            : "border border-border bg-surface-2 text-foreground hover:bg-muted"
+                        }`}
+                      >
+                        {cap} كجم
+                      </button>
+                    );
+                  })}
+                  <div className="relative ms-auto w-28">
                     <MillingInput
                       type="number"
-                      min={0}
-                      inputMode="numeric"
-                      placeholder="0"
-                      value={bags}
-                      onChange={(e) => changeBags(e.target.value)}
+                      min={1}
+                      step="0.5"
+                      placeholder="سعة مخصصة"
+                      value={capacityKg}
+                      onChange={(e) => {
+                        setCapacityKg(e.target.value);
+                        const n = Number(e.target.value) || 0;
+                        const b = Number(bags) || 0;
+                        if (n > 0 && b > 0 && kgAuto) {
+                          setKg(String(b * n));
+                        }
+                      }}
+                      className="text-center font-bold"
                     />
-                  </MillingField>
-                  <MillingField
-                    label="الوزن الإجمالي (كجم)"
-                    hint={
-                      bagCapacity
-                        ? `سعة العبوة ${bagCapacity} كجم — يحسب تلقائياً وقابل للتعديل`
-                        : "الصنف غير معبّأ بسعة معرّفة — أدخل الوزن يدوياً"
-                    }
-                  >
-                    <div className="space-y-1">
-                      <MillingInput
-                        type="number"
-                        min={0}
-                        step="0.001"
-                        inputMode="decimal"
-                        placeholder="0"
-                        value={kg}
-                        onChange={(e) => changeKg(e.target.value)}
-                      />
-                      {kgAuto && bagCapacity && Number(bags) > 0 && (
-                        <div className="flex items-center gap-1 text-[11px] font-medium text-emerald-600 dark:text-emerald-400">
-                          <CheckCircle2 className="h-3 w-3" />
-                          محسوب تلقائياً: {bags} كيس × {bagCapacity} كجم = {kg} كجم
-                        </div>
-                      )}
-                    </div>
-                  </MillingField>
+                    <span className="pointer-events-none absolute start-2 top-2.5 text-[11px] text-muted-foreground">
+                      كجم
+                    </span>
+                  </div>
                 </div>
+              </div>
 
+              {/* عدد الأكياس والوزن الإجمالي */}
+              <div className="grid gap-3 sm:grid-cols-2">
                 <MillingField
-                  label="ملاحظات الاستلام"
-                  hint="اختيارية — رقم القاطبة، اسم السائق، رقم الإشعار اليدوي."
+                  label="عدد الأكياس *"
+                  hint="المحدد الأساسي لعمليات الاستلام وأجور الطحن"
                 >
-                  <MillingTextarea
-                    value={notes}
-                    onChange={(e) => setNotes(e.target.value)}
-                    placeholder="مثال: قاطبة 1234 — تفريغ صباحاً"
+                  <MillingInput
+                    type="number"
+                    min={0}
+                    inputMode="numeric"
+                    placeholder="0"
+                    value={bags}
+                    onChange={(e) => handleBagsChange(e.target.value)}
+                    className="text-lg font-black text-primary"
                   />
                 </MillingField>
 
-                <button
-                  type="button"
-                  disabled={!canSubmit || submit.isPending}
-                  onClick={() => submit.mutate()}
-                  className="w-full rounded-xl bg-amber-500 px-4 py-3 text-sm font-bold text-white shadow-xs transition hover:bg-amber-600 disabled:cursor-not-allowed disabled:opacity-50"
+                <MillingField
+                  label="الوزن الإجمالي (كجم)"
+                  hint={
+                    Number(capacityKg) > 0
+                      ? `محسوب آلياً (${capacityKg} كجم/كيس) — وقابل للتعديل حسب الميزان`
+                      : "أدخل الوزن الإجمالي بالكيلوجرام"
+                  }
                 >
-                  {submit.isPending
-                    ? "جارٍ تسجيل الاستلام والفاتورة…"
-                    : "تسجيل الاستلام وإصدار فاتورة الأجور"}
-                </button>
+                  <div className="space-y-1">
+                    <MillingInput
+                      type="number"
+                      min={0}
+                      step="0.01"
+                      inputMode="decimal"
+                      placeholder="0.00"
+                      value={kg}
+                      onChange={(e) => handleKgChange(e.target.value)}
+                      className="font-bold"
+                    />
+                    {kgAuto && Number(bags) > 0 && Number(capacityKg) > 0 && (
+                      <div className="flex items-center gap-1 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
+                        <CheckCircle2 className="h-3 w-3 shrink-0" />
+                        محسوب تلقائياً: {bags} كيس × {capacityKg} كجم = {fmtNum(Number(kg))} كجم
+                      </div>
+                    )}
+                  </div>
+                </MillingField>
               </div>
-            </MillingPanel>
 
-            {/* رصيد العميل الحالي */}
-            <MillingPanel className="lg:col-span-2">
-              <MillingSectionTitle
-                title="رصيد أمانات العميل"
-                subtitle="مشتق دائماً من السجل — لا رصيد مخزَّن"
-              />
-              <div className="space-y-3 p-4">
-                {!customerId || !warehouseId ? (
-                  <MillingEmpty title="اختر العميل والمخزن لعرض رصيده العيني" />
-                ) : (balances.data ?? []).filter((b) => b.bags_balance > 0 || b.kg_balance > 0)
+              {/* ملاحظات الاستلام */}
+              <MillingField
+                label="ملاحظات الاستلام"
+                hint="اختيارية — رقم الشاحنة/القاطبة، اسم السائق، أو أي تفاصيل خاصة بالدفعة."
+              >
+                <MillingInput
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  placeholder="مثال: شاحنة نقل رقم 4589 — تفريغ مستعجل"
+                />
+              </MillingField>
+
+              {/* رصيد أمانات العميل المتبقي في هذا المخزن */}
+              {customerId && warehouseId && (
+                <div className="rounded-xl border border-border/80 bg-muted/30 p-3 space-y-2">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="font-bold text-foreground">
+                      رصيد أمانات العميل الحالي في هذا المستودع:
+                    </span>
+                    <span className="text-[11px] text-muted-foreground">مشتق من حركات السجل</span>
+                  </div>
+                  {(balances.data ?? []).filter((b) => b.bags_balance > 0 || b.kg_balance > 0)
                     .length === 0 ? (
-                  <MillingEmpty title="لا يوجد رصيد حالياً" hint="أول استلام سيظهر هنا فوراً." />
-                ) : (
-                  (balances.data ?? [])
-                    .filter((b) => b.bags_balance > 0 || b.kg_balance > 0)
-                    .map((b) => (
-                      <div
-                        key={b.item_id}
-                        className="flex items-center justify-between rounded-xl border border-border/70 bg-surface-2/40 px-3 py-2"
-                      >
-                        <span className="text-xs font-bold text-foreground">{b.name_ar}</span>
-                        <span className="flex items-center gap-2">
-                          {b.bags_balance > 0 && <Mono>{fmtNum(b.bags_balance)} كيس</Mono>}
-                          {b.kg_balance > 0 && <Mono>{fmtNum(b.kg_balance)} كجم</Mono>}
+                    <p className="text-xs text-muted-foreground italic">
+                      لا يوجد رصيد أمانات سابق للعميل حالياً (أول استلام).
+                    </p>
+                  ) : (
+                    <div className="flex flex-wrap gap-2">
+                      {(balances.data ?? [])
+                        .filter((b) => b.bags_balance > 0 || b.kg_balance > 0)
+                        .map((b) => (
+                          <div
+                            key={b.item_id}
+                            className="inline-flex items-center gap-2 rounded-lg border border-border bg-card px-2.5 py-1 text-xs"
+                          >
+                            <span className="font-semibold text-foreground">{b.name_ar}:</span>
+                            <span className="font-bold text-primary">
+                              {fmtNum(b.bags_balance)} كيس
+                            </span>
+                            <span className="text-muted-foreground">
+                              ({fmtNum(b.kg_balance)} كجم)
+                            </span>
+                          </div>
+                        ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </MillingPanel>
+
+          {/* الجانب الأيسر: سلة الفاتورة والدفع بنمط الكاشير POS (5 أعمدة) */}
+          <MillingPanel className="lg:col-span-5 flex flex-col justify-between">
+            <div>
+              <MillingSectionTitle
+                icon={<ReceiptText className="h-4 w-4" />}
+                title="فاتورة أجور الخدمة"
+                subtitle="فاتورة مبيعات رسمية تُصدر وتُرحل آلياً مع المعاملة."
+                action={
+                  <span className="rounded-full bg-amber-500/10 px-2.5 py-1 text-[11px] font-bold text-amber-700 dark:text-amber-300">
+                    كاونتر فوري
+                  </span>
+                }
+              />
+
+              <div className="space-y-4 p-4">
+                {/* بند الخدمة وحساب سعر الكيس */}
+                <div className="rounded-2xl border border-amber-500/25 bg-amber-500/5 p-3.5 space-y-3">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-muted-foreground">بند الخدمة المعتمد:</span>
+                    <span className="font-bold text-foreground">
+                      {serviceItem.data?.name_ar || serviceItem.data?.name || "أجور طحن وتجهيز"}
+                    </span>
+                  </div>
+
+                  {/* احتساب أجر الكيس × عدد الأكياس */}
+                  <div className="grid gap-2.5 sm:grid-cols-2">
+                    <MillingField label="أجر طحن الكيس الواحد" hint="سعر خدمة طحن الكيس الواحد">
+                      <div className="relative">
+                        <MillingInput
+                          type="number"
+                          min={0}
+                          step="1"
+                          placeholder="1000"
+                          value={feePerBag}
+                          onChange={(e) => handleFeePerBagChange(e.target.value)}
+                          className="font-bold pe-12"
+                        />
+                        <span className="pointer-events-none absolute end-2.5 top-2.5 text-[11px] text-muted-foreground">
+                          {currencySymbol}
                         </span>
                       </div>
-                    ))
-                )}
-                {customerId && (
-                  <div className="flex items-center gap-1.5 rounded-xl bg-emerald-500/10 px-3 py-2 text-[11px] font-semibold text-emerald-700 dark:text-emerald-300">
-                    <CheckCircle2 className="h-3.5 w-3.5" />
-                    الرصيد يُعاد حسابه من السجل بعد كل حركة أمانة.
-                  </div>
-                )}
-              </div>
-            </MillingPanel>
-          </div>
-        )}
+                    </MillingField>
 
-        {/* تبويب: قائمة المستندات المفتوحة والبحث */}
-        {activeTab === "open_docs" && (
-          <div className="space-y-4">
-            <MillingPanel>
-              <div className="p-4 border-b border-border/70 flex flex-wrap items-center justify-between gap-3">
-                <div className="flex flex-wrap items-center gap-2">
-                  <div className="relative w-full sm:w-72">
-                    <Search className="absolute start-3 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
-                    <MillingInput
-                      value={docSearch}
-                      onChange={(e) => setDocSearch(e.target.value)}
-                      placeholder="بحث بالعميل، رقم المستند، الفاتورة…"
-                      className="ps-8 text-xs"
-                    />
+                    <MillingField
+                      label="إجمالي أجور الخدمة"
+                      hint={
+                        bagCount > 0
+                          ? `${bagCount} كيس × ${feePerBag || 0} = ${fmtNum(currentSubtotal)}`
+                          : "المبلغ الإجمالي للخدمة"
+                      }
+                    >
+                      <div className="relative">
+                        <MillingInput
+                          type="number"
+                          min={0}
+                          step="1"
+                          placeholder="0.00"
+                          value={servicePrice}
+                          onChange={(e) => setServicePrice(e.target.value)}
+                          className="font-black text-amber-600 dark:text-amber-400 pe-12"
+                        />
+                        <span className="pointer-events-none absolute end-2.5 top-2.5 text-[11px] text-muted-foreground">
+                          {currencySymbol}
+                        </span>
+                      </div>
+                    </MillingField>
                   </div>
-                  <div className="flex rounded-lg bg-muted p-0.5 border border-border text-xs">
-                    {(["ALL", "RECEIVED", "PROCESSED", "DELIVERED"] as const).map((st) => (
-                      <button
-                        key={st}
-                        type="button"
-                        onClick={() => setDocStatusFilter(st)}
-                        className={`px-2.5 py-1 rounded-md font-semibold transition ${
-                          docStatusFilter === st
-                            ? "bg-background text-foreground shadow-xs"
-                            : "text-muted-foreground hover:text-foreground"
-                        }`}
-                      >
-                        {st === "ALL"
-                          ? "الكل"
-                          : st === "RECEIVED"
-                            ? "مستلم"
-                            : st === "PROCESSED"
-                              ? "تم الطحن"
-                              : "تم التسليم"}
-                      </button>
-                    ))}
+
+                  {/* ملخص عملية الحساب الذكية */}
+                  {bagCount > 0 && Number(feePerBag) > 0 && (
+                    <div className="flex items-center justify-between rounded-xl bg-background/80 px-3 py-2 text-xs font-semibold text-foreground border border-border/60">
+                      <span className="text-muted-foreground">حسبة الخدمة:</span>
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-bold text-foreground">{bagCount} كيس</span>
+                        <span>×</span>
+                        <span className="font-bold">{fmtNum(Number(feePerBag))}</span>
+                        <span>=</span>
+                        <span className="font-black text-amber-600 dark:text-amber-400 text-sm">
+                          {fmtNum(currentSubtotal)} {currencySymbol}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* الخصم الإجمالي */}
+                <MillingField label="الخصم (إن وجد)">
+                  <div className="relative">
+                    <MillingInput
+                      type="number"
+                      min={0}
+                      step="1"
+                      placeholder="0.00"
+                      value={discount}
+                      onChange={(e) => setDiscount(e.target.value)}
+                      className="font-medium pe-12"
+                    />
+                    <span className="pointer-events-none absolute end-2.5 top-2.5 text-[11px] text-muted-foreground">
+                      {currencySymbol}
+                    </span>
+                  </div>
+                </MillingField>
+
+                {/* بطاقة الصافي الإجمالي المميزة */}
+                <div className="rounded-2xl bg-gradient-to-br from-primary/15 via-primary/5 to-surface-2 border border-primary/25 p-4 text-center">
+                  <span className="text-xs font-semibold text-muted-foreground">
+                    صافي الفاتورة الإجمالي
+                  </span>
+                  <div className="mt-1 flex items-baseline justify-center gap-1.5">
+                    <span className="text-3xl font-black tabular-nums text-foreground">
+                      {fmtNum(grandTotal)}
+                    </span>
+                    <span className="text-sm font-bold text-muted-foreground">
+                      {currencySymbol}
+                    </span>
                   </div>
                 </div>
-                <span className="text-xs text-muted-foreground">
-                  عرض {filteredOpenDocs.length} مستند
-                </span>
-              </div>
 
-              <div className="overflow-x-auto">
-                {filteredOpenDocs.length === 0 ? (
-                  <div className="p-8">
-                    <MillingEmpty
-                      title="لا توجد مستندات مطابقة للبحث"
-                      hint="سجل استلاماً جديداً أو غيّر معايير التصفية."
-                    />
+                {/* طريقة الدفع بنمط الكاشير */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-semibold text-muted-foreground">
+                      طريقة السداد *
+                    </label>
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={handlePayFull}
+                        className="rounded-lg bg-emerald-500/10 px-2 py-0.5 text-[11px] font-bold text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/20"
+                      >
+                        سداد كامل
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleSetFullCredit}
+                        className="rounded-lg bg-purple-500/10 px-2 py-0.5 text-[11px] font-bold text-purple-700 dark:text-purple-300 hover:bg-purple-500/20"
+                      >
+                        آجل بالكامل
+                      </button>
+                    </div>
                   </div>
-                ) : (
-                  <table className="w-full text-xs">
-                    <thead>
-                      <tr className="border-b border-border/70 text-muted-foreground">
-                        <th className="px-4 py-2.5 text-start font-bold">رقم المستند</th>
-                        <th className="px-3 py-2.5 text-start font-bold">العميل</th>
-                        <th className="px-3 py-2.5 text-center font-bold">الحالة</th>
-                        <th className="px-3 py-2.5 text-center font-bold">الفاتورة</th>
-                        <th className="px-3 py-2.5 text-center font-bold">الإجمالي</th>
-                        <th className="px-3 py-2.5 text-center font-bold">المدفوع</th>
-                        <th className="px-3 py-2.5 text-center font-bold">المتبقي</th>
-                        <th className="px-3 py-2.5 text-center font-bold">تاريخ الاستلام</th>
-                        <th className="px-4 py-2.5 text-end font-bold">الإجراء</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {filteredOpenDocs.map((d) => {
-                        const total = Number(d.sales_invoices?.total ?? 0);
-                        const paid = Number(d.sales_invoices?.paid ?? 0);
-                        const remaining = Math.max(0, total - paid);
-                        const isCurrent = createdDocument?.document_id === d.id;
 
-                        return (
-                          <tr
-                            key={d.id}
-                            className={`border-b border-border/40 transition hover:bg-muted/40 ${
-                              isCurrent ? "bg-primary/5" : ""
-                            }`}
-                          >
-                            <td className="px-4 py-2.5 font-bold">
-                              <Mono className="text-primary">{d.document_number}</Mono>
-                            </td>
-                            <td className="px-3 py-2.5 font-bold text-foreground">
-                              {d.customers?.name || "—"}
-                            </td>
-                            <td className="px-3 py-2.5 text-center">
-                              {d.status === "DELIVERED" ? (
-                                <Pill tone="emerald">تم التسليم</Pill>
-                              ) : d.status === "PROCESSED" ? (
-                                <Pill tone="amber">تم الطحن</Pill>
-                              ) : (
-                                <Pill tone="neutral">مستلم</Pill>
-                              )}
-                            </td>
-                            <td className="px-3 py-2.5 text-center">
-                              <Mono>#{d.sales_invoices?.invoice_number || "—"}</Mono>
-                            </td>
-                            <td className="px-3 py-2.5 text-center tabular-nums font-semibold">
-                              {fmtNum(total)}
-                            </td>
-                            <td className="px-3 py-2.5 text-center tabular-nums text-emerald-600">
-                              {fmtNum(paid)}
-                            </td>
-                            <td className="px-3 py-2.5 text-center tabular-nums">
-                              {remaining > 0 ? (
-                                <span className="font-bold text-rose-600">{fmtNum(remaining)}</span>
-                              ) : (
-                                <span className="text-emerald-600 font-semibold">مسدد</span>
-                              )}
-                            </td>
-                            <td className="px-3 py-2.5 text-center text-muted-foreground">
-                              {new Date(d.received_at).toLocaleDateString("ar-EG")}
-                            </td>
-                            <td className="px-4 py-2.5 text-end">
-                              <button
-                                type="button"
-                                onClick={() => openDocument(d)}
-                                className={`inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-bold transition ${
-                                  isCurrent
-                                    ? "bg-primary text-white"
-                                    : "border border-border bg-card text-foreground hover:bg-muted"
-                                }`}
-                              >
-                                {isCurrent ? "المستند مفتوح" : "فتح ومتابعة"}
-                                <ChevronLeft className="h-3 w-3" />
-                              </button>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
+                  <PaymentMethodPicker
+                    context="sales"
+                    value={paymentMethod}
+                    onChange={(method) => {
+                      setPaymentMethod(method);
+                      if (getPaymentMethodDefinition(method)?.isCreditTerm) {
+                        setPaid("");
+                      }
+                    }}
+                    ensureIds={[paymentMethod]}
+                    ariaLabel="طريقة دفع فاتورة الاستلام"
+                  />
+                </div>
+
+                {/* المدفوع والمتبقي */}
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-semibold text-muted-foreground">
+                        المبلغ المستلم (المدفوع)
+                      </label>
+                      {!isCredit && grandTotal > 0 && (
+                        <button
+                          type="button"
+                          onClick={handlePayFull}
+                          className="rounded-lg bg-emerald-500/10 px-2 py-0.5 text-[10px] font-bold text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/20"
+                        >
+                          تعبئة كامل المبلغ
+                        </button>
+                      )}
+                    </div>
+                    <div className="relative">
+                      <MillingInput
+                        type="number"
+                        min={0}
+                        step="1"
+                        disabled={isCredit}
+                        placeholder={isCredit ? "0.00" : "0.00"}
+                        value={isCredit ? "" : paid}
+                        onChange={(e) => setPaid(e.target.value)}
+                        className={`font-bold pe-12 ${
+                          isCredit
+                            ? "cursor-not-allowed opacity-60"
+                            : isOverpaid
+                              ? "border-rose-500 text-rose-600 bg-rose-500/5"
+                              : "text-emerald-600"
+                        }`}
+                      />
+                      <span className="pointer-events-none absolute end-2.5 top-2.5 text-[11px] text-muted-foreground">
+                        {currencySymbol}
+                      </span>
+                    </div>
+                    <span className="text-[11px] text-muted-foreground block">
+                      {isCredit ? "معطّل لأن الطريقة آجلة" : "المبلغ المستلم كاش أو شبكة"}
+                    </span>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="block text-xs font-semibold text-muted-foreground">
+                      المتبقي كذمة آجلة
+                    </label>
+                    <div className="flex h-10 w-full items-center justify-between rounded-xl border border-border/80 bg-surface-2/70 px-3">
+                      <span className="text-xs text-muted-foreground">المتبقي:</span>
+                      <span
+                        className={`text-sm font-black tabular-nums ${
+                          remainingDue > 0
+                            ? "text-rose-600 dark:text-rose-400"
+                            : "text-emerald-600 dark:text-emerald-400"
+                        }`}
+                      >
+                        {fmtNum(remainingDue)} {currencySymbol}
+                      </span>
+                    </div>
+                    {remainingDue > 0 && (
+                      <p className="text-[11px] font-semibold text-amber-600 dark:text-amber-400">
+                        {selectedCustomer ? (
+                          <>
+                            سيرحل كذمة رسمية على حساب العميل:{" "}
+                            <strong>{selectedCustomer.name}</strong>
+                          </>
+                        ) : (
+                          "يجب اختيار عميل مسجل لتقييد الذمة الآجلة."
+                        )}
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                {/* تنبيه الخطأ في حال كان المدفوع أكبر من إجمالي الفاتورة */}
+                {isOverpaid && (
+                  <div className="flex items-center gap-2 rounded-xl bg-rose-500/10 p-3 text-xs font-bold text-rose-600 dark:text-rose-400 border border-rose-500/20">
+                    <AlertCircle className="h-4 w-4 shrink-0" />
+                    <span>
+                      خطأ في الحساب: المبلغ المدفوع ({fmtNum(currentPaid)} {currencySymbol}) أكبر من
+                      صافي الفاتورة المطلوبة ({fmtNum(grandTotal)} {currencySymbol})! يرجى تصحيح
+                      المبلغ للمتابعة.
+                    </span>
+                  </div>
                 )}
               </div>
-            </MillingPanel>
-          </div>
+            </div>
+
+            {/* زر الاعتماد الكبير في أسفل بطاقة الكاشير */}
+            <div className="p-4 border-t border-border/70">
+              <button
+                type="button"
+                disabled={!canSubmit || submit.isPending}
+                onClick={() => submit.mutate()}
+                className="w-full inline-flex items-center justify-center gap-2 rounded-2xl bg-amber-500 py-3.5 px-4 text-sm font-black text-white shadow-md transition hover:bg-amber-600 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {submit.isPending ? (
+                  <>
+                    <RefreshCw className="h-4 w-4 animate-spin" />
+                    جارٍ إصدار الفاتورة وتأكيد الاستلام…
+                  </>
+                ) : (
+                  <>
+                    <Check className="h-5 w-5" />
+                    تسجيل الاستلام وإصدار الفاتورة الرسمية
+                  </>
+                )}
+              </button>
+            </div>
+          </MillingPanel>
+        </div>
+
+        {/* نافذة الطباعة الفاخرة الموحدة */}
+        {printDoc && (
+          <LuxuryPrintPreviewModal
+            open={printModalOpen}
+            onClose={() => setPrintModalOpen(false)}
+            doc={printDoc}
+            documentType="customer_invoice"
+            title="معاينة وطباعة فاتورة أجور الاستلام"
+            customerName={selectedCustomer?.name || activeDetails?.customers?.name}
+            customerPhone={selectedCustomer?.phone || activeDetails?.customers?.phone}
+          />
         )}
 
-        {/* عرض ومتابعة المستند المفتوح (الطحن والتسليم والطباعة والواتساب) */}
-        {createdDocument ? (
-          <div className="mt-6">
-            <MillingDocumentWorkflow
-              document={createdDocument}
-              onClose={() => setCreatedDocument(null)}
-            />
-          </div>
-        ) : null}
+        {/* نافذة المشاركة الفورية عبر واتساب */}
+        <DocumentShareDialog
+          open={shareDialogOpen}
+          onClose={() => setShareDialogOpen(false)}
+          title="مشاركة الفاتورة وسند الاستلام"
+          documentType="milling_document"
+          millingDocumentNumber={createdDocument?.document_number || ""}
+          customer={
+            selectedCustomer
+              ? {
+                  id: selectedCustomer.id,
+                  name: selectedCustomer.name,
+                  phone: selectedCustomer.phone || undefined,
+                  balance: Number(selectedCustomer.balance ?? 0),
+                }
+              : activeDetails?.customers
+                ? {
+                    id: activeDetails.customer_id,
+                    name: activeDetails.customers.name,
+                    phone: activeDetails.customers.phone || undefined,
+                    balance: 0,
+                  }
+                : undefined
+          }
+          invoice={
+            createdDocument?.invoice_number
+              ? {
+                  id: createdDocument.invoice_id,
+                  invoiceNumber: createdDocument.invoice_number,
+                  date: new Date().toLocaleDateString("ar-YE"),
+                  subtotal:
+                    currentSubtotal ||
+                    Number(activeDetails?.sales_invoices?.subtotal ?? grandTotal),
+                  total: grandTotal || Number(activeDetails?.sales_invoices?.total ?? 0),
+                  paid: currentPaid || Number(activeDetails?.sales_invoices?.paid ?? 0),
+                  remaining: remainingDue,
+                  status: remainingDue === 0 ? "paid" : "partial",
+                }
+              : undefined
+          }
+        />
 
         {/* نافذة إضافة عميل جديد سريعاً دون مغادرة الكاونتر */}
         <CustomerFormDialog
           open={quickCustomerOpen}
           onClose={() => setQuickCustomerOpen(false)}
-          hint="سيتم اختيار العميل تلقائياً فور حفظه."
+          hint="سيتم اختيار العميل تلقائياً فور حفظه لتكملة الاستلام فوراً."
           onSaved={(newCust) => {
             void qc.invalidateQueries({ queryKey: ["milling", "customers"] });
             setCustomerId(newCust.id);

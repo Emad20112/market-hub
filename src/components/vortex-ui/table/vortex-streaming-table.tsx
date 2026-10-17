@@ -3,6 +3,7 @@
 import * as React from "react";
 import { Inbox, Loader2, AlertCircle, RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/lib/i18n";
 
 export interface VortexColumn<T> {
   key: string;
@@ -36,6 +37,70 @@ export interface VortexStreamingTableProps<T extends { id: string | number }> {
   toolbar?: React.ReactNode;
 }
 
+/**
+ * StreamingSentinel — مُلاحظ النهاية الموحّد لكل الجداول المتدفّقة.
+ *
+ * يحمل i18n الكامل (المحور 12.3): نصوص «جلب المزيد» / «مرر لأسفل» / «نهاية
+ * القائمة» من مفاتيح records المشتركة بدل النصوص الصلبة العربية.
+ */
+function StreamingSentinel({
+  fetchNextPage,
+  isFetchingNextPage,
+  hasNextPage,
+  loadedCount = 0,
+}: {
+  fetchNextPage?: () => void;
+  isFetchingNextPage?: boolean;
+  hasNextPage?: boolean;
+  loadedCount?: number;
+}) {
+  const { t } = useI18n();
+  const sentinelRef = React.useRef<HTMLDivElement | null>(null);
+
+  React.useEffect(() => {
+    if (!sentinelRef.current) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting && hasNextPage && !isFetchingNextPage) {
+            fetchNextPage?.();
+          }
+        }
+      },
+      { rootMargin: "320px 0px" },
+    );
+    observer.observe(sentinelRef.current);
+    return () => observer.disconnect();
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
+
+  if (!hasNextPage) {
+    return (
+      <div className="flex h-16 items-center justify-center">
+        <span className="text-[11px] text-muted-foreground/40">
+          {t("records.all_loaded").replace("{count}", String(loadedCount))}
+        </span>
+      </div>
+    );
+  }
+
+  if (isFetchingNextPage) {
+    return (
+      <div className="flex h-16 items-center justify-center">
+        <span className="inline-flex items-center gap-2 text-xs text-muted-foreground">
+          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          {t("records.loading_more")}
+        </span>
+      </div>
+    );
+  }
+
+  return (
+    <div ref={sentinelRef} className="flex h-16 items-center justify-center">
+      <span className="text-[11px] text-muted-foreground/50">{t("records.load_more")}</span>
+    </div>
+  );
+}
+
 const hideClass: Record<string, string> = {
   sm: "hidden sm:table-cell",
   md: "hidden md:table-cell",
@@ -60,27 +125,6 @@ export function VortexStreamingTable<T extends { id: string | number }>({
 }: VortexStreamingTableProps<T>) {
   const scrollRef = React.useRef<HTMLDivElement | null>(null);
 
-  // Intersection Observer triggers fetchNextPage when user scrolls near the bottom.
-  const sentinelRef = React.useRef<HTMLDivElement | null>(null);
-
-  React.useEffect(() => {
-    if (!sentinelRef.current) return;
-    const observer = new IntersectionObserver(
-      (entries) => {
-        for (const entry of entries) {
-          if (entry.isIntersecting && hasNextPage && !isFetchingNextPage) {
-            fetchNextPage?.();
-          }
-        }
-      },
-      { rootMargin: "320px 0px" },
-    );
-    if (sentinelRef.current) {
-      observer.observe(sentinelRef.current);
-    }
-    return () => observer.disconnect();
-  }, [hasNextPage, isFetchingNextPage, fetchNextPage, rows.length]);
-
   // Empty / Loading / Error states
   if (isLoading) {
     return (
@@ -93,7 +137,7 @@ export function VortexStreamingTable<T extends { id: string | number }>({
         {Array.from({ length: 5 }).map((_, i) => (
           <div
             key={i}
-            className="h-10 animate-pulse rounded-xl bg-muted/50"
+            className="h-10 shimmer rounded-xl bg-muted/50"
             style={{ animationDelay: `${i * 80}ms`, opacity: 1 - i * 0.15 }}
           />
         ))}
@@ -201,18 +245,12 @@ export function VortexStreamingTable<T extends { id: string | number }>({
         </table>
 
         {/* Infinite streaming sentinel */}
-        <div ref={sentinelRef} className="flex h-16 items-center justify-center">
-          {isFetchingNextPage ? (
-            <span className="inline-flex items-center gap-2 text-xs text-muted-foreground">
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              جلب المزيد من السجلات…
-            </span>
-          ) : hasNextPage ? (
-            <span className="text-[11px] text-muted-foreground/50">مرر لأسفل لعرض المزيد</span>
-          ) : (
-            <span className="text-[11px] text-muted-foreground/40">وصلت لنهاية القائمة</span>
-          )}
-        </div>
+        <StreamingSentinel
+          fetchNextPage={fetchNextPage}
+          isFetchingNextPage={isFetchingNextPage}
+          hasNextPage={hasNextPage}
+          loadedCount={rows.length}
+        />
       </div>
     </div>
   );

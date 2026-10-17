@@ -16,8 +16,18 @@ import {
   Trash2,
   Warehouse,
   X,
+  Lock,
 } from "lucide-react";
 import { toast } from "sonner";
+
+export function isSystemMainWarehouse(wh?: { is_default?: boolean | null; code?: string | null; name?: string | null } | null): boolean {
+  if (!wh) return false;
+  return Boolean(
+    wh.is_default ||
+    wh.code?.toUpperCase() === "MAIN" ||
+    wh.name?.trim() === "المخزن الرئيسي"
+  );
+}
 import { VortexMetricCard } from "@/components/vortex-ui";
 import { IconButton } from "@/components/ui/icon-button";
 import { RecordsView, type RecordsViewMode } from "@/components/ui/records-view";
@@ -269,11 +279,20 @@ function WarehousesPage() {
   const removeRow = useCallback(
     (id: string) => {
       if (deleting) return;
+      const target = data.find((w) => w.id === id);
+      if (target && isSystemMainWarehouse(target)) {
+        toast.error(
+          isRtl
+            ? "لا يمكن حذف المخزن الرئيسي الافتراضي — هذا المخزن أساسي للنظام وحركات المخزون."
+            : "Cannot delete default main warehouse — it is essential for system inventory.",
+        );
+        return;
+      }
       if (!confirm(`${t("common.delete")}?`)) return;
       setDeleting(id);
       remove.mutate(id, { onSettled: () => setDeleting(null) });
     },
-    [deleting, remove, t],
+    [deleting, remove, t, data, isRtl],
   );
 
   const handleSetDefault = useCallback((id: string) => setDefault.mutate(id), [setDefault]);
@@ -364,16 +383,29 @@ function WarehousesPage() {
               round
               onClick={() => openEdit(r)}
             />
-            <IconButton
-              size="sm"
-              variant="danger"
-              tooltip
-              ariaLabel={t("common.delete")}
-              icon={<Trash2 className="size-3.5" />}
-              round
-              loading={deleting === r.id}
-              onClick={() => removeRow(r.id)}
-            />
+            {isSystemMainWarehouse(r) ? (
+              <span
+                title={
+                  isRtl
+                    ? "المخزن الرئيسي الافتراضي — محمي من الحذف"
+                    : "Default Main Warehouse — protected from deletion"
+                }
+                className="grid size-8 place-items-center rounded-full border border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400"
+              >
+                <Lock className="size-3.5" />
+              </span>
+            ) : (
+              <IconButton
+                size="sm"
+                variant="danger"
+                tooltip
+                ariaLabel={t("common.delete")}
+                icon={<Trash2 className="size-3.5" />}
+                round
+                loading={deleting === r.id}
+                onClick={() => removeRow(r.id)}
+              />
+            )}
           </div>
         ),
       },
@@ -622,16 +654,25 @@ function WarehouseRowActions({
         round
         onClick={() => onEdit(row)}
       />
-      <IconButton
-        size="sm"
-        variant="danger"
-        tooltip
-        ariaLabel={deleteLabel}
-        icon={<Trash2 className="size-3.5" />}
-        round
-        loading={deleting}
-        onClick={() => onDelete(row.id)}
-      />
+      {isSystemMainWarehouse(row) ? (
+        <span
+          title="المخزن الرئيسي الافتراضي — محمي من الحذف"
+          className="grid size-8 place-items-center rounded-full border border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400"
+        >
+          <Lock className="size-3.5" />
+        </span>
+      ) : (
+        <IconButton
+          size="sm"
+          variant="danger"
+          tooltip
+          ariaLabel={deleteLabel}
+          icon={<Trash2 className="size-3.5" />}
+          round
+          loading={deleting}
+          onClick={() => onDelete(row.id)}
+        />
+      )}
     </div>
   );
 }
@@ -818,6 +859,16 @@ function WarehouseDialog({
     if (!form.name_ar.trim() && !form.name.trim()) {
       toast.error(t("catalog.name_required"));
       return;
+    }
+    if (initial?.is_default) {
+      if (!form.is_active) {
+        toast.error("لا يمكن إلغاء تفعيل المخزن الافتراضي للنظام.");
+        return;
+      }
+      if (!form.is_default) {
+        toast.error("لا يمكن إلغاء افتراضية هذا المخزن؛ قم بتعيين مخزن آخر كافتراضي أولاً.");
+        return;
+      }
     }
     setSaving(true);
     try {

@@ -16,8 +16,12 @@ export function VortexFilterSection({ title, icon, description, children }: Filt
   return (
     <div className="space-y-2.5 pb-4 border-b border-border/60 last:border-b-0 last:pb-0">
       <div className="flex items-center justify-between">
-        <label className="flex items-center gap-2 text-xs font-bold text-foreground">
-          {icon && <span className="text-primary">{icon}</span>}
+        <label className="flex items-center gap-2.5 text-xs font-bold text-foreground">
+          {icon && (
+            <span className="flex size-7 shrink-0 items-center justify-center rounded-full border border-border bg-primary/10 text-primary">
+              {icon}
+            </span>
+          )}
           <span>{title}</span>
         </label>
         {description && <span className="text-[11px] text-muted-foreground">{description}</span>}
@@ -39,6 +43,7 @@ export interface VortexFilterSheetProps {
   onReset?: () => void;
   applyLabel?: string;
   resetLabel?: string;
+  lang?: string;
   className?: string;
 }
 
@@ -54,17 +59,32 @@ export function VortexFilterSheet({
   onReset,
   applyLabel = "تطبيق الفلترة",
   resetLabel = "إعادة ضبط",
+  lang,
   className,
 }: VortexFilterSheetProps) {
   const effectiveCount = activeFiltersCount ?? activeCount ?? 0;
+
+  /* المحور 11 — التخطيط الذكي (Adaptive Layout):
+   * * الحقول القليلة (≤ 4): شبكة عمودين أنيقة على الابتوب — تعرض البيانات القليلة
+   *   بأفضل شكل ممكن (نفس أسلوب صفحة المنتجات).
+   * * الحقول الكثيرة (> 4): قائمة عمود واحد نظيفة، لتفادي ازدحام التصميم
+   *   وضمان مساحة تنفس كاملة لكل فلتر.
+   * * الجوال: قائمة عمود واحد دائماً — لم نغيّر شيئاً في الجوال.
+   */
+  const fieldCount = React.Children.toArray(children).length;
+  const useOptimizedGrid = fieldCount > 0 && fieldCount <= 4;
+
   return (
     <VortexDrawerDialog
       open={open}
       onOpenChange={onOpenChange}
       size="md"
       className={className}
+      /* المحور 10: على الابتوب تنزلق اللوحة أنيقاً من يسار الشاشة لتوفير المساحة؛
+       * الجوال يبقى Bottom Sheet كما هو دون أي تغيير. */
+      desktopSide="left"
       icon={
-        <div className="relative grid size-10 place-items-center rounded-2xl bg-foreground text-background shadow-md shadow-foreground/10">
+        <div className="relative grid size-10 place-items-center rounded-full border border-border bg-foreground text-background shadow-md shadow-foreground/10">
           <Filter className="size-5" />
           {effectiveCount > 0 && (
             <span className="absolute -top-1 -left-1 flex size-5 items-center justify-center rounded-full bg-primary text-[10px] font-black text-primary-foreground ring-2 ring-background">
@@ -111,7 +131,15 @@ export function VortexFilterSheet({
         </div>
       }
     >
-      <div className="space-y-5 py-2">{children}</div>
+      <div
+        className={
+          useOptimizedGrid
+            ? "grid grid-cols-1 lg:grid-cols-2 gap-x-5 gap-y-4 py-2"
+            : "space-y-5 py-2"
+        }
+      >
+        {children}
+      </div>
     </VortexDrawerDialog>
   );
 }

@@ -18,12 +18,17 @@ import { Route as AppBalanceSheetRouteImport } from './routes/_app.balance-sheet
 import { Route as AppBarcodesRouteImport } from './routes/_app.barcodes'
 import { Route as AppBatchesRouteImport } from './routes/_app.batches'
 import { Route as AppCatalogRouteImport } from './routes/_app.catalog'
+import { Route as AppChartOfAccountsRouteImport } from './routes/_app.chart-of-accounts'
 import { Route as AppCustomersRouteImport } from './routes/_app.customers'
 import { Route as AppDailyJournalRouteImport } from './routes/_app.daily-journal'
 import { Route as AppDashboardRouteImport } from './routes/_app.dashboard'
 import { Route as AppDebtsRouteImport } from './routes/_app.debts'
 import { Route as AppExpensesRouteImport } from './routes/_app.expenses'
 import { Route as AppFinanceRouteImport } from './routes/_app.finance'
+import { Route as AppFiscalPeriodsRouteImport } from './routes/_app.fiscal-periods'
+import { Route as AppFiscalYearCloseRouteImport } from './routes/_app.fiscal-year-close'
+import { Route as AppFixedAssetsRouteImport } from './routes/_app.fixed-assets'
+import { Route as AppGeneralLedgerRouteImport } from './routes/_app.general-ledger'
 import { Route as AppIncomeStatementRouteImport } from './routes/_app.income-statement'
 import { Route as AppInventoryRouteImport } from './routes/_app.inventory'
 import { Route as AppLoyaltyRouteImport } from './routes/_app.loyalty'
@@ -34,6 +39,7 @@ import { Route as AppPaymentsRouteImport } from './routes/_app.payments'
 import { Route as AppPlansRouteImport } from './routes/_app.plans'
 import { Route as AppPlatformAdminRouteImport } from './routes/_app.platform-admin'
 import { Route as AppPosRouteImport } from './routes/_app.pos'
+import { Route as AppPrepaymentsRouteImport } from './routes/_app.prepayments'
 import { Route as AppProductsRouteImport } from './routes/_app.products'
 import { Route as AppPurchasePosRouteImport } from './routes/_app.purchase-pos'
 import { Route as AppPurchaseReturnsRouteImport } from './routes/_app.purchase-returns'
@@ -45,7 +51,9 @@ import { Route as AppSalesInvoiceRouteImport } from './routes/_app.sales-invoice
 import { Route as AppSalesReturnsRouteImport } from './routes/_app.sales-returns'
 import { Route as AppSettingsRouteImport } from './routes/_app.settings'
 import { Route as AppSettlementsRouteImport } from './routes/_app.settlements'
+import { Route as AppSupplierLedgerRouteImport } from './routes/_app.supplier-ledger'
 import { Route as AppSuppliersRouteImport } from './routes/_app.suppliers'
+import { Route as AppTaxDeclarationsRouteImport } from './routes/_app.tax-declarations'
 import { Route as AppTransfersRouteImport } from './routes/_app.transfers'
 import { Route as AppTrialBalanceRouteImport } from './routes/_app.trial-balance'
 import { Route as AppUsersRouteImport } from './routes/_app.users'
@@ -110,6 +118,11 @@ const AppCatalogRoute = AppCatalogRouteImport.update({
   path: '/catalog',
   getParentRoute: () => AppRoute,
 } as any)
+const AppChartOfAccountsRoute = AppChartOfAccountsRouteImport.update({
+  id: '/chart-of-accounts',
+  path: '/chart-of-accounts',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppCustomersRoute = AppCustomersRouteImport.update({
   id: '/customers',
   path: '/customers',
@@ -138,6 +151,26 @@ const AppExpensesRoute = AppExpensesRouteImport.update({
 const AppFinanceRoute = AppFinanceRouteImport.update({
   id: '/finance',
   path: '/finance',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppFiscalPeriodsRoute = AppFiscalPeriodsRouteImport.update({
+  id: '/fiscal-periods',
+  path: '/fiscal-periods',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppFiscalYearCloseRoute = AppFiscalYearCloseRouteImport.update({
+  id: '/fiscal-year-close',
+  path: '/fiscal-year-close',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppFixedAssetsRoute = AppFixedAssetsRouteImport.update({
+  id: '/fixed-assets',
+  path: '/fixed-assets',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppGeneralLedgerRoute = AppGeneralLedgerRouteImport.update({
+  id: '/general-ledger',
+  path: '/general-ledger',
   getParentRoute: () => AppRoute,
 } as any)
 const AppIncomeStatementRoute = AppIncomeStatementRouteImport.update({
@@ -188,6 +221,11 @@ const AppPlatformAdminRoute = AppPlatformAdminRouteImport.update({
 const AppPosRoute = AppPosRouteImport.update({
   id: '/pos',
   path: '/pos',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppPrepaymentsRoute = AppPrepaymentsRouteImport.update({
+  id: '/prepayments',
+  path: '/prepayments',
   getParentRoute: () => AppRoute,
 } as any)
 const AppProductsRoute = AppProductsRouteImport.update({
@@ -245,9 +283,19 @@ const AppSettlementsRoute = AppSettlementsRouteImport.update({
   path: '/settlements',
   getParentRoute: () => AppRoute,
 } as any)
+const AppSupplierLedgerRoute = AppSupplierLedgerRouteImport.update({
+  id: '/supplier-ledger',
+  path: '/supplier-ledger',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppSuppliersRoute = AppSuppliersRouteImport.update({
   id: '/suppliers',
   path: '/suppliers',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppTaxDeclarationsRoute = AppTaxDeclarationsRouteImport.update({
+  id: '/tax-declarations',
+  path: '/tax-declarations',
   getParentRoute: () => AppRoute,
 } as any)
 const AppTransfersRoute = AppTransfersRouteImport.update({
@@ -358,12 +406,17 @@ export interface FileRoutesByFullPath {
   '/barcodes': typeof AppBarcodesRoute
   '/batches': typeof AppBatchesRoute
   '/catalog': typeof AppCatalogRoute
+  '/chart-of-accounts': typeof AppChartOfAccountsRoute
   '/customers': typeof AppCustomersRoute
   '/daily-journal': typeof AppDailyJournalRoute
   '/dashboard': typeof AppDashboardRoute
   '/debts': typeof AppDebtsRoute
   '/expenses': typeof AppExpensesRoute
   '/finance': typeof AppFinanceRoute
+  '/fiscal-periods': typeof AppFiscalPeriodsRoute
+  '/fiscal-year-close': typeof AppFiscalYearCloseRoute
+  '/fixed-assets': typeof AppFixedAssetsRoute
+  '/general-ledger': typeof AppGeneralLedgerRoute
   '/income-statement': typeof AppIncomeStatementRoute
   '/inventory': typeof AppInventoryRoute
   '/loyalty': typeof AppLoyaltyRoute
@@ -374,6 +427,7 @@ export interface FileRoutesByFullPath {
   '/plans': typeof AppPlansRoute
   '/platform-admin': typeof AppPlatformAdminRoute
   '/pos': typeof AppPosRoute
+  '/prepayments': typeof AppPrepaymentsRoute
   '/products': typeof AppProductsRoute
   '/purchase-pos': typeof AppPurchasePosRoute
   '/purchase-returns': typeof AppPurchaseReturnsRoute
@@ -385,7 +439,9 @@ export interface FileRoutesByFullPath {
   '/sales-returns': typeof AppSalesReturnsRoute
   '/settings': typeof AppSettingsRoute
   '/settlements': typeof AppSettlementsRoute
+  '/supplier-ledger': typeof AppSupplierLedgerRoute
   '/suppliers': typeof AppSuppliersRoute
+  '/tax-declarations': typeof AppTaxDeclarationsRoute
   '/transfers': typeof AppTransfersRoute
   '/trial-balance': typeof AppTrialBalanceRoute
   '/users': typeof AppUsersRoute
@@ -415,12 +471,17 @@ export interface FileRoutesByTo {
   '/barcodes': typeof AppBarcodesRoute
   '/batches': typeof AppBatchesRoute
   '/catalog': typeof AppCatalogRoute
+  '/chart-of-accounts': typeof AppChartOfAccountsRoute
   '/customers': typeof AppCustomersRoute
   '/daily-journal': typeof AppDailyJournalRoute
   '/dashboard': typeof AppDashboardRoute
   '/debts': typeof AppDebtsRoute
   '/expenses': typeof AppExpensesRoute
   '/finance': typeof AppFinanceRoute
+  '/fiscal-periods': typeof AppFiscalPeriodsRoute
+  '/fiscal-year-close': typeof AppFiscalYearCloseRoute
+  '/fixed-assets': typeof AppFixedAssetsRoute
+  '/general-ledger': typeof AppGeneralLedgerRoute
   '/income-statement': typeof AppIncomeStatementRoute
   '/inventory': typeof AppInventoryRoute
   '/loyalty': typeof AppLoyaltyRoute
@@ -431,6 +492,7 @@ export interface FileRoutesByTo {
   '/plans': typeof AppPlansRoute
   '/platform-admin': typeof AppPlatformAdminRoute
   '/pos': typeof AppPosRoute
+  '/prepayments': typeof AppPrepaymentsRoute
   '/products': typeof AppProductsRoute
   '/purchase-pos': typeof AppPurchasePosRoute
   '/purchase-returns': typeof AppPurchaseReturnsRoute
@@ -442,7 +504,9 @@ export interface FileRoutesByTo {
   '/sales-returns': typeof AppSalesReturnsRoute
   '/settings': typeof AppSettingsRoute
   '/settlements': typeof AppSettlementsRoute
+  '/supplier-ledger': typeof AppSupplierLedgerRoute
   '/suppliers': typeof AppSuppliersRoute
+  '/tax-declarations': typeof AppTaxDeclarationsRoute
   '/transfers': typeof AppTransfersRoute
   '/trial-balance': typeof AppTrialBalanceRoute
   '/users': typeof AppUsersRoute
@@ -474,12 +538,17 @@ export interface FileRoutesById {
   '/_app/barcodes': typeof AppBarcodesRoute
   '/_app/batches': typeof AppBatchesRoute
   '/_app/catalog': typeof AppCatalogRoute
+  '/_app/chart-of-accounts': typeof AppChartOfAccountsRoute
   '/_app/customers': typeof AppCustomersRoute
   '/_app/daily-journal': typeof AppDailyJournalRoute
   '/_app/dashboard': typeof AppDashboardRoute
   '/_app/debts': typeof AppDebtsRoute
   '/_app/expenses': typeof AppExpensesRoute
   '/_app/finance': typeof AppFinanceRoute
+  '/_app/fiscal-periods': typeof AppFiscalPeriodsRoute
+  '/_app/fiscal-year-close': typeof AppFiscalYearCloseRoute
+  '/_app/fixed-assets': typeof AppFixedAssetsRoute
+  '/_app/general-ledger': typeof AppGeneralLedgerRoute
   '/_app/income-statement': typeof AppIncomeStatementRoute
   '/_app/inventory': typeof AppInventoryRoute
   '/_app/loyalty': typeof AppLoyaltyRoute
@@ -490,6 +559,7 @@ export interface FileRoutesById {
   '/_app/plans': typeof AppPlansRoute
   '/_app/platform-admin': typeof AppPlatformAdminRoute
   '/_app/pos': typeof AppPosRoute
+  '/_app/prepayments': typeof AppPrepaymentsRoute
   '/_app/products': typeof AppProductsRoute
   '/_app/purchase-pos': typeof AppPurchasePosRoute
   '/_app/purchase-returns': typeof AppPurchaseReturnsRoute
@@ -501,7 +571,9 @@ export interface FileRoutesById {
   '/_app/sales-returns': typeof AppSalesReturnsRoute
   '/_app/settings': typeof AppSettingsRoute
   '/_app/settlements': typeof AppSettlementsRoute
+  '/_app/supplier-ledger': typeof AppSupplierLedgerRoute
   '/_app/suppliers': typeof AppSuppliersRoute
+  '/_app/tax-declarations': typeof AppTaxDeclarationsRoute
   '/_app/transfers': typeof AppTransfersRoute
   '/_app/trial-balance': typeof AppTrialBalanceRoute
   '/_app/users': typeof AppUsersRoute
@@ -533,12 +605,17 @@ export interface FileRouteTypes {
     | '/barcodes'
     | '/batches'
     | '/catalog'
+    | '/chart-of-accounts'
     | '/customers'
     | '/daily-journal'
     | '/dashboard'
     | '/debts'
     | '/expenses'
     | '/finance'
+    | '/fiscal-periods'
+    | '/fiscal-year-close'
+    | '/fixed-assets'
+    | '/general-ledger'
     | '/income-statement'
     | '/inventory'
     | '/loyalty'
@@ -549,6 +626,7 @@ export interface FileRouteTypes {
     | '/plans'
     | '/platform-admin'
     | '/pos'
+    | '/prepayments'
     | '/products'
     | '/purchase-pos'
     | '/purchase-returns'
@@ -560,7 +638,9 @@ export interface FileRouteTypes {
     | '/sales-returns'
     | '/settings'
     | '/settlements'
+    | '/supplier-ledger'
     | '/suppliers'
+    | '/tax-declarations'
     | '/transfers'
     | '/trial-balance'
     | '/users'
@@ -590,12 +670,17 @@ export interface FileRouteTypes {
     | '/barcodes'
     | '/batches'
     | '/catalog'
+    | '/chart-of-accounts'
     | '/customers'
     | '/daily-journal'
     | '/dashboard'
     | '/debts'
     | '/expenses'
     | '/finance'
+    | '/fiscal-periods'
+    | '/fiscal-year-close'
+    | '/fixed-assets'
+    | '/general-ledger'
     | '/income-statement'
     | '/inventory'
     | '/loyalty'
@@ -606,6 +691,7 @@ export interface FileRouteTypes {
     | '/plans'
     | '/platform-admin'
     | '/pos'
+    | '/prepayments'
     | '/products'
     | '/purchase-pos'
     | '/purchase-returns'
@@ -617,7 +703,9 @@ export interface FileRouteTypes {
     | '/sales-returns'
     | '/settings'
     | '/settlements'
+    | '/supplier-ledger'
     | '/suppliers'
+    | '/tax-declarations'
     | '/transfers'
     | '/trial-balance'
     | '/users'
@@ -648,12 +736,17 @@ export interface FileRouteTypes {
     | '/_app/barcodes'
     | '/_app/batches'
     | '/_app/catalog'
+    | '/_app/chart-of-accounts'
     | '/_app/customers'
     | '/_app/daily-journal'
     | '/_app/dashboard'
     | '/_app/debts'
     | '/_app/expenses'
     | '/_app/finance'
+    | '/_app/fiscal-periods'
+    | '/_app/fiscal-year-close'
+    | '/_app/fixed-assets'
+    | '/_app/general-ledger'
     | '/_app/income-statement'
     | '/_app/inventory'
     | '/_app/loyalty'
@@ -664,6 +757,7 @@ export interface FileRouteTypes {
     | '/_app/plans'
     | '/_app/platform-admin'
     | '/_app/pos'
+    | '/_app/prepayments'
     | '/_app/products'
     | '/_app/purchase-pos'
     | '/_app/purchase-returns'
@@ -675,7 +769,9 @@ export interface FileRouteTypes {
     | '/_app/sales-returns'
     | '/_app/settings'
     | '/_app/settlements'
+    | '/_app/supplier-ledger'
     | '/_app/suppliers'
+    | '/_app/tax-declarations'
     | '/_app/transfers'
     | '/_app/trial-balance'
     | '/_app/users'
@@ -768,6 +864,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppCatalogRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/chart-of-accounts': {
+      id: '/_app/chart-of-accounts'
+      path: '/chart-of-accounts'
+      fullPath: '/chart-of-accounts'
+      preLoaderRoute: typeof AppChartOfAccountsRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/customers': {
       id: '/_app/customers'
       path: '/customers'
@@ -808,6 +911,34 @@ declare module '@tanstack/react-router' {
       path: '/finance'
       fullPath: '/finance'
       preLoaderRoute: typeof AppFinanceRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/fiscal-periods': {
+      id: '/_app/fiscal-periods'
+      path: '/fiscal-periods'
+      fullPath: '/fiscal-periods'
+      preLoaderRoute: typeof AppFiscalPeriodsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/fiscal-year-close': {
+      id: '/_app/fiscal-year-close'
+      path: '/fiscal-year-close'
+      fullPath: '/fiscal-year-close'
+      preLoaderRoute: typeof AppFiscalYearCloseRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/fixed-assets': {
+      id: '/_app/fixed-assets'
+      path: '/fixed-assets'
+      fullPath: '/fixed-assets'
+      preLoaderRoute: typeof AppFixedAssetsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/general-ledger': {
+      id: '/_app/general-ledger'
+      path: '/general-ledger'
+      fullPath: '/general-ledger'
+      preLoaderRoute: typeof AppGeneralLedgerRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/income-statement': {
@@ -878,6 +1009,13 @@ declare module '@tanstack/react-router' {
       path: '/pos'
       fullPath: '/pos'
       preLoaderRoute: typeof AppPosRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/prepayments': {
+      id: '/_app/prepayments'
+      path: '/prepayments'
+      fullPath: '/prepayments'
+      preLoaderRoute: typeof AppPrepaymentsRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/products': {
@@ -957,11 +1095,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppSettlementsRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/supplier-ledger': {
+      id: '/_app/supplier-ledger'
+      path: '/supplier-ledger'
+      fullPath: '/supplier-ledger'
+      preLoaderRoute: typeof AppSupplierLedgerRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/suppliers': {
       id: '/_app/suppliers'
       path: '/suppliers'
       fullPath: '/suppliers'
       preLoaderRoute: typeof AppSuppliersRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/tax-declarations': {
+      id: '/_app/tax-declarations'
+      path: '/tax-declarations'
+      fullPath: '/tax-declarations'
+      preLoaderRoute: typeof AppTaxDeclarationsRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/transfers': {
@@ -1153,12 +1305,17 @@ interface AppRouteChildren {
   AppBarcodesRoute: typeof AppBarcodesRoute
   AppBatchesRoute: typeof AppBatchesRoute
   AppCatalogRoute: typeof AppCatalogRoute
+  AppChartOfAccountsRoute: typeof AppChartOfAccountsRoute
   AppCustomersRoute: typeof AppCustomersRoute
   AppDailyJournalRoute: typeof AppDailyJournalRoute
   AppDashboardRoute: typeof AppDashboardRoute
   AppDebtsRoute: typeof AppDebtsRoute
   AppExpensesRoute: typeof AppExpensesRoute
   AppFinanceRoute: typeof AppFinanceRoute
+  AppFiscalPeriodsRoute: typeof AppFiscalPeriodsRoute
+  AppFiscalYearCloseRoute: typeof AppFiscalYearCloseRoute
+  AppFixedAssetsRoute: typeof AppFixedAssetsRoute
+  AppGeneralLedgerRoute: typeof AppGeneralLedgerRoute
   AppIncomeStatementRoute: typeof AppIncomeStatementRoute
   AppInventoryRoute: typeof AppInventoryRoute
   AppLoyaltyRoute: typeof AppLoyaltyRoute
@@ -1169,6 +1326,7 @@ interface AppRouteChildren {
   AppPlansRoute: typeof AppPlansRoute
   AppPlatformAdminRoute: typeof AppPlatformAdminRoute
   AppPosRoute: typeof AppPosRoute
+  AppPrepaymentsRoute: typeof AppPrepaymentsRoute
   AppProductsRoute: typeof AppProductsRoute
   AppPurchasePosRoute: typeof AppPurchasePosRoute
   AppPurchaseReturnsRoute: typeof AppPurchaseReturnsRoute
@@ -1180,7 +1338,9 @@ interface AppRouteChildren {
   AppSalesReturnsRoute: typeof AppSalesReturnsRoute
   AppSettingsRoute: typeof AppSettingsRoute
   AppSettlementsRoute: typeof AppSettlementsRoute
+  AppSupplierLedgerRoute: typeof AppSupplierLedgerRoute
   AppSuppliersRoute: typeof AppSuppliersRoute
+  AppTaxDeclarationsRoute: typeof AppTaxDeclarationsRoute
   AppTransfersRoute: typeof AppTransfersRoute
   AppTrialBalanceRoute: typeof AppTrialBalanceRoute
   AppUsersRoute: typeof AppUsersRoute
@@ -1196,12 +1356,17 @@ const AppRouteChildren: AppRouteChildren = {
   AppBarcodesRoute: AppBarcodesRoute,
   AppBatchesRoute: AppBatchesRoute,
   AppCatalogRoute: AppCatalogRoute,
+  AppChartOfAccountsRoute: AppChartOfAccountsRoute,
   AppCustomersRoute: AppCustomersRoute,
   AppDailyJournalRoute: AppDailyJournalRoute,
   AppDashboardRoute: AppDashboardRoute,
   AppDebtsRoute: AppDebtsRoute,
   AppExpensesRoute: AppExpensesRoute,
   AppFinanceRoute: AppFinanceRoute,
+  AppFiscalPeriodsRoute: AppFiscalPeriodsRoute,
+  AppFiscalYearCloseRoute: AppFiscalYearCloseRoute,
+  AppFixedAssetsRoute: AppFixedAssetsRoute,
+  AppGeneralLedgerRoute: AppGeneralLedgerRoute,
   AppIncomeStatementRoute: AppIncomeStatementRoute,
   AppInventoryRoute: AppInventoryRoute,
   AppLoyaltyRoute: AppLoyaltyRoute,
@@ -1212,6 +1377,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppPlansRoute: AppPlansRoute,
   AppPlatformAdminRoute: AppPlatformAdminRoute,
   AppPosRoute: AppPosRoute,
+  AppPrepaymentsRoute: AppPrepaymentsRoute,
   AppProductsRoute: AppProductsRoute,
   AppPurchasePosRoute: AppPurchasePosRoute,
   AppPurchaseReturnsRoute: AppPurchaseReturnsRoute,
@@ -1223,7 +1389,9 @@ const AppRouteChildren: AppRouteChildren = {
   AppSalesReturnsRoute: AppSalesReturnsRoute,
   AppSettingsRoute: AppSettingsRoute,
   AppSettlementsRoute: AppSettlementsRoute,
+  AppSupplierLedgerRoute: AppSupplierLedgerRoute,
   AppSuppliersRoute: AppSuppliersRoute,
+  AppTaxDeclarationsRoute: AppTaxDeclarationsRoute,
   AppTransfersRoute: AppTransfersRoute,
   AppTrialBalanceRoute: AppTrialBalanceRoute,
   AppUsersRoute: AppUsersRoute,

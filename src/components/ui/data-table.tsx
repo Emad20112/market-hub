@@ -1,6 +1,7 @@
 import * as React from "react";
 import { ArrowDown, ArrowUp, ChevronDown, ChevronsUpDown, Inbox, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/lib/i18n";
 import { EmptyState, Spinner } from "@/components/ui/feedback";
 import { QueryErrorState, InlineRefreshing } from "@/components/ui/connection";
 import { useBreakpoint } from "@/design/breakpoints";
@@ -188,6 +189,7 @@ export function DataTable<T>({
   stickyFirstColumn = false,
   stickyTop,
 }: DataTableProps<T>) {
+  const { t } = useI18n();
   const scrollRef = React.useRef<HTMLDivElement>(null);
   const headerScrollRef = React.useRef<HTMLDivElement>(null);
   const sentinelRef = React.useRef<HTMLDivElement>(null);
@@ -540,7 +542,9 @@ export function DataTable<T>({
                 {loadingMore ? (
                   <>
                     <Loader2 className="size-4 animate-spin text-muted-foreground" aria-hidden />
-                    <span className="text-[11px] text-muted-foreground">جارٍ تحميل المزيد…</span>
+                    <span className="text-[11px] text-muted-foreground">
+                      {t("records.loading_more")}
+                    </span>
                   </>
                 ) : hasMore ? (
                   <ChevronDown
@@ -549,7 +553,7 @@ export function DataTable<T>({
                   />
                 ) : loadedCount > 0 ? (
                   <span className="text-[11px] text-muted-foreground/70">
-                    تم عرض جميع السجلات ({loadedCount})
+                    {t("records.all_loaded").replace("{count}", String(loadedCount))}
                   </span>
                 ) : null}
               </div>
@@ -563,7 +567,7 @@ export function DataTable<T>({
                   onClick={() => setPage((p) => p + 1)}
                   className="rounded-full border border-border bg-surface px-4 py-1.5 text-xs font-medium transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
                 >
-                  تحميل المزيد
+                  {t("records.load_more")}
                 </button>
               </div>
             ) : null}
