@@ -323,7 +323,7 @@
     font-family: var(--font-display);
   }
 
-  /* Subtle radial backdrop — Linear-ish ambient glow */
+  /* Subtle radial backdrop — dynamic ambient glow using the active theme accent */
   body::before {
     content: "";
     position: fixed;
@@ -331,18 +331,19 @@
     pointer-events: none;
     z-index: 0;
     background:
-      radial-gradient(60rem 40rem at 80% -10%, oklch(0.62 0.21 260 / 0.08), transparent 60%),
-      radial-gradient(50rem 30rem at -10% 100%, oklch(0.7 0.18 180 / 0.06), transparent 60%);
+      radial-gradient(60rem 40rem at 80% -10%, color-mix(in srgb, var(--primary) 9%, transparent), transparent 65%),
+      radial-gradient(50rem 30rem at -10% 100%, color-mix(in srgb, var(--primary) 5%, transparent), transparent 60%);
   }
 
   html.light body::before {
     background:
-      radial-gradient(60rem 40rem at 80% -10%, oklch(0.56 0.2 258 / 0.035), transparent 60%),
-      radial-gradient(50rem 30rem at -10% 100%, oklch(0.7 0.18 180 / 0.025), transparent 60%);
+      radial-gradient(60rem 40rem at 80% -10%, color-mix(in srgb, var(--primary) 5%, transparent), transparent 65%),
+      radial-gradient(50rem 30rem at -10% 100%, color-mix(in srgb, var(--primary) 3%, transparent), transparent 60%);
   }
 
   ::selection {
-    background: oklch(0.62 0.21 260 / 0.35);
+    background: color-mix(in srgb, var(--primary) 30%, transparent);
+    color: var(--foreground);
   }
 
   /*
