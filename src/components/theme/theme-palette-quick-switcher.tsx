@@ -55,7 +55,7 @@ export function ThemePaletteQuickSwitcher() {
 
           <Link
             to="/settings"
-            search={{ tab: "appearance" }}
+            search={{ section: "appearance" }}
             onClick={() => setIsOpen(false)}
             className="text-[11px] font-medium text-primary hover:underline flex items-center gap-1"
           >
