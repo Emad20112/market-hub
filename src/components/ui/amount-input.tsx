@@ -18,6 +18,7 @@ import { cn } from "@/lib/utils";
 import { FieldInput, type FieldInputProps } from "./input";
 import { parseNumber, sanitizeNumericString } from "@/design/number";
 import { useCompanyCurrency } from "@/hooks/use-company-currency";
+import { numberToArabicWords } from "@/lib/templates/tafqeet";
 
 export interface AmountInputProps extends Omit<
   FieldInputProps,
@@ -37,6 +38,10 @@ export interface AmountInputProps extends Omit<
   currencySymbol?: string;
   /** إظهار زر التفريغ (افتراضي true للحقل المالي). */
   clearable?: boolean;
+  /** إظهار سطر التفقيط (المبلغ بالأحرف) تحت الحقل — افتراضي true. أوقفه في الحقول الكثيفة مثل صفوف بنود الفواتير. */
+  showInWords?: boolean;
+  /** كلاسات إضافية لسطر التفقيط. */
+  wordsClassName?: string;
 }
 
 /** عدد الأرقام الصريحة داخل سلسلة نصية (لحفظ موضع المؤشر). */
@@ -106,6 +111,9 @@ export const AmountInput = React.forwardRef<HTMLInputElement, AmountInputProps>(
       currency,
       currencySymbol,
       clearable = true,
+      showInWords = true,
+      wordsClassName,
+      containerClassName,
       className,
       ...props
     },
@@ -136,6 +144,9 @@ export const AmountInput = React.forwardRef<HTMLInputElement, AmountInputProps>(
       pendingCaret.current = null;
     }, [text]);
 
+    const wordsText =
+      showInWords && value != null ? numberToArabicWords(value, resolvedCurrency) : "";
+
     const clamp = React.useCallback(
       (n: number | null): number | null => {
         if (n == null) return null;
@@ -151,56 +162,68 @@ export const AmountInput = React.forwardRef<HTMLInputElement, AmountInputProps>(
     );
 
     return (
-      <FieldInput
-        {...props}
-        ref={(el) => {
-          inputRef.current = el;
-          if (typeof ref === "function") ref(el);
-          else if (ref && typeof ref === "object")
-            (ref as React.RefObject<HTMLInputElement>).current = el;
-        }}
-        type="currency" // يعرض كنص DOM مع inputMode="decimal" — لا spinner ولا عجلة ماوس
-        clearable={clearable}
-        suffix={
-          resolvedSymbol ? (
-            <span className="pointer-events-none select-none pe-3 text-xs font-bold text-muted-foreground">
-              {resolvedSymbol}
-            </span>
-          ) : undefined
-        }
-        dir="ltr"
-        className={cn("text-start font-semibold tabular-nums", className)}
-        value={text}
-        onFocus={(e) => {
-          editing.current = true;
-          props.onFocus?.(e);
-        }}
-        onBlur={(e) => {
-          editing.current = false;
-          const parsed = parseNumber(text);
-          const bounded = clamp(parsed);
-          onValueChange(bounded);
-          setText(bounded == null ? "" : formatStored(bounded, decimals));
-          props.onBlur?.(e);
-        }}
-        onChange={(e) => {
-          // نلتقط موضع المؤشر قبل أن يعيد FieldInput التنقية
-          const caret = e.target.selectionStart ?? undefined;
-          if (caret != null) {
-            pendingCaret.current = countDigits(e.target.value.slice(0, caret));
+      <div className={cn("w-full min-w-0", containerClassName)}>
+        <FieldInput
+          {...props}
+          ref={(el) => {
+            inputRef.current = el;
+            if (typeof ref === "function") ref(el);
+            else if (ref && typeof ref === "object")
+              (ref as React.RefObject<HTMLInputElement>).current = el as HTMLInputElement;
+          }}
+          type="currency" // يعرض كنص DOM مع inputMode="decimal" — لا spinner ولا عجلة ماوس
+          clearable={clearable}
+          suffix={
+            resolvedSymbol ? (
+              <span className="pointer-events-none select-none pe-3 text-xs font-bold text-muted-foreground">
+                {resolvedSymbol}
+              </span>
+            ) : undefined
           }
-          props.onChange?.(e);
-        }}
-        onValueChange={(next) => {
-          const grouped = groupTyped(next, decimals);
-          setText(grouped);
-          if (grouped === "" || grouped === "-" || grouped === ".") {
-            onValueChange(null);
-            return;
-          }
-          onValueChange(clamp(parseNumber(grouped)));
-        }}
-      />
+          dir="ltr"
+          className={cn("text-start font-semibold tabular-nums", className)}
+          value={text}
+          onFocus={(e) => {
+            editing.current = true;
+            props.onFocus?.(e);
+          }}
+          onBlur={(e) => {
+            editing.current = false;
+            const parsed = parseNumber(text);
+            const bounded = clamp(parsed);
+            onValueChange(bounded);
+            setText(bounded == null ? "" : formatStored(bounded, decimals));
+            props.onBlur?.(e);
+          }}
+          onChange={(e) => {
+            // نلتقط موضع المؤشر قبل أن يعيد FieldInput التنقية
+            const caret = e.target.selectionStart ?? undefined;
+            if (caret != null) {
+              pendingCaret.current = countDigits(e.target.value.slice(0, caret));
+            }
+          }}
+          onValueChange={(next) => {
+            const grouped = groupTyped(next, decimals);
+            setText(grouped);
+            if (grouped === "" || grouped === "-" || grouped === ".") {
+              onValueChange(null);
+              return;
+            }
+            onValueChange(clamp(parseNumber(grouped)));
+          }}
+        />
+        {wordsText ? (
+          <p
+            dir="rtl"
+            className={cn(
+              "mt-1 text-[11px] leading-4 font-bold text-muted-foreground",
+              wordsClassName,
+            )}
+          >
+            {wordsText}
+          </p>
+        ) : null}
+      </div>
     );
   },
 );
