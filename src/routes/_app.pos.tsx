@@ -58,7 +58,7 @@ import { BarcodeScanner } from "@/components/barcode-scanner";
 import { useKeyboardWedge } from "@/hooks/use-keyboard-wedge";
 import { useCatalogModules } from "@/lib/catalog-modules";
 import { useIsDesktop } from "@/hooks/use-media-query";
-import { useStoredViewMode } from "@/lib/view-mode-storage";
+import { usePersistedViewMode } from "@/hooks/use-persisted-view-mode";
 import { CartLine as CartLineRow } from "@/components/commerce/cart-line";
 import { MobileProductPicker } from "@/components/commerce/mobile-product-picker";
 import { CustomerFormDialog } from "@/components/contacts/customer-form-dialog";
@@ -302,11 +302,8 @@ function POSPage() {
   const [customerId, setCustomerId] = useState<string>("");
   const [search, setSearch] = useState("");
   const [filterOpen, setFilterOpen] = useState(false);
-  const [viewMode, setViewMode] = useStoredViewMode<"grid" | "compact" | "table">(
-    "pos_catalog",
-    "grid",
-    ["grid", "compact", "table"],
-  );
+  /* Unified records vocabulary: cards (was "grid"), list (was "compact"), table. */
+  const [viewMode, setViewMode] = usePersistedViewMode("pos-catalog", "cards");
   const selectedCustomer = useMemo(
     () => customers.find((c) => c.id === customerId) || null,
     [customers, customerId],
@@ -1739,10 +1736,10 @@ function POSPage() {
                 <div className="flex items-center rounded-xl border border-border/80 bg-muted/40 p-0.5 shadow-2xs">
                   <button
                     type="button"
-                    onClick={() => setViewMode("grid")}
+                    onClick={() => setViewMode("cards")}
                     title={lang === "ar" ? "عرض بطاقات شبكية" : "Grid Cards view"}
                     className={`flex h-8 items-center gap-1 rounded-lg px-2 text-xs font-semibold transition ${
-                      viewMode === "grid"
+                      viewMode === "cards"
                         ? "bg-background text-primary shadow-xs ring-1 ring-border/50"
                         : "text-muted-foreground hover:text-foreground"
                     }`}
@@ -1752,10 +1749,10 @@ function POSPage() {
                   </button>
                   <button
                     type="button"
-                    onClick={() => setViewMode("compact")}
+                    onClick={() => setViewMode("list")}
                     title={lang === "ar" ? "عرض قائمة سريعة للكاشير" : "Compact Cashier List"}
                     className={`flex h-8 items-center gap-1 rounded-lg px-2 text-xs font-semibold transition ${
-                      viewMode === "compact"
+                      viewMode === "list"
                         ? "bg-background text-primary shadow-xs ring-1 ring-border/50"
                         : "text-muted-foreground hover:text-foreground"
                     }`}
@@ -2053,7 +2050,7 @@ function POSPage() {
                       </button>
                     )}
                   </div>
-                ) : viewMode === "grid" ? (
+                ) : viewMode === "cards" ? (
                   /* ─── Mode 1: Luxury Grid Cards ─── */
                   <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-2.5">
                     {filtered.map((p) => {
@@ -2174,7 +2171,7 @@ function POSPage() {
                       );
                     })}
                   </div>
-                ) : viewMode === "compact" ? (
+                ) : viewMode === "list" ? (
                   /* ─── Mode 2: Compact Cashier List ─── */
                   <div className="space-y-1.5">
                     {filtered.map((p) => {

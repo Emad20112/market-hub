@@ -1025,11 +1025,7 @@ function InventoryPage() {
         /* ─── List view: horizontal row cards with accent bar ─── */
         <div className="space-y-3">
           {isLoading ? (
-            <div className="space-y-3">
-              {Array.from({ length: 6 }).map((_, i) => (
-                <div key={i} className="card-mullak h-20 shimmer rounded-2xl bg-surface-2/40" />
-              ))}
-            </div>
+            <RecordsSkeleton mode="list" />
           ) : inventoryLoadError ? (
             inventoryLoadError
           ) : sortedRows.length === 0 ? (

@@ -1,92 +1,96 @@
 /**
  * Market-Hub ERP — Opening balances: data access layer.
  *
- * Opening the books is a balancing act, not a data-entry act. This layer is
- * built around that: the summary it fetches carries `is_balanced` and
- * `capital_required_now`, so the screen can show how far off the entry is
- * BEFORE posting rather than after being refused.
- *
- * The side of a line (debit/credit) is never sent. The server derives it from
- * the section, because a line that claims to be an asset on the credit side is
- * exactly the mistake a balance check exists to catch.
+ * الأرصدة الافتتاحية: قيد موازنة محاسبي للأصول والالتزامات وحقوق الملكية.
+ * يدعم إدخال الأكياس والسعة للمخزون، وتوجيه الحسابات المحاسبية بدقة لدفتر الأستاذ العام.
  */
 import { supabase } from "@/integrations/supabase/client";
 
 const db = supabase as any;
 
 export type OpeningSection =
-  "STOCK" | "RECEIVABLE" | "PAYABLE" | "CASH" | "BANK" | "ASSET" | "LIABILITY" | "CAPITAL";
+  | "STOCK"
+  | "RECEIVABLE"
+  | "PAYABLE"
+  | "CASH"
+  | "BANK"
+  | "ASSET"
+  | "LIABILITY"
+  | "CAPITAL";
 
 export type OpeningStatus = "DRAFT" | "POSTED" | "REVERSED";
 
-/**
- * Sections grouped by side, so the picker cannot offer a liability where an
- * asset belongs. The hint on CAPITAL matters most: capital is the balancing
- * figure, so the summary tells you what it SHOULD be rather than making you
- * guess and then be rejected.
- */
 export const OPENING_SECTIONS: {
   value: OpeningSection;
   label: string;
   hint: string;
   needsRef: "customer" | "supplier" | "item" | null;
   needsQty: boolean;
+  defaultAccountCode: string;
 }[] = [
   {
     value: "STOCK",
-    label: "مخزون",
-    hint: "كمية × تكلفة، يُرحَّل كمخزون حقيقي بحركة OPENING",
+    label: "مخزون بضاعة وحبوب",
+    hint: "كمية × تكلفة، يُرحَّل لمخزون المستودع وطبقات التكلفة (حـ/ 1311 أو 1313)",
     needsRef: "item",
     needsQty: true,
+    defaultAccountCode: "1311",
   },
   {
     value: "RECEIVABLE",
-    label: "ذمم عملاء",
-    hint: "يدخل كشف حساب العميل",
+    label: "ذمم عملاء (مدين)",
+    hint: "أرصدة افتتاحية مستحقة على العملاء في كشف حساب العميل (حـ/ 1211)",
     needsRef: "customer",
     needsQty: false,
+    defaultAccountCode: "1211",
   },
   {
     value: "CASH",
-    label: "نقدية الصندوق",
-    hint: "مُسجَّل فقط — لا يوجد دفتر نقدية في النظام بعد",
+    label: "نقدية بالصندوق",
+    hint: "رصيد النقدية الفعلي في صندوق المتجر والدرج (حـ/ 1101)",
     needsRef: null,
     needsQty: false,
+    defaultAccountCode: "1101",
   },
   {
     value: "BANK",
-    label: "أرصدة بنكية",
-    hint: "مُسجَّل فقط — لا يوجد دفتر حسابات في النظام بعد",
+    label: "أرصدة بنكية ومحافظ",
+    hint: "أرصدة الحسابات البنكية والمحافظ الإلكترونية (حـ/ 1111 أو 1131)",
     needsRef: null,
     needsQty: false,
+    defaultAccountCode: "1111",
   },
   {
     value: "ASSET",
     label: "أصول ثابتة",
-    hint: "مُسجَّل فقط — يُقيَّم لاحقاً عند الإهلاك",
+    hint: "قيمة الآلات، المعدات، وسائل النقل، والأثاث المكتبي (حـ/ 1411 أو 1421)",
     needsRef: null,
     needsQty: false,
-  },
-  {
-    value: "LIABILITY",
-    label: "التزامات",
-    hint: "ما على الشركة من ديون",
-    needsRef: null,
-    needsQty: false,
+    defaultAccountCode: "1411",
   },
   {
     value: "PAYABLE",
-    label: "ذمم موردين",
-    hint: "يدخل رصيد المورد",
+    label: "ذمم موردين (دائن)",
+    hint: "أرصدة افتتاحية مستحقة للموردين كالتزام على المنشأة (حـ/ 2111)",
     needsRef: "supplier",
     needsQty: false,
+    defaultAccountCode: "2111",
+  },
+  {
+    value: "LIABILITY",
+    label: "التزامات أخرى",
+    hint: "ديون وقروض أو مستحقات أخرى على المنشأة (حـ/ 2211 أو 2221)",
+    needsRef: null,
+    needsQty: false,
+    defaultAccountCode: "2111",
   },
   {
     value: "CAPITAL",
-    label: "رأس المال",
-    hint: "الرقم الذي يتوازن عليه القيد — الملخص يخبرك بالقيمة المطلوبة",
+    label: "رأس المال (موازنة)",
+    hint: "الرقم المحاسبي الذي يتوازن عليه القيد الافتتاحي (حـ/ 3111)",
     needsRef: null,
     needsQty: false,
+    defaultAccountCode: "3111",
   },
 ];
 
@@ -102,6 +106,7 @@ export interface OpeningLine {
   quantity: number | null;
   unit_cost: number | null;
   amount: number;
+  ledger_account_code?: string | null;
 }
 
 export interface OpeningDocument {
@@ -139,6 +144,7 @@ export interface OpeningLineDraft {
   supplier_id?: string | null;
   quantity?: number | null;
   unit_cost?: number | null;
+  ledger_account_code?: string | null;
 }
 
 function unwrap<T>(result: { data: T | null; error: { message: string } | null }, what: string): T {
@@ -167,39 +173,50 @@ export async function fetchOpeningLines(documentId: string): Promise<OpeningLine
 }
 
 export async function fetchStockableItems(): Promise<
-  { id: string; sku: string; name_ar: string | null }[]
+  { id: string; sku: string; name: string; name_ar: string | null; package_weight_kg?: number | null; cost_price?: number | null }[]
 > {
   const rows = unwrap(
     await db
       .from("products")
-      .select("id, sku, name_ar")
+      .select("id, sku, name, name_ar, package_weight_kg, cost_price")
       .eq("item_nature", "GOOD")
       .eq("inventory_policy", "TRACKED")
-      .eq("is_active", true),
+      .eq("is_active", true)
+      .order("name_ar"),
     "تعذّر تحميل أصناف المخزون",
-  ) as { id: string; sku: string; name_ar: string | null }[];
-  return rows;
+  );
+  return rows as any[];
 }
 
 export async function fetchCustomers(): Promise<{ id: string; name: string }[]> {
   return unwrap(
-    await db.from("customers").select("id, name").eq("is_active", true),
+    await db.from("customers").select("id, name").eq("is_active", true).order("name"),
     "تعذّر تحميل العملاء",
   ) as { id: string; name: string }[];
 }
 
 export async function fetchSuppliers(): Promise<{ id: string; name: string }[]> {
   return unwrap(
-    await db.from("suppliers").select("id, name").eq("is_active", true),
+    await db.from("suppliers").select("id, name").eq("is_active", true).order("name"),
     "تعذّر تحميل الموردين",
   ) as { id: string; name: string }[];
 }
 
-export async function fetchWarehouses(): Promise<{ id: string; name_ar: string | null }[]> {
+export async function fetchWarehouses(): Promise<{ id: string; name_ar: string | null; name: string }[]> {
   return unwrap(
-    await db.from("warehouses").select("id, name_ar").eq("is_active", true),
+    await db.from("warehouses").select("id, name, name_ar").eq("is_active", true).order("name_ar"),
     "تعذّر تحميل المستودعات",
-  ) as { id: string; name_ar: string | null }[];
+  ) as { id: string; name_ar: string | null; name: string }[];
+}
+
+export async function fetchAccounts(): Promise<{ id: string; code: string; name_ar: string; account_type: string }[]> {
+  const { data, error } = await db
+    .from("accounts")
+    .select("id, code, name_ar, account_type")
+    .eq("is_active", true)
+    .order("code");
+  if (error) return [];
+  return data ?? [];
 }
 
 /* --------------------------------------------------------------- writes */
@@ -211,7 +228,7 @@ export async function createOpeningDocument(input: {
 }): Promise<string> {
   const { data, error } = await db.rpc("create_opening_balance", {
     _effective_date: input.effectiveDate,
-    _lines: JSON.stringify(input.lines),
+    _lines: input.lines,
     _notes: input.notes ?? null,
   });
   if (error) throw new Error(error.message);
@@ -233,6 +250,5 @@ export async function reverseOpeningDocument(documentId: string, reason: string)
 
 /* -------------------------------------------------------------- helpers */
 
-/** R.ي formatting with the currency the mill actually trades in. */
 export const yer = (v: number | null | undefined) =>
   `${(v ?? 0).toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 0 })} ر.ي`;

@@ -52,6 +52,7 @@ export interface PurchaseProduct {
   barcode: string | null;
   cost_price: number;
   tax_rate: number;
+  package_weight_kg?: number | null;
 }
 
 export interface PurchaseSupplier {
@@ -71,6 +72,10 @@ export interface CartLine {
   unit_cost: number;
   tax_rate: number;
   quantity: number;
+  buy_by_bags?: boolean;
+  bags_count?: number;
+  package_weight_kg?: number;
+  bag_cost?: number;
 }
 
 /*
@@ -162,7 +167,7 @@ export function PurchaseFormSheet({
       const [ps, ss, ws] = await Promise.all([
         supabase
           .from("products")
-          .select("id,name_ar,sku,barcode,cost_price,tax_rate")
+          .select("id,name_ar,sku,barcode,cost_price,tax_rate,package_weight_kg")
           .eq("is_active", true)
           .order("name")
           .limit(500),
@@ -222,11 +227,24 @@ export function PurchaseFormSheet({
 
   /* ── Cart operations ── */
   function addToCart(p: PurchaseProduct) {
+    const pkgKg = Number(p.package_weight_kg) || 0;
+    const isPackaged = pkgKg > 0;
     setCart((prev) => {
       const idx = prev.findIndex((l) => l.product_id === p.id);
       if (idx >= 0) {
         const next = [...prev];
-        next[idx] = { ...next[idx], quantity: next[idx].quantity + 1 };
+        const line = next[idx];
+        if (line.buy_by_bags) {
+          const nextBags = (line.bags_count ?? 1) + 1;
+          const cap = line.package_weight_kg || pkgKg || 50;
+          next[idx] = {
+            ...line,
+            bags_count: nextBags,
+            quantity: nextBags * cap,
+          };
+        } else {
+          next[idx] = { ...line, quantity: line.quantity + 1 };
+        }
         return next;
       }
       return [
@@ -236,7 +254,11 @@ export function PurchaseFormSheet({
           name: productLabel(p),
           unit_cost: Number(p.cost_price) || 0,
           tax_rate: Number(p.tax_rate ?? 0),
-          quantity: 1,
+          quantity: isPackaged ? pkgKg : 1,
+          buy_by_bags: isPackaged,
+          bags_count: isPackaged ? 1 : undefined,
+          package_weight_kg: isPackaged ? pkgKg : 50,
+          bag_cost: isPackaged ? (Number(p.cost_price) || 0) * pkgKg : undefined,
         },
       ];
     });
@@ -506,12 +528,42 @@ export function PurchaseFormSheet({
                   {cart.map((l) => (
                     <li
                       key={l.product_id}
-                      className="rounded-xl border-border/70 bg-surface/60 p-2.5"
+                      className="rounded-xl border-border/70 bg-surface/60 p-2.5 space-y-2"
                     >
                       <div className="flex items-start justify-between gap-2">
-                        <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">
-                          {l.name}
-                        </span>
+                        <div className="min-w-0 flex-1 flex flex-wrap items-center gap-2">
+                          <span className="truncate text-sm font-medium text-foreground">
+                            {l.name}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const willBeBags = !l.buy_by_bags;
+                              const cap = l.package_weight_kg || 50;
+                              if (willBeBags) {
+                                const bags = Math.max(1, Math.round(l.quantity / cap));
+                                updateLine(l.product_id, {
+                                  buy_by_bags: true,
+                                  bags_count: bags,
+                                  package_weight_kg: cap,
+                                  quantity: bags * cap,
+                                  bag_cost: l.unit_cost * cap,
+                                });
+                              } else {
+                                updateLine(l.product_id, { buy_by_bags: false });
+                              }
+                            }}
+                            className={`inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-semibold transition ${
+                              l.buy_by_bags
+                                ? "bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30"
+                                : "bg-muted text-muted-foreground hover:text-foreground"
+                            }`}
+                            title={isAr ? "التبديل بين الشراء بالأكياس والشراء المباشر" : "Toggle buy by bags / direct"}
+                          >
+                            <Package className="h-3 w-3" />
+                            <span>{l.buy_by_bags ? (isAr ? "بالأكياس" : "By Bags") : (isAr ? "مباشر" : "Direct")}</span>
+                          </button>
+                        </div>
                         <button
                           type="button"
                           onClick={() => removeLine(l.product_id)}
@@ -522,72 +574,172 @@ export function PurchaseFormSheet({
                         </button>
                       </div>
 
-                      <div className="mt-2 grid-cols-3 gap-2">
-                        <div>
-                          <span className="mb-1 block text-[10px] font-semibold uppercase text-muted-foreground">
-                            {t("common.qty")}
-                          </span>
-                          <div className="flex items-center gap-1">
-                            <button
-                              type="button"
-                              onClick={() => updateLine(l.product_id, { quantity: l.quantity - 1 })}
-                              aria-label="-"
-                              className="grid size-7 shrink-0 place-items-center rounded-lg border-border text-muted-foreground transition hover:bg-muted hover:text-foreground"
-                            >
-                              <Minus className="h-3 w-3" />
-                            </button>
-                            <NumberInput
-                              containerClassName="min-w-0 flex-1"
-                              className="text-center"
-                              value={l.quantity}
-                              onValueChange={(v) =>
-                                updateLine(l.product_id, { quantity: Number(v ?? 0) })
-                              }
-                            />
-                            <button
-                              type="button"
-                              onClick={() => updateLine(l.product_id, { quantity: l.quantity + 1 })}
-                              aria-label="+"
-                              className="grid size-7 shrink-0 place-items-center rounded-lg border-border text-muted-foreground transition hover:bg-muted hover:text-foreground"
-                            >
-                              <Plus className="h-3 w-3" />
-                            </button>
+                      {l.buy_by_bags ? (
+                        <div className="space-y-2">
+                          <div className="grid grid-cols-3 gap-2">
+                            <div>
+                              <span className="mb-1 block text-[10px] font-semibold uppercase text-muted-foreground">
+                                {isAr ? "عدد الأكياس" : "Bags Count"}
+                              </span>
+                              <div className="flex items-center gap-1">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const nextBags = Math.max(1, (l.bags_count ?? 1) - 1);
+                                    const cap = l.package_weight_kg || 50;
+                                    updateLine(l.product_id, { bags_count: nextBags, quantity: nextBags * cap });
+                                  }}
+                                  aria-label="-"
+                                  className="grid size-7 shrink-0 place-items-center rounded-lg border-border text-muted-foreground transition hover:bg-muted hover:text-foreground"
+                                >
+                                  <Minus className="h-3 w-3" />
+                                </button>
+                                <NumberInput
+                                  containerClassName="min-w-0 flex-1"
+                                  className="text-center"
+                                  value={l.bags_count ?? 1}
+                                  onValueChange={(v) => {
+                                    const nextBags = Number(v ?? 0);
+                                    const cap = l.package_weight_kg || 50;
+                                    updateLine(l.product_id, { bags_count: nextBags, quantity: nextBags * cap });
+                                  }}
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const nextBags = (l.bags_count ?? 1) + 1;
+                                    const cap = l.package_weight_kg || 50;
+                                    updateLine(l.product_id, { bags_count: nextBags, quantity: nextBags * cap });
+                                  }}
+                                  aria-label="+"
+                                  className="grid size-7 shrink-0 place-items-center rounded-lg border-border text-muted-foreground transition hover:bg-muted hover:text-foreground"
+                                >
+                                  <Plus className="h-3 w-3" />
+                                </button>
+                              </div>
+                            </div>
+
+                            <div>
+                              <span className="mb-1 block text-[10px] font-semibold uppercase text-muted-foreground">
+                                {isAr ? "سعة الكيس (كجم)" : "Capacity (kg)"}
+                              </span>
+                              <NumberInput
+                                decimal
+                                className="text-center"
+                                value={l.package_weight_kg ?? 50}
+                                onValueChange={(v) => {
+                                  const cap = Number(v ?? 0);
+                                  const bags = l.bags_count ?? 1;
+                                  const bagCost = l.bag_cost ?? (l.unit_cost * cap);
+                                  updateLine(l.product_id, {
+                                    package_weight_kg: cap,
+                                    quantity: bags * cap,
+                                    unit_cost: cap > 0 ? bagCost / cap : 0,
+                                  });
+                                }}
+                              />
+                            </div>
+
+                            <div>
+                              <span className="mb-1 block text-[10px] font-semibold uppercase text-muted-foreground">
+                                {isAr ? "سعر الكيس" : "Bag Price"}
+                              </span>
+                              <NumberInput
+                                decimal
+                                className="text-end"
+                                value={l.bag_cost ?? (l.unit_cost * (l.package_weight_kg || 50))}
+                                onValueChange={(v) => {
+                                  const bagCost = Number(v ?? 0);
+                                  const cap = l.package_weight_kg || 50;
+                                  updateLine(l.product_id, {
+                                    bag_cost: bagCost,
+                                    unit_cost: cap > 0 ? bagCost / cap : 0,
+                                  });
+                                }}
+                              />
+                            </div>
+                          </div>
+
+                          <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-surface-2/60 px-2 py-1 text-[11px] text-muted-foreground">
+                            <span>
+                              الوزن الإجمالي: <strong className="text-foreground">{l.quantity} كجم</strong> (تكلفة الكيلو:{" "}
+                              <strong className="text-foreground font-mono">{money(l.unit_cost)}</strong>)
+                            </span>
+                            <span className="font-mono font-bold text-foreground">
+                              {money(l.unit_cost * l.quantity)}
+                            </span>
                           </div>
                         </div>
-
+                      ) : (
                         <div>
-                          <span className="mb-1 block text-[10px] font-semibold uppercase text-muted-foreground">
-                            {t("common.cost")}
-                          </span>
-                          <NumberInput
-                            decimal
-                            className="text-end"
-                            value={l.unit_cost}
-                            onValueChange={(v) =>
-                              updateLine(l.product_id, { unit_cost: Number(v ?? 0) })
-                            }
-                          />
-                        </div>
+                          <div className="grid grid-cols-3 gap-2">
+                            <div>
+                              <span className="mb-1 block text-[10px] font-semibold uppercase text-muted-foreground">
+                                {t("common.qty")}
+                              </span>
+                              <div className="flex items-center gap-1">
+                                <button
+                                  type="button"
+                                  onClick={() => updateLine(l.product_id, { quantity: l.quantity - 1 })}
+                                  aria-label="-"
+                                  className="grid size-7 shrink-0 place-items-center rounded-lg border-border text-muted-foreground transition hover:bg-muted hover:text-foreground"
+                                >
+                                  <Minus className="h-3 w-3" />
+                                </button>
+                                <NumberInput
+                                  containerClassName="min-w-0 flex-1"
+                                  className="text-center"
+                                  value={l.quantity}
+                                  onValueChange={(v) =>
+                                    updateLine(l.product_id, { quantity: Number(v ?? 0) })
+                                  }
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => updateLine(l.product_id, { quantity: l.quantity + 1 })}
+                                  aria-label="+"
+                                  className="grid size-7 shrink-0 place-items-center rounded-lg border-border text-muted-foreground transition hover:bg-muted hover:text-foreground"
+                                >
+                                  <Plus className="h-3 w-3" />
+                                </button>
+                              </div>
+                            </div>
 
-                        <div>
-                          <span className="mb-1 block text-[10px] font-semibold uppercase text-muted-foreground">
-                            {t("purchases.tax_pct")}
-                          </span>
-                          <NumberInput
-                            decimal
-                            suffix="%"
-                            className="text-end"
-                            value={l.tax_rate}
-                            onValueChange={(v) =>
-                              updateLine(l.product_id, { tax_rate: Number(v ?? 0) })
-                            }
-                          />
-                        </div>
-                      </div>
+                            <div>
+                              <span className="mb-1 block text-[10px] font-semibold uppercase text-muted-foreground">
+                                {t("common.cost")}
+                              </span>
+                              <NumberInput
+                                decimal
+                                className="text-end"
+                                value={l.unit_cost}
+                                onValueChange={(v) =>
+                                  updateLine(l.product_id, { unit_cost: Number(v ?? 0) })
+                                }
+                              />
+                            </div>
 
-                      <p className="mt-1.5 text-end font-mono text-xs text-muted-foreground">
-                        {money(l.unit_cost * l.quantity)}
-                      </p>
+                            <div>
+                              <span className="mb-1 block text-[10px] font-semibold uppercase text-muted-foreground">
+                                {t("purchases.tax_pct")}
+                              </span>
+                              <NumberInput
+                                decimal
+                                suffix="%"
+                                className="text-end"
+                                value={l.tax_rate}
+                                onValueChange={(v) =>
+                                  updateLine(l.product_id, { tax_rate: Number(v ?? 0) })
+                                }
+                              />
+                            </div>
+                          </div>
+
+                          <p className="mt-1.5 text-end font-mono text-xs text-muted-foreground">
+                            {money(l.unit_cost * l.quantity)}
+                          </p>
+                        </div>
+                      )}
                     </li>
                   ))}
                 </ul>

@@ -17,8 +17,14 @@ import { moneyCell } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { FieldInput } from "@/components/ui/input";
-import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
+import { DataTable, type DataTableColumn, type DataTableSort } from "@/components/ui/data-table";
+import { RecordsToolbar } from "@/components/ui/records-toolbar";
+import {
+  RecordsView,
+  type RecordsViewMode,
+} from "@/components/ui/records-view";
+import { usePersistedViewMode } from "@/hooks/use-persisted-view-mode";
+import { QuickFilterBar, type QuickFilterItem } from "@/components/ui/quick-filter-bar";
 import { PageHeader } from "@/components/page-header";
 import { ExpenseSummaryCards } from "./expense-summary-cards";
 import { ExpenseFilterSheet } from "./expense-filter-sheet";
@@ -76,6 +82,9 @@ export function ExpenseRegister({
   const [filterOpen, setFilterOpen] = useState(false);
   const [searchText, setSearchText] = useState(filters.search);
   const [hoveredId, setHoveredId] = useState<string | null>(null);
+  /* Unified records vocabulary: cards | list | table — persisted per screen (المحور 4). */
+  const [viewMode, setViewMode] = usePersistedViewMode("expenses", "table");
+  const [sort, setSort] = useState<DataTableSort | null>(null);
 
   /* -------------------------------------------------- debounced search */
   // 300 ms: long enough that typing "electricity" is one request, short enough
@@ -95,59 +104,75 @@ export function ExpenseRegister({
   }, [filters.search]);
 
   /* -------------------------------------------------- quick filters */
-  const quickFilters = useMemo(
+  /* Unified QuickFilterBar items (المحور 8): tone-tinted chips, always visible in
+   * all view modes. `value` is derived from the current filters so the bar stays
+   * a radio group rather than five independent toggles. */
+  const quickFilterItems = useMemo<QuickFilterItem[]>(
     () => [
       {
         id: "all",
         label: t("common.all"),
-        active: filters.status.length === 0 && !filters.paymentState,
-        apply: () => onFiltersChange({ ...filters, status: [], paymentState: null }),
+        tone: "primary",
       },
       {
         id: "pending",
         label: ar ? "بانتظار الاعتماد" : "Awaiting approval",
         count: summary?.pending_count ?? 0,
-        active: filters.status.length === 1 && filters.status[0] === "SUBMITTED",
-        apply: () => onFiltersChange({ ...filters, status: ["SUBMITTED"], paymentState: null }),
+        tone: "warning",
       },
       {
         id: "unpaid",
         label: ar ? "مستحق غير مسدّد" : "Outstanding",
         count: summary?.unpaid_count ?? 0,
-        // "Outstanding" is the settlement bucket, NOT the status. Expressing it
-        // as `status: ['POSTED']` would silently hide partially-paid documents,
-        // which are exactly the ones a collector is chasing.
-        active: filters.paymentState === "unpaid" || filters.paymentState === "partial",
-        apply: () => onFiltersChange({ ...filters, paymentState: "unpaid", status: [] }),
+        tone: "danger",
       },
       {
         id: "overdue",
         label: ar ? "متأخر" : "Overdue",
         count: summary?.overdue_count ?? 0,
-        // The due-date test itself is applied by the summary and by the row
-        // badge; here the window is narrowed to what can be overdue at all.
-        active:
-          filters.paymentState === "unpaid" && filters.dateTo !== null && filters.dateTo <= today(),
-        apply: () =>
-          onFiltersChange({
-            ...filters,
-            paymentState: "unpaid",
-            status: [],
-            // Anything due after today cannot be overdue, so the upper bound is
-            // today and the lower bound is left open.
-            dateTo: today(),
-            dateFrom: filters.dateFrom,
-          }),
+        tone: "danger",
       },
       {
         id: "drafts",
         label: ar ? "مسودات" : "Drafts",
         count: summary?.draft_count ?? 0,
-        active: filters.status.length === 1 && filters.status[0] === "DRAFT",
-        apply: () => onFiltersChange({ ...filters, status: ["DRAFT"], paymentState: null }),
+        tone: "info",
       },
     ],
-    [filters, onFiltersChange, summary, ar, t],
+    [summary, ar, t],
+  );
+
+  const quickFilterValue = useMemo<string>(() => {
+    if (filters.status.length === 1 && filters.status[0] === "SUBMITTED") return "pending";
+    if (filters.status.length === 1 && filters.status[0] === "DRAFT") return "drafts";
+    if (filters.paymentState === "unpaid" && filters.dateTo !== null && filters.dateTo <= today())
+      return "overdue";
+    if (filters.paymentState === "unpaid" || filters.paymentState === "partial") return "unpaid";
+    return "all";
+  }, [filters]);
+
+  const applyQuickFilter = useCallback(
+    (id: string) => {
+      if (id === "all") {
+        onFiltersChange({ ...filters, status: [], paymentState: null, dateTo: null });
+      } else if (id === "pending") {
+        onFiltersChange({ ...filters, status: ["SUBMITTED"], paymentState: null });
+      } else if (id === "unpaid") {
+        onFiltersChange({ ...filters, status: [], paymentState: "unpaid" });
+      } else if (id === "overdue") {
+        onFiltersChange({
+          ...filters,
+          paymentState: "unpaid",
+          status: [],
+          // Anything due after today cannot be overdue, so the upper bound is
+          // today and the lower bound is left open.
+          dateTo: today(),
+        });
+      } else if (id === "drafts") {
+        onFiltersChange({ ...filters, status: ["DRAFT"], paymentState: null });
+      }
+    },
+    [filters, onFiltersChange],
   );
 
   /* -------------------------------------------------- keyboard */
@@ -410,21 +435,57 @@ export function ExpenseRegister({
           }}
         />
 
-        <DataTable<ExpenseListRow>
-          columns={columns}
+        <RecordsToolbar
+          searchValue={searchText}
+          onSearchChange={setSearchText}
+          searchPlaceholder={t("expenses.search_placeholder")}
+          resultCount={rows.length}
+          activeFilterCount={activeCount}
+          onFilterOpen={() => setFilterOpen(true)}
+          viewMode={viewMode}
+          onViewModeChange={setViewMode}
+          viewModes={["table", "list", "cards"]}
+          action={
+            <Button size="sm" onClick={onCreate}>
+              <Plus className="size-4" />
+              {t("expenses.new")}
+            </Button>
+          }
+          end={
+            <Button variant="outline" size="sm" onClick={onRefresh} disabled={isFetching}>
+              <RefreshCw className={cn("size-3.5", isFetching && "animate-spin")} />
+              <span className="hidden sm:inline">{t("common.retry")}</span>
+            </Button>
+          }
+        >
+          <QuickFilterBar
+            items={quickFilterItems}
+            value={quickFilterValue}
+            onChange={applyQuickFilter}
+            ariaLabel={t("common.filter")}
+          />
+        </RecordsToolbar>
+
+        <RecordsView<ExpenseListRow>
           rows={rows}
-          rowKey={(row) => row.id}
-          initialLoading={isLoading && rows.length === 0}
+          getRowId={(row) => row.id}
+          viewMode={viewMode}
           loading={isLoading && rows.length === 0}
           refreshing={isFetching && !isLoading && !isFetchingNextPage}
           error={error}
           onRetry={onRefresh}
-          infinite
+          infinite={viewMode === "table"}
           hasMore={Boolean(hasNextPage)}
           onLoadMore={onLoadMore}
           loadingMore={isFetchingNextPage}
           totalCount={summary?.total_count}
+          columns={columns}
+          sort={sort}
+          onSortChange={setSort}
           onRowClick={(row) => onOpen(row)}
+          tableRowProps={(row) => ({
+            onMouseEnter: () => setHoveredId(row.id),
+          })}
           empty={{
             icon: <Receipt />,
             title: t("expenses.empty"),
@@ -436,82 +497,61 @@ export function ExpenseRegister({
               </Button>
             ),
           }}
-          toolbar={
-            <div
-              className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between"
-              onMouseLeave={() => setHoveredId(null)}
+          renderCard={(row) => (
+            <button
+              type="button"
+              onClick={() => onOpen(row)}
+              className="card-mullak flex w-full flex-col gap-2 p-4 text-start transition hover:border-primary/30"
             >
-              <div className="flex min-w-0 flex-1 items-center gap-2">
-                <div className="relative min-w-0 flex-1">
-                  <Search className="pointer-events-none absolute start-3 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
-                  <FieldInput
-                    size="sm"
-                    value={searchText}
-                    onValueChange={setSearchText}
-                    placeholder={t("expenses.search_placeholder")}
-                    className="ps-9"
-                    aria-label={t("common.search")}
-                  />
-                  {searchText ? (
-                    <button
-                      type="button"
-                      onClick={() => setSearchText("")}
-                      aria-label={t("common.clear")}
-                      className="absolute end-3 top-1/2 -translate-y-1/2 text-muted-foreground transition hover:text-foreground"
-                    >
-                      <X className="size-3.5" />
-                    </button>
-                  ) : null}
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex min-w-0 flex-col">
+                  <span className="truncate text-[13px] font-bold text-foreground">
+                    {row.description || row.primary_category_ar || row.primary_category || "—"}
+                  </span>
+                  <span className="font-mono text-[11px] text-muted-foreground">
+                    {row.reference} · {row.expense_date}
+                  </span>
                 </div>
-
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setFilterOpen(true)}
-                  className="shrink-0"
-                >
-                  <Filter className="size-3.5" />
-                  <span className="hidden sm:inline">{t("common.filter")}</span>
-                  {activeCount > 0 ? (
-                    <span className="grid size-4 place-items-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">
-                      {activeCount}
-                    </span>
-                  ) : null}
-                </Button>
+                <span className="font-mono text-[13px] font-semibold tabular-nums text-foreground">
+                  {moneyCell(row.total_amount)}
+                </span>
               </div>
-
-              <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5">
-                {quickFilters.map((filter) => (
-                  <button
-                    key={filter.id}
-                    type="button"
-                    onClick={filter.apply}
-                    className={cn(
-                      "flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1 text-[11px] font-medium transition",
-                      filter.active
-                        ? "border-primary bg-primary text-primary-foreground"
-                        : "border-border/70 bg-surface text-muted-foreground hover:text-foreground",
-                    )}
-                  >
-                    {filter.label}
-                    {filter.count !== undefined && filter.count > 0 ? (
-                      <span
-                        className={cn(
-                          "rounded-full px-1.5 text-[10px] tabular-nums",
-                          filter.active ? "bg-primary-foreground/25" : "bg-surface-2",
-                        )}
-                      >
-                        {filter.count}
-                      </span>
-                    ) : null}
-                  </button>
-                ))}
+              <div className="flex flex-wrap items-center gap-1.5">
+                <ExpenseStatusBadge status={row.status} showLock />
+                <ExpensePaymentBadge
+                  paid={Number(row.paid_amount)}
+                  total={Number(row.total_amount)}
+                  status={row.status}
+                />
               </div>
-            </div>
-          }
-          rowProps={(row) => ({
-            onMouseEnter: () => setHoveredId(row.id),
-          })}
+              <span className="truncate text-[11px] text-muted-foreground">
+                {row.supplier_name ?? row.employee_name ?? row.payee_name ?? "—"}
+              </span>
+            </button>
+          )}
+          renderListRow={(row) => (
+            <button
+              type="button"
+              onClick={() => onOpen(row)}
+              onMouseEnter={() => setHoveredId(row.id)}
+              className="flex w-full items-center gap-3 rounded-2xl border border-border/50 bg-surface px-3.5 py-3 text-start transition hover:border-border"
+            >
+              <div className="flex min-w-0 flex-1 flex-col">
+                <span className="truncate text-[13px] font-semibold text-foreground">
+                  {row.description || row.primary_category_ar || row.primary_category || "—"}
+                </span>
+                <span className="font-mono text-[11px] text-muted-foreground">
+                  {row.reference} · {row.expense_date}
+                </span>
+              </div>
+              <div className="flex shrink-0 items-center gap-2">
+                <ExpenseStatusBadge status={row.status} />
+                <span className="font-mono text-[12px] font-semibold tabular-nums text-foreground">
+                  {moneyCell(row.total_amount)}
+                </span>
+              </div>
+            </button>
+          )}
         />
       </div>
 

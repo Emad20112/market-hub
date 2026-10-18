@@ -79,9 +79,14 @@ export function VortexDrawerDialog({
           <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm transition-all duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0" />
           <DialogPrimitive.Content
             className={cn(
+              /* المحور 12 — الارتفاع الذكي (Adaptive Height):
+               * لوحة عائمة أعلى اليسار تُحاسَب على قياس محتواها الفعلي:
+               * - محتوى قليل => فورم منبثق صغير أنيق لا يمتد على طول الشاشة.
+               * - محتوى كثير => تتمدد حتى قرب الحافة السفلية ثم يصبح الجسم قابلاً للتمرير.
+               */
               isLeftPanel
-                ? "fixed inset-y-0 left-0 z-50 flex max-h-full w-[420px] max-w-[92vw] flex-col rounded-none rounded-e-2xl border-y-0 border-s-0 border-e border-border/70 bg-card/95 text-card-foreground shadow-2xl backdrop-blur-2xl transition-all duration-300 ease-out focus:outline-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:slide-out-to-left data-[state=open]:slide-in-from-left"
-                : "fixed left-1/2 top-1/2 z-50 flex max-h-[92vh] w-[95vw] -translate-x-1/2 -translate-y-1/2 flex-col rounded-2xl border border-border/70 bg-card/95 text-card-foreground shadow-2xl backdrop-blur-2xl transition-all duration-200 focus:outline-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%]",
+                ? "fixed left-4 top-4 z-50 flex h-auto max-h-[calc(100vh-2rem)] w-[460px] max-w-[92vw] flex-col rounded-3xl rounded-s-2xl border border-border/70 bg-card/95 text-card-foreground shadow-2xl backdrop-blur-2xl transition-all duration-300 ease-out focus:outline-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:slide-out-to-left data-[state=open]:slide-in-from-left"
+                : "fixed left-1/2 top-1/2 z-50 flex max-h-[92vh] w-[95vw] -translate-x-1/2 -translate-y-1/2 flex-col rounded-3xl border border-border/70 bg-card/95 text-card-foreground shadow-2xl backdrop-blur-2xl transition-all duration-200 focus:outline-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%]",
               !isLeftPanel && sizeClasses[size],
               className,
             )}
@@ -122,10 +127,10 @@ export function VortexDrawerDialog({
                     <button
                       type="button"
                       onClick={() => onOpenChange(false)}
-                      className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
+                      className="grid size-9 shrink-0 place-items-center rounded-full border border-border bg-background text-muted-foreground shadow-sm transition-all duration-200 hover:rotate-90 hover:border-foreground/20 hover:bg-foreground/5 hover:text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 active:scale-90"
                       aria-label="إغلاق"
                     >
-                      <X className="h-4 w-4" />
+                      <X className="size-4" />
                     </button>
                   </DialogPrimitive.Close>
                 )}
@@ -192,7 +197,7 @@ export function VortexDrawerDialog({
                 <button
                   type="button"
                   onClick={() => onOpenChange(false)}
-                  className="rounded-full bg-muted p-1 text-muted-foreground hover:text-foreground"
+                  className="grid size-8 shrink-0 place-items-center rounded-full border border-border bg-background text-muted-foreground shadow-sm transition-all duration-200 hover:rotate-90 hover:text-foreground active:scale-90"
                   aria-label="إغلاق"
                 >
                   <X className="h-4 w-4" />

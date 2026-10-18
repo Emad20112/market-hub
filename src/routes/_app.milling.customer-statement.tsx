@@ -78,6 +78,8 @@ import {
   fmtNum,
 } from "@/components/milling/milling-ui";
 import { getCompanyCurrencySymbol } from "@/lib/format";
+import { usePersistedViewMode } from "@/hooks/use-persisted-view-mode";
+import type { RecordsViewMode } from "@/components/ui/records-view";
 import type { UnifiedDocumentData } from "@/lib/templates/types";
 
 export const Route = createFileRoute("/_app/milling/customer-statement")({
@@ -88,7 +90,6 @@ export const Route = createFileRoute("/_app/milling/customer-statement")({
   component: CustomerCustodyPage,
 });
 
-type ViewMode = "table" | "cards" | "compact";
 type TypeFilter = "ALL" | "RAW" | "OUTPUT" | "ACTIVE" | "ZERO";
 
 const PRESET_CAPACITIES = [50, 40, 25, 20, 10];
@@ -101,19 +102,11 @@ function CustomerCustodyPage() {
     from: "/_app/milling/customer-statement",
   });
 
-  // نمط العرض المحفوظ
-  const [viewMode, setViewMode] = useState<ViewMode>(() => {
-    if (typeof window !== "undefined") {
-      return (localStorage.getItem("vortex_custody_view_mode") as ViewMode) || "table";
-    }
-    return "table";
-  });
+  /* Unified records vocabulary: cards | list (was "compact") | table — persisted per screen. */
+  const [viewMode, setViewMode] = usePersistedViewMode("milling-custody", "table");
 
-  function changeViewMode(mode: ViewMode) {
+  function changeViewMode(mode: RecordsViewMode) {
     setViewMode(mode);
-    if (typeof window !== "undefined") {
-      localStorage.setItem("vortex_custody_view_mode", mode);
-    }
   }
 
   // معايير البحث والفلترة
@@ -508,9 +501,9 @@ function CustomerCustodyPage() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => changeViewMode("compact")}
+                  onClick={() => changeViewMode("list")}
                   className={`p-1.5 rounded-lg transition ${
-                    viewMode === "compact"
+                    viewMode === "list"
                       ? "bg-background text-foreground shadow-xs"
                       : "text-muted-foreground hover:text-foreground"
                   }`}
