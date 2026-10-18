@@ -111,7 +111,7 @@ function toNumber(value: unknown): number {
 export const executeSalesRegisterReport = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((data: unknown) => salesRequestSchema.parse(data))
-  .handler(async ({ data, context }) => {
+  .handler(async ({ data, context }: any) => {
     const { filters } = data;
     const page = data.pagination?.page ?? 1;
     const pageSize = data.pagination?.pageSize ?? 50;
@@ -120,7 +120,7 @@ export const executeSalesRegisterReport = createServerFn({ method: "POST" })
       : "created_at";
     const ascending = (data.sort?.order ?? "desc") === "asc";
     const boundaries = resolveDateRangeBoundaries(filters.startDate, filters.endDate);
-    const supabase = context.supabase;
+    const supabase: any = (context as any).supabase;
 
     let pageQuery = supabase.from("sales_register").select("*", { count: "exact" });
     let metricsQuery = supabase
@@ -248,7 +248,7 @@ export const executeSalesRegisterReport = createServerFn({ method: "POST" })
 export const executePurchaseRegisterReport = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((data: unknown) => purchasesRequestSchema.parse(data))
-  .handler(async ({ data, context }) => {
+  .handler(async ({ data, context }: any) => {
     const { filters } = data;
     const page = data.pagination?.page ?? 1;
     const pageSize = data.pagination?.pageSize ?? 50;
@@ -257,7 +257,7 @@ export const executePurchaseRegisterReport = createServerFn({ method: "POST" })
       : "created_at";
     const ascending = (data.sort?.order ?? "desc") === "asc";
     const boundaries = resolveDateRangeBoundaries(filters.startDate, filters.endDate);
-    const supabase = context.supabase;
+    const supabase: any = (context as any).supabase;
 
     let pageQuery = supabase.from("purchase_register").select("*", { count: "exact" });
     let metricsQuery = supabase
@@ -345,7 +345,7 @@ export const executePurchaseRegisterReport = createServerFn({ method: "POST" })
 export const executeSalesGroupedReport = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((data: unknown) => groupedSalesRequestSchema.parse(data))
-  .handler(async ({ data, context }) => {
+  .handler(async ({ data, context }: any) => {
     const { filters, groupBy, dimensions } = data;
     const activeDimensions: Array<"product" | "customer" | "branch" | "warehouse" | "payment_method"> =
       dimensions && dimensions.length > 0 ? dimensions : [groupBy || "product"];
@@ -353,7 +353,7 @@ export const executeSalesGroupedReport = createServerFn({ method: "POST" })
     const page = data.pagination?.page ?? 1;
     const pageSize = data.pagination?.pageSize ?? 50;
     const boundaries = resolveDateRangeBoundaries(filters.startDate, filters.endDate);
-    const supabase = context.supabase;
+    const supabase: any = (context as any).supabase;
 
     let query = supabase
       .from("sales_register")
@@ -576,7 +576,7 @@ export const executeSalesGroupedReport = createServerFn({ method: "POST" })
 export const executePurchasesGroupedReport = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((data: unknown) => groupedPurchasesRequestSchema.parse(data))
-  .handler(async ({ data, context }) => {
+  .handler(async ({ data, context }: any) => {
     const { filters, groupBy, dimensions } = data;
     const activeDimensions: Array<"supplier" | "product" | "warehouse" | "payment_method"> =
       dimensions && dimensions.length > 0 ? dimensions : [groupBy || "supplier"];
@@ -584,7 +584,7 @@ export const executePurchasesGroupedReport = createServerFn({ method: "POST" })
     const page = data.pagination?.page ?? 1;
     const pageSize = data.pagination?.pageSize ?? 50;
     const boundaries = resolveDateRangeBoundaries(filters.startDate, filters.endDate);
-    const supabase = context.supabase;
+    const supabase: any = (context as any).supabase;
 
     let query = supabase
       .from("purchase_register")
@@ -781,12 +781,12 @@ export const executePurchasesGroupedReport = createServerFn({ method: "POST" })
 export const executeInventoryMovementsReport = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((data: unknown) => inventoryRequestSchema.parse(data))
-  .handler(async ({ data, context }) => {
+  .handler(async ({ data, context }: any) => {
     const { filters } = data;
     const page = data.pagination?.page ?? 1;
     const pageSize = data.pagination?.pageSize ?? 50;
     const boundaries = resolveDateRangeBoundaries(filters.startDate, filters.endDate);
-    const supabase = context.supabase;
+    const supabase: any = (context as any).supabase;
     let openingBalance = 0;
 
     if (filters.startDate && filters.productId) {
@@ -889,9 +889,10 @@ export const executeInventoryMovementsReport = createServerFn({ method: "POST" }
 export const searchReportProducts = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((data: unknown) => productOptionsSchema.parse(data))
-  .handler(async ({ data, context }) => {
+  .handler(async ({ data, context }: any) => {
     const term = searchTerm(data.search);
-    let query = context.supabase
+    const supabase: any = (context as any).supabase;
+    let query = supabase
       .from("products")
       .select("id,name,name_ar,sku")
       .order("name_ar", { ascending: true })
@@ -910,8 +911,9 @@ export const searchReportProducts = createServerFn({ method: "POST" })
 export const searchReportFilterOptions = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((data: unknown) => filterOptionsSchema.parse(data))
-  .handler(async ({ data, context }) => {
+  .handler(async ({ data, context }: any) => {
     const term = searchTerm(data.search);
+    const supabase: any = (context as any).supabase;
     const config = {
       customers: { table: "customers", columns: "id,name", label: "name", searchColumns: ["name"] },
       suppliers: { table: "suppliers", columns: "id,name", label: "name", searchColumns: ["name"] },
@@ -934,14 +936,14 @@ export const searchReportFilterOptions = createServerFn({ method: "POST" })
         searchColumns: ["name"],
       },
     } as const;
-    const source = config[data.source];
-    let query = context.supabase
+    const source = (config as Record<string, any>)[data.source] ?? config.customers;
+    let query = supabase
       .from(source.table)
       .select(source.columns)
       .order(source.label, { ascending: true })
       .limit(100);
     if (term) {
-      query = query.or(source.searchColumns.map((column) => `${column}.ilike.%${term}%`).join(","));
+      query = query.or(source.searchColumns.map((column: string) => `${column}.ilike.%${term}%`).join(","));
     }
     let options: any[] = [];
     try {
@@ -975,9 +977,9 @@ const comparisonRequestSchema = z.object({
 export const executeComparisonReport = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((data: unknown) => comparisonRequestSchema.parse(data))
-  .handler(async ({ data, context }) => {
+  .handler(async ({ data, context }: any) => {
     const { filters } = data;
-    const supabase = context.supabase;
+    const supabase: any = (context as any).supabase;
     const current = resolveDateRangeBoundaries(filters.startDate, filters.endDate);
     const previous = resolvePreviousPeriodBoundaries(
       filters.startDate,
@@ -1105,11 +1107,11 @@ const exceptionsRequestSchema = z.object({
 export const executeExceptionsReport = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((data: unknown) => exceptionsRequestSchema.parse(data))
-  .handler(async ({ data, context }) => {
+  .handler(async ({ data, context }: any) => {
     const { filters } = data;
     const page = data.pagination?.page ?? 1;
     const pageSize = data.pagination?.pageSize ?? 50;
-    const supabase = context.supabase;
+    const supabase: any = (context as any).supabase;
     const boundaries = resolveDateRangeBoundaries(filters.startDate, filters.endDate);
 
     if (data.source === "item_classification_gaps") {
@@ -1147,7 +1149,7 @@ export const executeExceptionsReport = createServerFn({ method: "POST" })
       const { data: valuation, error } = await valuationQuery;
       if (error) throw new Error(`[Exceptions inventory] ${error.message}`);
 
-      let allRows = ((valuation ?? []) as Array<Record<string, any>>).map((row) => ({
+      let allRows: Array<Record<string, any>> = ((valuation ?? []) as Array<Record<string, any>>).map((row) => ({
         ...row,
         quantity: toNumber(row.quantity),
         reference_valuation: toNumber(row.reference_valuation),

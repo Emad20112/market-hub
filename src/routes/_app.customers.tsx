@@ -719,7 +719,7 @@ function CustomersPage() {
         );
         return;
       }
-      void navigate({ to: "/statements/customer", search: { customerId: c.id } as never });
+      void (navigate as any)({ to: "/statements/$entityType", params: { entityType: "customer" }, search: { customerId: c.id } });
     },
     [navigate, ledgerIndex, lang],
   );
