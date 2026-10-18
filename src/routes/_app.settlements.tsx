@@ -207,6 +207,14 @@ const settlementGuideConfig: PageGuideConfig = {
   footerTip: "فورتيكس ERP — التدقيق الرقمي الموحد والمطابقة المحاسبية اللحظية",
 };
 
+function formatQty(val: number | string | null | undefined): string {
+  if (val === null || val === undefined || val === "") return "0";
+  const n = typeof val === "string" ? Number(val) : val;
+  if (isNaN(n)) return "0";
+  const rounded = Math.round(n * 1000) / 1000;
+  return Number.isInteger(rounded) ? String(rounded) : String(rounded);
+}
+
 function SettlementsPage() {
   const { lang } = useI18n();
   const isRtl = lang === "ar";
@@ -543,7 +551,7 @@ function SettlementsPage() {
         width: "w-[120px]",
         sortValue: (row) => Number(row.quantity),
         cell: (row) => (
-          <span className="font-mono text-foreground">{Number(row.quantity).toFixed(2)}</span>
+          <span className="font-mono text-foreground">{formatQty(row.quantity)}</span>
         ),
       },
       {
@@ -797,7 +805,7 @@ function SettlementCard({
       <div className="mt-3 flex items-end justify-between border-t border-border/60 pt-2.5">
         <span className="truncate text-[10px] text-muted-foreground">{userName}</span>
         <span className="font-mono text-base font-bold text-foreground">
-          {Number(row.quantity).toFixed(2)}
+          {formatQty(row.quantity)}
         </span>
       </div>
     </div>
@@ -854,7 +862,7 @@ function SettlementListRow({
         </span>
         <div className="text-end">
           <p className="font-mono text-base font-bold tracking-tight text-foreground">
-            {Number(row.quantity).toFixed(2)}
+            {formatQty(row.quantity)}
           </p>
           <p className="text-[10px] text-muted-foreground">{isRtl ? "الكمية" : "Qty"}</p>
         </div>
