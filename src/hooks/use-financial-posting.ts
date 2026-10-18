@@ -25,6 +25,9 @@ export interface PostFinancialPaymentParams {
   invoiceId?: string | null;
   paymentDate?: string;
   reference?: string | null;
+  cashboxId?: string | null;
+  bankAccountId?: string | null;
+  paymentMethodId?: string | null;
   accountId?: string | null;
   note?: string | null;
   /** An advance is explicit; ordinary collections are never allowed to exceed debt. */
@@ -115,6 +118,23 @@ export function useFinancialPosting() {
             throw error;
           }
           paymentId = typeof data === "string" ? data : data?.id || undefined;
+
+          // Persist treasury link into customer_payments row
+          if (paymentId && (params.cashboxId || params.bankAccountId || params.paymentMethodId || params.reference)) {
+            try {
+              await (supabase as any)
+                .from("customer_payments")
+                .update({
+                  cashbox_id: params.cashboxId || null,
+                  bank_account_id: params.bankAccountId || null,
+                  payment_method_id: params.paymentMethodId || params.method || null,
+                  payment_reference: params.reference || null,
+                })
+                .eq("id", paymentId);
+            } catch (e) {
+              console.warn("Could not set treasury keys on customer_payments:", e);
+            }
+          }
         } else {
           if (type !== "supplier_payment") {
             throw new Error(
@@ -135,6 +155,9 @@ export function useFinancialPosting() {
               payment_method: dbMethod,
               payment_date: paymentDate,
               notes: fullNote || null,
+              cashbox_id: params.cashboxId || null,
+              bank_account_id: params.bankAccountId || null,
+              payment_method_id: params.paymentMethodId || params.method || null,
             })
             .select("id")
             .single();

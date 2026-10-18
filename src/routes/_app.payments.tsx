@@ -21,7 +21,8 @@ import { PageHeader } from "@/components/page-header";
 import { useI18n } from "@/lib/i18n";
 import { money } from "@/lib/format";
 import { paymentMethodLabel, requiresPaymentReference } from "@/lib/payments/payment-methods";
-import { PaymentMethodPicker } from "@/components/ui/payment-method";
+import { PaymentMethodPicker, DynamicPaymentSelector } from "@/components/ui/payment-method";
+import type { PaymentSettlementSelection } from "@/lib/payments/treasury-types";
 import { usePaymentMethodsForContext } from "@/hooks/use-payment-methods";
 import { toast } from "sonner";
 import { WhatsAppButton } from "@/components/whatsapp-button";
@@ -93,6 +94,10 @@ function PaymentsPage() {
    * that exact id before converting it to the value stored on the payment.
    */
   const [method, setMethod] = useState<string>("cash");
+  const [settlement, setSettlement] = useState<PaymentSettlementSelection>({
+    method: "cash",
+    paymentMethodId: "cash",
+  });
   const [reference, setReference] = useState("");
   const [note, setNote] = useState("");
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
@@ -239,14 +244,26 @@ function PaymentsPage() {
         _amount: amt,
         // The RPC validates this exact catalogue id (including its enabled
         // state and allowed context), then stores its legacy ENUM value.
-        _method: method,
+        _method: settlement.paymentMethodId || method,
         _payment_date: date,
         _note: paymentNote || null,
+        _cashbox_id: settlement.cashboxId || null,
+        _bank_account_id: settlement.bankAccountId || null,
+        _payment_method_id: settlement.paymentMethodId || null,
+        _cheque_number: settlement.chequeNumber || settlement.cheque?.chequeNumber || null,
+        _cheque_bank: settlement.chequeBank || settlement.cheque?.bankName || null,
+        _cheque_due_date: settlement.chequeDueDate || settlement.cheque?.dueDate || null,
+        _cheque_drawer: settlement.chequeDrawer || settlement.cheque?.drawerName || null,
       });
       if (error) throw error;
       const receiptNumber = selectedInvoice
         ? `REC-${selectedInvoice.invoice_number}`
         : `REC-${String(Date.now()).slice(-6)}`;
+      const resolvedMethodLabel = settlement.bankAccountName
+        ? `${pmLabel(method)} (${settlement.bankAccountName})`
+        : settlement.cashboxName
+          ? `${pmLabel(method)} (${settlement.cashboxName})`
+          : pmLabel(method);
       setSelectedTx({
         id: receiptNumber,
         type: "payment",
@@ -256,7 +273,7 @@ function PaymentsPage() {
         customerName: selected.name,
         customerPhone: selected.phone,
         referenceNumber: receiptNumber,
-        method: pmLabel(method),
+        method: resolvedMethodLabel,
         notes: paymentNote || undefined,
         remainingBalance: Math.max(Number(selected.balance) - amt, 0),
       });
@@ -589,33 +606,25 @@ function PaymentsPage() {
                         </div>
                       )}
                     </div>
-                    <Field label={lang === "ar" ? "طريقة الدفع" : "Method"}>
-                      {/*
-                    The shared picker, collection context. `includeCredit` is off:
-                    neither the RPC nor the business permits آجل here, so offering
-                    it would produce a value the guard rejects.
-                  */}
-                      <PaymentMethodPicker
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-semibold text-muted-foreground">
+                        {lang === "ar" ? "طريقة الدفع والتوجيه المالي" : "Payment method & settlement"}
+                      </label>
+                      <DynamicPaymentSelector
                         context="customer_collection"
                         value={method}
                         onChange={(methodId) => {
                           setMethod(methodId);
                           setReference("");
                         }}
+                        settlement={settlement}
+                        onSettlementChange={(next) => {
+                          setSettlement(next);
+                          if (next.reference) setReference(next.reference);
+                        }}
                         includeCredit={false}
-                        ariaLabel={lang === "ar" ? "طريقة الدفع" : "Payment method"}
                       />
-                    </Field>
-                    {needsReference && (
-                      <Field label={referenceLabel}>
-                        <input
-                          value={reference}
-                          onChange={(e) => setReference(e.target.value)}
-                          placeholder={referenceLabel}
-                          className="h-11 w-full rounded-xl border border-primary/20 bg-card px-3 text-sm focus-visible:border-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/20"
-                        />
-                      </Field>
-                    )}
+                    </div>
                     <Field label={lang === "ar" ? "تاريخ السند" : "Receipt date"}>
                       <div className="relative">
                         <CalendarDays className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />

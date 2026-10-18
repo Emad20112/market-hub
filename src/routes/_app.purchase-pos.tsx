@@ -47,6 +47,9 @@ import { MobileProductPicker } from "@/components/commerce/mobile-product-picker
 import { SupplierFormDialog } from "@/components/contacts/supplier-form-dialog";
 import { UniversalPrintPreview } from "@/components/universal-print-preview";
 import type { PrintRequest } from "@/lib/printing";
+import { DynamicPaymentSelector } from "@/components/ui/payment-method/dynamic-payment-selector";
+import type { PaymentSettlementSelection } from "@/lib/payments/treasury-types";
+import { toLegacyPaymentValue, getPaymentMethodDefinition } from "@/lib/payments/payment-methods";
 
 export const Route = createFileRoute("/_app/purchase-pos")({
   head: () => ({ meta: [{ title: "نقطة المشتريات — فورتيكس ERP" }] }),
@@ -288,9 +291,10 @@ function PurchasePOSPage() {
   const [cart, setCart] = useState<CartLine[]>([]);
   const [paid, setPaid] = useState<string>("");
   const [discount, setDiscount] = useState<string>("");
-  const [paymentMethod, setPaymentMethod] = useState<
-    "cash" | "mobile_money" | "bank_transfer" | "credit"
-  >("cash");
+  const [paymentMethod, setPaymentMethod] = useState<string>("cash");
+  const [paymentSelection, setPaymentSelection] = useState<PaymentSettlementSelection>({
+    method: "cash",
+  });
   const [note, setNote] = useState("");
   const [purchaseDate, setPurchaseDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [transferRef, setTransferRef] = useState("");
@@ -651,7 +655,7 @@ function PurchasePOSPage() {
       const { data: invoiceId, error } = await supabase.rpc("create_purchase", {
         _warehouse_id: warehouseId,
         _supplier_id: supplierId,
-        _payment_method: paymentMethod,
+        _payment_method: toLegacyPaymentValue(paymentMethod),
         _paid: paidN,
         _discount: discountN,
         _note: composedNote as any,
@@ -664,6 +668,23 @@ function PurchasePOSPage() {
       });
 
       if (error) throw error;
+
+      // Attach treasury settlement details if provided
+      if (invoiceId) {
+        try {
+          await (supabase as any)
+            .from("purchase_invoices")
+            .update({
+              cashbox_id: paymentSelection.cashboxId || null,
+              bank_account_id: paymentSelection.bankAccountId || null,
+              payment_method_id: paymentSelection.paymentMethodId || paymentMethod,
+              payment_reference: paymentSelection.reference || paymentSelection.paymentReference || transferRef.trim() || null,
+            })
+            .eq("id", invoiceId);
+        } catch (updateErr) {
+          console.warn("Could not attach treasury metadata to purchase_invoice:", updateErr);
+        }
+      }
 
       // Update local stock map with added quantities
       setStockMap((prev) => {
@@ -1172,62 +1193,43 @@ function PurchasePOSPage() {
 
             {/* Payment and totals share this same cart scroll area. */}
             <div className="mt-3 space-y-2 border-t border-border/70 bg-surface/95 pt-2.5 pr-1">
-              {/* Payment Method Selector — 4 clear options incl. wallet & transfer. */}
-              <div className="grid grid-cols-[minmax(0,1fr)_7rem] gap-2">
-                <label className="relative min-w-0">
-                  <span className="sr-only">
-                    {lang === "ar" ? "طريقة الدفع" : "Payment method"}
+              {/* Dynamic Unified Treasury & Payment Selector (POP Context) */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between gap-2 rounded-xl border border-border/80 bg-surface px-2.5 py-1">
+                  <span className="text-[11px] font-medium text-muted-foreground">
+                    {lang === "ar" ? "الخصم الإضافي" : "Discount"}
                   </span>
-                  <select
-                    value={paymentMethod}
-                    onChange={(e) => {
-                      const method = e.target.value as typeof paymentMethod;
-                      setPaymentMethod(method);
-                      setPaid(method === "credit" ? "0" : "");
-                    }}
-                    className="h-10 w-full appearance-none rounded-xl border border-border/80 bg-surface px-3 text-xs font-semibold text-foreground outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
-                  >
-                    <option value="cash">{lang === "ar" ? "نقدًا" : "Cash"}</option>
-                    <option value="mobile_money">{lang === "ar" ? "محفظة" : "Wallet"}</option>
-                    <option value="bank_transfer">{lang === "ar" ? "حوالة" : "Transfer"}</option>
-                    <option value="credit">{lang === "ar" ? "آجل" : "Credit"}</option>
-                  </select>
-                  <ChevronDown className="pointer-events-none absolute end-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                </label>
-                <input
-                  type="number"
-                  min="0"
-                  value={discount}
-                  onChange={(e) => setDiscount(e.target.value)}
-                  placeholder={lang === "ar" ? "الخصم" : "Discount"}
-                  aria-label={lang === "ar" ? "الخصم" : "Discount"}
-                  className="h-10 w-full rounded-xl border border-border/80 bg-surface px-2 text-end font-mono text-xs outline-none focus:border-primary"
+                  <input
+                    type="number"
+                    min="0"
+                    value={discount}
+                    onChange={(e) => setDiscount(e.target.value)}
+                    placeholder="0"
+                    aria-label={lang === "ar" ? "الخصم" : "Discount"}
+                    className="h-7 w-24 rounded-lg border border-border/60 bg-surface px-2 text-end font-mono text-xs outline-none focus:border-primary"
+                  />
+                </div>
+
+                <DynamicPaymentSelector
+                  context="purchases"
+                  compact={true}
+                  value={paymentMethod}
+                  onChange={(method) => {
+                    setPaymentMethod(method);
+                    const def = getPaymentMethodDefinition(method);
+                    if (def?.isCreditTerm) {
+                      setPaid("0");
+                    }
+                  }}
+                  settlement={paymentSelection}
+                  onSettlementChange={(s) => {
+                    setPaymentSelection(s);
+                    const ref = s.reference || s.paymentReference;
+                    if (ref) setTransferRef(ref);
+                  }}
+                  includeCredit={true}
                 />
               </div>
-
-              {/* Transfer reference — shown only for bank transfers. */}
-              {(paymentMethod === "bank_transfer" || paymentMethod === "mobile_money") && (
-                <input
-                  type="text"
-                  value={transferRef}
-                  onChange={(e) => setTransferRef(e.target.value)}
-                  placeholder={
-                    paymentMethod === "mobile_money"
-                      ? lang === "ar"
-                        ? "رقم عملية المحفظة / المرجع"
-                        : "Wallet transaction / reference number"
-                      : t("pos.pm.transfer_ref")
-                  }
-                  aria-label={
-                    paymentMethod === "mobile_money"
-                      ? lang === "ar"
-                        ? "مرجع المحفظة"
-                        : "Wallet reference"
-                      : t("pos.pm.transfer_ref")
-                  }
-                  className="h-8 w-full rounded-xl border border-border/80 bg-surface px-2.5 text-xs text-foreground outline-none transition focus:border-primary"
-                />
-              )}
 
               {/* Paid Amount */}
               {paymentMethod !== "cash" && (
