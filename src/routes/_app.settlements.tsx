@@ -37,9 +37,10 @@ import { usePersistedViewMode } from "@/hooks/use-persisted-view-mode";
 import { type DataTableColumn, type DataTableSort } from "@/components/ui/data-table";
 import { useBreakpoint } from "@/design/breakpoints";
 import { QUERY_KEYS } from "@/lib/query-keys";
+import { useRealtimeTable } from "@/lib/realtime";
 
 export const Route = createFileRoute("/_app/settlements")({
-  head: () => ({ meta: [{ title: "التسويات — فورتيكس ERP" }] }),
+  head: () => ({ meta: [{ title: "حركة المخزون — فورتيكس ERP" }] }),
   component: SettlementsPage,
 });
 
@@ -63,13 +64,13 @@ type SettlementRow = {
 type ViewMode = RecordsViewMode;
 
 const settlementGuideConfig: PageGuideConfig = {
-  title: "دليل التسويات والمطابقة المخزنية",
+  title: "دليل حركة المخزون والرقابة",
   subtitle:
-    "شرح شامل لكيفية معالجة الفروقات الجردية وتأثير كل حركة على الأرصدة والقيود المحاسبية وسجل التدقيق الداخلي.",
+    "شرح شامل لكيفية معالجة الفروقات الجردية وتتبع كافة حركات التوريد والصرف والتحويل وسجل التدقيق الداخلي.",
   badge: "إدارة المخزون والرقابة",
   icon: <Scale className="h-5 w-5 text-sky-500" />,
   summaryText:
-    "شاشة التسويات هي صمام الأمان للرقابة المخزنية؛ تسجل بدقة وبصمة رقمية غير قابلة للتلاعب كل حركة تؤثر على رصيد المستودعات، سواء كانت تسوية يدوية لمعالجة عجز/فائض جردي، أو حركات آلية ناتجة عن فواتير بيع وشراء وترجيع.",
+    "شاشة حركة المخزون هي السجل الرقمي الموحد لكل حركة تؤثر على رصيد المستودعات، سواء كانت تسوية يدوية لمعالجة عجز/فائض جردي، أو توريداً أو حركات آلية ناتجة عن فواتير بيع وشراء وترجيع.",
   overviewCards: [
     {
       title: "التسوية الجردية (Stock Adjustment)",
@@ -209,13 +210,18 @@ const settlementGuideConfig: PageGuideConfig = {
 function SettlementsPage() {
   const { lang } = useI18n();
   const isRtl = lang === "ar";
-  const { hasRole, user } = useAuth();
+  const { hasRole, user, isPlatformAdmin, isPlatformSuperadmin } = useAuth();
   const queryClient = useQueryClient();
   const breakpoint = useBreakpoint();
   const tableUsesHorizontalScroll =
     breakpoint === "xs" || breakpoint === "sm" || breakpoint === "md";
   const canManageSettlement =
-    hasRole("owner") || hasRole("manager") || hasRole("warehouse") || hasRole("accountant");
+    hasRole("owner") ||
+    hasRole("manager") ||
+    hasRole("warehouse") ||
+    hasRole("accountant") ||
+    isPlatformAdmin ||
+    isPlatformSuperadmin;
 
   const [query, setQuery] = useState("");
   const [filters, setFilters] = useState<FilterValues>({});
@@ -224,28 +230,23 @@ function SettlementsPage() {
   const [viewMode, setViewMode] = usePersistedViewMode("settlements", "cards");
   const [isAdjustmentOpen, setIsAdjustmentOpen] = useState(false);
 
+  // اشتراك لحظي في أي حركة مخزون جديدة أو معدلة
+  useRealtimeTable<SettlementRow>(
+    { table: "stock_movements", queryKey: QUERY_KEYS.settlements, debounceMs: 150 },
+    queryClient,
+  );
+
   const { data, isLoading, isFetching, error, refetch } = useQuery({
     queryKey: QUERY_KEYS.settlements,
     queryFn: async (): Promise<SettlementRow[]> => {
+      // جلب كافة حركات المخزون بلا استثناء (تسويات، مشتريات، مبيعات، تحويلات، رصيد أول مدة، إنتاج)
       const { data, error } = await supabase
         .from("stock_movements")
         .select(
           "id, movement_type, quantity, note, created_at, product_id, warehouse_id, created_by, unit_cost, reference, reference_type, products(id,name,name_ar,sku), warehouses(id,name,name_ar,code)",
         )
-        .in("movement_type", [
-          "adjustment",
-          "purchase",
-          "sale",
-          "transfer_in",
-          "transfer_out",
-          "return_in",
-          "return_out",
-          "opening",
-          "purchase_return",
-          "sale_return",
-        ])
         .order("created_at", { ascending: false })
-        .limit(200);
+        .limit(300);
       if (error) throw error;
 
       const rows = data ?? [];
@@ -294,16 +295,18 @@ function SettlementsPage() {
   const movementLabel = useCallback(
     (type: string) => {
       const map: Record<string, { ar: string; en: string }> = {
-        adjustment: { ar: "تسوية", en: "Adjustment" },
+        adjustment: { ar: "تسوية جردية", en: "Stock adjustment" },
         opening: { ar: "رصيد أول المدة", en: "Opening stock" },
-        purchase: { ar: "شراء", en: "Purchase" },
-        sale: { ar: "بيع", en: "Sale" },
+        purchase: { ar: "شراء / توريد", en: "Purchase / Stock in" },
+        sale: { ar: "بيع / صرف", en: "Sale / Stock out" },
         transfer_in: { ar: "تحويل وارد", en: "Transfer in" },
         transfer_out: { ar: "تحويل صادر", en: "Transfer out" },
         return_in: { ar: "مرتجع وارد", en: "Return in" },
         return_out: { ar: "مرتجع صادر", en: "Return out" },
         purchase_return: { ar: "مرتجع مشتريات", en: "Purchase return" },
         sale_return: { ar: "مرتجع مبيعات", en: "Sales return" },
+        production_in: { ar: "ناتج إنتاج", en: "Production output" },
+        production_out: { ar: "صرف إنتاج", en: "Production issue" },
       };
       const entry = map[type];
       return entry ? (isRtl ? entry.ar : entry.en) : type;
@@ -319,6 +322,8 @@ function SettlementsPage() {
         stock_adjustment: { ar: "مستند تسوية مخزون", en: "Stock-adjustment document" },
         sales_invoice: { ar: "فاتورة بيع", en: "Sales invoice" },
         stock_transfer: { ar: "تحويل مخزون", en: "Stock transfer" },
+        direct_stock_in: { ar: "توريد مخزني مباشر", en: "Direct stock-in" },
+        production: { ar: "أمر تشغيل إنتاج", en: "Production order" },
       };
       if (!type) return "—";
       const entry = map[type];
@@ -592,12 +597,12 @@ function SettlementsPage() {
       <div className="panel-elevated rounded-3xl border border-border/80 bg-surface/90 p-8 text-center">
         <ShieldCheck className="mx-auto mb-3 h-10 w-10 text-muted-foreground" />
         <h3 className="text-lg font-semibold text-foreground">
-          {isRtl ? "لا يوجد صلاحية للتسويات" : "Settlement access denied"}
+          {isRtl ? "لا توجد صلاحية لعرض حركات المخزون" : "Stock movements access denied"}
         </h3>
         <p className="mt-2 text-sm text-muted-foreground">
           {isRtl
-            ? "يحتاج المستخدم إلى صلاحية المخزون أو الإدارة لمشاهدة سجل التسويات."
-            : "Inventory or admin access is required to view settlement records."}
+            ? "يحتاج المستخدم إلى صلاحية المخزون أو الإدارة لمشاهدة سجل حركات المخزون."
+            : "Inventory or admin access is required to view stock movement records."}
         </p>
       </div>
     );
@@ -606,11 +611,11 @@ function SettlementsPage() {
   return (
     <div className="space-y-4 pb-12">
       <PageHeader
-        title={isRtl ? "التسويات والمراجعة" : "Stock Settlements"}
+        title={isRtl ? "حركة المخزون" : "Stock Movements"}
         subtitle={
           isRtl
-            ? "سجل واضح لكل حركة مخزون وتعديل مع مطابقة المستخدم والتاريخ والسبب"
-            : "Clear audit trail for stock changes and review steps"
+            ? "سجل كامل لكافة حركات وتوريدات وصرف وتسويات المخزون"
+            : "Complete log of all stock movements, receipts, issues, and adjustments"
         }
         guide={settlementGuideConfig}
       />
@@ -625,14 +630,14 @@ function SettlementsPage() {
           tone="info"
         />
         <VortexMetricCard
-          title={isRtl ? "إضافات (فائض)" : "Additions (surplus)"}
+          title={isRtl ? "إضافات (فائض/توريد)" : "Additions (receipts)"}
           value={kpi.additions}
           subtitle={isRtl ? "حركات موجبة" : "Positive movements"}
           icon={<TrendingUp className="size-5" />}
           tone="success"
         />
         <VortexMetricCard
-          title={isRtl ? "إخصومات (عجز)" : "Deductions (shortage)"}
+          title={isRtl ? "خصومات (صرف/عجز)" : "Deductions (issues)"}
           value={kpi.deductions}
           subtitle={isRtl ? "حركات سالبة" : "Negative movements"}
           icon={<TrendingDown className="size-5" />}
@@ -673,9 +678,8 @@ function SettlementsPage() {
         viewToggle={<RecordsViewToggle value={viewMode} onChange={setViewMode} />}
         action={
           <PrimaryAction
-            label={isRtl ? "تسوية جديدة" : "New adjustment"}
+            label={isRtl ? "تسوية مخزون" : "Stock adjustment"}
             icon={<Plus />}
-
             onClick={() => setIsAdjustmentOpen(true)}
           />
         }
@@ -704,15 +708,15 @@ function SettlementsPage() {
               ? "لا توجد حركات مطابقة"
               : "No matching movements"
             : isRtl
-              ? "لا توجد حركات تسوية بعد"
-              : "No settlement movements yet",
+              ? "لا توجد حركات مخزون بعد"
+              : "No stock movements yet",
           description: hasActiveCriteria
             ? isRtl
               ? "جرّب تعديل البحث أو الفلاتر."
               : "Try adjusting your search or filters."
             : isRtl
-              ? "ابدأ بإجراء تسوية جردية جديدة."
-              : "Start by recording a new stock adjustment.",
+              ? "سجل أول حركة أو تسوية مخزنية لتظهر هنا."
+              : "Record a stock movement or adjustment to see it here.",
         }}
       />
 

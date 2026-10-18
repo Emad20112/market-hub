@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useI18n } from "@/lib/i18n";
 import { useAuth } from "@/lib/auth";
+import { postStockAdjustment } from "@/lib/items/stock-operations";
 import { toast } from "sonner";
 import {
   X,
@@ -185,32 +186,25 @@ export function StockAdjustmentDialog({
 
     setSaving(true);
     try {
-      // 1. Update/Upsert the inventory table with the EXACT actual physical count
-      const { error: invErr } = await supabase.from("inventory").upsert(
-        {
-          product_id: selectedProductId,
-          warehouse_id: selectedWarehouseId,
-          quantity: actualQty,
-          updated_at: new Date().toISOString(),
-        },
-        { onConflict: "product_id,warehouse_id" },
-      );
+      // Use the atomic postStockAdjustment RPC which safely updates inventory and inserts stock_movements
+      const result = await postStockAdjustment({
+        warehouseId: selectedWarehouseId,
+        reason,
+        note: note.trim() || undefined,
+        effectiveDate: new Date().toISOString().slice(0, 10),
+        lines: [
+          {
+            productId: selectedProductId,
+            quantity: difference,
+            unitCost: Number(unitCostStr) || 0,
+            note: note.trim() || undefined,
+          },
+        ],
+      });
 
-      if (invErr) throw invErr;
-
-      // 2. Log the stock movement for the difference (positive for surplus, negative for shortage)
-      const { error: mvErr } = await supabase.from("stock_movements").insert({
-        product_id: selectedProductId,
-        warehouse_id: selectedWarehouseId,
-        movement_type: "adjustment",
-        quantity: difference,
-        unit_cost: Number(unitCostStr) || 0,
-        note: note.trim() || null,
-        adjustment_reason: reason,
-        created_by: user?.id ?? null,
-      } as any);
-
-      if (mvErr) throw mvErr;
+      if (!result.ok) {
+        throw new Error(result.message || (isAr ? "فشل تنفيذ التسوية" : "Failed to apply adjustment"));
+      }
 
       toast.success(
         isAr
