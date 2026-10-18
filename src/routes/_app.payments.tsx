@@ -25,6 +25,7 @@ import { PaymentMethodPicker } from "@/components/ui/payment-method";
 import { usePaymentMethodsForContext } from "@/hooks/use-payment-methods";
 import { toast } from "sonner";
 import { WhatsAppButton } from "@/components/whatsapp-button";
+import { AmountInput } from "@/components/ui/amount-input";
 import { debtReminderMessage } from "@/lib/whatsapp-templates";
 import {
   VortexDateBadge,
@@ -82,7 +83,7 @@ function PaymentsPage() {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [payments, setPayments] = useState<Payment[]>([]);
   const [invoiceId, setInvoiceId] = useState<string>("");
-  const [amount, setAmount] = useState("");
+  const [amount, setAmountValue] = useState<number | null>(null);
   /**
    * A CATALOGUE ID, held as a plain string.
    *
@@ -166,7 +167,7 @@ function PaymentsPage() {
     setSelected(c);
     setPaymentFormOpen(false);
     setInvoiceId("");
-    setAmount("");
+    setAmountValue(null);
     setReference("");
     setNote("");
     const [inv, pay] = await Promise.all([
@@ -209,7 +210,7 @@ function PaymentsPage() {
 
   async function submit() {
     if (saving || !selected) return;
-    const amt = Number(amount);
+    const amt = amount ?? 0;
     if (!amt || amt <= 0)
       return toast.error(
         t("payments.invalid_amount") || (lang === "ar" ? "أدخل مبلغ صحيح" : "Enter a valid amount"),
@@ -261,7 +262,7 @@ function PaymentsPage() {
         remainingBalance: Math.max(Number(selected.balance) - amt, 0),
       });
       setPaymentFormOpen(false);
-      setAmount("");
+      setAmountValue(null);
       setReference("");
       setNote("");
       await refresh();
@@ -275,14 +276,15 @@ function PaymentsPage() {
   /** الانتقال إلى شاشة كشف الحساب — بلا منطق حسابي محلي */
   function goStatement(customerId: string) {
     void navigate({
-      to: "/statements/customer",
+      to: "/statements/$entityType",
+      params: { entityType: "customer" },
       search: { customerId } as never,
     });
   }
 
   function beginPayment(invoice?: Invoice) {
     setInvoiceId(invoice?.id ?? "");
-    setAmount(invoice ? String(Number(invoice.total) - Number(invoice.paid)) : "");
+    setAmountValue(invoice ? Number(invoice.total) - Number(invoice.paid) : null);
     setPaymentFormOpen(true);
   }
 
@@ -496,7 +498,7 @@ function PaymentsPage() {
                     setPaymentFormOpen(open);
                     if (!open) {
                       setInvoiceId("");
-                      setAmount("");
+                      setAmountValue(null);
                     }
                   }}
                   size="lg"
@@ -558,21 +560,20 @@ function PaymentsPage() {
                         {selectedInvoice && (
                           <button
                             type="button"
-                            onClick={() => setAmount(String(remaining))}
+                            onClick={() => setAmountValue(remaining)}
                             className="text-[11px] font-bold text-primary hover:underline"
                           >
                             {lang === "ar" ? "سداد كامل" : "Full payment"}
                           </button>
                         )}
                       </div>
-                      <input
-                        type="number"
-                        step="0.01"
+                      <AmountInput
                         value={amount}
-                        onChange={(e) => setAmount(e.target.value)}
-                        className="h-11 w-full rounded-xl border border-primary/20 bg-card px-3 text-base font-mono font-black tabular-nums shadow-sm focus-visible:border-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/20"
+                        onValueChange={setAmountValue}
+                        decimals={2}
+                        className="h-11 rounded-xl border-primary/20 bg-card text-base font-mono font-black shadow-sm focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/20"
                       />
-                      {Number(amount) > 0 && (
+                      {amount != null && amount > 0 && (
                         <div className="mt-1.5 flex justify-between px-1 text-[11px] text-muted-foreground">
                           <span>
                             {lang === "ar" ? "المتبقي بعد التحصيل" : "Remaining after payment"}
@@ -581,7 +582,7 @@ function PaymentsPage() {
                             {money(
                               Math.max(
                                 (selectedInvoice ? remaining : Number(selected.balance)) -
-                                  Number(amount),
+                                  (amount ?? 0),
                                 0,
                               ),
                             )}
