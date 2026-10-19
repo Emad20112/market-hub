@@ -34,6 +34,6 @@ export class SalesRegisterDataProvider implements IDataProvider<SalesRegisterFil
 
   async execute(request: ReportExecutionRequest<SalesRegisterFilters>): Promise<ReportExecutionResult<SalesRegisterRow>> {
     const validated = { ...request, filters: SalesRegisterFilterSchema.parse(request.filters || {}) };
-    return (await executeSalesRegisterReport({ data: validated })) as ReportExecutionResult<SalesRegisterRow>;
+    return (await executeSalesRegisterReport({ data: validated })) as unknown as ReportExecutionResult<SalesRegisterRow>;
   }
 }

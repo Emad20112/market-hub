@@ -34,8 +34,11 @@ import {
   AlertTriangle,
   ArrowDown,
   ArrowUp,
+  Banknote,
   Check,
   CreditCard,
+  FileCheck2,
+  Landmark,
   LayoutGrid,
   List,
   LoaderCircle,
@@ -43,6 +46,9 @@ import {
   Save,
   TableProperties,
 } from "lucide-react";
+import { CashboxesManagement } from "./cashboxes-management";
+import { BankAccountsManagement } from "./bank-accounts-management";
+import { ChequesManagement } from "./cheques-management";
 import { useI18n } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 import {
@@ -71,16 +77,10 @@ import { PaymentMethodIdentityEditor } from "@/components/ui/payment-method/paym
 interface DraftRow {
   id: string;
   enabled: boolean;
-  contexts: PaymentContext[];
 }
 
 /**
  * The whole editable state: the rows plus their order.
- *
- * Order is a separate array rather than a field on each row because that is what
- * it actually is — one sequence the operator manipulates — and it makes
- * "did the order change?" a single array comparison instead of a scan for a
- * monotonicity violation.
  */
 interface DraftState {
   rows: Record<string, DraftRow>;
@@ -92,18 +92,11 @@ function buildDraft(methods: ResolvedPaymentMethod[]): DraftState {
   const order: string[] = [];
 
   for (const method of methods) {
-    // EVERY active catalogue row is listed, including the ones this business
-    // created. A filter against a shipped-id whitelist used to hide them from
-    // the very screen whose job is to configure them.
-    // A method the developers retired is not offered at all; showing it as a
-    // switch the operator cannot use would be noise.
     if (!method.isActive) continue;
     rows[method.id] = {
       id: method.id,
       enabled: method.enabled,
-      contexts: [...method.effectiveContexts],
     };
-    // `methods` already arrives in effective presentation order.
     order.push(method.id);
   }
 
@@ -116,6 +109,7 @@ export function PaymentMethodsSection() {
   const { methods, isLoading, isFallback, refetch } = usePaymentMethods();
   const { save, isSaving } = useUpdatePaymentMethodSettings();
 
+  const [mainTab, setMainTab] = useState<"catalog" | "cashboxes" | "banks" | "cheques">("catalog");
   const [draft, setDraft] = useState<DraftState>({ rows: {}, order: [] });
   const [savedSnapshot, setSavedSnapshot] = useState<DraftState>({ rows: {}, order: [] });
   const [query, setQuery] = useState("");
@@ -218,7 +212,7 @@ export function PaymentMethodsSection() {
       if (selectedLedgerKind && method.ledgerKind !== selectedLedgerKind) return false;
       if (
         selectedContext &&
-        !draft.rows[method.id]?.contexts.includes(selectedContext as PaymentContext)
+        !method.effectiveContexts.includes(selectedContext as PaymentContext)
       ) {
         return false;
       }
@@ -271,17 +265,6 @@ export function PaymentMethodsSection() {
     );
   }, []);
 
-  const toggleContext = useCallback((id: string, context: PaymentContext, on: boolean) => {
-    setDraft((prev) => {
-      const row = prev.rows[id];
-      if (!row) return prev;
-      const contexts = on
-        ? Array.from(new Set([...row.contexts, context]))
-        : row.contexts.filter((c) => c !== context);
-      return { ...prev, rows: { ...prev.rows, [id]: { ...row, contexts } } };
-    });
-  }, []);
-
   /**
    * Move a method one slot. Order is stored as an array index when saved, so a
    * gap left by a disabled method cannot make the picker render in a sequence
@@ -302,14 +285,12 @@ export function PaymentMethodsSection() {
   const reset = useCallback(() => setDraft(savedSnapshot), [savedSnapshot]);
 
   const handleSave = useCallback(async () => {
-    // Order is written as the array index times ten. Ten, not one, so a future
-    // hand-inserted catalogue row can be placed between two existing methods
-    // without renumbering every business's configuration.
+    // Approved methods appear across all operational sections.
     const payload = draft.order.map((id, index) => ({
       payment_method_id: id,
       enabled: draft.rows[id].enabled,
       sort_order: index * 10,
-      enabled_contexts: draft.rows[id].contexts,
+      enabled_contexts: [...PAYMENT_CONTEXTS],
     }));
 
     if (payload.length === 0) {
@@ -354,49 +335,114 @@ export function PaymentMethodsSection() {
 
   return (
     <div className="space-y-4">
-      {/*
-        The catalogue is the developers'; the NAMING is the business's. Say both,
-        because an operator who is told "nothing to create here" will not look for
-        the button that now exists — and one who is told "anything goes" will
-        expect to upload a logo.
-      */}
-      <div className="rounded-2xl border border-border/70 bg-surface/60 p-3.5 text-[11px] leading-relaxed text-muted-foreground">
-        {isAr
-          ? "هذه هي طرق الدفع المعتمدة في النظام. يمكنك تعديل اسم أي طريقة وأيقونتها كما تناسب منشأتك، وتفعيلها أو تعطيلها، واختيار الأقسام التي تظهر فيها. نوع الحساب المحاسبي لا يتغيّر بالتعديل، فيبقى الترحيل كما هو."
-          : "These are the system's approved payment methods. You can rename or re-icon any of them to suit your business, enable or disable them, and choose the sections they appear in. The accounting family is not affected by a rename, so posting stays exactly as it was."}
+      {/* ── Treasury & Payment Navigation Tabs ── */}
+      <div className="flex flex-wrap items-center gap-1.5 rounded-2xl border border-border/80 bg-surface/80 p-1.5 shadow-2xs">
+        <button
+          type="button"
+          onClick={() => setMainTab("catalog")}
+          className={cn(
+            "flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-semibold transition",
+            mainTab === "catalog"
+              ? "bg-primary text-primary-foreground shadow-xs font-bold"
+              : "text-muted-foreground hover:bg-muted/50 hover:text-foreground",
+          )}
+        >
+          <CreditCard className="h-4 w-4" />
+          <span>{isAr ? "طرق الدفع والكتالوج" : "Payment Methods"}</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setMainTab("cashboxes")}
+          className={cn(
+            "flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-semibold transition",
+            mainTab === "cashboxes"
+              ? "bg-primary text-primary-foreground shadow-xs font-bold"
+              : "text-muted-foreground hover:bg-muted/50 hover:text-foreground",
+          )}
+        >
+          <Banknote className="h-4 w-4" />
+          <span>{isAr ? "الصناديق والخزائن" : "Cashboxes & Tills"}</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setMainTab("banks")}
+          className={cn(
+            "flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-semibold transition",
+            mainTab === "banks"
+              ? "bg-primary text-primary-foreground shadow-xs font-bold"
+              : "text-muted-foreground hover:bg-muted/50 hover:text-foreground",
+          )}
+        >
+          <Landmark className="h-4 w-4" />
+          <span>{isAr ? "الحسابات والمحافظ" : "Bank & Wallets"}</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setMainTab("cheques")}
+          className={cn(
+            "flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-semibold transition",
+            mainTab === "cheques"
+              ? "bg-primary text-primary-foreground shadow-xs font-bold"
+              : "text-muted-foreground hover:bg-muted/50 hover:text-foreground",
+          )}
+        >
+          <FileCheck2 className="h-4 w-4" />
+          <span>{isAr ? "سجل أوراق القبض والشيكات" : "Cheques Register"}</span>
+        </button>
       </div>
 
-      {/* A configuration that could not be read must never look like a choice. */}
-      {isFallback && (
-        <div className="flex items-start gap-2 rounded-2xl border border-amber-500/40 bg-amber-500/10 p-3 text-[11px] text-amber-700 dark:text-amber-300">
-          <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-          <span className="flex-1">
-            {isAr
-              ? "تعذّر قراءة إعداداتك من الخادم، والمعروض هو الكتالوج الافتراضي. الحفظ قد لا يعمل قبل استعادة الاتصال."
-              : "Your configuration could not be read; this is the default catalogue. Saving may fail until the connection is restored."}
-          </span>
-          <button
-            type="button"
-            onClick={() => refetch()}
-            className="shrink-0 underline decoration-dotted"
-          >
-            {isAr ? "إعادة المحاولة" : "Retry"}
-          </button>
-        </div>
-      )}
+      {mainTab === "cashboxes" && <CashboxesManagement />}
+      {mainTab === "banks" && <BankAccountsManagement />}
+      {mainTab === "cheques" && <ChequesManagement />}
 
-      <Card className="rounded-3xl border-border/80 shadow-xs">
-        <CardHeader className="border-b border-border/50 pb-4">
-          <CardTitle className="flex items-center gap-2 text-base font-bold">
-            <span className="rounded-xl bg-primary/10 p-2 text-primary">
-              <CreditCard className="h-5 w-5" />
-            </span>
-            {isAr ? "طرق الدفع" : "Payment methods"}
-          </CardTitle>
+      {mainTab === "catalog" && (
+        <>
+          {/*
+            The catalogue is the developers'; the NAMING is the business's. Say both,
+            because an operator who is told "nothing to create here" will not look for
+            the button that now exists — and one who is told "anything goes" will
+            expect to upload a logo.
+          */}
+          <div className="rounded-2xl border border-border/70 bg-surface/60 p-3.5 text-[11px] leading-relaxed text-muted-foreground">
+            {isAr
+              ? "هذه هي طرق الدفع المعتمدة في النظام. يمكنك تعديل اسم أي طريقة وأيقونتها كما تناسب منشأتك، وتفعيلها أو تعطيلها، واختيار الأقسام التي تظهر فيها. نوع الحساب المحاسبي لا يتغيّر بالتعديل، فيبقى الترحيل كما هو."
+              : "These are the system's approved payment methods. You can rename or re-icon any of them to suit your business, enable or disable them, and choose the sections they appear in. The accounting family is not affected by a rename, so posting stays exactly as it was."}
+          </div>
+
+          {/* A configuration that could not be read must never look like a choice. */}
+          {isFallback && (
+            <div className="flex items-start gap-2 rounded-2xl border border-amber-500/40 bg-amber-500/10 p-3 text-[11px] text-amber-700 dark:text-amber-300">
+              <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+              <span className="flex-1">
+                {isAr
+                  ? "تعذّر قراءة إعداداتك من الخادم، والمعروض هو الكتالوج الافتراضي. الحفظ قد لا يعمل قبل استعادة الاتصال."
+                  : "Your configuration could not be read; this is the default catalogue. Saving may fail until the connection is restored."}
+              </span>
+              <button
+                type="button"
+                onClick={() => refetch()}
+                className="shrink-0 underline decoration-dotted"
+              >
+                {isAr ? "إعادة المحاولة" : "Retry"}
+              </button>
+            </div>
+          )}
+
+          <Card className="rounded-3xl border-border/80 shadow-xs">
+            <CardHeader className="border-b border-border/50 pb-4">
+              <CardTitle className="flex items-center gap-2 text-base font-bold">
+                <span className="rounded-xl bg-primary/10 p-2 text-primary">
+                  <CreditCard className="h-5 w-5" />
+                </span>
+                {isAr ? "طرق الدفع" : "Payment methods"}
+              </CardTitle>
           <CardDescription className="mt-1.5 text-xs">
             {isAr
-              ? "الطريقة غير المفعّلة لا تظهر في أي شاشة. وتخصيص الأقسام مستقل لكل طريقة."
-              : "A disabled method appears nowhere. Section scoping is independent per method."}
+              ? "طرق الدفع المفعّلة هنا تظهر مباشرة في كافة شاشات وأقسام النظام (نقطة البيع، المبيعات، المشتريات، المصروفات، السندات والتقارير)."
+              : "Enabled payment methods appear across all system screens and sections (POS, sales, purchases, expenses, vouchers, and reports)."}
           </CardDescription>
         </CardHeader>
 
@@ -517,17 +563,12 @@ export function PaymentMethodsSection() {
                           <span>
                             {row.enabled
                               ? isAr
-                                ? "مفعّلة"
-                                : "Enabled"
+                                ? "مفعّلة وشاملة لكافة الشاشات"
+                                : "Enabled across all screens"
                               : isAr
                                 ? "متوقفة"
                                 : "Disabled"}
                           </span>
-                          {row.enabled ? (
-                            <span>
-                              {row.contexts.length} {isAr ? "أماكن ظهور" : "places"}
-                            </span>
-                          ) : null}
                           {method.defaultAccountCode ? (
                             <span>{isAr ? "حساب مرتبط" : "Linked account"}</span>
                           ) : null}
@@ -578,48 +619,6 @@ export function PaymentMethodsSection() {
                         className="flex-1"
                       />
                     </div>
-
-                    {/* ── Row 3: contexts. Only those the developers allow. ── */}
-                    {row.enabled && (
-                      <div className="mt-2.5 border-t border-border/40 pt-2.5">
-                        <p className="mb-1.5 text-[10px] font-semibold text-muted-foreground">
-                          {isAr ? "يظهر في:" : "Appears in:"}
-                        </p>
-                        <div className="flex flex-wrap gap-1">
-                          {PAYMENT_CONTEXTS.filter((c) => method.allowedContexts.includes(c)).map(
-                            (context) => {
-                              const on = row.contexts.includes(context);
-                              const label = PAYMENT_CONTEXT_LABELS[context];
-                              return (
-                                <button
-                                  key={context}
-                                  type="button"
-                                  aria-pressed={on}
-                                  onClick={() => toggleContext(method.id, context, !on)}
-                                  className={cn(
-                                    "inline-flex h-7 items-center gap-1 rounded-lg border px-2 text-[10px] font-medium transition-all",
-                                    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
-                                    on
-                                      ? "border-primary/60 bg-primary/10 text-foreground"
-                                      : "border-border/60 bg-background/60 text-muted-foreground hover:border-primary/30 hover:text-foreground",
-                                  )}
-                                >
-                                  {on && <Check className="h-3 w-3" />}
-                                  {isAr ? label.ar : label.en}
-                                </button>
-                              );
-                            },
-                          )}
-                        </div>
-                        {method.allowedContexts.length < PAYMENT_CONTEXTS.length && (
-                          <p className="mt-1.5 text-[10px] text-muted-foreground/80">
-                            {isAr
-                              ? `غير متاح في ${PAYMENT_CONTEXTS.length - method.allowedContexts.length} أقسام بحسب تعريف النظام.`
-                              : `Not available in ${PAYMENT_CONTEXTS.length - method.allowedContexts.length} sections by system definition.`}
-                          </p>
-                        )}
-                      </div>
-                    )}
                   </div>
                 );
               })}
@@ -629,7 +628,7 @@ export function PaymentMethodsSection() {
       </Card>
 
       {/* ── Sticky action bar, matching the rest of Settings ── */}
-      {(isDirty || isSaving) && (
+      {mainTab === "catalog" && (isDirty || isSaving) && (
         <div className="fixed bottom-[max(1rem,env(safe-area-inset-bottom))] right-4 z-40 flex max-w-[calc(100vw-2rem)] flex-wrap items-center justify-end gap-2 rounded-2xl border border-border/70 bg-card/95 p-2 shadow-xl backdrop-blur-md">
           <span className="px-1 text-[11px] font-medium text-muted-foreground">
             {isAr ? "لديك تغييرات غير محفوظة" : "You have unsaved changes"}
@@ -648,6 +647,8 @@ export function PaymentMethodsSection() {
           </ActionButton>
         </div>
       )}
-    </div>
+    </>
+  )}
+</div>
   );
 }

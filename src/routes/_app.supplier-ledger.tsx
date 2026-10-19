@@ -45,6 +45,8 @@ import {
   Building,
   RefreshCw,
 } from "lucide-react";
+import { useCashboxes } from "@/hooks/use-cashboxes";
+import { useCompanyBankAccounts } from "@/hooks/use-company-bank-accounts";
 
 export const Route = createFileRoute("/_app/supplier-ledger")({
   head: () => ({
@@ -106,6 +108,12 @@ function SupplierLedgerPage() {
   // Filters
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
+
+  // Treasury hooks
+  const { activeCashboxes, defaultCashbox } = useCashboxes();
+  const { banks, wallets, defaultBank, defaultWallet } = useCompanyBankAccounts();
+  const [selectedCashboxId, setSelectedCashboxId] = useState<string>("");
+  const [selectedBankAccountId, setSelectedBankAccountId] = useState<string>("");
 
   // Payment Dialog State
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
@@ -248,6 +256,26 @@ function SupplierLedgerPage() {
   const totalDebits = useMemo(() => movements.reduce((acc, m) => acc + m.debit, 0), [movements]);
   const totalCredits = useMemo(() => movements.reduce((acc, m) => acc + m.credit, 0), [movements]);
 
+  const handleMethodChange = (m: string) => {
+    setPayMethod(m);
+    if (m === "CASH") {
+      const box = (selectedCashboxId ? activeCashboxes.find((c) => c.id === selectedCashboxId) : null) || defaultCashbox || activeCashboxes[0];
+      setSelectedCashboxId(box?.id || "");
+      setSelectedBankAccountId("");
+      setPayAccount(box?.account?.code || "1101");
+    } else if (m === "WALLET") {
+      const w = (selectedBankAccountId ? wallets.find((b) => b.id === selectedBankAccountId) : null) || defaultWallet || wallets[0];
+      setSelectedBankAccountId(w?.id || "");
+      setSelectedCashboxId("");
+      setPayAccount(w?.account?.code || "1131");
+    } else {
+      const b = (selectedBankAccountId ? banks.find((bk) => bk.id === selectedBankAccountId) : null) || defaultBank || banks[0];
+      setSelectedBankAccountId(b?.id || "");
+      setSelectedCashboxId("");
+      setPayAccount(b?.account?.code || "1111");
+    }
+  };
+
   // 4. Submit Payment
   const handleRecordPayment = async () => {
     const amt = parseFloat(payAmount);
@@ -262,16 +290,50 @@ function SupplierLedgerPage() {
     setSubmittingPayment(true);
     setActionMessage(null);
     try {
-      const { data, error } = await (supabase as any).rpc("record_supplier_payment", {
-        p_supplier_id: selectedSupplierId,
-        p_amount: amt,
-        p_payment_method: payMethod,
-        p_account_code: payAccount,
-        p_payment_date: payDate || new Date().toISOString().slice(0, 10),
-        p_notes: payNotes || null,
-      });
+      let data: any = null;
+      let error: any = null;
+
+      try {
+        const res = await (supabase as any).rpc("record_supplier_payment", {
+          p_supplier_id: selectedSupplierId,
+          p_amount: amt,
+          p_payment_method: payMethod,
+          p_account_code: payAccount,
+          p_payment_date: payDate || new Date().toISOString().slice(0, 10),
+          p_notes: payNotes || null,
+          p_cashbox_id: payMethod === "CASH" ? selectedCashboxId || defaultCashbox?.id || null : null,
+          p_bank_account_id: payMethod !== "CASH" ? selectedBankAccountId || null : null,
+        });
+        data = res.data;
+        error = res.error;
+      } catch {
+        const res = await (supabase as any).rpc("record_supplier_payment", {
+          p_supplier_id: selectedSupplierId,
+          p_amount: amt,
+          p_payment_method: payMethod,
+          p_account_code: payAccount,
+          p_payment_date: payDate || new Date().toISOString().slice(0, 10),
+          p_notes: payNotes || null,
+        });
+        data = res.data;
+        error = res.error;
+      }
 
       if (error) throw error;
+
+      if (data?.payment_id) {
+        try {
+          await (supabase as any)
+            .from("supplier_payments")
+            .update({
+              cashbox_id: payMethod === "CASH" ? selectedCashboxId || defaultCashbox?.id || null : null,
+              bank_account_id: payMethod !== "CASH" ? selectedBankAccountId || null : null,
+            })
+            .eq("id", data.payment_id);
+        } catch {
+          // ignore if columns not in remote schema yet
+        }
+      }
 
       const voucherNo = data?.voucher_number || "";
       setActionMessage({
@@ -693,13 +755,14 @@ function SupplierLedgerPage() {
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label className="text-xs">طريقة الدفع</Label>
-                <Select value={payMethod} onValueChange={setPayMethod}>
+                <Select value={payMethod} onValueChange={handleMethodChange}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="CASH">نقداً (Cash)</SelectItem>
                     <SelectItem value="BANK">تحويل بنكي (Bank Transfer)</SelectItem>
+                    <SelectItem value="WALLET">محفظة إلكترونية (Mobile Wallet)</SelectItem>
                     <SelectItem value="CHEQUE">شيك (Cheque)</SelectItem>
                     <SelectItem value="CARD">بطاقة / مدى (Card)</SelectItem>
                   </SelectContent>
@@ -707,16 +770,87 @@ function SupplierLedgerPage() {
               </div>
 
               <div className="space-y-1.5">
-                <Label className="text-xs">حساب الصرف المالي</Label>
-                <Select value={payAccount} onValueChange={setPayAccount}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="1101">1101 — الصندوق الرئيسي</SelectItem>
-                    <SelectItem value="1111">1111 — الحساب البنكي</SelectItem>
-                  </SelectContent>
-                </Select>
+                <Label className="text-xs">
+                  {payMethod === "CASH"
+                    ? "الصندوق / الخزينة"
+                    : payMethod === "WALLET"
+                      ? "المحفظة الإلكترونية"
+                      : "الحساب البنكي / جهة الصرف"}
+                </Label>
+
+                {payMethod === "CASH" ? (
+                  <Select
+                    value={selectedCashboxId || defaultCashbox?.id || "fallback_cash"}
+                    onValueChange={(id) => {
+                      setSelectedCashboxId(id);
+                      const box = activeCashboxes.find((c) => c.id === id);
+                      if (box) setPayAccount(box.account?.code || "1101");
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="اختر الصندوق..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {activeCashboxes.length > 0 ? (
+                        activeCashboxes.map((box) => (
+                          <SelectItem key={box.id} value={box.id}>
+                            {box.name_ar} ({box.account?.code || box.code})
+                          </SelectItem>
+                        ))
+                      ) : (
+                        <SelectItem value="fallback_cash">1101 — الصندوق الرئيسي</SelectItem>
+                      )}
+                    </SelectContent>
+                  </Select>
+                ) : payMethod === "WALLET" ? (
+                  <Select
+                    value={selectedBankAccountId || defaultWallet?.id || "fallback_wallet"}
+                    onValueChange={(id) => {
+                      setSelectedBankAccountId(id);
+                      const w = wallets.find((b) => b.id === id);
+                      if (w) setPayAccount(w.account?.code || "1131");
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="اختر المحفظة..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {wallets.length > 0 ? (
+                        wallets.map((w) => (
+                          <SelectItem key={w.id} value={w.id}>
+                            {w.name_ar} — {w.bank_name} ({w.account?.code || "1131"})
+                          </SelectItem>
+                        ))
+                      ) : (
+                        <SelectItem value="fallback_wallet">1131 — المحافظ الإلكترونية</SelectItem>
+                      )}
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <Select
+                    value={selectedBankAccountId || defaultBank?.id || "fallback_bank"}
+                    onValueChange={(id) => {
+                      setSelectedBankAccountId(id);
+                      const b = banks.find((bk) => bk.id === id);
+                      if (b) setPayAccount(b.account?.code || "1111");
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="اختر الحساب البنكي..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {banks.length > 0 ? (
+                        banks.map((b) => (
+                          <SelectItem key={b.id} value={b.id}>
+                            {b.name_ar} — {b.bank_name} ({b.account?.code || "1111"})
+                          </SelectItem>
+                        ))
+                      ) : (
+                        <SelectItem value="fallback_bank">1111 — الحساب البنكي</SelectItem>
+                      )}
+                    </SelectContent>
+                  </Select>
+                )}
               </div>
             </div>
 

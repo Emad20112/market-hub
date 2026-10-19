@@ -69,7 +69,8 @@ import {
   type ServiceLineInput,
 } from "@/lib/sales-invoice";
 import { MILLING_BAG_SIZES } from "@/components/milling/milling-terms-fields";
-import { PaymentMethodPicker } from "@/components/ui/payment-method";
+import { PaymentMethodPicker, DynamicPaymentSelector } from "@/components/ui/payment-method";
+import type { PaymentSettlementSelection } from "@/lib/payments/treasury-types";
 import {
   getPaymentMethodDefinition,
   paymentMethodLabel,
@@ -230,8 +231,11 @@ function SalesInvoicePage() {
   // Holds a CATALOGUE id (e.g. 'kuraimi_bank'), because that is what the picker
   // produces. It is converted to the stored ENUM value with toLegacyPaymentValue
   // at the point of submission, so the RPC contract never changes.
-  //
   const [paymentMethod, setPaymentMethod] = useState<string>("cash");
+  const [settlement, setSettlement] = useState<PaymentSettlementSelection>({
+    method: "cash",
+    paymentMethodId: "cash",
+  });
   const [paid, setPaid] = useState("");
   const [discount, setDiscount] = useState("");
   const [note, setNote] = useState("");
@@ -500,6 +504,14 @@ function SalesInvoicePage() {
         note:
           [mode === "ticket" ? ticketDetail : "", note].filter(Boolean).join(" — ") || undefined,
         lines,
+        cashboxId: settlement.cashboxId || null,
+        bankAccountId: settlement.bankAccountId || null,
+        paymentMethodId: settlement.paymentMethodId || null,
+        paymentReference: settlement.reference || null,
+        chequeNumber: settlement.chequeNumber || null,
+        chequeBank: settlement.chequeBank || null,
+        chequeDueDate: settlement.chequeDueDate || null,
+        chequeDrawer: settlement.chequeDrawer || null,
       });
 
       if (!result.ok) {
@@ -512,6 +524,12 @@ function SalesInvoicePage() {
         ticket.customerName.trim() ||
         (isRtl ? "عميل نقدي" : "Walk-in");
       const warehouse = warehouses.find((w) => w.id === warehouseId);
+
+      const resolvedPaymentLabel = settlement.bankAccountName
+        ? `${pmLabel(paymentMethod, isRtl)} (${settlement.bankAccountName})`
+        : settlement.cashboxName
+          ? `${pmLabel(paymentMethod, isRtl)} (${settlement.cashboxName})`
+          : pmLabel(paymentMethod, isRtl);
 
       const doc: InvoiceDoc = {
         title:
@@ -531,7 +549,7 @@ function SalesInvoicePage() {
             ? warehouse?.name_ar || warehouse?.name
             : warehouse?.name
           : undefined,
-        payment: pmLabel(paymentMethod, isRtl),
+        payment: resolvedPaymentLabel,
         status:
           remaining > 0
             ? effectivePaid > 0
@@ -1208,15 +1226,12 @@ function SalesInvoicePage() {
 
             <div className="h-px bg-border" />
 
-            <div className="space-y-2">
-              <Field label={isRtl ? "طريقة السداد" : "Payment method"}>
-                {/*
-                  The sales invoice form has its own context, so a business can
-                  offer a different set here than at the till. The picker returns
-                  a catalogue id; toLegacyPaymentValue converts it to the value
-                  the RPC expects.
-                */}
-                <PaymentMethodPicker
+            <div className="space-y-3">
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-muted-foreground">
+                  {isRtl ? "طريقة السداد والتوجيه المالي" : "Payment method & settlement"}
+                </label>
+                <DynamicPaymentSelector
                   context="sales"
                   value={paymentMethod}
                   onChange={(method) => {
@@ -1224,10 +1239,13 @@ function SalesInvoicePage() {
                     const definition = getPaymentMethodDefinition(method);
                     if (definition?.isCreditTerm) setPaid("0");
                   }}
-                  ensureIds={[paymentMethod]}
-                  ariaLabel={isRtl ? "طريقة السداد" : "Payment method"}
+                  settlement={settlement}
+                  onSettlementChange={(next) => {
+                    setSettlement(next);
+                  }}
+                  includeCredit={true}
                 />
-              </Field>
+              </div>
 
               <div className="grid grid-cols-2 gap-2">
                 <Field label={t("common.discount")}>

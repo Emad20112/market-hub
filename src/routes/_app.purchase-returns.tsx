@@ -32,6 +32,8 @@ import {
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { PaymentMethodPicker } from "@/components/ui/payment-method";
+import { DynamicPaymentSelector } from "@/components/ui/payment-method/dynamic-payment-selector";
+import type { PaymentSettlementSelection } from "@/lib/payments/treasury-types";
 import { paymentMethodLabel } from "@/lib/payments/payment-methods";
 import { usePaymentMethodOverrides } from "@/hooks/use-payment-methods";
 import { Textarea } from "@/components/ui/textarea";
@@ -613,6 +615,7 @@ function NewPurchaseReturn({
   const [warehouseId, setWarehouseId] = useState("");
   const [supplierId, setSupplierId] = useState<string>("");
   const [refundMethod, setRefundMethod] = useState("cash");
+  const [settlement, setSettlement] = useState<PaymentSettlementSelection>({ method: "cash", paymentMethodId: "cash" });
   const [note, setNote] = useState("");
   const [search, setSearch] = useState("");
   const [supplierInvoiceId, setSupplierInvoiceId] = useState<string>("");
@@ -768,7 +771,7 @@ function NewPurchaseReturn({
       toast.error(t("common.fill_form"));
       return;
     }
-    const { error } = await supabase.rpc("create_purchase_return" as any, {
+    const { data: retData, error } = await supabase.rpc("create_purchase_return" as any, {
       _invoice_id: supplierInvoiceId || null,
       _warehouse_id: warehouseId,
       _supplier_id: supplierId,
@@ -779,6 +782,19 @@ function NewPurchaseReturn({
     if (error) {
       toast.error(error.message);
       return;
+    }
+    const returnId = typeof retData === "string" ? retData : (retData as any)?.id;
+    if (returnId && (settlement.cashboxId || settlement.bankAccountId || settlement.paymentMethodId || settlement.reference)) {
+      try {
+        await (supabase as any).from("purchase_returns").update({
+          cashbox_id: settlement.cashboxId || null,
+          bank_account_id: settlement.bankAccountId || null,
+          payment_method_id: settlement.paymentMethodId || refundMethod || null,
+          payment_reference: settlement.reference || null,
+        }).eq("id", returnId);
+      } catch (e) {
+        console.warn("Could not set treasury settlement on purchase_return:", e);
+      }
     }
     toast.success(
       lang === "ar" ? "تم تسجيل مرتجع المشتريات بنجاح" : "Purchase return recorded successfully",
@@ -861,23 +877,16 @@ function NewPurchaseReturn({
                 </SelectContent>
               </Select>
             </div>
-            <div className="grid gap-1.5">
-              <Label>{lang === "ar" ? "طريقة الاسترداد" : "Refund method"}</Label>
-              {/*
-                الاسترداد ليس طريقة دفع، لكنه يستخدم نفس الكتالوج بنفس السياق
-                المستقل، فالطرق المتاحة هنا هي ما فعّله العميل لقسم المرتجعات.
-
-                This replaced a Radix Select whose "badge" option used value
-                "bank" — a value the payment_method ENUM does not contain, so
-                the return failed with a cast error.
-              */}
-              <PaymentMethodPicker
+            <div className="grid gap-1.5 sm:col-span-2">
+              <Label>{lang === "ar" ? "طريقة ومصدر الاسترداد" : "Refund method & source"}</Label>
+              <DynamicPaymentSelector
                 context="purchase_returns"
                 value={refundMethod}
                 onChange={setRefundMethod}
+                settlement={settlement}
+                onSettlementChange={setSettlement}
                 includeCredit
-                ensureIds={[refundMethod]}
-                ariaLabel={lang === "ar" ? "طريقة الاسترداد" : "Refund method"}
+                compact
               />
             </div>
           </div>

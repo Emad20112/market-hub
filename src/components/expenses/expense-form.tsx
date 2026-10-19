@@ -34,7 +34,8 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { FieldInput } from "@/components/ui/input";
 import { VortexDrawerDialog } from "@/components/vortex-ui";
-import { PaymentMethodPicker } from "@/components/ui/payment-method";
+import { DynamicPaymentSelector } from "@/components/ui/payment-method/dynamic-payment-selector";
+import type { PaymentSettlementSelection } from "@/lib/payments/treasury-types";
 import { useExpenseMutations, type ExpenseLineInput } from "@/hooks/use-expenses";
 import {
   ACTIVE_EXPENSE_ENTRY_TYPES,
@@ -140,6 +141,7 @@ export function ExpenseFormDialog({
   const [showPayment, setShowPayment] = useState(true);
   const [payNow, setPayNow] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState("cash");
+  const [settlement, setSettlement] = useState<PaymentSettlementSelection>({ method: "cash", paymentMethodId: "cash" });
   const [accountId, setAccountId] = useState("");
   const [accountLabel, setAccountLabel] = useState("");
   const [dirty, setDirty] = useState(false);
@@ -191,6 +193,7 @@ export function ExpenseFormDialog({
       setShowAdvanced(false);
       setPayNow(false);
       setPaymentMethod("cash");
+      setSettlement({ method: "cash", paymentMethodId: "cash" });
       setAccountId("");
       setAccountLabel("");
     }
@@ -377,10 +380,14 @@ export function ExpenseFormDialog({
               id: created.id,
               version: created.version,
               payNow: true,
-              paymentMethod,
-              accountId: accountId || null,
+              paymentMethod: settlement.paymentMethodId || paymentMethod || "cash",
+              paymentMethodId: settlement.paymentMethodId || paymentMethod || "cash",
+              cashboxId: settlement.cashboxId || null,
+              bankAccountId: settlement.bankAccountId || null,
+              accountId: settlement.chartAccountId || accountId || null,
               accountLabel: accountLabel || null,
               paymentDate: header.expense_date,
+              referenceNo: settlement.reference || null,
             });
           } catch {
             // The expense itself was saved; failing to post it is reported by
@@ -766,56 +773,18 @@ export function ExpenseFormDialog({
           </div>
 
           {payNow ? (
-            <div className="mt-3 grid gap-3 sm:grid-cols-2">
-              <Field label={t("common.method")}>
-                {/* Same catalogue, expenses context, independent scoping. */}
-                <PaymentMethodPicker
-                  context="expenses"
-                  value={paymentMethod}
-                  onChange={setPaymentMethod}
-                  includeCredit={false}
-                  ensureIds={[paymentMethod]}
-                  ariaLabel={t("common.method")}
-                />
-              </Field>
-
-              {(lookups?.financial_accounts ?? []).length > 0 ? (
-                <Field
-                  label={ar ? "الحساب المالي (الصندوق / البنك)" : "Financial Account"}
-                  hint={ar ? "الحساب المحاسبي للخصم" : "Source cash or bank account"}
-                >
-                  <select
-                    value={accountId}
-                    onChange={(event) => {
-                      const val = event.target.value;
-                      setAccountId(val);
-                      const matched = lookups?.financial_accounts?.find((a) => a.id === val);
-                      if (matched) setAccountLabel(matched.name_ar);
-                    }}
-                    className={selectClass}
-                  >
-                    <option value="">
-                      {ar ? "— اختياري (تحديد تلقائي) —" : "— Optional (Auto) —"}
-                    </option>
-                    {(lookups?.financial_accounts ?? []).map((acct) => (
-                      <option key={acct.id} value={acct.id}>
-                        {acct.code} — {acct.name_ar}
-                      </option>
-                    ))}
-                  </select>
-                </Field>
-              ) : (
-                <Field
-                  label={ar ? "المصدر" : "Source"}
-                  hint={ar ? "مثال: صندوق المصروفات النقدية" : "e.g. Petty cash box"}
-                >
-                  <FieldInput
-                    value={accountLabel}
-                    onValueChange={setAccountLabel}
-                    placeholder={ar ? "اختياري" : "Optional"}
-                  />
-                </Field>
-              )}
+            <div className="mt-3">
+              <DynamicPaymentSelector
+                context="expenses"
+                value={paymentMethod}
+                onChange={setPaymentMethod}
+                settlement={settlement}
+                onSettlementChange={(s) => {
+                  setSettlement(s);
+                  if (s.chartAccountId) setAccountId(s.chartAccountId);
+                }}
+                includeCredit={false}
+              />
             </div>
           ) : null}
         </Section>

@@ -30,6 +30,6 @@ export class PurchaseRegisterDataProvider implements IDataProvider<PurchaseRegis
 
   async execute(request: ReportExecutionRequest<PurchaseRegisterFilters>): Promise<ReportExecutionResult<PurchaseRegisterRow>> {
     const validated = { ...request, filters: PurchaseRegisterFilterSchema.parse(request.filters || {}) };
-    return (await executePurchaseRegisterReport({ data: validated })) as ReportExecutionResult<PurchaseRegisterRow>;
+    return (await executePurchaseRegisterReport({ data: validated })) as unknown as ReportExecutionResult<PurchaseRegisterRow>;
   }
 }
