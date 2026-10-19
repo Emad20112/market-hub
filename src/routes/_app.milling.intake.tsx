@@ -71,6 +71,8 @@ import {
   fmtNum,
 } from "@/components/milling/milling-ui";
 import { getCompanyCurrencySymbol } from "@/lib/format";
+import { AmountInput } from "@/components/ui/amount-input";
+import { QuantityInput } from "@/components/ui/quantity-input";
 import type { UnifiedDocumentData } from "@/lib/templates/types";
 
 export const Route = createFileRoute("/_app/milling/intake")({
@@ -624,16 +626,18 @@ function MillingIntakePage() {
                       </button>
                     );
                   })}
-                  <div className="relative ms-auto w-28">
-                    <MillingInput
-                      type="number"
+                  <div className="ms-auto w-32">
+                    <QuantityInput
+                      decimals={3}
                       min={1}
-                      step="0.5"
+                      unit="kg"
                       placeholder="سعة مخصصة"
-                      value={capacityKg}
-                      onChange={(e) => {
-                        setCapacityKg(e.target.value);
-                        const n = Number(e.target.value) || 0;
+                      aria-label="سعة مخصصة"
+                      value={capacityKg === "" ? null : Number(capacityKg)}
+                      onValueChange={(v) => {
+                        const next = v == null ? "" : String(v);
+                        setCapacityKg(next);
+                        const n = v ?? 0;
                         const b = Number(bags) || 0;
                         if (n > 0 && b > 0 && kgAuto) {
                           setKg(String(b * n));
@@ -641,9 +645,6 @@ function MillingIntakePage() {
                       }}
                       className="text-center font-bold"
                     />
-                    <span className="pointer-events-none absolute start-2 top-2.5 text-[11px] text-muted-foreground">
-                      كجم
-                    </span>
                   </div>
                 </div>
               </div>
@@ -654,13 +655,13 @@ function MillingIntakePage() {
                   label="عدد الأكياس *"
                   hint="المحدد الأساسي لعمليات الاستلام وأجور الطحن"
                 >
-                  <MillingInput
-                    type="number"
+                  <QuantityInput
+                    decimals={0}
                     min={0}
-                    inputMode="numeric"
                     placeholder="0"
-                    value={bags}
-                    onChange={(e) => handleBagsChange(e.target.value)}
+                    aria-label="عدد الأكياس"
+                    value={bags === "" ? null : Number(bags)}
+                    onValueChange={(v) => handleBagsChange(v == null ? "" : String(v))}
                     className="text-lg font-black text-primary"
                   />
                 </MillingField>
@@ -674,14 +675,14 @@ function MillingIntakePage() {
                   }
                 >
                   <div className="space-y-1">
-                    <MillingInput
-                      type="number"
+                    <QuantityInput
+                      decimals={2}
                       min={0}
-                      step="0.01"
-                      inputMode="decimal"
+                      unit="kg"
                       placeholder="0.00"
-                      value={kg}
-                      onChange={(e) => handleKgChange(e.target.value)}
+                      aria-label="الوزن الإجمالي (كجم)"
+                      value={kg === "" ? null : Number(kg)}
+                      onValueChange={(v) => handleKgChange(v == null ? "" : String(v))}
                       className="font-bold"
                     />
                     {kgAuto && Number(bags) > 0 && Number(capacityKg) > 0 && (
@@ -772,20 +773,15 @@ function MillingIntakePage() {
                   {/* احتساب أجر الكيس × عدد الأكياس */}
                   <div className="grid gap-2.5 sm:grid-cols-2">
                     <MillingField label="أجر طحن الكيس الواحد" hint="سعر خدمة طحن الكيس الواحد">
-                      <div className="relative">
-                        <MillingInput
-                          type="number"
-                          min={0}
-                          step="1"
-                          placeholder="1000"
-                          value={feePerBag}
-                          onChange={(e) => handleFeePerBagChange(e.target.value)}
-                          className="font-bold pe-12"
-                        />
-                        <span className="pointer-events-none absolute end-2.5 top-2.5 text-[11px] text-muted-foreground">
-                          {currencySymbol}
-                        </span>
-                      </div>
+                      <AmountInput
+                        min={0}
+                        showInWords={false}
+                        placeholder="1000"
+                        aria-label="أجر طحن الكيس الواحد"
+                        value={feePerBag === "" ? null : Number(feePerBag)}
+                        onValueChange={(v) => handleFeePerBagChange(v == null ? "" : String(v))}
+                        className="font-bold"
+                      />
                     </MillingField>
 
                     <MillingField
@@ -796,20 +792,13 @@ function MillingIntakePage() {
                           : "المبلغ الإجمالي للخدمة"
                       }
                     >
-                      <div className="relative">
-                        <MillingInput
-                          type="number"
-                          min={0}
-                          step="1"
-                          placeholder="0.00"
-                          value={servicePrice}
-                          onChange={(e) => setServicePrice(e.target.value)}
-                          className="font-black text-amber-600 dark:text-amber-400 pe-12"
-                        />
-                        <span className="pointer-events-none absolute end-2.5 top-2.5 text-[11px] text-muted-foreground">
-                          {currencySymbol}
-                        </span>
-                      </div>
+                      <AmountInput
+                        min={0}
+                        showInWords={false}
+                        value={servicePrice === "" ? null : Number(servicePrice)}
+                        onValueChange={(v) => setServicePrice(v == null ? "" : String(v))}
+                        className="font-black text-amber-600 dark:text-amber-400"
+                      />
                     </MillingField>
                   </div>
 
@@ -832,20 +821,13 @@ function MillingIntakePage() {
 
                 {/* الخصم الإجمالي */}
                 <MillingField label="الخصم (إن وجد)">
-                  <div className="relative">
-                    <MillingInput
-                      type="number"
-                      min={0}
-                      step="1"
-                      placeholder="0.00"
-                      value={discount}
-                      onChange={(e) => setDiscount(e.target.value)}
-                      className="font-medium pe-12"
-                    />
-                    <span className="pointer-events-none absolute end-2.5 top-2.5 text-[11px] text-muted-foreground">
-                      {currencySymbol}
-                    </span>
-                  </div>
+                  <AmountInput
+                    min={0}
+                    showInWords={false}
+                    value={discount === "" ? null : Number(discount)}
+                    onValueChange={(v) => setDiscount(v == null ? "" : String(v))}
+                    className="font-medium"
+                  />
                 </MillingField>
 
                 {/* بطاقة الصافي الإجمالي المميزة */}
@@ -918,27 +900,22 @@ function MillingIntakePage() {
                         </button>
                       )}
                     </div>
-                    <div className="relative">
-                      <MillingInput
-                        type="number"
-                        min={0}
-                        step="1"
-                        disabled={isCredit}
-                        placeholder={isCredit ? "0.00" : "0.00"}
-                        value={isCredit ? "" : paid}
-                        onChange={(e) => setPaid(e.target.value)}
-                        className={`font-bold pe-12 ${
-                          isCredit
-                            ? "cursor-not-allowed opacity-60"
-                            : isOverpaid
-                              ? "border-rose-500 text-rose-600 bg-rose-500/5"
-                              : "text-emerald-600"
-                        }`}
-                      />
-                      <span className="pointer-events-none absolute end-2.5 top-2.5 text-[11px] text-muted-foreground">
-                        {currencySymbol}
-                      </span>
-                    </div>
+                    <AmountInput
+                      min={0}
+                      showInWords={false}
+                      disabled={isCredit}
+                      placeholder="0.00"
+                      aria-label="المبلغ المستلم (المدفوع)"
+                      value={isCredit ? 0 : paid === "" ? null : Number(paid)}
+                      onValueChange={(v) => setPaid(v == null ? "" : String(v))}
+                      className={`font-bold ${
+                        isCredit
+                          ? "cursor-not-allowed opacity-60"
+                          : isOverpaid
+                            ? "text-rose-600"
+                            : "text-emerald-600"
+                      }`}
+                    />
                     <span className="text-[11px] text-muted-foreground block">
                       {isCredit ? "معطّل لأن الطريقة آجلة" : "المبلغ المستلم كاش أو شبكة"}
                     </span>

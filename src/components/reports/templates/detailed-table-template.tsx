@@ -67,7 +67,9 @@ export function DetailedTableTemplate({
 
   // تحديث الأعمدة عند تغيير التقرير
   useEffect(() => {
-    setColumnVisibility(defaultVisibility(createReportColumnRegistry(definition.id, definition.columns)));
+    setColumnVisibility(
+      defaultVisibility(createReportColumnRegistry(definition.id, definition.columns)),
+    );
   }, [definition.id]);
 
   const dataProvider = useMemo(() => {

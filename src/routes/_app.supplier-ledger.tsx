@@ -8,6 +8,7 @@ import { money } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { AmountInput } from "@/components/ui/amount-input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -675,13 +676,13 @@ function SupplierLedgerPage() {
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label className="text-xs">المبلغ المسدد *</Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  min="0.01"
+                <AmountInput
+                  min={0.01}
+                  showInWords={false}
                   placeholder="0.00"
-                  value={payAmount}
-                  onChange={(e) => setPayAmount(e.target.value)}
+                  aria-label="المبلغ المسدد"
+                  value={payAmount === "" ? null : Number(payAmount)}
+                  onValueChange={(v) => setPayAmount(v == null ? "" : String(v))}
                 />
               </div>
               <div className="space-y-1.5">

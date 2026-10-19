@@ -1,7 +1,7 @@
 /** مزود سجل المبيعات — يستدعي حد التنفيذ الخادمي فقط. */
-import type { IDataProvider, ReportExecutionRequest, ReportExecutionResult } from './types';
-import { SalesRegisterFilterSchema, type SalesRegisterFilters } from './filter-schemas';
-import { executeSalesRegisterReport } from '../report-execution.functions';
+import type { IDataProvider, ReportExecutionRequest, ReportExecutionResult } from "./types";
+import { SalesRegisterFilterSchema, type SalesRegisterFilters } from "./filter-schemas";
+import { executeSalesRegisterReport } from "../report-execution.functions";
 
 export interface SalesRegisterRow {
   invoice_item_id: string;
@@ -28,12 +28,22 @@ export interface SalesRegisterRow {
   line_cost: number | null;
 }
 
-export class SalesRegisterDataProvider implements IDataProvider<SalesRegisterFilters, SalesRegisterRow> {
-  id = 'dp-sales-register';
-  dataSourceName = 'sales_register';
+export class SalesRegisterDataProvider implements IDataProvider<
+  SalesRegisterFilters,
+  SalesRegisterRow
+> {
+  id = "dp-sales-register";
+  dataSourceName = "sales_register";
 
-  async execute(request: ReportExecutionRequest<SalesRegisterFilters>): Promise<ReportExecutionResult<SalesRegisterRow>> {
-    const validated = { ...request, filters: SalesRegisterFilterSchema.parse(request.filters || {}) };
-    return (await executeSalesRegisterReport({ data: validated })) as ReportExecutionResult<SalesRegisterRow>;
+  async execute(
+    request: ReportExecutionRequest<SalesRegisterFilters>,
+  ): Promise<ReportExecutionResult<SalesRegisterRow>> {
+    const validated = {
+      ...request,
+      filters: SalesRegisterFilterSchema.parse(request.filters || {}),
+    };
+    return (await executeSalesRegisterReport({
+      data: validated,
+    })) as ReportExecutionResult<SalesRegisterRow>;
   }
 }

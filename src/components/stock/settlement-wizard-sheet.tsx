@@ -348,7 +348,9 @@ export function SettlementWizardSheet({
       });
 
       if (!result.ok) {
-        throw new Error(result.message || (isAr ? "فشل تنفيذ التسوية" : "Failed to post adjustment"));
+        throw new Error(
+          result.message || (isAr ? "فشل تنفيذ التسوية" : "Failed to post adjustment"),
+        );
       }
 
       toast.success(

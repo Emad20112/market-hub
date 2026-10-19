@@ -82,19 +82,15 @@ export function MillingField({
   );
 }
 
-export function MillingInput({ onWheel, ...props }: React.InputHTMLAttributes<HTMLInputElement>) {
-  return (
-    <input
-      {...props}
-      onWheel={(e) => {
-        if (props.type === "number") {
-          (e.target as HTMLElement).blur();
-        }
-        onWheel?.(e);
-      }}
-      className={cn(fieldBase, props.className)}
-    />
-  );
+/**
+ * MillingInput — الحقول النصية لشاشات الطحن (أرقام دفعات، أسماء، ملاحظات).
+ *
+ * لا يستقبل حقول الأرقام؛ الكميات والمبالغ في شاشات الطحن
+ * تُستخدم فيها `QuantityInput` و`AmountInput` اللتان تعرضان `type="text"`،
+ * فلا حاجة بعد الآن لمعالج `onWheel → blur` الذي كان يقاطع التركيز.
+ */
+export function MillingInput(props: React.InputHTMLAttributes<HTMLInputElement>) {
+  return <input {...props} className={cn(fieldBase, props.className)} />;
 }
 
 export function MillingSelect(props: React.SelectHTMLAttributes<HTMLSelectElement>) {

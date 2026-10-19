@@ -48,6 +48,7 @@ import {
   Mono,
   fmtNum,
 } from "@/components/milling/milling-ui";
+import { QuantityInput } from "@/components/ui/quantity-input";
 
 export const Route = createFileRoute("/_app/milling/manufacture")({
   head: () => ({ meta: [{ title: "التصنيع الذكي وطحن منتجات المنشأة — فورتكس ERP" }] }),
@@ -181,7 +182,8 @@ export function SmartManufacturePage() {
         else if (packageType === "custom") bagWeight = Number(customKg) || 0;
 
         const bags = Number(line.bagsCount) || 0;
-        const newQty = packageType === "bulk" ? line.qty : bags > 0 ? String(bags * bagWeight) : line.qty;
+        const newQty =
+          packageType === "bulk" ? line.qty : bags > 0 ? String(bags * bagWeight) : line.qty;
 
         return {
           ...line,
@@ -219,10 +221,7 @@ export function SmartManufacturePage() {
   // تنفيذ عملية التصنيع
   const submit = useMutation({
     mutationFn: () => {
-      const fullNotes = [
-        batchRef ? `تشغيلة: ${batchRef.trim()}` : "",
-        notes ? notes.trim() : "",
-      ]
+      const fullNotes = [batchRef ? `تشغيلة: ${batchRef.trim()}` : "", notes ? notes.trim() : ""]
         .filter(Boolean)
         .join(" — ");
 
@@ -284,9 +283,9 @@ export function SmartManufacturePage() {
         <div className="flex items-start gap-2.5 rounded-2xl border border-sky-500/20 bg-sky-500/10 p-3.5 text-xs font-medium text-sky-800 dark:text-sky-200">
           <Info className="mt-0.5 h-4 w-4 shrink-0 text-sky-600 dark:text-sky-400" />
           <p className="leading-relaxed">
-            <strong>نظام التوزيع النسبي المعتمد:</strong> يتم خصم القمح من المخزون بتكلفته الفعلية، وتُوزع
-            التكلفة بالكامل على النواتج بحسب نسبة القيمة السوقية لكل منتج (دقيق، سميد، نخالة)، مما يمنع
-            الأرباح الوهمية ويطابق معايير الجرد المستمر.
+            <strong>نظام التوزيع النسبي المعتمد:</strong> يتم خصم القمح من المخزون بتكلفته الفعلية،
+            وتُوزع التكلفة بالكامل على النواتج بحسب نسبة القيمة السوقية لكل منتج (دقيق، سميد،
+            نخالة)، مما يمنع الأرباح الوهمية ويطابق معايير الجرد المستمر.
           </p>
         </div>
 
@@ -300,10 +299,7 @@ export function SmartManufacturePage() {
           <div className="space-y-4 p-4 sm:p-5">
             <div className="grid gap-4 sm:grid-cols-3">
               <MillingField label="مستودع السحب *">
-                <MillingSelect
-                  value={warehouseId}
-                  onChange={(e) => setWarehouseId(e.target.value)}
-                >
+                <MillingSelect value={warehouseId} onChange={(e) => setWarehouseId(e.target.value)}>
                   <option value="">اختر المخزن…</option>
                   {(warehouses.data ?? []).map((w) => (
                     <option key={w.id} value={w.id}>
@@ -314,10 +310,7 @@ export function SmartManufacturePage() {
               </MillingField>
 
               <MillingField label="صنف الحبوب (القمح) *">
-                <MillingSelect
-                  value={grainItemId}
-                  onChange={(e) => setGrainItemId(e.target.value)}
-                >
+                <MillingSelect value={grainItemId} onChange={(e) => setGrainItemId(e.target.value)}>
                   <option value="">اختر الصنف…</option>
                   {(grainItems.data ?? []).map((g: ProductOption) => (
                     <option key={g.id} value={g.id}>
@@ -328,14 +321,14 @@ export function SmartManufacturePage() {
               </MillingField>
 
               <MillingField label="الكمية المراد طحنها (كجم) *">
-                <MillingInput
-                  type="number"
+                <QuantityInput
+                  decimals={3}
                   min={0}
-                  step="0.01"
-                  inputMode="decimal"
+                  unit="kg"
                   placeholder="0.00"
-                  value={grainQty}
-                  onChange={(e) => setGrainQty(e.target.value)}
+                  aria-label="الكمية المراد طحنها (كجم)"
+                  value={grainQty === "" ? null : Number(grainQty)}
+                  onValueChange={(v) => setGrainQty(v == null ? "" : String(v))}
                 />
               </MillingField>
             </div>
@@ -377,8 +370,8 @@ export function SmartManufacturePage() {
               <div className="flex items-center gap-2 rounded-xl border border-rose-500/30 bg-rose-500/10 p-3 text-xs font-semibold text-rose-700 dark:text-rose-300">
                 <AlertTriangle className="h-4 w-4 shrink-0 text-rose-500" />
                 <span>
-                  تنبيه: الكمية المدخلة (<Mono>{grainQty}</Mono> كجم) أكبر من الرصيد المتوفر في المخزن (
-                  <Mono>{fmtNum(availableStock)}</Mono> كجم)! يرجى تقليل الكمية.
+                  تنبيه: الكمية المدخلة (<Mono>{grainQty}</Mono> كجم) أكبر من الرصيد المتوفر في
+                  المخزن (<Mono>{fmtNum(availableStock)}</Mono> كجم)! يرجى تقليل الكمية.
                 </span>
               </div>
             )}
@@ -497,38 +490,46 @@ export function SmartManufacturePage() {
                       </div>
 
                       {line.packageType === "bulk" ? (
-                        <MillingInput
-                          type="number"
+                        <QuantityInput
+                          decimals={3}
                           min={0}
-                          step="0.01"
-                          inputMode="decimal"
+                          emptyAsZero
+                          unit="kg"
                           placeholder="كجم"
-                          value={line.qty}
-                          onChange={(e) =>
+                          aria-label="الكمية كجم"
+                          value={line.qty ? Number(line.qty) : null}
+                          onValueChange={(v) =>
                             setOutputs((o) =>
-                              o.map((l, i) => (i === idx ? { ...l, qty: e.target.value } : l)),
+                              o.map((l, i) =>
+                                i === idx ? { ...l, qty: v == null ? "" : String(v) } : l,
+                              ),
                             )
                           }
                         />
                       ) : (
                         <div className="space-y-1.5">
-                          <MillingInput
-                            type="number"
+                          <QuantityInput
+                            decimals={0}
                             min={0}
-                            step="1"
+                            emptyAsZero
                             placeholder="عدد الأكياس"
-                            value={line.bagsCount ?? ""}
-                            onChange={(e) => handleBagsCountChange(idx, e.target.value)}
+                            aria-label="عدد الأكياس"
+                            value={line.bagsCount ? Number(line.bagsCount) : null}
+                            onValueChange={(v) =>
+                              handleBagsCountChange(idx, v == null ? "" : String(v))
+                            }
                           />
                           {line.packageType === "custom" && (
-                            <MillingInput
-                              type="number"
+                            <QuantityInput
+                              decimals={3}
                               min={0}
-                              step="0.1"
+                              emptyAsZero
+                              unit="kg"
                               placeholder="وزن الكيس كجم"
-                              value={line.customPackageKg ?? ""}
-                              onChange={(e) =>
-                                handlePackageChange(idx, "custom", e.target.value)
+                              aria-label="وزن الكيس كجم"
+                              value={line.customPackageKg ? Number(line.customPackageKg) : null}
+                              onValueChange={(v) =>
+                                handlePackageChange(idx, "custom", v == null ? "" : String(v))
                               }
                             />
                           )}
@@ -555,16 +556,22 @@ export function SmartManufacturePage() {
                     <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border/50 pt-2 text-[11px] text-muted-foreground">
                       <div className="flex items-center gap-3">
                         <span>
-                          قيمة الناتج: <strong><Mono>{fmtNum(lineValue)}</Mono></strong>
+                          قيمة الناتج:{" "}
+                          <strong>
+                            <Mono>{fmtNum(lineValue)}</Mono>
+                          </strong>
                         </span>
                         <span>
-                          نسبة القيمة: <strong><Mono>{valueRatio.toFixed(1)}%</Mono></strong>
+                          نسبة القيمة:{" "}
+                          <strong>
+                            <Mono>{valueRatio.toFixed(1)}%</Mono>
+                          </strong>
                         </span>
                       </div>
                       {estimatedUnitCost > 0 && (
                         <div className="text-emerald-600 dark:text-emerald-400 font-semibold">
-                          التكلفة التقديرية بعد التوزيع:{" "}
-                          <Mono>{fmtNum(estimatedUnitCost)}</Mono> / كجم
+                          التكلفة التقديرية بعد التوزيع: <Mono>{fmtNum(estimatedUnitCost)}</Mono> /
+                          كجم
                         </div>
                       )}
                     </div>
@@ -622,8 +629,9 @@ export function SmartManufacturePage() {
           <div className="flex items-center gap-2 rounded-xl border border-rose-500/30 bg-rose-500/10 p-3.5 text-xs font-bold text-rose-700 dark:text-rose-300">
             <AlertTriangle className="h-4 w-4 shrink-0 text-rose-500" />
             <span>
-              خطأ في الأوزان: إجمالي وزن النواتج المستخرجة (<Mono>{fmtNum(totalOutputKg)}</Mono> كجم)
-              أكبر من كمية القمح المطحون (<Mono>{fmtNum(numGrainQty)}</Mono> كجم)! لا يمكن أن تزيد النواتج عن المدخلات.
+              خطأ في الأوزان: إجمالي وزن النواتج المستخرجة (<Mono>{fmtNum(totalOutputKg)}</Mono>{" "}
+              كجم) أكبر من كمية القمح المطحون (<Mono>{fmtNum(numGrainQty)}</Mono> كجم)! لا يمكن أن
+              تزيد النواتج عن المدخلات.
             </span>
           </div>
         )}
@@ -656,7 +664,9 @@ export function SmartManufacturePage() {
                 {totalOutputValue > 0 && (
                   <span>
                     إجمالي القيمة السوقية للنواتج:{" "}
-                    <strong className="text-foreground"><Mono>{fmtNum(totalOutputValue)}</Mono></strong>
+                    <strong className="text-foreground">
+                      <Mono>{fmtNum(totalOutputValue)}</Mono>
+                    </strong>
                   </span>
                 )}
               </div>

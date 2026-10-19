@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { AmountInput } from "@/components/ui/amount-input";
+import { QuantityInput } from "@/components/ui/quantity-input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -441,11 +442,14 @@ function PrepaymentsPage() {
               </div>
               <div className="space-y-1">
                 <Label>عدد الفترات (شهور)</Label>
-                <Input
-                  type="number"
-                  value={periods}
-                  onChange={(e) => setPeriods(e.target.value)}
+                <QuantityInput
+                  decimals={0}
+                  min={1}
+                  max={120}
+                  value={periods === "" ? null : Number(periods)}
+                  onValueChange={(v) => setPeriods(v == null ? "" : String(v))}
                   placeholder="12"
+                  aria-label="عدد الفترات (شهور)"
                 />
               </div>
             </div>

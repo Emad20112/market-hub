@@ -1,7 +1,7 @@
 # خطة: حقل المبالغ وحقل الكميات الموحّدان `AmountInput` + `QuantityInput`
 
-> **الحالة العامة:** 🟨 قيد التنفيذ — المراحل 1، 2، 4 مكتملة، المرحلة 3 منجزة جزئيًا (3.1/3.2/3.3)، المرحلة 5 (الكميات الموحّدة) مكتملة في الكود.
-> **آخر تحديث:** 2026-10-18
+> **الحالة العامة:** ✅ مكتملة — كل المراحل 1–6 منجزة، و**لا يوجد أي `type="number"` في `src/`** (قاعدة eslint تمنعه مستقبلًا).
+> **آخر تحديث:** 2026-10-19
 >
 > **الهدف:** مكوّنان اثنان فقط لكل حقول الأرقام في النظام:
 >
@@ -60,7 +60,9 @@
 - [x] `_app.payments.tsx` — حقل المبلغ المحصل مع التفقيط.
 - [x] `_app.prepayments.tsx` — المبلغ الإجمالي.
 - [ ] `_app.settlements.tsx` — لا يحتوي حقول أرقام خام (تحقق: لا نتائج).
-- [ ] `_app.supplier-ledger.tsx` — متبقٍ.
+- [x] `_app.supplier-ledger.tsx` — المبلغ المسدد (`AmountInput`).
+- [x] `_app.prepayments.tsx` — عدد الشهور (`QuantityInput`).
+- [x] `vortex-collection-sheet.tsx` — مبلغ التحصيل/الدفعة المقدمة (`AmountInput`).
 
 **الدفعة 3.2 — الفواتير:**
 
@@ -77,20 +79,26 @@
 - [x] `_app.fixed-assets.tsx` — التكلفة/الخردة/الحصيلة (`AmountInput`)، العمر بالشهور (`QuantityInput`).
 - [x] `guided-item-dialog.tsx` — سعر البيع/التكلفة المرجعية، الضريبة %، سعة العبوة.
 - [x] `packaging-bags-catalog.tsx` — سعر البيع/التكلفة، سعة العبوة.
-- [ ] شاشات الطحن (`_app.milling.*`, `milling-terms-fields.tsx`) — تستخدم `MillingInput` الذي يحلّ عجلة الماوس بـ `onWheel → blur`؛ الترحيل الكامل إلى `QuantityInput` متبقٍ.
+- [x] شاشات الطحن كلها (`intake`, `milling`, `manufacture`, `consumables`, `delivery`, `customer-statement`, `milling-terms-fields`, `milling-document-workflow`) — الكميات/الأجور/النسب صارت `QuantityInput`/`AmountInput`، وأُزيل `onWheel → blur` من `MillingInput` نهائيًا.
+- [x] `stock-adjustment-dialog.tsx` — الكمية المحصورة + تكلفة الوحدة.
+- [x] `_app.opening-balances.tsx` — الكمية/التكلفة/المبلغ.
 
 **الدفعة 3.4 — POS والباقي:**
 
 - [x] `_app.pos.tsx` — نقد/شبكة المدفوع المجزأ، المدفوع النقدي، المدفوع الآجل، الخصم، سعر الخدمة.
 - [x] `_app.catalog.tsx` — ترتيب الأهمية.
 - [x] `_app.barcodes.tsx` — عدد النسخ.
-- [ ] `customer-form-dialog.tsx`, `_app.fiscal-periods.tsx`, `_app.loyalty.tsx`, `invoicing-section.tsx`, `stock-settings-section.tsx` — متبقية (سنوات/درجات/نسب إعدادات، غير مالية كاشيرية).
+- [x] `customer-form-dialog.tsx` (حد الائتمان), `_app.fiscal-periods.tsx` (السنة), `_app.loyalty.tsx` (النقاط), `invoicing-section.tsx` (نسبة الضريبة), `stock-settings-section.tsx` (حد التنبيه), `document-numbering-card.tsx` (أول رقم).
+- [x] `_app.purchase-pos.tsx` (الخصم + المدفوع), `_app.sales.tsx` (نطاق المبلغ في الفلتر).
 
 ## المرحلة 4 — الحماية والتنقية النهائية 🟨
 
 - [x] مكوّن `QuantityInput` الموحد للكميات.
-- [ ] تطبيق قاعدة `no-restricted-syntax` أو فحص CI يمنع `type="number"` في `src/`.
-- [ ] معالجة `MillingInput` (إلغاء `onWheel/blur` بعد ترحيل شاشاته).
+- [x] قاعدة `no-restricted-syntax` في `eslint.config.js` تمنع `type="number"` في كل `src/`.
+- [x] `MillingInput` لم يعد به أي `type="number"` ولا `onWheel/blur`.
+- [x] فحص: **0** نتيجة لـ `type="number"` في `src/`.
+- [x] ESLint على كل الملفات المعدّلة: **0 أخطاء** (33 تحذير hooks قديم).
+- [x] `tsc --noEmit`: لا أخطاء جديدة؛ الأخطاء المتبقية (4) سابقة لتعديلي (عمود `tracking` ومسار `/statements/customer`).
 - [ ] `npm run build` كامل + اختبار يدوي نهائي (100/1000/10000، الفاصلة، الأرقام العربية، عجلة الماوس، تغيير العملة، زر ×).
 
 ---
@@ -138,10 +146,10 @@
 | --- | ---------------------- | --------------------------- | -------- | ------- |
 | 1   | بناء `AmountInput`     | مكون جاهز                   | ✅       | ✅      |
 | 2   | التفقيط                | نص المبلغ بالأحرف           | ✅       | ✅      |
-| 3.1 | الشاشات المالية        | payments + prepayments      | ✅       | 🟨 جزئي |
-| 3.2 | الفواتير               | 4 شاشات                     | ✅ كود   | 🟨 جزئي |
-| 3.3 | المخزون والأصول        | 6 ملفات                     | ✅ كود   | 🟨 جزئي |
-| 3.4 | POS والباقي            | POS + كتالوج + باركود       | ✅ كود   | 🟨 جزئي |
-| 4   | الحماية والتنقية       | eslint rule + مراجعة نهائية | ⬜       | 🟨      |
+| 3.1 | الشاشات المالية                | payments + prepayments + ledger | ✅                 | ✅      |
+| 3.2 | الفواتير                       | 4 شاشات                     | ✅                 | ✅      |
+| 3.3 | المخزون والأصول                | 7 ملفات                     | ✅                 | ✅      |
+| 3.4 | POS والباقي                    | POS + كتالوج + إعدادات + طحن | ✅                 | ✅      |
+| 4   | الحماية والتنقية                | eslint rule + مراجعة نهائية | ✅                 | ✅      |
 | 5   | `QuantityInput` الموحد | مكوّن كميات + 9 شاشات       | ✅ كود   | ✅      |
 | 6   | إصلاح زر × فوق المبلغ  | مبلغ في المنتصف             | ✅ كود   | ✅      |

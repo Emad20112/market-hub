@@ -62,9 +62,7 @@ const groupedSalesRequestSchema = z.object({
   filters: SalesRegisterFilterSchema,
   pagination: paginationSchema,
   sort: sortSchema,
-  groupBy: z
-    .enum(["product", "customer", "branch", "warehouse", "payment_method"])
-    .optional(),
+  groupBy: z.enum(["product", "customer", "branch", "warehouse", "payment_method"]).optional(),
   dimensions: z
     .array(z.enum(["product", "customer", "branch", "warehouse", "payment_method"]))
     .optional(),
@@ -74,12 +72,8 @@ const groupedPurchasesRequestSchema = z.object({
   filters: PurchaseRegisterFilterSchema,
   pagination: paginationSchema,
   sort: sortSchema,
-  groupBy: z
-    .enum(["supplier", "product", "warehouse", "payment_method"])
-    .optional(),
-  dimensions: z
-    .array(z.enum(["supplier", "product", "warehouse", "payment_method"]))
-    .optional(),
+  groupBy: z.enum(["supplier", "product", "warehouse", "payment_method"]).optional(),
+  dimensions: z.array(z.enum(["supplier", "product", "warehouse", "payment_method"])).optional(),
 });
 
 const SALES_SORT_FIELDS = new Set([
@@ -123,7 +117,7 @@ export const executeSalesRegisterReport = createServerFn({ method: "POST" })
     const supabase = context.supabase;
 
     let pageQuery = supabase.from("sales_register").select("*", { count: "exact" });
-    let metricsQuery = supabase
+    const metricsQuery = supabase
       .from("sales_register")
       .select("quantity,unit_price,discount,tax,total,line_cost");
     const applyFilters = (query: any) => {
@@ -347,8 +341,9 @@ export const executeSalesGroupedReport = createServerFn({ method: "POST" })
   .validator((data: unknown) => groupedSalesRequestSchema.parse(data))
   .handler(async ({ data, context }) => {
     const { filters, groupBy, dimensions } = data;
-    const activeDimensions: Array<"product" | "customer" | "branch" | "warehouse" | "payment_method"> =
-      dimensions && dimensions.length > 0 ? dimensions : [groupBy || "product"];
+    const activeDimensions: Array<
+      "product" | "customer" | "branch" | "warehouse" | "payment_method"
+    > = dimensions && dimensions.length > 0 ? dimensions : [groupBy || "product"];
 
     const page = data.pagination?.page ?? 1;
     const pageSize = data.pagination?.pageSize ?? 50;
@@ -1220,7 +1215,7 @@ export const executeExceptionsReport = createServerFn({ method: "POST" })
       return query;
     };
     let query = applyExceptionFilters(supabase.from(sourceView).select("*", { count: "exact" }));
-    let metricsQuery = applyExceptionFilters(supabase.from(sourceView).select("status,total"));
+    const metricsQuery = applyExceptionFilters(supabase.from(sourceView).select("status,total"));
 
     const sortField = ["created_at", "total", "quantity"].includes(data.sort?.field ?? "")
       ? data.sort!.field

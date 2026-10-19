@@ -837,14 +837,13 @@ function SalesInvoicePage() {
                 </Field>
 
                 <Field label={isRtl ? "عدد الأكياس" : "Sack count"}>
-                  <input
-                    type="number"
-                    min="0"
-                    step="1"
-                    value={ticket.bagCount}
-                    onChange={(e) => setT("bagCount", e.target.value)}
-                    className={inputClass}
+                  <QuantityInput
+                    decimals={0}
+                    min={0}
+                    value={ticket.bagCount === "" ? null : Number(ticket.bagCount)}
+                    onValueChange={(v) => setT("bagCount", v == null ? "" : String(v))}
                     placeholder="0"
+                    containerClassName="[&_input]:h-10 [&_input]:rounded-xl"
                   />
                 </Field>
 
@@ -1124,40 +1123,41 @@ function SalesInvoicePage() {
                           <span className="block text-[10px] text-muted-foreground">
                             {t("common.qty")}
                           </span>
-                          <input
-                            type="number"
-                            min="0"
-                            step="1"
-                            value={l.quantity}
-                            onChange={(e) =>
+                          <QuantityInput
+                            decimals={0}
+                            min={0}
+                            emptyAsZero
+                            aria-label={t("common.qty")}
+                            value={l.quantity === "" ? null : Number(l.quantity)}
+                            onValueChange={(v) =>
                               setCart((current) =>
                                 current.map((x, i) =>
-                                  i === index ? { ...x, quantity: e.target.value } : x,
+                                  i === index ? { ...x, quantity: v == null ? "" : String(v) } : x,
                                 ),
                               )
                             }
-                            className="h-8 w-full rounded-lg border border-border bg-surface px-2 text-xs outline-none focus:border-primary"
+                            className="h-8 text-xs"
                           />
                         </label>
-                        <label className="space-y-0.5">
+                        <div className="space-y-0.5">
                           <span className="block text-[10px] text-muted-foreground">
                             {t("common.price")}
                           </span>
-                          <input
-                            type="number"
-                            min="0"
-                            step="0.01"
-                            value={l.unitPrice}
-                            onChange={(e) =>
+                          <AmountInput
+                            min={0}
+                            showInWords={false}
+                            aria-label={t("common.price")}
+                            value={l.unitPrice === "" ? null : Number(l.unitPrice)}
+                            onValueChange={(v) =>
                               setCart((current) =>
                                 current.map((x, i) =>
-                                  i === index ? { ...x, unitPrice: e.target.value } : x,
+                                  i === index ? { ...x, unitPrice: v == null ? "" : String(v) } : x,
                                 ),
                               )
                             }
-                            className="h-8 w-full rounded-lg border border-border bg-surface px-2 text-xs outline-none focus:border-primary"
+                            className="h-8 text-xs"
                           />
-                        </label>
+                        </div>
                         <div className="space-y-0.5">
                           <span className="block text-[10px] text-muted-foreground">
                             {t("common.total")}

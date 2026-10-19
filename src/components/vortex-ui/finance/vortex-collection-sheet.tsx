@@ -24,6 +24,7 @@ import { cn } from "@/lib/utils";
 import { useFinancialPosting } from "@/hooks/use-financial-posting";
 import { usePaymentMethodsForContext } from "@/hooks/use-payment-methods";
 import { PaymentMethodPicker } from "@/components/ui/payment-method";
+import { AmountInput } from "@/components/ui/amount-input";
 import { paymentMethodLabel, requiresPaymentReference } from "@/lib/payments/payment-methods";
 
 /** Catalogue id from the business's configured payment-method list. */
@@ -585,15 +586,14 @@ export function VortexCollectionSheet({
               )}
             </div>
             <div className="relative">
-              <input
-                type="number"
-                step="any"
-                min="0.01"
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
+              <AmountInput
+                min={0.01}
+                showInWords={false}
+                value={amount === "" ? null : Number(amount)}
+                onValueChange={(v) => setAmount(v == null ? "" : String(v))}
                 placeholder="0.00"
-                required
-                className="w-full h-12 rounded-2xl border border-border bg-card px-4 text-base font-black font-mono text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 transition"
+                aria-label={collectionMode === "advance" ? "قيمة الدفعة المقدمة" : "المبلغ المحصل"}
+                containerClassName="[&_input]:h-12 [&_input]:rounded-2xl [&_input]:bg-card [&_input]:text-base [&_input]:font-black"
               />
             </div>
             {payAmount > 0 && collectionMode === "receivable" && (

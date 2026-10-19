@@ -261,7 +261,8 @@ function InventoryPage() {
             for (const inv of invData) {
               if (!byWarehouseByItem[inv.product_id]) byWarehouseByItem[inv.product_id] = {};
               byWarehouseByItem[inv.product_id][inv.warehouse_id] =
-                (byWarehouseByItem[inv.product_id][inv.warehouse_id] ?? 0) + Number(inv.quantity ?? 0);
+                (byWarehouseByItem[inv.product_id][inv.warehouse_id] ?? 0) +
+                Number(inv.quantity ?? 0);
             }
           }
         }
@@ -336,10 +337,7 @@ function InventoryPage() {
     { table: "inventory", queryKey: QUERY_KEYS.inventory(warehouseId), debounceMs: 150 },
     qc,
   );
-  useRealtimeTable(
-    { table: "products", queryKey: ["inventory", "item-ids"], debounceMs: 250 },
-    qc,
-  );
+  useRealtimeTable({ table: "products", queryKey: ["inventory", "item-ids"], debounceMs: 250 }, qc);
 
   const label = (en?: string | null, ar?: string | null) =>
     (lang === "ar" ? ar || en : en || ar) ?? "—";

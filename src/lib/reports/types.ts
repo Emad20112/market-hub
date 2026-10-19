@@ -4,47 +4,42 @@
  */
 
 export type ReportDomain =
-  | 'sales'
-  | 'purchases'
-  | 'inventory'
-  | 'customers'
-  | 'suppliers'
-  | 'operations_audit';
+  "sales" | "purchases" | "inventory" | "customers" | "suppliers" | "operations_audit";
 
 export type ReportViewTemplateType =
-  | 'detailed_table'
-  | 'grouped'
-  | 'chart'
-  | 'grouped_ranking'
-  | 'movement_statement'
-  | 'summary'
-  | 'comparison'
-  | 'status_exceptions';
+  | "detailed_table"
+  | "grouped"
+  | "chart"
+  | "grouped_ranking"
+  | "movement_statement"
+  | "summary"
+  | "comparison"
+  | "status_exceptions";
 
 export type ReportFilterValues = Record<string, any>;
 
 export type ColumnDataType =
-  | 'text'
-  | 'code'
-  | 'money'
-  | 'quantity'
-  | 'percentage'
-  | 'date'
-  | 'datetime'
-  | 'status_badge'
-  | 'action_link';
+  | "text"
+  | "code"
+  | "money"
+  | "quantity"
+  | "percentage"
+  | "date"
+  | "datetime"
+  | "status_badge"
+  | "action_link";
 
 export type FilterControlType =
-  | 'date_range'
-  | 'warehouse_select'
-  | 'customer_select'
-  | 'supplier_select'
-  | 'product_select'
-  | 'category_select'
-  | 'payment_method_select'
-  | 'invoice_status_select'
-  | 'text_search'
-  | 'boolean_toggle';
+  | "date_range"
+  | "warehouse_select"
+  | "customer_select"
+  | "supplier_select"
+  | "product_select"
+  | "category_select"
+  | "payment_method_select"
+  | "invoice_status_select"
+  | "text_search"
+  | "boolean_toggle";
 
 export interface ReportColumnDefinition {
   key: string;
@@ -53,8 +48,8 @@ export interface ReportColumnDefinition {
   dataType: ColumnDataType;
   essential?: boolean;
   defaultVisible: boolean;
-  align?: 'right' | 'left' | 'center';
-  aggregate?: 'sum' | 'avg' | 'count' | 'none';
+  align?: "right" | "left" | "center";
+  aggregate?: "sum" | "avg" | "count" | "none";
   unit?: string;
   exportable?: boolean;
   groupAr?: string;
@@ -76,13 +71,13 @@ export interface ReportMetricDefinition {
   key: string;
   labelAr: string;
   labelEn: string;
-  format: 'money' | 'quantity' | 'percentage' | 'integer';
+  format: "money" | "quantity" | "percentage" | "integer";
   descriptionAr?: string;
   calculationRuleAr: string;
 }
 
 export interface ReportExportCapabilities {
-  pdfTemplate: 'summary' | 'detailed' | 'movement';
+  pdfTemplate: "summary" | "detailed" | "movement";
   excelMultiSheet: boolean;
   csvSupported: boolean;
   directPrintSlip: boolean;
@@ -90,11 +85,11 @@ export interface ReportExportCapabilities {
 
 /** مصدر فرز الاستثناءات المدعوم في الخادم. */
 export type ReportExceptionSource =
-  | 'sales_register'
-  | 'purchase_register'
-  | 'inventory_low_stock'
-  | 'inventory_slow_moving'
-  | 'item_classification_gaps';
+  | "sales_register"
+  | "purchase_register"
+  | "inventory_low_stock"
+  | "inventory_slow_moving"
+  | "item_classification_gaps";
 
 /**
  * عقد كتلة المقارنة بين فترتين.
@@ -104,8 +99,8 @@ export type ReportExceptionSource =
 export interface ReportComparisonContract {
   metricKey: string;
   metricLabelAr: string;
-  metricFormat: 'money' | 'quantity' | 'percentage' | 'integer';
-  comparisonMode?: 'previous_period' | 'previous_year';
+  metricFormat: "money" | "quantity" | "percentage" | "integer";
+  comparisonMode?: "previous_period" | "previous_year";
 }
 
 /** كتلة المقارنة الجاهزة القادمة من الخادم. */
@@ -118,7 +113,7 @@ export interface ReportComparisonResult {
   percentChange: number | null;
   previousStartDate: string | null;
   previousEndDate: string | null;
-  format: 'money' | 'quantity' | 'percentage' | 'integer';
+  format: "money" | "quantity" | "percentage" | "integer";
 }
 
 export interface ReportDefinition {
@@ -134,14 +129,14 @@ export interface ReportDefinition {
   dataSourceName: string;
   rowGrainAr: string; // ما يمثله الصف (مثل: بند فاتورة بيع)
   defaultSortField: string;
-  defaultSortOrder: 'asc' | 'desc';
+  defaultSortOrder: "asc" | "desc";
 
   // العقود والعناصر
   filters: ReportFilterDefinition[];
   columns: ReportColumnDefinition[];
   metrics: ReportMetricDefinition[];
 
-  costBasisNotice?: 'ACTUAL' | 'REFERENCE_ONLY' | 'MIXED';
+  costBasisNotice?: "ACTUAL" | "REFERENCE_ONLY" | "MIXED";
 
   // إمكانات التصدير
   exportCapabilities: ReportExportCapabilities;

@@ -45,7 +45,7 @@ export function UnifiedDimensionFilterControl({
   const filteredOptions = options.filter(
     (opt) =>
       opt.label.toLowerCase().includes(search.toLowerCase()) ||
-      (opt.secondaryLabel && opt.secondaryLabel.toLowerCase().includes(search.toLowerCase()))
+      (opt.secondaryLabel && opt.secondaryLabel.toLowerCase().includes(search.toLowerCase())),
   );
 
   const toggleOption = (id: string) => {
@@ -72,7 +72,10 @@ export function UnifiedDimensionFilterControl({
           <span className="truncate">{label}</span>
         </span>
         {isGrouped && (
-          <Badge variant="secondary" className="h-4 px-1 text-[9px] bg-primary/10 text-primary border-primary/20">
+          <Badge
+            variant="secondary"
+            className="h-4 px-1 text-[9px] bg-primary/10 text-primary border-primary/20"
+          >
             مضاف للتجميع
           </Badge>
         )}
@@ -162,7 +165,9 @@ export function UnifiedDimensionFilterControl({
                     );
                   })}
                   {filteredOptions.length === 0 && (
-                    <div className="text-center py-2 text-[10px] text-muted-foreground">لا توجد نتائج مطابقة</div>
+                    <div className="text-center py-2 text-[10px] text-muted-foreground">
+                      لا توجد نتائج مطابقة
+                    </div>
                   )}
                 </div>
               </ScrollArea>
@@ -182,7 +187,11 @@ export function UnifiedDimensionFilterControl({
               ? "bg-primary text-primary-foreground font-bold hover:bg-primary/90"
               : "text-muted-foreground hover:text-foreground hover:bg-muted"
           }`}
-          title={isGrouped ? `إلغاء تجميع ${label} من الأعمدة` : `إضافة ${label} إلى التجميع والأعمدة (+)`}
+          title={
+            isGrouped
+              ? `إلغاء تجميع ${label} من الأعمدة`
+              : `إضافة ${label} إلى التجميع والأعمدة (+)`
+          }
         >
           {isGrouped ? <Check className="h-3 w-3" /> : <Plus className="h-3.5 w-3.5" />}
         </Button>

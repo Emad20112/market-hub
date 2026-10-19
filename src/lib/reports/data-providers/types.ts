@@ -4,13 +4,13 @@
  */
 
 export interface ReportPaginationRequest {
-  page: number;      // 1-indexed
-  pageSize: number;  // عدد الصفوف في الصفحة (افتراضي 25 أو 50)
+  page: number; // 1-indexed
+  pageSize: number; // عدد الصفوف في الصفحة (افتراضي 25 أو 50)
 }
 
 export interface ReportSortRequest {
   field: string;
-  order: 'asc' | 'desc';
+  order: "asc" | "desc";
 }
 
 export interface ReportExecutionRequest<TFilter = Record<string, unknown>> {
@@ -28,7 +28,7 @@ export interface ReportExecutionResult<TRow = Record<string, unknown>> {
   metrics: Record<string, number>;
   meta: {
     appliedFilters: Record<string, unknown>;
-    costBasisNotice?: 'ACTUAL' | 'REFERENCE_ONLY' | 'MIXED';
+    costBasisNotice?: "ACTUAL" | "REFERENCE_ONLY" | "MIXED";
     currencySymbol: string;
     page?: number;
     pageSize?: number;

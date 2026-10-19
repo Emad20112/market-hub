@@ -31,7 +31,7 @@ const themeKeys = Object.keys(CURATED_THEMES) as CuratedThemeKey[];
 assert.equal(themeKeys.length, 6, "Must have exactly 6 curated themes");
 assert.deepEqual(
   [...themeKeys].sort(),
-  ["amber", "amethyst", "emerald", "ruby", "sapphire", "topaz"].sort()
+  ["amber", "amethyst", "emerald", "ruby", "sapphire", "topaz"].sort(),
 );
 
 for (const key of themeKeys) {
@@ -50,7 +50,11 @@ assert.deepEqual(hexToRgb("#000000"), { r: 0, g: 0, b: 0 });
 assert.deepEqual(hexToRgb("#FFFFFF"), { r: 255, g: 255, b: 255 });
 assert.deepEqual(hexToRgb("invalid"), { r: 37, g: 99, b: 235 }); // Fallback to safe sapphire
 
-assert.equal(getContrastForeground("#FFFFFF"), "oklch(0.12 0 0)", "Light color must have dark text");
+assert.equal(
+  getContrastForeground("#FFFFFF"),
+  "oklch(0.12 0 0)",
+  "Light color must have dark text",
+);
 assert.equal(getContrastForeground("#000000"), "oklch(1 0 0)", "Dark color must have white text");
 assert.equal(getContrastForeground("#2563EB"), "oklch(1 0 0)", "Royal blue must have white text");
 
@@ -116,12 +120,18 @@ for (const themeKey of themeKeys) {
     assert.equal(report.themeId, themeKey);
     assert.equal(report.mode, mode);
     assert.equal(report.primaryHex, CURATED_THEMES[themeKey as CuratedThemeKey].hex);
-    assert.ok(report.statusIntegrity.allIndependent, `Status independence compromised for ${themeKey} (${mode})`);
+    assert.ok(
+      report.statusIntegrity.allIndependent,
+      `Status independence compromised for ${themeKey} (${mode})`,
+    );
     assert.ok(report.statusIntegrity.successIndependent, `Success color conflict for ${themeKey}`);
     assert.ok(report.statusIntegrity.warningIndependent, `Warning color conflict for ${themeKey}`);
     assert.ok(report.statusIntegrity.dangerIndependent, `Danger color conflict for ${themeKey}`);
     assert.ok(report.statusIntegrity.infoIndependent, `Info color conflict for ${themeKey}`);
-    assert.ok(report.wcagContrast.passesAA, `WCAG AA contrast failure for ${themeKey}: ratio ${report.wcagContrast.ratio}`);
+    assert.ok(
+      report.wcagContrast.passesAA,
+      `WCAG AA contrast failure for ${themeKey}: ratio ${report.wcagContrast.ratio}`,
+    );
     assert.ok(report.summaryTextAr.length > 0, "Summary audit text must be provided");
   }
 }
@@ -132,5 +142,7 @@ assert.equal(FUNCTIONAL_STATUS_TOKENS.warning.hex, "#D97706");
 assert.equal(FUNCTIONAL_STATUS_TOKENS.danger.hex, "#E11D48");
 assert.equal(FUNCTIONAL_STATUS_TOKENS.info.hex, "#2563EB");
 
-console.log(`Successfully completed ${auditCount} visual theme audit runs (6 themes x 2 modes = 12 matrix permutations).`);
+console.log(
+  `Successfully completed ${auditCount} visual theme audit runs (6 themes x 2 modes = 12 matrix permutations).`,
+);
 console.log("All Enterprise Theme & Status Independence tests passed 100%!");

@@ -73,8 +73,14 @@ check("المسدد بالزيادة: المتبقي صفر ولا يعود سا
 
 // ز. تصنيف أساس التكلفة
 check("طبقات تكلفة موجودة -> ACTUAL", classifyCostBasis(2, false) === "ACTUAL");
-check("لا توجد طبقات ولكن تكلفة معيارية موجودة -> STANDARD", classifyCostBasis(0, true) === "STANDARD");
-check("لا توجد طبقات ولا تكلفة معيارية -> REFERENCE_ONLY", classifyCostBasis(0, false) === "REFERENCE_ONLY");
+check(
+  "لا توجد طبقات ولكن تكلفة معيارية موجودة -> STANDARD",
+  classifyCostBasis(0, true) === "STANDARD",
+);
+check(
+  "لا توجد طبقات ولا تكلفة معيارية -> REFERENCE_ONLY",
+  classifyCostBasis(0, false) === "REFERENCE_ONLY",
+);
 
 // ── 2. فحص قواعد حركة المخزون والرصيد المتسلسل (REP-005) ────────
 console.log("\n▶ [REP-005] اختبارات حركة المخزون والرصيد اللحظي التراكمي:");
@@ -117,17 +123,29 @@ console.log("\n▶ [REP-006] اختبارات شمولية التواريخ ون
 
 const boundaries = resolveDateRangeBoundaries("2026-10-01", "2026-10-31");
 check("بداية اليوم تبدأ من الثانية الأولى", boundaries.startIso === "2026-10-01T00:00:00.000Z");
-check("نهاية اليوم تمتد للثانية الأخيرة (23:59:59.999Z)", boundaries.endIso === "2026-10-31T23:59:59.999Z");
+check(
+  "نهاية اليوم تمتد للثانية الأخيرة (23:59:59.999Z)",
+  boundaries.endIso === "2026-10-31T23:59:59.999Z",
+);
 
 // اختبار وقوع الأحداث داخل اليوم الأخير
 const lastSecondItem = "2026-10-31T23:59:59.000Z";
-check("عملية في آخر ثانية من اليوم مشمولة بنجاح", isDateWithinRange(lastSecondItem, "2026-10-01", "2026-10-31"));
+check(
+  "عملية في آخر ثانية من اليوم مشمولة بنجاح",
+  isDateWithinRange(lastSecondItem, "2026-10-01", "2026-10-31"),
+);
 
 const nextDayFirstSecond = "2026-11-01T00:00:00.000Z";
-check("عملية بعد منتصف الليل مستبعدة من فترة أكتوبر", !isDateWithinRange(nextDayFirstSecond, "2026-10-01", "2026-10-31"));
+check(
+  "عملية بعد منتصف الليل مستبعدة من فترة أكتوبر",
+  !isDateWithinRange(nextDayFirstSecond, "2026-10-01", "2026-10-31"),
+);
 
 const startItem = "2026-10-01T00:00:00.000Z";
-check("عملية في أول ثانية من اليوم مشمولة بنجاح", isDateWithinRange(startItem, "2026-10-01", "2026-10-31"));
+check(
+  "عملية في أول ثانية من اليوم مشمولة بنجاح",
+  isDateWithinRange(startItem, "2026-10-01", "2026-10-31"),
+);
 
 // ── 4. فحص دقة التقريب المالي ومنع أخطاء الفاصلة العائمة ───────
 console.log("\n▶ اختبارات منع الفاصلة العائمة:");

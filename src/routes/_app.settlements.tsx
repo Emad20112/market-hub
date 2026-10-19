@@ -550,9 +550,7 @@ function SettlementsPage() {
         align: "end",
         width: "w-[120px]",
         sortValue: (row) => Number(row.quantity),
-        cell: (row) => (
-          <span className="font-mono text-foreground">{formatQty(row.quantity)}</span>
-        ),
+        cell: (row) => <span className="font-mono text-foreground">{formatQty(row.quantity)}</span>,
       },
       {
         key: "reason",

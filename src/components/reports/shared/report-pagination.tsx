@@ -1,13 +1,13 @@
-import React from 'react';
-import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import React from "react";
+import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
+} from "@/components/ui/select";
 
 interface ReportPaginationProps {
   page: number;
@@ -33,10 +33,7 @@ export function ReportPagination({
     <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border bg-card/20 p-3 text-xs text-muted-foreground">
       <div className="flex items-center gap-2">
         <span>عرض الصفوف:</span>
-        <Select
-          value={String(pageSize)}
-          onValueChange={(val) => onPageSizeChange(Number(val))}
-        >
+        <Select value={String(pageSize)} onValueChange={(val) => onPageSizeChange(Number(val))}>
           <SelectTrigger className="h-7 w-16 border-border text-xs">
             <SelectValue />
           </SelectTrigger>
@@ -48,8 +45,8 @@ export function ReportPagination({
         </Select>
 
         <span className="mr-2">
-          إظهار <span className="font-mono font-medium text-foreground">{from}</span> -{' '}
-          <span className="font-mono font-medium text-foreground">{to}</span> من إجمالي{' '}
+          إظهار <span className="font-mono font-medium text-foreground">{from}</span> -{" "}
+          <span className="font-mono font-medium text-foreground">{to}</span> من إجمالي{" "}
           <span className="font-mono font-medium text-foreground">{totalRowCount}</span> سجل
         </span>
       </div>
@@ -77,7 +74,7 @@ export function ReportPagination({
         </Button>
 
         <span className="px-2 font-mono text-xs">
-          صفحة <span className="font-bold text-foreground">{page}</span> من{' '}
+          صفحة <span className="font-bold text-foreground">{page}</span> من{" "}
           <span className="font-bold text-foreground">{totalPages || 1}</span>
         </span>
 

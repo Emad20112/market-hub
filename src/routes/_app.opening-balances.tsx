@@ -21,6 +21,8 @@ import {
   type OpeningSummary,
 } from "@/lib/opening-balances";
 import { PageHeader } from "@/components/page-header";
+import { AmountInput } from "@/components/ui/amount-input";
+import { QuantityInput } from "@/components/ui/quantity-input";
 import {
   Cell,
   MillingEmpty,
@@ -267,36 +269,48 @@ function OpeningBalancesPage() {
 
             {meta.needsQty && (
               <>
-                <label className="text-xs font-bold">
+                <div className="text-xs font-bold">
                   الكمية
-                  <input
-                    type="number"
-                    value={qty}
-                    onChange={(e) => setQty(e.target.value)}
-                    className="mt-1 block w-full rounded-lg border border-border bg-background px-2 py-1.5"
-                  />
-                </label>
-                <label className="text-xs font-bold">
+                  <div className="mt-1">
+                    <QuantityInput
+                      decimals={3}
+                      min={0}
+                      aria-label="الكمية"
+                      value={qty === "" ? null : Number(qty)}
+                      onValueChange={(v) => setQty(v == null ? "" : String(v))}
+                      className="h-8 text-xs"
+                    />
+                  </div>
+                </div>
+                <div className="text-xs font-bold">
                   تكلفة الوحدة
-                  <input
-                    type="number"
-                    value={unitCost}
-                    onChange={(e) => setUnitCost(e.target.value)}
-                    className="mt-1 block w-full rounded-lg border border-border bg-background px-2 py-1.5"
-                  />
-                </label>
+                  <div className="mt-1">
+                    <AmountInput
+                      min={0}
+                      showInWords={false}
+                      aria-label="تكلفة الوحدة"
+                      value={unitCost === "" ? null : Number(unitCost)}
+                      onValueChange={(v) => setUnitCost(v == null ? "" : String(v))}
+                      className="h-8 text-xs"
+                    />
+                  </div>
+                </div>
               </>
             )}
 
-            <label className="text-xs font-bold">
+            <div className="text-xs font-bold">
               المبلغ ر.ي
-              <input
-                type="number"
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-                className="mt-1 block w-full rounded-lg border border-border bg-background px-2 py-1.5"
-              />
-            </label>
+              <div className="mt-1">
+                <AmountInput
+                  min={0}
+                  showInWords={false}
+                  aria-label="المبلغ"
+                  value={amount === "" ? null : Number(amount)}
+                  onValueChange={(v) => setAmount(v == null ? "" : String(v))}
+                  className="h-8 text-xs"
+                />
+              </div>
+            </div>
             <button
               type="button"
               onClick={addLine}

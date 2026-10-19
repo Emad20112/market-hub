@@ -36,6 +36,7 @@ import { useAuth } from "@/lib/auth";
 import { money } from "@/lib/format";
 import { PageHeader } from "@/components/page-header";
 import { PageGuideButton, type PageGuideConfig } from "@/components/page-guide";
+import { AmountInput } from "@/components/ui/amount-input";
 import { DollarSign, Archive, Zap } from "lucide-react";
 import { toast } from "sonner";
 import { BarcodeScanner } from "@/components/barcode-scanner";
@@ -1194,14 +1195,14 @@ function PurchasePOSPage() {
                   </select>
                   <ChevronDown className="pointer-events-none absolute end-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 </label>
-                <input
-                  type="number"
-                  min="0"
-                  value={discount}
-                  onChange={(e) => setDiscount(e.target.value)}
+                <AmountInput
+                  min={0}
+                  showInWords={false}
+                  value={discount === "" ? null : Number(discount)}
+                  onValueChange={(v) => setDiscount(v == null ? "" : String(v))}
                   placeholder={lang === "ar" ? "الخصم" : "Discount"}
                   aria-label={lang === "ar" ? "الخصم" : "Discount"}
-                  className="h-10 w-full rounded-xl border border-border/80 bg-surface px-2 text-end font-mono text-xs outline-none focus:border-primary"
+                  containerClassName="[&_input]:h-10 [&_input]:rounded-xl [&_input]:bg-surface [&_input]:text-xs"
                 />
               </div>
 
@@ -1238,16 +1239,17 @@ function PurchasePOSPage() {
                     </span>
                     <span className="font-mono font-bold text-primary">{money(total)}</span>
                   </div>
-                  <input
-                    type="number"
-                    min="0"
-                    value={paid}
-                    onChange={(e) => setPaid(e.target.value)}
+                  <AmountInput
+                    min={0}
+                    showInWords={false}
+                    value={paid === "" ? null : Number(paid)}
+                    onValueChange={(v) => setPaid(v == null ? "" : String(v))}
                     placeholder={total.toFixed(2)}
-                    className={`h-10 w-full rounded-xl border bg-surface px-3 text-end font-mono text-sm font-bold outline-none focus:border-primary ${
+                    aria-label={lang === "ar" ? "المبلغ المدفوع" : "Amount paid"}
+                    containerClassName={`[&_input]:h-10 [&_input]:rounded-xl [&_input]:bg-surface [&_input]:text-sm [&_input]:font-bold ${
                       isOverpaid
-                        ? "border-destructive text-destructive focus:border-destructive"
-                        : "border-border text-foreground"
+                        ? "[&_input]:border-destructive [&_input]:text-destructive"
+                        : "[&_input]:border-border"
                     }`}
                   />
                 </div>
