@@ -100,8 +100,8 @@ console.log("\n▶ [REP-015] اختبارات السجل المركزي للتق
   assert(repSales !== undefined, "استرجاع تقرير مبيعات المنتجات من السجل");
   assert(repSales?.domain === "sales", "نطاق التقرير هو sales");
   assert(repSales?.viewTemplate === "grouped_ranking", "قالب العرض هو grouped_ranking");
-  assert(repSales?.columns.length! > 5, "الأعمدة مسجلة بالكامل");
-  assert(repSales?.metrics.length! > 0, "المقاييس مسجلة بالكامل");
+  assert((repSales?.columns.length ?? 0) > 5, "الأعمدة مسجلة بالكامل");
+  assert((repSales?.metrics.length ?? 0) > 0, "المقاييس مسجلة بالكامل");
 
   const repInv = ReportRegistry.get("rep-inventory-item-card");
   assert(repInv !== undefined, "استرجاع كشف بطاقة الصنف من السجل");

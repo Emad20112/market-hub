@@ -291,7 +291,9 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
             prefs,
           });
         }
-      } catch {}
+      } catch {
+        // المزامنة عبر BroadcastChannel اختيارية — نتجاهل فشلها بصمت
+      }
     },
     [],
   );
@@ -548,7 +550,9 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
           }
         };
       }
-    } catch {}
+    } catch {
+      // فشل قراءة تفضيلات الثيم المخزنة محليًا — نتجاهله ونستخدم الافتراضي
+    }
 
     // 2. مزامنة عند التبديل بين التبويبات عبر حدث storage
     const handleStorageChange = (e: StorageEvent) => {

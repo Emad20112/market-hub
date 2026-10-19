@@ -28,7 +28,11 @@ import {
   Layers,
   Building2,
 } from "lucide-react";
-import { validateBackupFile } from "@/lib/backup/engine";
+import {
+  validateBackupFile,
+  restoreTenantDataServerSide,
+  exportTenantDataServerSide,
+} from "@/lib/backup/engine";
 import { BackupValidationResult } from "@/lib/backup/types";
 import { toast } from "sonner";
 
@@ -38,12 +42,19 @@ interface BackupRestoreDialogProps {
 }
 
 export function BackupRestoreDialog({ open, onClose }: BackupRestoreDialogProps) {
-  const [step, setStep] = useState<"upload" | "inspect" | "auth" | "complete">("upload");
+  const [step, setStep] = useState<
+    "upload" | "inspect" | "auth" | "complete" | "restoring" | "restoreDone"
+  >("upload");
   const [fileContent, setFileContent] = useState<string | null>(null);
   const [fileName, setFileName] = useState<string>("");
   const [passphrase, setPassphrase] = useState<string>("");
   const [validating, setValidating] = useState<boolean>(false);
   const [validationResult, setValidationResult] = useState<BackupValidationResult | null>(null);
+  const [restoreSummary, setRestoreSummary] = useState<{
+    inserted_rows: number;
+    skipped_tables: string[];
+    schema_fingerprint_mismatch: boolean;
+  } | null>(null);
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -80,12 +91,39 @@ export function BackupRestoreDialog({ open, onClose }: BackupRestoreDialogProps)
     }
   };
 
-  const handleExecuteRestoreNotice = () => {
-    setStep("complete");
-    toast.info(
-      "ملاحظة السلامة: تم إجراء الجولة التجريبية (Dry-Run). الاستعادة النهائية تتطلب تنفيذ Transaction سيرفر سحابي محمي.",
-      { duration: 6000 },
-    );
+  const handleExecuteRestore = async () => {
+    if (!validationResult?.payload) return;
+    setStep("restoring");
+    try {
+      // v3: التحقق من بصمة السكيما قبل التنفيذ ثم الاستعادة الفعلية على الخادم
+      // (RPC backup_restore_all — Transaction واحد، owner فقط).
+      const payload = validationResult.payload as any;
+      const serverPayload = payload?.server_dynamic
+        ? payload // نسخة خادمية جديدة: جاهزة مباشرة
+        : null; // نسخة v2 قديمة: صيغة غير مدعومة للاستعادة الخادمية
+      if (!serverPayload) {
+        toast.error(
+          "هذه نسخة قديمة (v2) بصيغة غير متوافقة مع الاستعادة الخادمية. أنشئ نسخة جديدة من شاشة الإعدادات أولاً.",
+          { duration: 8000 },
+        );
+        setStep("inspect");
+        return;
+      }
+      const result = await restoreTenantDataServerSide(serverPayload);
+      setRestoreSummary({
+        inserted_rows: result.inserted_rows,
+        skipped_tables: result.skipped_tables ?? [],
+        schema_fingerprint_mismatch: result.schema_fingerprint_mismatch,
+      });
+      setStep("restoreDone");
+      toast.success(
+        `تمت الاستعادة بنجاح: ${result.inserted_rows} صف عبر الخادم داخل Transaction واحد.`,
+        { duration: 8000 },
+      );
+    } catch (err: any) {
+      toast.error(err?.message || "فشلت الاستعادة الخادمية — لم يُمسّ شيء (ROLLBACK كامل)");
+      setStep("inspect");
+    }
   };
 
   const resetAll = () => {
@@ -297,17 +335,39 @@ export function BackupRestoreDialog({ open, onClose }: BackupRestoreDialogProps)
           </div>
         )}
 
-        {/* Step 4: Completion / Safety Notice */}
-        {step === "complete" && (
+        {/* Step 4: Restoring (in progress) */}
+        {step === "restoring" && (
+          <div className="space-y-4 py-8 text-center">
+            <RefreshCw className="h-10 w-10 text-primary mx-auto animate-spin" />
+            <div className="text-base font-bold text-foreground">
+              جارٍ تنفيذ الاستعادة على الخادم…
+            </div>
+            <div className="text-xs text-muted-foreground max-w-md mx-auto">
+              تُنفَّذ داخل Transaction واحد على قاعدة البيانات: تفريغ كامل ثم إدراج مطابق بالاسم ثم
+              إعادة ضبط التسلسلات. أي فشل يعني ROLLBACK كامل دون أي مساس بالبيانات.
+            </div>
+          </div>
+        )}
+
+        {/* Step 5: Restore Done (real server-side result) */}
+        {step === "restoreDone" && restoreSummary && (
           <div className="space-y-4 py-6 text-center">
             <CheckCircle2 className="h-12 w-12 text-emerald-500 mx-auto" />
-            <div className="text-base font-bold text-foreground">
-              تم فحص واكتشاف هيكلية التبعيات المرجعية (DAG) بنجاح
-            </div>
-            <div className="text-xs text-muted-foreground max-w-md mx-auto leading-relaxed">
-              تم التحقق من تطابق كافة الفواتير والمنتجات والمستودعات والعملاء وعقود المطاحن
-              والمصروفات دون وجود أيتام. الاستعادة الفعلية محمية وموثقة في محرك السيرفر لمنع أي
-              تأثير غير مقصود.
+            <div className="text-base font-bold text-foreground">تمت الاستعادة الفعلية بنجاح</div>
+            <div className="text-xs text-muted-foreground max-w-md mx-auto space-y-1">
+              <div>الصفوف المدرجة: {restoreSummary.inserted_rows}</div>
+              {restoreSummary.skipped_tables.length > 0 && (
+                <div className="text-amber-600">
+                  جداول سُقطت (محذوفة من السكيما الحالية):{" "}
+                  {restoreSummary.skipped_tables.join(", ")}
+                </div>
+              )}
+              {restoreSummary.schema_fingerprint_mismatch && (
+                <div className="text-amber-600">
+                  تنبيه: بصمة السكيما مختلفة — حدث تغيير في الجداول/الأعمدة بين وقت النسخة ووقت
+                  الاستعادة. تم التكيف بالاسم، لكن راجع البيانات الحرجة.
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -332,15 +392,15 @@ export function BackupRestoreDialog({ open, onClose }: BackupRestoreDialogProps)
               </Button>
               <Button
                 variant="destructive"
-                onClick={handleExecuteRestoreNotice}
+                onClick={handleExecuteRestore}
                 className="rounded-2xl gap-1.5"
               >
-                تأكيد وبدء الاستعادة الآمنة
+                تأكيد وتنفيذ الاستعادة الفعلية (الخادم)
               </Button>
             </>
           )}
 
-          {step === "complete" && (
+          {step === "restoreDone" && (
             <Button onClick={resetAll} className="rounded-2xl w-full">
               إغلاق النافذة
             </Button>

@@ -719,7 +719,11 @@ function CustomersPage() {
         );
         return;
       }
-      void navigate({ to: "/statements/customer", search: { customerId: c.id } as never });
+      void navigate({
+        to: "/statements/$entityType",
+        params: { entityType: "customer" },
+        search: { customerId: c.id } as never,
+      });
     },
     [navigate, ledgerIndex, lang],
   );
@@ -1020,8 +1024,8 @@ function CustomersPage() {
           </button>
         </div>
       ) : viewMode === "cards" ? (
-        /* ─── Mullak Luxury Cards Grid — same 2-column mobile grid as products ─── */
-        <div className="grid grid-cols-2 gap-2.5 md:grid-cols-3 lg:grid-cols-4 sm:gap-4">
+        /* ─── Mullak Luxury Cards Grid — unified density: 2 / md:3 / lg:4 / 2xl:5 ─── */
+        <div className="grid grid-cols-2 gap-2.5 sm:gap-4 md:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5">
           {filtered.map((r, i) => {
             const meta = getRecordIndicator(r);
             const bal = Number(r.balance);

@@ -44,6 +44,6 @@ export class SalesRegisterDataProvider implements IDataProvider<
     };
     return (await executeSalesRegisterReport({
       data: validated,
-    })) as ReportExecutionResult<SalesRegisterRow>;
+    })) as unknown as ReportExecutionResult<SalesRegisterRow>;
   }
 }

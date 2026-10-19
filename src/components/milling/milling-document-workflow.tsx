@@ -43,6 +43,7 @@ import {
 } from "@/components/milling/milling-ui";
 import { QuantityInput } from "@/components/ui/quantity-input";
 import { UniversalPrintPreview } from "@/components/universal-print-preview";
+import { UnifiedPrintModal, type MillingTicketStage } from "@/components/milling/unified-print-modal";
 import { DocumentShareDialog } from "@/components/communication/document-share-dialog";
 import type { PrintRequest } from "@/lib/printing";
 
@@ -66,6 +67,7 @@ export function MillingDocumentWorkflow({
 
   // الطباعة والمشاركة
   const [printRequest, setPrintRequest] = useState<PrintRequest | null>(null);
+  const [printStage, setPrintStage] = useState<MillingTicketStage>("intake");
   const [shareOpen, setShareOpen] = useState(false);
 
   const outputsCatalog = useQuery({
@@ -153,6 +155,7 @@ export function MillingDocumentWorkflow({
 
   const handlePrint = (stage: "intake" | "milled" | "delivery") => {
     if (!details) return;
+    setPrintStage(stage);
     const docData = buildMillingDocumentUnifiedDoc(details, stage);
     setPrintRequest({
       documentType: stage === "delivery" ? "delivery_note" : "mill_document",
@@ -483,13 +486,14 @@ export function MillingDocumentWorkflow({
         </MillingPanel>
       </div>
 
-      {/* معاينة الطباعة الموحدة */}
-      {printRequest && (
-        <UniversalPrintPreview
+      {/* قالب فاتورة وإيصال المطحنة الموحد الأنيق */}
+      {printRequest && details && (
+        <UnifiedPrintModal
           open={Boolean(printRequest)}
-          onOpenChange={(open) => !open && setPrintRequest(null)}
-          request={printRequest}
-          title="طباعة مستند المطحنة الموحد"
+          onClose={() => setPrintRequest(null)}
+          details={details}
+          doc={printRequest.doc}
+          stage={printStage}
         />
       )}
 

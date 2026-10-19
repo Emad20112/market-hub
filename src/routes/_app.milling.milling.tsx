@@ -39,6 +39,7 @@ import {
   type ProductOption,
 } from "@/lib/milling";
 import { LuxuryPrintPreviewModal } from "@/components/luxury-print-preview-modal";
+import { UnifiedPrintModal } from "@/components/milling/unified-print-modal";
 import type { UnifiedDocumentData } from "@/lib/templates/types";
 import {
   MillingPanel,
@@ -752,17 +753,14 @@ function MillingMillPage() {
 
         {/* نافذة معاينة وطباعة سند الطحن الفاخر */}
         {printDoc && (
-          <LuxuryPrintPreviewModal
+          <UnifiedPrintModal
             open={isPrintModalOpen}
-            onOpenChange={(open) => {
-              setIsPrintModalOpen(open);
-              if (!open) setPrintDoc(null);
+            onClose={() => {
+              setIsPrintModalOpen(false);
+              setPrintDoc(null);
             }}
-            document={printDoc}
-            documentType="mill_document"
-            title="سند طحن أمانة"
-            customerPhone={selectedCustomer?.phone || undefined}
-            customerName={selectedCustomer?.name}
+            doc={printDoc}
+            stage="milled"
           />
         )}
       </div>

@@ -639,7 +639,8 @@ export function VortexWelcomeOnboarding() {
                       <ArrowUpRight className="size-3.5" />
                     </Link>
                     <Link
-                      to="/statements/customer"
+                      to="/statements/$entityType"
+                      params={{ entityType: "customer" }}
                       onClick={handleFinish}
                       className="text-muted-foreground hover:text-foreground font-medium"
                     >

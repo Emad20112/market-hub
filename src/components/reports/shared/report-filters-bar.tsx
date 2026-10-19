@@ -24,6 +24,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/co
 import { Badge } from "@/components/ui/badge";
 import type {
   ReportDefinition,
+  ReportColumnDefinition,
   ReportFilterDefinition,
   ReportFilterValues,
   ReportViewTemplateType,

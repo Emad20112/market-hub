@@ -40,6 +40,6 @@ export class PurchaseRegisterDataProvider implements IDataProvider<
     };
     return (await executePurchaseRegisterReport({
       data: validated,
-    })) as ReportExecutionResult<PurchaseRegisterRow>;
+    })) as unknown as ReportExecutionResult<PurchaseRegisterRow>;
   }
 }
