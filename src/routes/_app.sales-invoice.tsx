@@ -910,7 +910,6 @@ function SalesInvoicePage() {
                       value={ticket.feePerBag === "" ? null : Number(ticket.feePerBag)}
                       onValueChange={(v) => setT("feePerBag", v == null ? "" : String(v))}
                       min={0}
-                      showInWords={false}
                       containerClassName="[&_input]:h-10 [&_input]:rounded-xl"
                     />
                   </Field>
@@ -921,7 +920,6 @@ function SalesInvoicePage() {
                       value={ticket.feePerTon === "" ? null : Number(ticket.feePerTon)}
                       onValueChange={(v) => setT("feePerTon", v == null ? "" : String(v))}
                       min={0}
-                      showInWords={false}
                       containerClassName="[&_input]:h-10 [&_input]:rounded-xl"
                     />
                   </Field>
@@ -932,7 +930,6 @@ function SalesInvoicePage() {
                       value={ticket.lumpSum === "" ? null : Number(ticket.lumpSum)}
                       onValueChange={(v) => setT("lumpSum", v == null ? "" : String(v))}
                       min={0}
-                      showInWords={false}
                       containerClassName="[&_input]:h-10 [&_input]:rounded-xl"
                     />
                   </Field>
@@ -1231,7 +1228,6 @@ function SalesInvoicePage() {
                     value={discount === "" ? null : Number(discount)}
                     onValueChange={(v) => setDiscount(v == null ? "" : String(v))}
                     min={0}
-                    showInWords={false}
                     containerClassName="[&_input]:h-10 [&_input]:rounded-xl"
                   />
                 </Field>
@@ -1241,7 +1237,6 @@ function SalesInvoicePage() {
                     onValueChange={(v) => setPaid(v == null ? "" : String(v))}
                     min={0}
                     disabled={paymentMethod === "credit"}
-                    showInWords={false}
                     containerClassName="[&_input]:h-10 [&_input]:rounded-xl"
                   />
                 </Field>

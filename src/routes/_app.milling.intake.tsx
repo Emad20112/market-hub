@@ -775,7 +775,6 @@ function MillingIntakePage() {
                     <MillingField label="أجر طحن الكيس الواحد" hint="سعر خدمة طحن الكيس الواحد">
                       <AmountInput
                         min={0}
-                        showInWords={false}
                         placeholder="1000"
                         aria-label="أجر طحن الكيس الواحد"
                         value={feePerBag === "" ? null : Number(feePerBag)}
@@ -794,7 +793,6 @@ function MillingIntakePage() {
                     >
                       <AmountInput
                         min={0}
-                        showInWords={false}
                         value={servicePrice === "" ? null : Number(servicePrice)}
                         onValueChange={(v) => setServicePrice(v == null ? "" : String(v))}
                         className="font-black text-amber-600 dark:text-amber-400"
@@ -823,7 +821,6 @@ function MillingIntakePage() {
                 <MillingField label="الخصم (إن وجد)">
                   <AmountInput
                     min={0}
-                    showInWords={false}
                     value={discount === "" ? null : Number(discount)}
                     onValueChange={(v) => setDiscount(v == null ? "" : String(v))}
                     className="font-medium"
@@ -902,7 +899,6 @@ function MillingIntakePage() {
                     </div>
                     <AmountInput
                       min={0}
-                      showInWords={false}
                       disabled={isCredit}
                       placeholder="0.00"
                       aria-label="المبلغ المستلم (المدفوع)"

@@ -223,7 +223,8 @@ export const QuantityInput = React.forwardRef<HTMLInputElement, QuantityInputPro
             suffix
           )
         }
-        className={cn("text-start font-mono tabular-nums", className)}
+        // الرقم في منتصف الحقل (طلبات POS): لا يلتصق ببداية الحقل ولا بمؤخرة الوحدة.
+        className={cn("text-center font-mono tabular-nums", className)}
         containerClassName={containerClassName}
         onFocus={(e) => {
           editing.current = true;

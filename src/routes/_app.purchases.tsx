@@ -2117,7 +2117,6 @@ function CreateDialog({
                 value={paid}
                 onValueChange={setPaid}
                 min={0}
-                showInWords={false}
                 placeholder={total > 0 ? String(total.toFixed(2)) : undefined}
                 containerClassName="[&_input]:h-9 [&_input]:rounded-md [&_input]:bg-surface"
               />

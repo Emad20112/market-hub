@@ -223,7 +223,6 @@ export function MillingTermsFields({
               else set("lumpSum", amount);
             }}
             min={0}
-            showInWords={false}
             className="h-[38px] text-xs"
           />
         </div>
@@ -325,7 +324,6 @@ export function MillingTermsFields({
               value={millBagPrice}
               onValueChange={(n) => onMillBagChange(millBagId, n ?? 0)}
               min={0}
-              showInWords={false}
               className="h-[38px] text-xs"
             />
           </div>

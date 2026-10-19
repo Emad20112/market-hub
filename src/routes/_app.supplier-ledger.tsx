@@ -678,7 +678,6 @@ function SupplierLedgerPage() {
                 <Label className="text-xs">المبلغ المسدد *</Label>
                 <AmountInput
                   min={0.01}
-                  showInWords={false}
                   placeholder="0.00"
                   aria-label="المبلغ المسدد"
                   value={payAmount === "" ? null : Number(payAmount)}

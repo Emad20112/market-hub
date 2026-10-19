@@ -588,11 +588,11 @@ export function VortexCollectionSheet({
             <div className="relative">
               <AmountInput
                 min={0.01}
-                showInWords={false}
                 value={amount === "" ? null : Number(amount)}
                 onValueChange={(v) => setAmount(v == null ? "" : String(v))}
                 placeholder="0.00"
                 aria-label={collectionMode === "advance" ? "قيمة الدفعة المقدمة" : "المبلغ المحصل"}
+                wordsClassName="text-xs"
                 containerClassName="[&_input]:h-12 [&_input]:rounded-2xl [&_input]:bg-card [&_input]:text-base [&_input]:font-black"
               />
             </div>
