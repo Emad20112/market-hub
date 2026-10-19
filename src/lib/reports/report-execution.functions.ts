@@ -1142,7 +1142,9 @@ export const executeExceptionsReport = createServerFn({ method: "POST" })
       const { data: valuation, error } = await valuationQuery;
       if (error) throw new Error(`[Exceptions inventory] ${error.message}`);
 
-      let allRows: Array<Record<string, any>> = ((valuation ?? []) as Array<Record<string, any>>).map((row) => ({
+      let allRows: Array<Record<string, any>> = (
+        (valuation ?? []) as Array<Record<string, any>>
+      ).map((row) => ({
         ...row,
         quantity: toNumber(row.quantity),
         reference_valuation: toNumber(row.reference_valuation),
@@ -1214,8 +1216,12 @@ export const executeExceptionsReport = createServerFn({ method: "POST" })
         );
       return query;
     };
-    let query = applyExceptionFilters((supabase as any).from(sourceView).select("*", { count: "exact" }));
-    const metricsQuery = applyExceptionFilters((supabase as any).from(sourceView).select("status,total"));
+    let query = applyExceptionFilters(
+      (supabase as any).from(sourceView).select("*", { count: "exact" }),
+    );
+    const metricsQuery = applyExceptionFilters(
+      (supabase as any).from(sourceView).select("status,total"),
+    );
 
     const sortField = ["created_at", "total", "quantity"].includes(data.sort?.field ?? "")
       ? data.sort!.field
