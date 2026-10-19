@@ -6,12 +6,12 @@
  * لتمكين المستخدم من تخصيص الأعمدة، إخفائها، وحفظ التفضيلات تلقائياً.
  */
 
-import type { ColumnDefinition, ColumnRegistry } from '@/lib/records/column-registry';
-import type { ReportColumnDefinition } from '../types';
+import type { ColumnDefinition, ColumnRegistry } from "@/lib/records/column-registry";
+import type { ReportColumnDefinition } from "../types";
 
 export function createReportColumnRegistry(
   reportId: string,
-  columns: ReportColumnDefinition[]
+  columns: ReportColumnDefinition[],
 ): ColumnRegistry {
   const genericColumns: ColumnDefinition[] = columns.map((col) => ({
     key: col.key,

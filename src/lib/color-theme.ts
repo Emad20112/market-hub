@@ -1,6 +1,6 @@
 /**
  * Vortex ERP — Executive Theme & Accent Color Engine
- * 
+ *
  * Manages:
  * - 6 Curated Executive Themes (Sapphire Default, Emerald, Amethyst, Ruby, Amber, Topaz)
  * - Custom Hex Color Engine (auto-derives primary, rings, hover tones, contrast fg, sidebar accents)
@@ -10,13 +10,7 @@
  */
 
 export type AccentThemeId =
-  | "sapphire"
-  | "emerald"
-  | "amethyst"
-  | "ruby"
-  | "amber"
-  | "topaz"
-  | "custom";
+  "sapphire" | "emerald" | "amethyst" | "ruby" | "amber" | "topaz" | "custom";
 
 export interface ColorSchemeVariables {
   primary: string;
@@ -258,7 +252,8 @@ export const CURATED_THEMES: Record<Exclude<AccentThemeId, "custom">, CuratedThe
     name_ar: "التوباز البحري",
     name_en: "Oceanic Topaz",
     description_ar: "وضوح رقمي عصري، إشراقة فينتك متقدمة، ودقة تحليلية فائقة",
-    description_en: "Modern cyan-teal fintech palette — crisp analytics, precision & refreshing clarity",
+    description_en:
+      "Modern cyan-teal fintech palette — crisp analytics, precision & refreshing clarity",
     hex: "#0891B2",
     previewGradient: "from-cyan-600 via-teal-600 to-cyan-500",
     dark: {
@@ -296,22 +291,88 @@ export const CURATED_THEMES: Record<Exclude<AccentThemeId, "custom">, CuratedThe
  * الأرشيف الأولي للألوان المحفوظة (Default Curated Swatches)
  */
 export const DEFAULT_COLOR_ARCHIVE: ArchivedColor[] = [
-  { id: "arc-1", hex: "#2563EB", name_ar: "أزرق ملكي سافيري", name_en: "Royal Sapphire", isPreset: true },
-  { id: "arc-2", hex: "#059669", name_ar: "زمرد الغابات التجاري", name_en: "Forest Emerald", isPreset: true },
-  { id: "arc-3", hex: "#7C3AED", name_ar: "أرجوان ملكي عميق", name_en: "Royal Amethyst", isPreset: true },
-  { id: "arc-4", hex: "#E11D48", name_ar: "ياقوت قرمزي فاخر", name_en: "Crimson Ruby", isPreset: true },
-  { id: "arc-5", hex: "#D97706", name_ar: "ذهب أندلسي عتيق", name_en: "Andalusian Amber", isPreset: true },
-  { id: "arc-6", hex: "#0891B2", name_ar: "توباز بحري نقي", name_en: "Oceanic Topaz", isPreset: true },
-  { id: "arc-7", hex: "#4F46E5", name_ar: "نيلي إنسايت تكنولوجي", name_en: "Tech Indigo", isPreset: true },
-  { id: "arc-8", hex: "#DB2777", name_ar: "فوشيا مخملي راقٍ", name_en: "Velvet Magenta", isPreset: true },
-  { id: "arc-9", hex: "#0D9488", name_ar: "بترولي كلاسيكي", name_en: "Classic Teal", isPreset: true },
-  { id: "arc-10", hex: "#64748B", name_ar: "سليت تيتانيوم صلب", name_en: "Titanium Slate", isPreset: true },
+  {
+    id: "arc-1",
+    hex: "#2563EB",
+    name_ar: "أزرق ملكي سافيري",
+    name_en: "Royal Sapphire",
+    isPreset: true,
+  },
+  {
+    id: "arc-2",
+    hex: "#059669",
+    name_ar: "زمرد الغابات التجاري",
+    name_en: "Forest Emerald",
+    isPreset: true,
+  },
+  {
+    id: "arc-3",
+    hex: "#7C3AED",
+    name_ar: "أرجوان ملكي عميق",
+    name_en: "Royal Amethyst",
+    isPreset: true,
+  },
+  {
+    id: "arc-4",
+    hex: "#E11D48",
+    name_ar: "ياقوت قرمزي فاخر",
+    name_en: "Crimson Ruby",
+    isPreset: true,
+  },
+  {
+    id: "arc-5",
+    hex: "#D97706",
+    name_ar: "ذهب أندلسي عتيق",
+    name_en: "Andalusian Amber",
+    isPreset: true,
+  },
+  {
+    id: "arc-6",
+    hex: "#0891B2",
+    name_ar: "توباز بحري نقي",
+    name_en: "Oceanic Topaz",
+    isPreset: true,
+  },
+  {
+    id: "arc-7",
+    hex: "#4F46E5",
+    name_ar: "نيلي إنسايت تكنولوجي",
+    name_en: "Tech Indigo",
+    isPreset: true,
+  },
+  {
+    id: "arc-8",
+    hex: "#DB2777",
+    name_ar: "فوشيا مخملي راقٍ",
+    name_en: "Velvet Magenta",
+    isPreset: true,
+  },
+  {
+    id: "arc-9",
+    hex: "#0D9488",
+    name_ar: "بترولي كلاسيكي",
+    name_en: "Classic Teal",
+    isPreset: true,
+  },
+  {
+    id: "arc-10",
+    hex: "#64748B",
+    name_ar: "سليت تيتانيوم صلب",
+    name_en: "Titanium Slate",
+    isPreset: true,
+  },
 ];
 
 /** تحويل Hex إلى RGB عادي */
 export function hexToRgb(hex: string): { r: number; g: number; b: number } {
   const clean = hex.replace("#", "").trim();
-  const full = clean.length === 3 ? clean.split("").map((c) => c + c).join("") : clean;
+  const full =
+    clean.length === 3
+      ? clean
+          .split("")
+          .map((c) => c + c)
+          .join("")
+      : clean;
   const num = parseInt(full, 16);
   if (isNaN(num)) return { r: 37, g: 99, b: 235 };
   return {
@@ -330,7 +391,10 @@ export function getContrastForeground(hex: string): string {
 }
 
 /** توليد متغيرات اللون المخصص الكاملة بناءً على كود Hex */
-export function deriveCustomColorVariables(hex: string): { dark: ColorSchemeVariables; light: ColorSchemeVariables } {
+export function deriveCustomColorVariables(hex: string): {
+  dark: ColorSchemeVariables;
+  light: ColorSchemeVariables;
+} {
   const { r, g, b } = hexToRgb(hex);
   const fg = getContrastForeground(hex);
 
@@ -440,7 +504,6 @@ export function readStoredColorArchive(): ArchivedColor[] {
   return DEFAULT_COLOR_ARCHIVE;
 }
 
-
 /**
  * بنية تفضيلات الثيم المخصصة للمستخدم (للحفظ والمزامنة السحابية عبر الأجهزة)
  */
@@ -482,7 +545,8 @@ export function parseUserThemePreferences(raw: unknown): UserThemePreferences | 
     }
     if (!data || typeof data !== "object") return null;
 
-    const theme: "light" | "dark" = data.theme === "dark" || data.theme === "light" ? data.theme : "light";
+    const theme: "light" | "dark" =
+      data.theme === "dark" || data.theme === "light" ? data.theme : "light";
     const accentTheme: AccentThemeId =
       data.accentTheme === "custom" || data.accentTheme in CURATED_THEMES
         ? data.accentTheme
@@ -500,7 +564,7 @@ export function parseUserThemePreferences(raw: unknown): UserThemePreferences | 
           item &&
           typeof item.id === "string" &&
           typeof item.hex === "string" &&
-          /^#[0-9A-Fa-f]{6}$/.test(item.hex.trim())
+          /^#[0-9A-Fa-f]{6}$/.test(item.hex.trim()),
       );
       if (colorArchive.length === 0) colorArchive = DEFAULT_COLOR_ARCHIVE;
     }

@@ -20,12 +20,12 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
-export function isSystemMainWarehouse(wh?: { is_default?: boolean | null; code?: string | null; name?: string | null } | null): boolean {
+export function isSystemMainWarehouse(
+  wh?: { is_default?: boolean | null; code?: string | null; name?: string | null } | null,
+): boolean {
   if (!wh) return false;
   return Boolean(
-    wh.is_default ||
-    wh.code?.toUpperCase() === "MAIN" ||
-    wh.name?.trim() === "المخزن الرئيسي"
+    wh.is_default || wh.code?.toUpperCase() === "MAIN" || wh.name?.trim() === "المخزن الرئيسي",
   );
 }
 import { VortexMetricCard } from "@/components/vortex-ui";

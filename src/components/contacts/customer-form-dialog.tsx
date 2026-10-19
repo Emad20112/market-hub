@@ -156,7 +156,13 @@ export function CustomerFormDialog({
 
     setSaving(false);
     if (error) return toast.error(error.message);
-    toast.success(edit.id ? t("common.updated") : (isAr ? "تمت إضافة العميل بنجاح" : "Customer created successfully"));
+    toast.success(
+      edit.id
+        ? t("common.updated")
+        : isAr
+          ? "تمت إضافة العميل بنجاح"
+          : "Customer created successfully",
+    );
     if (data) onSaved?.(data as CustomerRecord);
     onSavedComplete?.();
     onClose();
@@ -259,11 +265,7 @@ export function CustomerFormDialog({
                   {isAr ? "رقم الهاتف" : "Phone Number"}
                 </label>
                 <div className="flex gap-2">
-                  <CountrySelector
-                    value={country}
-                    onChange={setCountry}
-                    disabled={saving}
-                  />
+                  <CountrySelector value={country} onChange={setCountry} disabled={saving} />
                   <div className="relative flex-1">
                     <Phone className="pointer-events-none absolute start-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
                     <input

@@ -3,8 +3,8 @@
  * تصدير موحد لجميع المزودات والعقود والمخططات
  */
 
-export * from './types';
-export * from './filter-schemas';
-export * from './sales-register';
-export * from './inventory-movements';
-export * from './purchase-register';
+export * from "./types";
+export * from "./filter-schemas";
+export * from "./sales-register";
+export * from "./inventory-movements";
+export * from "./purchase-register";

@@ -191,7 +191,9 @@ export function ReportTemplateCreatorDialog({
                 <SelectItem value="grouped">
                   قالب التجميع والتحليل — تجميع متعدد الطرق (موصى به)
                 </SelectItem>
-                <SelectItem value="detailed_table">قالب الجدول التفصيلي (Detailed Table)</SelectItem>
+                <SelectItem value="detailed_table">
+                  قالب الجدول التفصيلي (Detailed Table)
+                </SelectItem>
                 <SelectItem value="chart">قالب الرسم البياني والمؤشرات (Chart View)</SelectItem>
               </SelectContent>
             </Select>

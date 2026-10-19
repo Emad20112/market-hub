@@ -42,22 +42,37 @@ import {
   Users,
   Building2,
   HardDriveDownload,
+  FolderOpen,
+  FolderPlus,
+  Trash2,
 } from "lucide-react";
 import {
   createBackupPackage,
   downloadFileToDevice,
   extractTenantDataReadOnly,
+  exportTenantDataServerSide,
+  uploadBackupToStorage,
+  writeBackupToCustomDirs,
+  addCustomBackupDirectory,
+  removeCustomBackupDirectory,
+  listCustomBackupDirectories,
+  customDirSupported,
   getBackupLogHistoryFromDB,
   getBackupSettings,
   recordBackupLog,
   saveBackupSettings,
   calculateCategoryStats,
+  backupBucketExists,
 } from "@/lib/backup/engine";
+import { checkBackupReminderStatus } from "@/lib/backup/reminder";
 import {
-  checkBackupReminderStatus,
-  triggerInstantLocalBackupDownload,
-} from "@/lib/backup/reminder";
-import { BackupLogRecord, BackupSettingsConfig, TableCategorySummary } from "@/lib/backup/types";
+  BackupLogRecord,
+  BackupSettingsConfig,
+  TableCategorySummary,
+  BACKUP_ENGINE_VERSION,
+  CURRENT_SCHEMA_VERSION,
+  DEFAULT_KEY_VERSION,
+} from "@/lib/backup/types";
 import { BackupRestoreDialog } from "./backup-restore-dialog";
 import { toast } from "sonner";
 
@@ -75,6 +90,40 @@ export function BackupSettingsCard() {
   const [passphrase, setPassphrase] = useState("VORTEX_SECURE_BACKUP_2026");
   const [previewStats, setPreviewStats] = useState<TableCategorySummary | null>(null);
   const [loadingPreview, setLoadingPreview] = useState(false);
+  const [customDirs, setCustomDirs] = useState<{ id: number; name: string }[]>([]);
+  const [addingDir, setAddingDir] = useState(false);
+
+  const refreshCustomDirs = async () => {
+    setCustomDirs(await listCustomBackupDirectories());
+  };
+
+  useEffect(() => {
+    getBackupLogHistoryFromDB().then((data) => setLogs(data));
+    refreshCustomDirs();
+  }, []);
+
+  const handleAddCustomDir = async () => {
+    setAddingDir(true);
+    try {
+      const name = await addCustomBackupDirectory();
+      await refreshCustomDirs();
+      toast.success(isAr ? `أُضيف المسار: ${name}` : `Path added: ${name}`);
+    } catch (err: any) {
+      toast.error(err?.message || "فشل إضافة المسار");
+    } finally {
+      setAddingDir(false);
+    }
+  };
+
+  const handleRemoveCustomDir = async (id: number) => {
+    try {
+      await removeCustomBackupDirectory(id);
+      await refreshCustomDirs();
+      toast.success(isAr ? "حُذف المسار" : "Path removed");
+    } catch {
+      toast.error(isAr ? "فشل حذف المسار" : "Failed to remove path");
+    }
+  };
 
   const reminderStatus = checkBackupReminderStatus();
 
@@ -114,26 +163,107 @@ export function BackupSettingsCard() {
     }
     setCreatingBackup(true);
     try {
-      const res = await triggerInstantLocalBackupDownload(
-        passphrase,
-        "default",
-        user?.email || "المالك (Owner)",
-      );
-      if (res.success) {
-        const updated = getBackupSettings();
-        setSettings(updated);
-        const updatedLogs = await getBackupLogHistoryFromDB();
-        setLogs(updatedLogs);
-        toast.success(
-          isAr
-            ? `تم تشفير وتنزيل النسخة الاحتياطية (${res.fileName}) بنجاح!`
-            : "Local backup package created and downloaded successfully",
-        );
-      } else {
-        toast.error(res.error || (isAr ? "فشل إنشاء النسخة الاحتياطية" : "Backup creation failed"));
+      // v3: التفريغ من الخادم (RPC backup_export_all) — كل جداول public ديناميكياً،
+      // ثم تشفير AES-256-GCM كطبقة إضافية قبل التنزيل.
+      const serverPayload = await exportTenantDataServerSide();
+      const payload: any = {
+        metadata: {
+          backup_id: `bak_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`,
+          tenant_id: "default",
+          schema_version: CURRENT_SCHEMA_VERSION,
+          engine_version: BACKUP_ENGINE_VERSION,
+          key_version: DEFAULT_KEY_VERSION,
+          created_at: serverPayload.exported_at,
+          created_by: user?.id,
+          backup_type: "manual_local" as const,
+          storage_type: "local" as const,
+          file_size_bytes: 0,
+          auth_tag: "",
+          checksum_sha256: "",
+          status: "success" as const,
+          tables_summary: Object.fromEntries(
+            Object.entries(serverPayload.tables).map(([k, v]) => [
+              k,
+              Array.isArray(v) ? v.length : 0,
+            ]),
+          ),
+          server_schema_fingerprint: serverPayload.schema_fingerprint,
+          server_dynamic: true,
+        },
+        tables: serverPayload.tables as any,
+      };
+      const pkg = await createBackupPackage(payload, passphrase);
+      downloadFileToDevice(pkg.fileContent, pkg.fileName);
+
+      // v3.1: التوزيع متعدد الوجهات حسب الإعداد (local / cloud / both)
+      const destination = settings.destination;
+      let cloudPath: string | null = null;
+      let cloudFailed: string | null = null;
+      let customDirsResult: { ok: number; failed: string[] } | null = null;
+
+      if (destination === "cloud" || destination === "both") {
+        const upload = await uploadBackupToStorage(pkg.fileContent, pkg.fileName);
+        if (upload.ok) {
+          cloudPath = upload.path;
+        } else {
+          cloudFailed = upload.error;
+        }
       }
-    } catch {
-      toast.error(isAr ? "فشل إنشاء النسخة الاحتياطية المحلية" : "Failed to create local backup");
+
+      // المسارات المخصصة (قرص/مجلدات اختارها المستخدم) — تُكتب لكل نسخة تلقائياً
+      if (customDirSupported()) {
+        customDirsResult = await writeBackupToCustomDirs(pkg.fileContent, pkg.fileName);
+      }
+
+      const effectiveStorageType =
+        destination === "both" || (destination === "cloud" && cloudPath)
+          ? "both"
+          : destination === "cloud"
+            ? "cloud"
+            : "local";
+
+      await recordBackupLog({
+        tenant_id: "default",
+        actor_name: user?.email || "المالك (Owner)",
+        action_type: "manual_local",
+        storage_type: effectiveStorageType,
+        status: cloudFailed && destination !== "local" ? "failed" : "success",
+        file_name: pkg.fileName,
+        file_size_bytes: pkg.sizeBytes,
+        error_message: cloudFailed || customDirsResult?.failed.join("؛ ") || undefined,
+      });
+
+      const updated = getBackupSettings();
+      setSettings(updated);
+      const updatedLogs = await getBackupLogHistoryFromDB();
+      setLogs(updatedLogs);
+      toast.success(
+        isAr
+          ? `تم التفريغ الخادمي (${serverPayload.table_count} جدول / ${serverPayload.total_rows} صف)` +
+            (cloudPath
+              ? ` ورفع السحابي إلى ${cloudPath}`
+              : destination === "cloud" || destination === "both"
+                ? ` — فشل الرفع السحابي: ${cloudFailed}`
+                : "") +
+            (customDirsResult && customDirsResult.ok > 0
+              ? ` وكُتب في ${customDirsResult.ok} مسار مخصص على الجهاز`
+              : "") +
+            ` — النسخة المشفّرة: ${pkg.fileName}`
+          : `Server-side export (${serverPayload.table_count} tables / ${serverPayload.total_rows} rows) saved as ${pkg.fileName}`,
+      );
+    } catch (err: any) {
+      const msg = err?.message || (isAr ? "فشل إنشاء النسخة الاحتياطية" : "Backup creation failed");
+      await recordBackupLog({
+        tenant_id: "default",
+        actor_name: user?.email || "المالك (Owner)",
+        action_type: "manual_local",
+        storage_type: "local",
+        status: "failed",
+        file_name: "vortex_backup_failed.vortexbak",
+        file_size_bytes: 0,
+        error_message: msg,
+      });
+      toast.error(msg);
     } finally {
       setCreatingBackup(false);
     }
@@ -318,6 +448,68 @@ export function BackupSettingsCard() {
               </Button>
             </div>
           </div>
+
+          {/* Section 1.5: Custom Local Backup Paths (File System Access API) */}
+          {customDirSupported() ? (
+            <div className="p-4 rounded-2xl border border-border/80 bg-surface/80 space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="text-xs font-bold text-foreground flex items-center gap-2">
+                  <FolderOpen className="size-4 text-emerald-500" />
+                  <span>
+                    {isAr
+                      ? "مسارات نسخ مخصصة على الجهاز (قرص/مجلدات)"
+                      : "Custom local backup paths"}
+                  </span>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={!canManage || addingDir}
+                  onClick={handleAddCustomDir}
+                  className="h-7 text-xs"
+                >
+                  <FolderPlus className="size-3" />
+                  {isAr ? "إضافة مسار" : "Add Path"}
+                </Button>
+              </div>
+              <div className="text-xs text-muted-foreground">
+                {isAr
+                  ? "كل نسخة احتياطية (يدوية أو مجدولة) ستُكتب تلقائياً في كل مسار تضيفه هنا بالإضافة إلى التنزيل والسحابة."
+                  : "Every backup (manual or scheduled) will be written automatically to each added path in addition to download and cloud."}
+              </div>
+              {customDirs.length > 0 ? (
+                <div className="space-y-1.5">
+                  {customDirs.map((d) => (
+                    <div
+                      key={d.id}
+                      className="flex items-center justify-between text-xs px-3 py-2 rounded-xl border border-border/60 bg-surface-2/40"
+                    >
+                      <span className="font-mono flex items-center gap-1.5">
+                        <FolderOpen className="size-3 text-emerald-500" />
+                        {d.name}
+                      </span>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        disabled={!canManage}
+                        onClick={() => handleRemoveCustomDir(d.id)}
+                        className="h-6 text-destructive hover:text-destructive"
+                      >
+                        <Trash2 className="size-3" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-xs text-muted-foreground bg-surface-2/40 p-3 rounded-xl border border-dashed border-border/60">
+                  {isAr
+                    ? "لم تُضف أي مسار بعد — انقر \"إضافة مسار\" واختر مجلداً على أي قرص."
+                    : "No custom paths yet — click 'Add Path' and pick a folder."}
+                </div>
+              )}
+            </div>
+          ) : null}
 
           {/* Section 2: System Tables Breakdown Inspector Preview */}
           <div className="p-4 rounded-2xl border border-border/80 bg-surface/80 space-y-3">

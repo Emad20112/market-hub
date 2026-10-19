@@ -1,7 +1,7 @@
 /** مزود حركة المخزون — الحساب والقراءة ينفذان على الخادم. */
-import type { IDataProvider, ReportExecutionRequest, ReportExecutionResult } from './types';
-import { InventoryMovementsFilterSchema, type InventoryMovementsFilters } from './filter-schemas';
-import { executeInventoryMovementsReport } from '../report-execution.functions';
+import type { IDataProvider, ReportExecutionRequest, ReportExecutionResult } from "./types";
+import { InventoryMovementsFilterSchema, type InventoryMovementsFilters } from "./filter-schemas";
+import { executeInventoryMovementsReport } from "../report-execution.functions";
 
 export interface InventoryMovementRow {
   id: string;
@@ -23,12 +23,22 @@ export interface InventoryMovementRow {
   warehouse_name?: string;
 }
 
-export class InventoryMovementsDataProvider implements IDataProvider<InventoryMovementsFilters, InventoryMovementRow> {
-  id = 'dp-inventory-movements';
-  dataSourceName = 'stock_movements';
+export class InventoryMovementsDataProvider implements IDataProvider<
+  InventoryMovementsFilters,
+  InventoryMovementRow
+> {
+  id = "dp-inventory-movements";
+  dataSourceName = "stock_movements";
 
-  async execute(request: ReportExecutionRequest<InventoryMovementsFilters>): Promise<ReportExecutionResult<InventoryMovementRow>> {
-    const validated = { ...request, filters: InventoryMovementsFilterSchema.parse(request.filters || {}) };
-    return (await executeInventoryMovementsReport({ data: validated })) as ReportExecutionResult<InventoryMovementRow>;
+  async execute(
+    request: ReportExecutionRequest<InventoryMovementsFilters>,
+  ): Promise<ReportExecutionResult<InventoryMovementRow>> {
+    const validated = {
+      ...request,
+      filters: InventoryMovementsFilterSchema.parse(request.filters || {}),
+    };
+    return (await executeInventoryMovementsReport({
+      data: validated,
+    })) as ReportExecutionResult<InventoryMovementRow>;
   }
 }

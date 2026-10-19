@@ -3,6 +3,7 @@
 import * as React from "react";
 import { Filter, RotateCcw, Check } from "lucide-react";
 import { VortexDrawerDialog } from "./vortex-drawer-dialog";
+import { cn } from "@/lib/utils";
 
 export interface FilterSectionProps {
   id?: string;
@@ -18,7 +19,7 @@ export function VortexFilterSection({ title, icon, description, children }: Filt
       <div className="flex items-center justify-between">
         <label className="flex items-center gap-2.5 text-xs font-bold text-foreground">
           {icon && (
-            <span className="flex size-7 shrink-0 items-center justify-center rounded-full border border-border bg-primary/10 text-primary">
+            <span className="flex size-8 shrink-0 place-items-center rounded-full border border-border bg-primary/10 text-primary">
               {icon}
             </span>
           )}
@@ -64,15 +65,16 @@ export function VortexFilterSheet({
 }: VortexFilterSheetProps) {
   const effectiveCount = activeFiltersCount ?? activeCount ?? 0;
 
-  /* المحور 11 — التخطيط الذكي (Adaptive Layout):
-   * * الحقول القليلة (≤ 4): شبكة عمودين أنيقة على الابتوب — تعرض البيانات القليلة
-   *   بأفضل شكل ممكن (نفس أسلوب صفحة المنتجات).
-   * * الحقول الكثيرة (> 4): قائمة عمود واحد نظيفة، لتفادي ازدحام التصميم
-   *   وضمان مساحة تنفس كاملة لكل فلتر.
-   * * الجوال: قائمة عمود واحد دائماً — لم نغيّر شيئاً في الجوال.
+  /* المحور 13 — التوزيع الذكي (Masonry / column-fill: balance):
+   * * أعمدة CSS متعددة: تُرصّ الفلاتر عمودياً ثم **توازن** أطوال الأعمدة تلقائياً،
+   *   فمثلاً 5 فلاتر => عمود فيه 3 وآخر فيه 2 حسب الطول الفعلي لكل فلتر،
+   *   وليس تقسيماً جامداً (3 في صف وفلتر يتيم في صف آخر).
+   * * 1 فلتر => عمود واحد فقط (لا يتوهم عمودين).
+   * * كل فلتر يملأ عرض عموده كاملاً (w-full break-inside-avoid).
+   * * الجوال: عمود واحد دائماً — كما هو دون أي تغيير.
    */
   const fieldCount = React.Children.toArray(children).length;
-  const useOptimizedGrid = fieldCount > 0 && fieldCount <= 4;
+  const useMasonry = fieldCount > 1;
 
   return (
     <VortexDrawerDialog
@@ -132,11 +134,12 @@ export function VortexFilterSheet({
       }
     >
       <div
-        className={
-          useOptimizedGrid
-            ? "grid grid-cols-1 lg:grid-cols-2 gap-x-5 gap-y-4 py-2"
-            : "space-y-5 py-2"
-        }
+        className={cn(
+          useMasonry
+            ? "columns-1 gap-x-5 [column-fill:balance] sm:columns-2 [&>*]:mb-4 [&>*]:w-full [&>*]:break-inside-avoid"
+            : "space-y-2",
+          "py-2",
+        )}
       >
         {children}
       </div>

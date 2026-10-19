@@ -24,6 +24,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/co
 import { Badge } from "@/components/ui/badge";
 import type {
   ReportDefinition,
+  ReportColumnDefinition,
   ReportFilterDefinition,
   ReportFilterValues,
   ReportViewTemplateType,
@@ -34,7 +35,10 @@ import { ReportTemplateCreatorDialog } from "./report-template-creator-dialog";
 import { ReportColumnVisibilityButton } from "./report-column-visibility-button";
 import { TemplateTypeIndicator } from "./template-type-indicator";
 import { UnifiedDimensionFilterControl } from "./unified-dimension-filter-control";
-import { getDomainDimensions, type ReportDimensionKey } from "@/lib/reports/registry/groupby-registry";
+import {
+  getDomainDimensions,
+  type ReportDimensionKey,
+} from "@/lib/reports/registry/groupby-registry";
 
 interface ReportFiltersBarProps {
   filters: ReportFilterDefinition[];
@@ -118,7 +122,7 @@ export function ReportFiltersBar({
 
   const domainDimensions = useMemo(
     () => getDomainDimensions(definition?.domain || "sales"),
-    [definition?.domain]
+    [definition?.domain],
   );
 
   const selectableFilters = useMemo(
@@ -520,7 +524,9 @@ export function ReportFiltersBar({
               أبعاد التجميع والفلترة الموحدة
             </span>
             <span className="text-[9px] text-muted-foreground">
-              اضغط <strong className="text-primary">(+) باليسار</strong> لإضافة البعد للأعمدة والتجميع | اضغط <strong className="text-primary">باليمين</strong> لتحديد خيارات الفلترة
+              اضغط <strong className="text-primary">(+) باليسار</strong> لإضافة البعد للأعمدة
+              والتجميع | اضغط <strong className="text-primary">باليمين</strong> لتحديد خيارات
+              الفلترة
             </span>
           </div>
 
@@ -606,7 +612,9 @@ export function ReportFiltersBar({
                 isGrouped={selectedDimensions.includes("warehouse")}
                 onToggleGroup={() => onToggleDimension?.("warehouse")}
                 options={optionsBySource["warehouses"] || []}
-                selectedIds={values.warehouseIds || (values.warehouseId ? [values.warehouseId] : [])}
+                selectedIds={
+                  values.warehouseIds || (values.warehouseId ? [values.warehouseId] : [])
+                }
                 onChangeSelectedIds={(ids) => {
                   onChange("warehouseIds", ids.length > 0 ? ids : undefined);
                   onChange("warehouseId", undefined);
@@ -624,7 +632,9 @@ export function ReportFiltersBar({
                 isGrouped={selectedDimensions.includes("payment_method")}
                 onToggleGroup={() => onToggleDimension?.("payment_method")}
                 options={PAYMENT_METHODS.map((pm) => ({ id: pm.value, label: pm.label }))}
-                selectedIds={values.paymentMethods || (values.paymentMethod ? [values.paymentMethod] : [])}
+                selectedIds={
+                  values.paymentMethods || (values.paymentMethod ? [values.paymentMethod] : [])
+                }
                 onChangeSelectedIds={(ids) => {
                   onChange("paymentMethods", ids.length > 0 ? ids : undefined);
                   onChange("paymentMethod", undefined);

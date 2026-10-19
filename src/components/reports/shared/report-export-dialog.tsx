@@ -1,33 +1,33 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState } from "react";
 import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { FileSpreadsheet, FileText, Printer, Receipt } from 'lucide-react';
-import type { ReportExportPayload } from '@/lib/reports/export/types';
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { FileSpreadsheet, FileText, Printer, Receipt } from "lucide-react";
+import type { ReportExportPayload } from "@/lib/reports/export/types";
 import {
   downloadReportCSVChunked,
   downloadReportExcel,
   printReportDocument,
   printThermalSlipDocument,
-} from '@/lib/reports/export';
+} from "@/lib/reports/export";
 
 interface ReportExportDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   payload: ReportExportPayload;
-  defaultMode?: 'print' | 'export';
+  defaultMode?: "print" | "export";
 }
 
 export function ReportExportDialog({
   open,
   onOpenChange,
   payload,
-  defaultMode = 'print',
+  defaultMode = "print",
 }: ReportExportDialogProps) {
   const [csvProgress, setCsvProgress] = useState<number | null>(null);
   const [csvError, setCsvError] = useState<string | null>(null);
@@ -62,8 +62,8 @@ export function ReportExportDialog({
       });
       onOpenChange(false);
     } catch (error) {
-      if (!(error instanceof Error && error.name === 'ExportAbortedError')) {
-        setCsvError(error instanceof Error ? error.message : 'تعذر إنشاء ملف CSV');
+      if (!(error instanceof Error && error.name === "ExportAbortedError")) {
+        setCsvError(error instanceof Error ? error.message : "تعذر إنشاء ملف CSV");
       }
     } finally {
       csvAbortController.current = null;
@@ -76,7 +76,7 @@ export function ReportExportDialog({
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="text-base font-bold text-foreground">
-            {defaultMode === 'print' ? 'خيارات الطباعة الرسمية' : 'خيارات تصدير التقرير'}
+            {defaultMode === "print" ? "خيارات الطباعة الرسمية" : "خيارات تصدير التقرير"}
           </DialogTitle>
           <DialogDescription className="text-xs text-muted-foreground">
             اختر صيغة الإخراج المناسبة لتقرير &quot;{definition.titleAr}&quot;.
@@ -140,7 +140,9 @@ export function ReportExportDialog({
           >
             <div className="flex items-center gap-2 text-xs font-semibold text-foreground">
               <FileText className="h-4 w-4 text-blue-600" />
-              <span>{csvProgress === null ? 'ملف CSV آمن (UTF-8 BOM)' : 'جارٍ تجهيز ملف CSV...'}</span>
+              <span>
+                {csvProgress === null ? "ملف CSV آمن (UTF-8 BOM)" : "جارٍ تجهيز ملف CSV..."}
+              </span>
             </div>
             <span className="text-[10px] text-muted-foreground">
               تصدير السجلات المحمّلة حاليًا على دفعات، مع حماية صيغ Excel
@@ -163,7 +165,11 @@ export function ReportExportDialog({
             </Button>
           </div>
         )}
-        {csvError && <p role="alert" className="text-xs text-destructive">{csvError}</p>}
+        {csvError && (
+          <p role="alert" className="text-xs text-destructive">
+            {csvError}
+          </p>
+        )}
       </DialogContent>
     </Dialog>
   );

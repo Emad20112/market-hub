@@ -40,7 +40,8 @@ export function ThemeVisualTestSuite() {
     statusDecoupledScore: number;
   } | null>(null);
 
-  const effectiveMode = previewMode === "current" ? theme : previewMode === "both" ? "dark" : previewMode;
+  const effectiveMode =
+    previewMode === "current" ? theme : previewMode === "both" ? "dark" : previewMode;
 
   const handleRunFullAudit = () => {
     setAuditRunning(true);
@@ -151,7 +152,15 @@ export function ThemeVisualTestSuite() {
             className="inline-flex items-center gap-1.5 h-9 rounded-full bg-primary text-primary-foreground px-4 text-xs font-bold shadow-xs hover:bg-primary/90 transition-all disabled:opacity-50"
           >
             <Sparkles className="h-3.5 w-3.5" />
-            <span>{auditRunning ? (isAr ? "جاري الفحص..." : "Auditing...") : isAr ? "تشغيل الفحص البصري" : "Run Visual Audit"}</span>
+            <span>
+              {auditRunning
+                ? isAr
+                  ? "جاري الفحص..."
+                  : "Auditing..."
+                : isAr
+                  ? "تشغيل الفحص البصري"
+                  : "Run Visual Audit"}
+            </span>
           </button>
         </div>
       </div>
@@ -166,7 +175,9 @@ export function ThemeVisualTestSuite() {
               </div>
               <div>
                 <div className="text-xs font-bold text-foreground flex items-center gap-2">
-                  <span>{isAr ? "اجتاز الفحص البصري بنجاح تام (100% نجاح)" : "Visual Audit Passed 100%"}</span>
+                  <span>
+                    {isAr ? "اجتاز الفحص البصري بنجاح تام (100% نجاح)" : "Visual Audit Passed 100%"}
+                  </span>
                   <span className="text-[10px] font-mono text-muted-foreground">
                     ({auditReport.testedAt.toLocaleTimeString()})
                   </span>
@@ -198,7 +209,14 @@ export function ThemeVisualTestSuite() {
           // ألوان الوضع المطلوب محاكاته
           const swatchDark = def.dark.primary;
           const swatchLight = def.light.primary;
-          const displayPrimary = previewMode === "dark" ? swatchDark : previewMode === "light" ? swatchLight : (theme === "dark" ? swatchDark : swatchLight);
+          const displayPrimary =
+            previewMode === "dark"
+              ? swatchDark
+              : previewMode === "light"
+                ? swatchLight
+                : theme === "dark"
+                  ? swatchDark
+                  : swatchLight;
 
           return (
             <div
@@ -304,7 +322,11 @@ export function ThemeVisualTestSuite() {
                 {/* 2. ألوان الحالات الوظيفية المستقلة (Functional Status Colors) */}
                 <div className="space-y-1.5 pt-2 border-t border-border/50">
                   <div className="text-[10px] font-bold text-muted-foreground flex items-center justify-between">
-                    <span>{isAr ? "الحالات الوظيفية (محمية ومستقلة تماماً):" : "Functional Status (Independent):"}</span>
+                    <span>
+                      {isAr
+                        ? "الحالات الوظيفية (محمية ومستقلة تماماً):"
+                        : "Functional Status (Independent):"}
+                    </span>
                     <span className="text-[9px] text-emerald-600 dark:text-emerald-400 font-bold">
                       {isAr ? "آمن 100%" : "Safe"}
                     </span>
@@ -315,7 +337,9 @@ export function ThemeVisualTestSuite() {
                     <div className="rounded-lg p-1.5 border border-emerald-500/20 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300">
                       <div className="flex items-center justify-center gap-1">
                         <TrendingUp className="h-3 w-3 text-emerald-600 shrink-0" />
-                        <span className="text-[10px] font-bold truncate">{isAr ? "مكتمل" : "Success"}</span>
+                        <span className="text-[10px] font-bold truncate">
+                          {isAr ? "مكتمل" : "Success"}
+                        </span>
                       </div>
                       <div className="text-[9px] font-mono opacity-80 mt-0.5">#059669</div>
                     </div>
@@ -324,7 +348,9 @@ export function ThemeVisualTestSuite() {
                     <div className="rounded-lg p-1.5 border border-amber-500/20 bg-amber-500/10 text-amber-700 dark:text-amber-300">
                       <div className="flex items-center justify-center gap-1">
                         <AlertTriangle className="h-3 w-3 text-amber-600 shrink-0" />
-                        <span className="text-[10px] font-bold truncate">{isAr ? "تحذير" : "Warning"}</span>
+                        <span className="text-[10px] font-bold truncate">
+                          {isAr ? "تحذير" : "Warning"}
+                        </span>
                       </div>
                       <div className="text-[9px] font-mono opacity-80 mt-0.5">#D97706</div>
                     </div>
@@ -333,7 +359,9 @@ export function ThemeVisualTestSuite() {
                     <div className="rounded-lg p-1.5 border border-rose-500/20 bg-rose-500/10 text-rose-700 dark:text-rose-300">
                       <div className="flex items-center justify-center gap-1">
                         <XCircle className="h-3 w-3 text-rose-600 shrink-0" />
-                        <span className="text-[10px] font-bold truncate">{isAr ? "ديون/خطر" : "Danger"}</span>
+                        <span className="text-[10px] font-bold truncate">
+                          {isAr ? "ديون/خطر" : "Danger"}
+                        </span>
                       </div>
                       <div className="text-[9px] font-mono opacity-80 mt-0.5">#E11D48</div>
                     </div>

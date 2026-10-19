@@ -1,7 +1,7 @@
 /** مزود سجل المشتريات — يستدعي حد التنفيذ الخادمي فقط. */
-import type { IDataProvider, ReportExecutionRequest, ReportExecutionResult } from './types';
-import { PurchaseRegisterFilterSchema, type PurchaseRegisterFilters } from './filter-schemas';
-import { executePurchaseRegisterReport } from '../report-execution.functions';
+import type { IDataProvider, ReportExecutionRequest, ReportExecutionResult } from "./types";
+import { PurchaseRegisterFilterSchema, type PurchaseRegisterFilters } from "./filter-schemas";
+import { executePurchaseRegisterReport } from "../report-execution.functions";
 
 export interface PurchaseRegisterRow {
   purchase_item_id: string;
@@ -24,12 +24,22 @@ export interface PurchaseRegisterRow {
   increases_inventory: boolean;
 }
 
-export class PurchaseRegisterDataProvider implements IDataProvider<PurchaseRegisterFilters, PurchaseRegisterRow> {
-  id = 'dp-purchase-register';
-  dataSourceName = 'purchase_register';
+export class PurchaseRegisterDataProvider implements IDataProvider<
+  PurchaseRegisterFilters,
+  PurchaseRegisterRow
+> {
+  id = "dp-purchase-register";
+  dataSourceName = "purchase_register";
 
-  async execute(request: ReportExecutionRequest<PurchaseRegisterFilters>): Promise<ReportExecutionResult<PurchaseRegisterRow>> {
-    const validated = { ...request, filters: PurchaseRegisterFilterSchema.parse(request.filters || {}) };
-    return (await executePurchaseRegisterReport({ data: validated })) as ReportExecutionResult<PurchaseRegisterRow>;
+  async execute(
+    request: ReportExecutionRequest<PurchaseRegisterFilters>,
+  ): Promise<ReportExecutionResult<PurchaseRegisterRow>> {
+    const validated = {
+      ...request,
+      filters: PurchaseRegisterFilterSchema.parse(request.filters || {}),
+    };
+    return (await executePurchaseRegisterReport({
+      data: validated,
+    })) as unknown as ReportExecutionResult<PurchaseRegisterRow>;
   }
 }

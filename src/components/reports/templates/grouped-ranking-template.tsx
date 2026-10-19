@@ -1,5 +1,9 @@
 import { useState, useMemo, useEffect } from "react";
-import type { ReportColumnDefinition, ReportDefinition, ReportViewTemplateType } from "@/lib/reports/types";
+import type {
+  ReportColumnDefinition,
+  ReportDefinition,
+  ReportViewTemplateType,
+} from "@/lib/reports/types";
 import {
   executeSalesGroupedReport,
   executePurchasesGroupedReport,
@@ -15,7 +19,10 @@ import { defaultVisibility } from "@/lib/records/column-registry";
 import { ReportExportDialog } from "../shared/report-export-dialog";
 import type { ReportExportPayload } from "@/lib/reports/export/types";
 import { useReportCompanyInfo } from "@/hooks/use-report-company-info";
-import { getDomainDimensions, type ReportDimensionKey } from "@/lib/reports/registry/groupby-registry";
+import {
+  getDomainDimensions,
+  type ReportDimensionKey,
+} from "@/lib/reports/registry/groupby-registry";
 import { toast } from "sonner";
 
 interface GroupedRankingTemplateProps {
@@ -63,7 +70,10 @@ export function GroupedRankingTemplate({
   const [exportDialogMode, setExportDialogMode] = useState<"print" | "export">("print");
 
   const defaultInitialDimension = useMemo<ReportDimensionKey>(() => {
-    if (definition.id === "rep-customers-sales-turnover" || definition.id === "rep-sales-customer") {
+    if (
+      definition.id === "rep-customers-sales-turnover" ||
+      definition.id === "rep-sales-customer"
+    ) {
       return "customer";
     }
     if (definition.id === "rep-suppliers-payables" || definition.domain === "suppliers") {
@@ -78,7 +88,9 @@ export function GroupedRankingTemplate({
     return (definition as any).customGroupBy || "product";
   }, [definition.id, definition.domain, definition.dataProviderId]);
 
-  const [selectedDimensions, setSelectedDimensions] = useState<ReportDimensionKey[]>([defaultInitialDimension]);
+  const [selectedDimensions, setSelectedDimensions] = useState<ReportDimensionKey[]>([
+    defaultInitialDimension,
+  ]);
 
   // تحديث البعد عند تغير التقرير
   useEffect(() => {
@@ -88,7 +100,9 @@ export function GroupedRankingTemplate({
   // حساب الأعمدة الديناميكية: أعمدة الأبعاد المختارة أولاً، ثم أعمدة المؤشرات والحسابات
   const computedColumns = useMemo<ReportColumnDefinition[]>(() => {
     const domainDimensions = getDomainDimensions(definition.domain || "sales");
-    const activeDimensionConfigs = domainDimensions.filter((d) => selectedDimensions.includes(d.key));
+    const activeDimensionConfigs = domainDimensions.filter((d) =>
+      selectedDimensions.includes(d.key),
+    );
     const dimensionColumns = activeDimensionConfigs.flatMap((d) => d.columns);
 
     // استخراج أعمدة المقاييس الحسابية من تعريف التقرير
@@ -141,7 +155,9 @@ export function GroupedRankingTemplate({
               filters,
               pagination: { page, pageSize },
               sort: { field: sortField, order: sortOrder },
-              dimensions: selectedDimensions as Array<"supplier" | "product" | "warehouse" | "payment_method">,
+              dimensions: selectedDimensions as Array<
+                "supplier" | "product" | "warehouse" | "payment_method"
+              >,
             },
           })
         : await executeSalesGroupedReport({
@@ -150,7 +166,9 @@ export function GroupedRankingTemplate({
               filters,
               pagination: { page, pageSize },
               sort: { field: sortField, order: sortOrder },
-              dimensions: selectedDimensions as Array<"product" | "customer" | "branch" | "warehouse" | "payment_method">,
+              dimensions: selectedDimensions as Array<
+                "product" | "customer" | "branch" | "warehouse" | "payment_method"
+              >,
             },
           });
 

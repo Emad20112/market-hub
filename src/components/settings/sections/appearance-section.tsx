@@ -23,11 +23,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useI18n } from "@/lib/i18n";
 import { useTheme } from "@/lib/theme";
 import { ThemeVisualTestSuite } from "@/components/theme/theme-visual-test-suite";
-import {
-  CURATED_THEMES,
-  type AccentThemeId,
-  type ArchivedColor,
-} from "@/lib/color-theme";
+import { CURATED_THEMES, type AccentThemeId, type ArchivedColor } from "@/lib/color-theme";
 
 interface AppearanceSectionProps {
   canEdit?: boolean;
@@ -107,8 +103,12 @@ export function AppearanceSection({ canEdit = true }: AppearanceSectionProps) {
                 <span>{isAr ? "نمط السمة الضوئية" : "Theme Brightness"}</span>
                 <span className="text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary font-medium">
                   {theme === "dark"
-                    ? isAr ? "ليلي فاخر" : "Dark Obsidian"
-                    : isAr ? "نهاري رخامي" : "Light Alabaster"}
+                    ? isAr
+                      ? "ليلي فاخر"
+                      : "Dark Obsidian"
+                    : isAr
+                      ? "نهاري رخامي"
+                      : "Light Alabaster"}
                 </span>
               </div>
               <div className="text-xs text-muted-foreground mt-0.5">
@@ -186,19 +186,21 @@ export function AppearanceSection({ canEdit = true }: AppearanceSectionProps) {
         </CardContent>
       </Card>
 
-            {/* شريط حالة مزامنة تفضيلات المستخدم بين الأجهزة والسحابة */}
+      {/* شريط حالة مزامنة تفضيلات المستخدم بين الأجهزة والسحابة */}
       <div className="rounded-2xl border border-border/80 bg-surface/80 p-4 shadow-2xs">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="flex items-center gap-3">
-            <div className={`p-2.5 rounded-2xl ${
-              userId
-                ? syncStatus === "synced"
-                  ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
-                  : syncStatus === "syncing"
-                    ? "bg-primary/10 text-primary animate-pulse"
-                    : "bg-amber-500/10 text-amber-600"
-                : "bg-surface-2 text-muted-foreground"
-            }`}>
+            <div
+              className={`p-2.5 rounded-2xl ${
+                userId
+                  ? syncStatus === "synced"
+                    ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                    : syncStatus === "syncing"
+                      ? "bg-primary/10 text-primary animate-pulse"
+                      : "bg-amber-500/10 text-amber-600"
+                  : "bg-surface-2 text-muted-foreground"
+              }`}
+            >
               {userId ? (
                 syncStatus === "syncing" ? (
                   <RefreshCw className="h-5 w-5 animate-spin" />
@@ -223,13 +225,15 @@ export function AppearanceSection({ canEdit = true }: AppearanceSectionProps) {
                 </span>
 
                 {userId && (
-                  <span className={`inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full ${
-                    syncStatus === "synced"
-                      ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20"
-                      : syncStatus === "syncing"
-                        ? "bg-primary/10 text-primary border border-primary/20"
-                        : "bg-amber-500/10 text-amber-600 border border-amber-500/20"
-                  }`}>
+                  <span
+                    className={`inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full ${
+                      syncStatus === "synced"
+                        ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20"
+                        : syncStatus === "syncing"
+                          ? "bg-primary/10 text-primary border border-primary/20"
+                          : "bg-amber-500/10 text-amber-600 border border-amber-500/20"
+                    }`}
+                  >
                     {syncStatus === "synced" && (isAr ? "متزامن لحظياً" : "Synced")}
                     {syncStatus === "syncing" && (isAr ? "جاري المزامنة..." : "Syncing...")}
                     {syncStatus === "error" && (isAr ? "حفظ محلي مؤقت" : "Local Cached")}
@@ -260,13 +264,14 @@ export function AppearanceSection({ canEdit = true }: AppearanceSectionProps) {
               disabled={syncStatus === "syncing"}
               className="inline-flex items-center gap-1.5 h-8 rounded-full border border-border bg-surface px-3 text-xs font-bold text-foreground hover:bg-surface-2 transition-all shadow-2xs shrink-0 disabled:opacity-50"
             >
-              <RefreshCw className={`h-3.5 w-3.5 ${syncStatus === "syncing" ? "animate-spin" : ""}`} />
+              <RefreshCw
+                className={`h-3.5 w-3.5 ${syncStatus === "syncing" ? "animate-spin" : ""}`}
+              />
               <span>{isAr ? "مزامنة الآن" : "Sync Now"}</span>
             </button>
           )}
         </div>
       </div>
-
 
       {/* 2. منظومة الثيمات التنفيذية الستة (الافتراضي + 5 ألوان مدروسة بعناية) */}
       <Card className="rounded-3xl border-border/80 shadow-xs">
@@ -314,9 +319,7 @@ export function AppearanceSection({ canEdit = true }: AppearanceSectionProps) {
                         className="h-9 w-9 rounded-full shadow-sm flex items-center justify-center shrink-0 transition-transform group-hover:scale-105"
                         style={{ backgroundColor: swatchColor }}
                       >
-                        {isActive ? (
-                          <Check className="h-4 w-4 text-white stroke-[3]" />
-                        ) : null}
+                        {isActive ? <Check className="h-4 w-4 text-white stroke-[3]" /> : null}
                       </div>
 
                       <div>
@@ -328,9 +331,7 @@ export function AppearanceSection({ canEdit = true }: AppearanceSectionProps) {
                             </span>
                           )}
                         </div>
-                        <div className="text-[11px] font-mono text-muted-foreground">
-                          {def.hex}
-                        </div>
+                        <div className="text-[11px] font-mono text-muted-foreground">{def.hex}</div>
                       </div>
                     </div>
 
@@ -382,7 +383,11 @@ export function AppearanceSection({ canEdit = true }: AppearanceSectionProps) {
                 <Sparkles className="h-5 w-5" />
               </div>
               <div>
-                <div>{isAr ? "استوديو اللون المخصص والمعاينة الفورية" : "Custom Color Studio & Live Preview"}</div>
+                <div>
+                  {isAr
+                    ? "استوديو اللون المخصص والمعاينة الفورية"
+                    : "Custom Color Studio & Live Preview"}
+                </div>
                 <div className="text-xs text-muted-foreground font-normal mt-0.5">
                   {isAr
                     ? "اختر أي كود لوني يعجبك مع توليد تلقائي للظلال، الحلقات، والتباين"
@@ -447,13 +452,19 @@ export function AppearanceSection({ canEdit = true }: AppearanceSectionProps) {
                 {/* تسمية اختيارية لحفظه في الأرشيف */}
                 <div className="space-y-1">
                   <label className="text-[11px] font-medium text-muted-foreground">
-                    {isAr ? "تسمية مخصصة للون (اختياري للأرشيف):" : "Optional color nickname (for archive):"}
+                    {isAr
+                      ? "تسمية مخصصة للون (اختياري للأرشيف):"
+                      : "Optional color nickname (for archive):"}
                   </label>
                   <input
                     type="text"
                     value={colorNameInput}
                     onChange={(e) => setColorNameInput(e.target.value)}
-                    placeholder={isAr ? "مثال: أزرق مكتبي، تركواز الشركة..." : "e.g., Corporate Teal, Warm Sky..."}
+                    placeholder={
+                      isAr
+                        ? "مثال: أزرق مكتبي، تركواز الشركة..."
+                        : "e.g., Corporate Teal, Warm Sky..."
+                    }
                     className="w-full h-10 rounded-xl border border-border bg-surface px-3 text-xs focus:border-primary focus:ring-2 focus:ring-primary/20 focus:outline-none"
                   />
                 </div>
@@ -478,7 +489,9 @@ export function AppearanceSection({ canEdit = true }: AppearanceSectionProps) {
                     type="button"
                     onClick={handleSaveToArchive}
                     className="h-10 px-4 rounded-xl border border-border bg-surface text-foreground font-semibold text-xs hover:border-primary/40 hover:bg-surface-2 transition-all flex items-center gap-1.5"
-                    title={isAr ? "حفظ اللون في الأرشيف للرجوع إليه لاحقاً" : "Save to archive for later"}
+                    title={
+                      isAr ? "حفظ اللون في الأرشيف للرجوع إليه لاحقاً" : "Save to archive for later"
+                    }
                   >
                     <Plus className="h-4 w-4 text-primary" />
                     <span>{isAr ? "حفظ في الأرشيف" : "Save to Archive"}</span>
@@ -500,7 +513,9 @@ export function AppearanceSection({ canEdit = true }: AppearanceSectionProps) {
                 <div className="flex items-center justify-between border-b border-border/40 pb-2">
                   <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
                     <Eye className="h-3.5 w-3.5 text-primary" />
-                    <span>{isAr ? "معاينة حية للمكونات الموحدة" : "Live Unified Component Preview"}</span>
+                    <span>
+                      {isAr ? "معاينة حية للمكونات الموحدة" : "Live Unified Component Preview"}
+                    </span>
                   </span>
                   <span className="text-[10px] text-muted-foreground font-mono">
                     {accentTheme === "custom" ? customColor : CURATED_THEMES[accentTheme]?.hex}
@@ -536,7 +551,9 @@ export function AppearanceSection({ canEdit = true }: AppearanceSectionProps) {
                   {/* حقل إدخال التجربة */}
                   <div className="space-y-1">
                     <label className="text-[10px] font-medium text-muted-foreground">
-                      {isAr ? "حقل إدخال مع حلقة توهج الثيم (Focus Ring):" : "Input Field with Active Accent Border:"}
+                      {isAr
+                        ? "حقل إدخال مع حلقة توهج الثيم (Focus Ring):"
+                        : "Input Field with Active Accent Border:"}
                     </label>
                     <input
                       type="text"
@@ -653,7 +670,11 @@ export function AppearanceSection({ canEdit = true }: AppearanceSectionProps) {
                 <Eye className="h-5 w-5" />
               </div>
               <div>
-                <div>{isAr ? "معمل الفحص البصري وتدقيق الحالات الوظيفية" : "Visual Theme Lab & Status Audit"}</div>
+                <div>
+                  {isAr
+                    ? "معمل الفحص البصري وتدقيق الحالات الوظيفية"
+                    : "Visual Theme Lab & Status Audit"}
+                </div>
                 <div className="text-xs text-muted-foreground font-normal mt-0.5">
                   {isAr
                     ? "محاكاة فورية للثيمات الستة في الوضعين الفاتح والداكن وتأكيد حماية ألوان الحالات (نجاح، تحذير، خطر)"
@@ -670,7 +691,6 @@ export function AppearanceSection({ canEdit = true }: AppearanceSectionProps) {
           <ThemeVisualTestSuite />
         </CardContent>
       </Card>
-
     </div>
   );
 }

@@ -1,14 +1,14 @@
-import React from 'react';
-import { createFileRoute } from '@tanstack/react-router';
-import { ModuleGuard } from '@/lib/modules';
-import { DomainReportShell } from '@/components/reports/shared/domain-report-shell';
-import { ReportTemplateRenderer } from '@/components/reports/report-template-renderer';
-import { ReportRegistry, REPORT_CUSTOMERS_TURNOVER } from '@/lib/reports/registry';
-import { useDomainReportSelection } from '@/components/reports/shared/use-domain-report-selection';
+import React from "react";
+import { createFileRoute } from "@tanstack/react-router";
+import { ModuleGuard } from "@/lib/modules";
+import { DomainReportShell } from "@/components/reports/shared/domain-report-shell";
+import { ReportTemplateRenderer } from "@/components/reports/report-template-renderer";
+import { ReportRegistry, REPORT_CUSTOMERS_TURNOVER } from "@/lib/reports/registry";
+import { useDomainReportSelection } from "@/components/reports/shared/use-domain-report-selection";
 
-export const Route = createFileRoute('/_app/reports/customers')({
+export const Route = createFileRoute("/_app/reports/customers")({
   head: () => ({
-    meta: [{ title: 'تقارير العملاء والتحصيل التشغيلي — Vortex ERP' }],
+    meta: [{ title: "تقارير العملاء والتحصيل التشغيلي — Vortex ERP" }],
   }),
   component: () => (
     <ModuleGuard moduleId="analytics">
@@ -18,7 +18,10 @@ export const Route = createFileRoute('/_app/reports/customers')({
 });
 
 function ReportsCustomersPage() {
-  const { activeReportId, selectReport } = useDomainReportSelection('customers', 'rep-customers-sales-turnover');
+  const { activeReportId, selectReport } = useDomainReportSelection(
+    "customers",
+    "rep-customers-sales-turnover",
+  );
   const reportDef = ReportRegistry.get(activeReportId) || REPORT_CUSTOMERS_TURNOVER;
 
   return (
