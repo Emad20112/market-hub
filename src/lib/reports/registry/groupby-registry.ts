@@ -4,7 +4,17 @@
  */
 
 import type { LucideIcon } from "lucide-react";
-import { Users, Package, CreditCard, Building2, Warehouse, Truck, ArrowLeftRight, UserCheck, Tag } from "lucide-react";
+import {
+  Users,
+  Package,
+  CreditCard,
+  Building2,
+  Warehouse,
+  Truck,
+  ArrowLeftRight,
+  UserCheck,
+  Tag,
+} from "lucide-react";
 import type { ReportColumnDefinition, ReportDomain } from "../types";
 
 export type ReportDimensionKey =

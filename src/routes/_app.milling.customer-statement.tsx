@@ -49,6 +49,7 @@ import { toast } from "sonner";
 import { PageHeader } from "@/components/page-header";
 import { ModuleGuard } from "@/lib/modules";
 import { LuxuryPrintPreviewModal } from "@/components/luxury-print-preview-modal";
+import { UnifiedPrintModal } from "@/components/milling/unified-print-modal";
 import { DocumentShareDialog } from "@/components/communication/document-share-dialog";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -959,18 +960,16 @@ function CustomerCustodyPage() {
           />
         )}
 
-        {/* نافذة الطباعة الفاخرة الموحدة */}
+        {/* نافذة الطباعة الفاخرة الموحدة لسندات وفواتير المطحنة */}
         {printDoc && (
-          <LuxuryPrintPreviewModal
+          <UnifiedPrintModal
             open={printModalOpen}
-            onOpenChange={(open) => {
-              setPrintModalOpen(open);
-              if (!open) setPrintDoc(null);
+            onClose={() => {
+              setPrintModalOpen(false);
+              setPrintDoc(null);
             }}
-            document={printDoc}
-            documentType={printDoc.docType || "delivery_note"}
-            title={printDoc.title || "معاينة وطباعة سند الأمانة"}
-            customerName={selectedRow?.customer_name_ar}
+            doc={printDoc}
+            stage={printDoc.docType === "delivery_note" ? "delivery" : "intake"}
           />
         )}
 

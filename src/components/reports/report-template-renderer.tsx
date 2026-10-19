@@ -63,8 +63,8 @@ export function ReportTemplateRenderer({
 
   const isCustomMultiMethod = Boolean(
     (definition as any).isCustomMultiMethod ||
-      definition.id.startsWith("custom-") ||
-      (definition as any).customGroupBy,
+    definition.id.startsWith("custom-") ||
+    (definition as any).customGroupBy,
   );
 
   switch (currentView) {

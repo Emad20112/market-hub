@@ -106,15 +106,15 @@ export function classifyCostBasis(
 /* ------------------------------------------------------------------ */
 
 export type StockDeltaKind =
-  | "receipt"      // إدخال مشتريات أو استلام (+ وارد)
-  | "issue"        // إخراج بيع أو صرف (- صادر)
-  | "return_in"    // مرتجع مبيعات (+ وارد)
-  | "return_out"   // مرتجع مشتريات (- صادر)
+  | "receipt" // إدخال مشتريات أو استلام (+ وارد)
+  | "issue" // إخراج بيع أو صرف (- صادر)
+  | "return_in" // مرتجع مبيعات (+ وارد)
+  | "return_out" // مرتجع مشتريات (- صادر)
   | "adjustment_in" // تسوية جرد موجبة (+ وارد)
-  | "adjustment_out"// تسوية جرد سالبة (- صادر)
-  | "transfer_in"  // تحويل مستودعي وارد (+ وارد)
+  | "adjustment_out" // تسوية جرد سالبة (- صادر)
+  | "transfer_in" // تحويل مستودعي وارد (+ وارد)
   | "transfer_out" // تحويل مستودعي صادر (- صادر)
-  | "opening";     // رصيد افتتاحي (+ وارد)
+  | "opening"; // رصيد افتتاحي (+ وارد)
 
 export interface RawStockMovement {
   id: string;
@@ -175,7 +175,6 @@ export function isInboundMovement(movementType: string, quantity = 0): boolean {
   const kind = mapDbMovementTypeToKind(movementType, quantity);
   return isStockInbound(kind);
 }
-
 
 /**
  * الترتيب الحتمي لحركات المخزون عند تساوي الوقت.
@@ -269,7 +268,7 @@ export interface ComparisonPeriod {
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 function toDateKey(date: Date): string {
-  return date.toISOString().split('T')[0];
+  return date.toISOString().split("T")[0];
 }
 
 /**
@@ -281,11 +280,11 @@ function toDateKey(date: Date): string {
 export function resolvePreviousPeriodBoundaries(
   from: string | null | undefined,
   to: string | null | undefined,
-  mode: 'previous_period' | 'previous_year' = 'previous_period',
+  mode: "previous_period" | "previous_year" = "previous_period",
 ): ComparisonPeriod {
   const current = resolveDateRangeBoundaries(from, to);
 
-  if (mode === 'previous_year') {
+  if (mode === "previous_year") {
     const start = new Date(current.startIso);
     const end = new Date(current.endIso);
     start.setUTCFullYear(start.getUTCFullYear() - 1);

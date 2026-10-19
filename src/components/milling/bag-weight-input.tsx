@@ -49,15 +49,15 @@ export function BagWeightInput({
 }: BagWeightInputProps) {
   const [mode, setMode] = useState<"bags" | "kg">(initialMode);
   const [internalBags, setInternalBags] = useState<string>(
-    controlledBags !== undefined ? String(controlledBags) : ""
+    controlledBags !== undefined ? String(controlledBags) : "",
   );
   const [internalCapacity, setInternalCapacity] = useState<number>(
-    Number(controlledCapacity) || defaultCapacity
+    Number(controlledCapacity) || defaultCapacity,
   );
   const [customCapacity, setCustomCapacity] = useState<string>("");
   const [isCustomCapacity, setIsCustomCapacity] = useState<boolean>(false);
   const [internalTotalKg, setInternalTotalKg] = useState<string>(
-    controlledTotalKg !== undefined ? String(controlledTotalKg) : ""
+    controlledTotalKg !== undefined ? String(controlledTotalKg) : "",
   );
 
   // Sync incoming props
@@ -88,9 +88,7 @@ export function BagWeightInput({
     }
   }, [controlledCapacity]);
 
-  const activeCapacity = isCustomCapacity
-    ? Number(customCapacity) || 0
-    : internalCapacity;
+  const activeCapacity = isCustomCapacity ? Number(customCapacity) || 0 : internalCapacity;
 
   const handleBagsChange = (bagsStr: string) => {
     setInternalBags(bagsStr);
@@ -164,7 +162,7 @@ export function BagWeightInput({
     <div
       className={cn(
         "rounded-2xl border border-border/80 bg-surface/50 p-3.5 space-y-3 transition",
-        className
+        className,
       )}
     >
       {/* Header with Mode Toggle */}
@@ -175,7 +173,9 @@ export function BagWeightInput({
           ) : (
             <Scale className="h-4 w-4 text-sky-500" />
           )}
-          <span>{label || (mode === "bags" ? "إدخال بالأكياس والسعة" : "إدخال بالوزن المباشر")}</span>
+          <span>
+            {label || (mode === "bags" ? "إدخال بالأكياس والسعة" : "إدخال بالوزن المباشر")}
+          </span>
         </div>
 
         <button

@@ -62,9 +62,7 @@ const groupedSalesRequestSchema = z.object({
   filters: SalesRegisterFilterSchema,
   pagination: paginationSchema,
   sort: sortSchema,
-  groupBy: z
-    .enum(["product", "customer", "branch", "warehouse", "payment_method"])
-    .optional(),
+  groupBy: z.enum(["product", "customer", "branch", "warehouse", "payment_method"]).optional(),
   dimensions: z
     .array(z.enum(["product", "customer", "branch", "warehouse", "payment_method"]))
     .optional(),
@@ -74,12 +72,8 @@ const groupedPurchasesRequestSchema = z.object({
   filters: PurchaseRegisterFilterSchema,
   pagination: paginationSchema,
   sort: sortSchema,
-  groupBy: z
-    .enum(["supplier", "product", "warehouse", "payment_method"])
-    .optional(),
-  dimensions: z
-    .array(z.enum(["supplier", "product", "warehouse", "payment_method"]))
-    .optional(),
+  groupBy: z.enum(["supplier", "product", "warehouse", "payment_method"]).optional(),
+  dimensions: z.array(z.enum(["supplier", "product", "warehouse", "payment_method"])).optional(),
 });
 
 const SALES_SORT_FIELDS = new Set([
@@ -122,8 +116,8 @@ export const executeSalesRegisterReport = createServerFn({ method: "POST" })
     const boundaries = resolveDateRangeBoundaries(filters.startDate, filters.endDate);
     const supabase = context.supabase;
 
-    let pageQuery = supabase.from("sales_register").select("*", { count: "exact" });
-    let metricsQuery = supabase
+    let pageQuery = (supabase as any).from("sales_register").select("*", { count: "exact" });
+    const metricsQuery = (supabase as any)
       .from("sales_register")
       .select("quantity,unit_price,discount,tax,total,line_cost");
     const applyFilters = (query: any) => {
@@ -259,8 +253,8 @@ export const executePurchaseRegisterReport = createServerFn({ method: "POST" })
     const boundaries = resolveDateRangeBoundaries(filters.startDate, filters.endDate);
     const supabase = context.supabase;
 
-    let pageQuery = supabase.from("purchase_register").select("*", { count: "exact" });
-    let metricsQuery = supabase
+    let pageQuery = (supabase as any).from("purchase_register").select("*", { count: "exact" });
+    let metricsQuery = (supabase as any)
       .from("purchase_register")
       .select("quantity,unit_cost,discount,tax,total");
     const applyFilters = (query: any) => {
@@ -347,15 +341,16 @@ export const executeSalesGroupedReport = createServerFn({ method: "POST" })
   .validator((data: unknown) => groupedSalesRequestSchema.parse(data))
   .handler(async ({ data, context }) => {
     const { filters, groupBy, dimensions } = data;
-    const activeDimensions: Array<"product" | "customer" | "branch" | "warehouse" | "payment_method"> =
-      dimensions && dimensions.length > 0 ? dimensions : [groupBy || "product"];
+    const activeDimensions: Array<
+      "product" | "customer" | "branch" | "warehouse" | "payment_method"
+    > = dimensions && dimensions.length > 0 ? dimensions : [groupBy || "product"];
 
     const page = data.pagination?.page ?? 1;
     const pageSize = data.pagination?.pageSize ?? 50;
     const boundaries = resolveDateRangeBoundaries(filters.startDate, filters.endDate);
     const supabase = context.supabase;
 
-    let query = supabase
+    let query = (supabase as any)
       .from("sales_register")
       .select(
         "invoice_id,customer_id,product_id,sku,item_name,item_name_ar,quantity,unit_price,discount,tax,total,line_cost,payment_method",
@@ -586,7 +581,7 @@ export const executePurchasesGroupedReport = createServerFn({ method: "POST" })
     const boundaries = resolveDateRangeBoundaries(filters.startDate, filters.endDate);
     const supabase = context.supabase;
 
-    let query = supabase
+    let query = (supabase as any)
       .from("purchase_register")
       .select(
         "invoice_id,supplier_id,product_id,sku,item_name,item_name_ar,quantity,unit_cost,discount,tax,total,payment_method",
@@ -935,7 +930,7 @@ export const searchReportFilterOptions = createServerFn({ method: "POST" })
       },
     } as const;
     const source = config[data.source];
-    let query = context.supabase
+    let query = (context.supabase as any)
       .from(source.table)
       .select(source.columns)
       .order(source.label, { ascending: true })
@@ -986,7 +981,7 @@ export const executeComparisonReport = createServerFn({ method: "POST" })
     );
 
     const buildQuery = (startIso: string, endIso: string) => {
-      let query = supabase
+      let query = (supabase as any)
         .from("sales_register")
         .select("quantity,unit_price,discount,tax,total,line_cost");
       query = query.gte("created_at", startIso).lte("created_at", endIso);
@@ -1113,7 +1108,7 @@ export const executeExceptionsReport = createServerFn({ method: "POST" })
     const boundaries = resolveDateRangeBoundaries(filters.startDate, filters.endDate);
 
     if (data.source === "item_classification_gaps") {
-      const { data: gaps, error } = await supabase
+      const { data: gaps, error } = await (supabase as any)
         .from("item_classification_gaps")
         .select("id,sku,name_ar,item_nature,item_class,inventory_policy,reason");
       if (error) throw new Error(`[Exceptions classification gaps] ${error.message}`);
@@ -1136,7 +1131,7 @@ export const executeExceptionsReport = createServerFn({ method: "POST" })
     }
 
     if (data.source === "inventory_low_stock" || data.source === "inventory_slow_moving") {
-      let valuationQuery = supabase
+      let valuationQuery = (supabase as any)
         .from("inventory_valuation")
         .select(
           "item_id,item_name,item_name_ar,sku,warehouse_id,warehouse_name,quantity,costing_method,reference_unit_cost,reference_valuation,valuation_is_reference_based",
@@ -1147,7 +1142,7 @@ export const executeExceptionsReport = createServerFn({ method: "POST" })
       const { data: valuation, error } = await valuationQuery;
       if (error) throw new Error(`[Exceptions inventory] ${error.message}`);
 
-      let allRows = ((valuation ?? []) as Array<Record<string, any>>).map((row) => ({
+      let allRows: Array<Record<string, any>> = ((valuation ?? []) as Array<Record<string, any>>).map((row) => ({
         ...row,
         quantity: toNumber(row.quantity),
         reference_valuation: toNumber(row.reference_valuation),
@@ -1219,8 +1214,8 @@ export const executeExceptionsReport = createServerFn({ method: "POST" })
         );
       return query;
     };
-    let query = applyExceptionFilters(supabase.from(sourceView).select("*", { count: "exact" }));
-    let metricsQuery = applyExceptionFilters(supabase.from(sourceView).select("status,total"));
+    let query = applyExceptionFilters((supabase as any).from(sourceView).select("*", { count: "exact" }));
+    const metricsQuery = applyExceptionFilters((supabase as any).from(sourceView).select("status,total"));
 
     const sortField = ["created_at", "total", "quantity"].includes(data.sort?.field ?? "")
       ? data.sort!.field

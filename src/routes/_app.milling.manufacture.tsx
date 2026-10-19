@@ -29,6 +29,7 @@ import {
   TrendingUp,
 } from "lucide-react";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 import { PageHeader } from "@/components/page-header";
 import { ModuleGuard } from "@/lib/modules";
 import { supabase } from "@/integrations/supabase/client";
@@ -167,7 +168,7 @@ export function SmartManufacturePage() {
 
   const isOutputsOverGrain = numGrainQty > 0 && totalOutputKg > numGrainQty;
   const isOutputsPlusWasteOverGrain =
-    numGrainQty > 0 && hasManualWaste && (totalOutputKg + parsedManualWaste) > numGrainQty + 0.001;
+    numGrainQty > 0 && hasManualWaste && totalOutputKg + parsedManualWaste > numGrainQty + 0.001;
 
   const wastePercent = numGrainQty > 0 ? (effectiveWasteKg / numGrainQty) * 100 : 0;
   const yieldPercent = numGrainQty > 0 ? (totalOutputKg / numGrainQty) * 100 : 0;
@@ -204,7 +205,8 @@ export function SmartManufacturePage() {
         else if (packageType === "custom") bagWeight = Number(customKg) || 0;
 
         const bags = Number(line.bagsCount) || 0;
-        const newQty = packageType === "bulk" ? line.qty : bags > 0 ? String(bags * bagWeight) : line.qty;
+        const newQty =
+          packageType === "bulk" ? line.qty : bags > 0 ? String(bags * bagWeight) : line.qty;
 
         return {
           ...line,
@@ -369,9 +371,9 @@ export function SmartManufacturePage() {
         <div className="flex items-start gap-2.5 rounded-2xl border border-sky-500/20 bg-sky-500/10 p-3.5 text-xs font-medium text-sky-800 dark:text-sky-200">
           <Info className="mt-0.5 h-4 w-4 shrink-0 text-sky-600 dark:text-sky-400" />
           <p className="leading-relaxed">
-            <strong>نظام التوزيع النسبي المعتمد:</strong> يتم خصم القمح من المخزون بتكلفته الفعلية، وتُوزع
-            التكلفة بالكامل على النواتج بحسب نسبة القيمة السوقية لكل منتج (دقيق، سميد، نخالة)، مع إثبات
-            الفاقد التشغيلي في دفتر الأستاذ العام (حـ/ 5921).
+            <strong>نظام التوزيع النسبي المعتمد:</strong> يتم خصم القمح من المخزون بتكلفته الفعلية،
+            وتُوزع التكلفة بالكامل على النواتج بحسب نسبة القيمة السوقية لكل منتج (دقيق، سميد،
+            نخالة)، مع إثبات الفاقد التشغيلي في دفتر الأستاذ العام (حـ/ 5921).
           </p>
         </div>
 
@@ -385,10 +387,7 @@ export function SmartManufacturePage() {
           <div className="space-y-4 p-4 sm:p-5">
             <div className="grid gap-4 sm:grid-cols-2">
               <MillingField label="مستودع السحب *">
-                <MillingSelect
-                  value={warehouseId}
-                  onChange={(e) => setWarehouseId(e.target.value)}
-                >
+                <MillingSelect value={warehouseId} onChange={(e) => setWarehouseId(e.target.value)}>
                   <option value="">اختر المخزن…</option>
                   {(warehouses.data ?? []).map((w) => (
                     <option key={w.id} value={w.id}>
@@ -399,10 +398,7 @@ export function SmartManufacturePage() {
               </MillingField>
 
               <MillingField label="صنف الحبوب (القمح) *">
-                <MillingSelect
-                  value={grainItemId}
-                  onChange={(e) => setGrainItemId(e.target.value)}
-                >
+                <MillingSelect value={grainItemId} onChange={(e) => setGrainItemId(e.target.value)}>
                   <option value="">اختر الصنف…</option>
                   {(grainItems.data ?? []).map((g: ProductOption) => (
                     <option key={g.id} value={g.id}>
@@ -475,8 +471,8 @@ export function SmartManufacturePage() {
               <div className="flex items-center gap-2 rounded-xl border border-rose-500/30 bg-rose-500/10 p-3 text-xs font-semibold text-rose-700 dark:text-rose-300">
                 <AlertTriangle className="h-4 w-4 shrink-0 text-rose-500" />
                 <span>
-                  تنبيه: الكمية المدخلة (<Mono>{grainQty}</Mono> كجم) أكبر من الرصيد المتوفر في المخزن (
-                  <Mono>{fmtNum(availableStock)}</Mono> كجم)! يرجى تقليل الكمية.
+                  تنبيه: الكمية المدخلة (<Mono>{grainQty}</Mono> كجم) أكبر من الرصيد المتوفر في
+                  المخزن (<Mono>{fmtNum(availableStock)}</Mono> كجم)! يرجى تقليل الكمية.
                 </span>
               </div>
             )}
@@ -506,7 +502,10 @@ export function SmartManufacturePage() {
               <button
                 type="button"
                 onClick={() =>
-                  setOutputs((o) => [...o, { itemId: "", packageType: "50", bagsCount: "", qty: "" }])
+                  setOutputs((o) => [
+                    ...o,
+                    { itemId: "", packageType: "50", bagsCount: "", qty: "" },
+                  ])
                 }
                 className="inline-flex items-center gap-1.5 rounded-xl border border-primary/30 bg-primary/10 px-3 py-1.5 text-xs font-bold text-primary transition hover:bg-primary/20 active:scale-95"
               >
@@ -535,7 +534,8 @@ export function SmartManufacturePage() {
               else if (line.packageType === "25") bagCapacity = 25;
               else if (line.packageType === "10") bagCapacity = 10;
               else if (line.packageType === "5") bagCapacity = 5;
-              else if (line.packageType === "custom") bagCapacity = Number(line.customPackageKg) || 0;
+              else if (line.packageType === "custom")
+                bagCapacity = Number(line.customPackageKg) || 0;
 
               const estimatedBagCost = estimatedUnitCostKg * bagCapacity;
               const bagSalePrice = salePrice * bagCapacity;
@@ -654,9 +654,7 @@ export function SmartManufacturePage() {
                               step="0.1"
                               placeholder="سعة الكيس كجم"
                               value={line.customPackageKg ?? ""}
-                              onChange={(e) =>
-                                handlePackageChange(idx, "custom", e.target.value)
-                              }
+                              onChange={(e) => handlePackageChange(idx, "custom", e.target.value)}
                             />
                           )}
                         </div>
@@ -682,10 +680,16 @@ export function SmartManufacturePage() {
                     <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border/50 pt-2 text-[11px] text-muted-foreground">
                       <div className="flex flex-wrap items-center gap-3">
                         <span>
-                          القيمة الإجمالية: <strong><Mono>{fmtNum(lineValue)}</Mono></strong>
+                          القيمة الإجمالية:{" "}
+                          <strong>
+                            <Mono>{fmtNum(lineValue)}</Mono>
+                          </strong>
                         </span>
                         <span>
-                          نسبة القيمة: <strong><Mono>{valueRatio.toFixed(1)}%</Mono></strong>
+                          نسبة القيمة:{" "}
+                          <strong>
+                            <Mono>{valueRatio.toFixed(1)}%</Mono>
+                          </strong>
                         </span>
                         {estimatedUnitCostKg > 0 && (
                           <span className="text-emerald-600 dark:text-emerald-400 font-semibold">
@@ -766,7 +770,8 @@ export function SmartManufacturePage() {
                   <Layers className="h-3.5 w-3.5 text-amber-500" /> إجمالي القمح المدخل
                 </span>
                 <p className="text-lg font-black text-foreground">
-                  <Mono>{fmtNum(numGrainQty)}</Mono> <span className="text-xs font-normal">كجم</span>
+                  <Mono>{fmtNum(numGrainQty)}</Mono>{" "}
+                  <span className="text-xs font-normal">كجم</span>
                 </p>
               </div>
 
@@ -775,7 +780,8 @@ export function SmartManufacturePage() {
                   <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" /> إجمالي النواتج
                 </span>
                 <p className="text-lg font-black text-foreground">
-                  <Mono>{fmtNum(totalOutputKg)}</Mono> <span className="text-xs font-normal">كجم</span>
+                  <Mono>{fmtNum(totalOutputKg)}</Mono>{" "}
+                  <span className="text-xs font-normal">كجم</span>
                 </p>
               </div>
 
@@ -806,8 +812,9 @@ export function SmartManufacturePage() {
               <div className="flex items-center gap-2 rounded-xl border border-rose-500/30 bg-rose-500/10 p-3 text-xs font-bold text-rose-700 dark:text-rose-300">
                 <AlertTriangle className="h-4 w-4 shrink-0 text-rose-500" />
                 <span>
-                  خطأ في الأوزان: إجمالي وزن النواتج المستخرجة (<Mono>{fmtNum(totalOutputKg)}</Mono> كجم)
-                  أكبر من كمية القمح المطحون (<Mono>{fmtNum(numGrainQty)}</Mono> كجم)! لا يمكن أن تزيد النواتج عن المدخلات.
+                  خطأ في الأوزان: إجمالي وزن النواتج المستخرجة (<Mono>{fmtNum(totalOutputKg)}</Mono>{" "}
+                  كجم) أكبر من كمية القمح المطحون (<Mono>{fmtNum(numGrainQty)}</Mono> كجم)! لا يمكن
+                  أن تزيد النواتج عن المدخلات.
                 </span>
               </div>
             )}
@@ -837,7 +844,9 @@ export function SmartManufacturePage() {
               </div>
               <span className="text-xs text-muted-foreground">
                 إجمالي تكلفة المادة الخام:{" "}
-                <strong className="text-foreground"><Mono>{fmtNum(totalInputCost)}</Mono></strong>
+                <strong className="text-foreground">
+                  <Mono>{fmtNum(totalInputCost)}</Mono>
+                </strong>
               </span>
             </div>
 
@@ -849,14 +858,17 @@ export function SmartManufacturePage() {
                 const lineQty = Number(line.qty);
                 const lineVal = lineQty * (prod.sale_price ?? 0);
                 const unitCostKg =
-                  allocatableCost > 0 ? (allocatableCost * (lineVal / totalOutputValue)) / lineQty : 0;
+                  allocatableCost > 0
+                    ? (allocatableCost * (lineVal / totalOutputValue)) / lineQty
+                    : 0;
 
                 let bagWeight = 0;
                 if (line.packageType === "50") bagWeight = 50;
                 else if (line.packageType === "25") bagWeight = 25;
                 else if (line.packageType === "10") bagWeight = 10;
                 else if (line.packageType === "5") bagWeight = 5;
-                else if (line.packageType === "custom") bagWeight = Number(line.customPackageKg) || 0;
+                else if (line.packageType === "custom")
+                  bagWeight = Number(line.customPackageKg) || 0;
 
                 const costPerBag = unitCostKg * bagWeight;
                 const salePerBag = (prod.sale_price ?? 0) * bagWeight;
@@ -877,7 +889,9 @@ export function SmartManufacturePage() {
                     <div className="space-y-1 text-[11px]">
                       <div className="flex justify-between">
                         <span className="text-muted-foreground">تكلفة الكيلو:</span>
-                        <strong><Mono>{fmtNum(unitCostKg)}</Mono></strong>
+                        <strong>
+                          <Mono>{fmtNum(unitCostKg)}</Mono>
+                        </strong>
                       </div>
                       {bagWeight > 0 && (
                         <>
@@ -889,11 +903,15 @@ export function SmartManufacturePage() {
                           </div>
                           <div className="flex justify-between">
                             <span className="text-muted-foreground">سعر بيع الكيس:</span>
-                            <strong><Mono>{fmtNum(salePerBag)}</Mono></strong>
+                            <strong>
+                              <Mono>{fmtNum(salePerBag)}</Mono>
+                            </strong>
                           </div>
                           <div className="flex justify-between border-t border-border/40 pt-1">
                             <span className="text-muted-foreground">هامش ربح الكيس:</span>
-                            <strong className={profitPerBag >= 0 ? "text-emerald-600" : "text-rose-600"}>
+                            <strong
+                              className={profitPerBag >= 0 ? "text-emerald-600" : "text-rose-600"}
+                            >
                               <Mono>{fmtNum(profitPerBag)}</Mono>
                             </strong>
                           </div>
@@ -935,7 +953,9 @@ export function SmartManufacturePage() {
                 {totalOutputValue > 0 && (
                   <span>
                     إجمالي القيمة السوقية للنواتج:{" "}
-                    <strong className="text-foreground"><Mono>{fmtNum(totalOutputValue)}</Mono></strong>
+                    <strong className="text-foreground">
+                      <Mono>{fmtNum(totalOutputValue)}</Mono>
+                    </strong>
                   </span>
                 )}
               </div>
@@ -947,7 +967,9 @@ export function SmartManufacturePage() {
                 className="w-full sm:w-auto min-w-[200px] flex items-center justify-center gap-2 rounded-xl bg-amber-500 px-6 py-3 text-sm font-bold text-white shadow-md shadow-amber-500/20 transition hover:bg-amber-600 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <Sparkles className="h-4 w-4" />
-                {submit.isPending ? "جارٍ تسجيل التصنيع والحركات…" : "تنفيذ أمر التصنيع وترحيل القيود"}
+                {submit.isPending
+                  ? "جارٍ تسجيل التصنيع والحركات…"
+                  : "تنفيذ أمر التصنيع وترحيل القيود"}
               </button>
             </div>
           </div>

@@ -9,14 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 const db = supabase as any;
 
 export type OpeningSection =
-  | "STOCK"
-  | "RECEIVABLE"
-  | "PAYABLE"
-  | "CASH"
-  | "BANK"
-  | "ASSET"
-  | "LIABILITY"
-  | "CAPITAL";
+  "STOCK" | "RECEIVABLE" | "PAYABLE" | "CASH" | "BANK" | "ASSET" | "LIABILITY" | "CAPITAL";
 
 export type OpeningStatus = "DRAFT" | "POSTED" | "REVERSED";
 
@@ -173,7 +166,14 @@ export async function fetchOpeningLines(documentId: string): Promise<OpeningLine
 }
 
 export async function fetchStockableItems(): Promise<
-  { id: string; sku: string; name: string; name_ar: string | null; package_weight_kg?: number | null; cost_price?: number | null }[]
+  {
+    id: string;
+    sku: string;
+    name: string;
+    name_ar: string | null;
+    package_weight_kg?: number | null;
+    cost_price?: number | null;
+  }[]
 > {
   const rows = unwrap(
     await db
@@ -202,14 +202,18 @@ export async function fetchSuppliers(): Promise<{ id: string; name: string }[]> 
   ) as { id: string; name: string }[];
 }
 
-export async function fetchWarehouses(): Promise<{ id: string; name_ar: string | null; name: string }[]> {
+export async function fetchWarehouses(): Promise<
+  { id: string; name_ar: string | null; name: string }[]
+> {
   return unwrap(
     await db.from("warehouses").select("id, name, name_ar").eq("is_active", true).order("name_ar"),
     "تعذّر تحميل المستودعات",
   ) as { id: string; name_ar: string | null; name: string }[];
 }
 
-export async function fetchAccounts(): Promise<{ id: string; code: string; name_ar: string; account_type: string }[]> {
+export async function fetchAccounts(): Promise<
+  { id: string; code: string; name_ar: string; account_type: string }[]
+> {
   const { data, error } = await db
     .from("accounts")
     .select("id, code, name_ar, account_type")

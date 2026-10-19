@@ -46,13 +46,13 @@ interface ChartReportTemplateProps {
 
 const PALETTE = [
   "oklch(0.62 0.21 260)", // أزرق فيوليت
-  "oklch(0.7 0.18 180)",  // تركواز
-  "oklch(0.72 0.18 60)",  // برتقالي دافئ
-  "oklch(0.68 0.2 340)",  // وردي توتي
+  "oklch(0.7 0.18 180)", // تركواز
+  "oklch(0.72 0.18 60)", // برتقالي دافئ
+  "oklch(0.68 0.2 340)", // وردي توتي
   "oklch(0.75 0.15 140)", // أخضر عشبي
   "oklch(0.65 0.18 290)", // بنفسجي
-  "oklch(0.6 0.16 220)",  // كحلي بحري
-  "oklch(0.78 0.14 90)",  // ذهبي ليموني
+  "oklch(0.6 0.16 220)", // كحلي بحري
+  "oklch(0.78 0.14 90)", // ذهبي ليموني
 ];
 
 const TOOLTIP_STYLE = {
@@ -84,7 +84,9 @@ export function ChartReportTemplate({
   });
 
   const [chartMode, setChartMode] = useState<"bar" | "area" | "pie">("bar");
-  const [metricKey, setMetricKey] = useState<"net_sales" | "quantity" | "gross_margin">("net_sales");
+  const [metricKey, setMetricKey] = useState<"net_sales" | "quantity" | "gross_margin">(
+    "net_sales",
+  );
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -414,11 +416,7 @@ export function ChartReportTemplate({
                       ]}
                       labelFormatter={(label) => `العنصر: ${label}`}
                     />
-                    <Bar
-                      dataKey="value"
-                      fill="var(--primary, #3b82f6)"
-                      radius={[6, 6, 0, 0]}
-                    >
+                    <Bar dataKey="value" fill="var(--primary, #3b82f6)" radius={[6, 6, 0, 0]}>
                       {chartData.map((_, index) => (
                         <Cell key={`cell-${index}`} fill={PALETTE[index % PALETTE.length]} />
                       ))}

@@ -173,7 +173,7 @@ export function ExpenseFormDialog({
         setLines([blankLine()]);
       }
 
-      setOpMode(entry.payment_status === "PAID" ? "CASH_PAYMENT" : "ACCRUAL_INVOICE");
+      setOpMode(entry.status === "PAID" ? "CASH_PAYMENT" : "ACCRUAL_INVOICE");
       setShowAdvanced(Boolean(entry.warehouse_id || entry.cost_center_id || entry.project_id));
     } else {
       setHeader(blankHeader());
@@ -281,12 +281,16 @@ export function ExpenseFormDialog({
     if (opMode === "ACCRUAL_INVOICE") {
       // في الفاتورة الآجلة: المورد وتاريخ الاستحقاق إلزاميان محاسبياً
       if (!header.supplier_id) {
-        errors.supplier_id = ar ? "المورد الدائن مطلوب في المصروف الآجل" : "Creditor supplier is required";
+        errors.supplier_id = ar
+          ? "المورد الدائن مطلوب في المصروف الآجل"
+          : "Creditor supplier is required";
       }
       if (!header.due_date) {
         errors.due_date = ar ? "تاريخ الاستحقاق مطلوب للمصروف الآجل" : "Due date is required";
       } else if (header.due_date < header.expense_date) {
-        errors.due_date = ar ? "تاريخ الاستحقاق لا يسبق تاريخ الفاتورة" : "Due date cannot precede expense date";
+        errors.due_date = ar
+          ? "تاريخ الاستحقاق لا يسبق تاريخ الفاتورة"
+          : "Due date cannot precede expense date";
       }
     } else {
       // في الصرف النقدي الفوري
@@ -342,12 +346,15 @@ export function ExpenseFormDialog({
       expense_date: header.expense_date,
       due_date: isCashPayment ? null : header.due_date || null,
       entry_type: header.entry_type,
-      payee_type: isCashPayment ? header.payee_type : "SUPPLIER" as ExpensePayeeType,
+      payee_type: isCashPayment ? header.payee_type : ("SUPPLIER" as ExpensePayeeType),
       payee_name: isCashPayment ? header.payee_name || null : selectedSupplier?.name || null,
       supplier_id: isCashPayment
-        ? header.payee_type === "SUPPLIER" ? header.supplier_id || null : null
+        ? header.payee_type === "SUPPLIER"
+          ? header.supplier_id || null
+          : null
         : header.supplier_id || null,
-      employee_id: isCashPayment && header.payee_type === "EMPLOYEE" ? header.employee_id || null : null,
+      employee_id:
+        isCashPayment && header.payee_type === "EMPLOYEE" ? header.employee_id || null : null,
       warehouse_id: header.warehouse_id || null,
       cost_center_id: header.cost_center_id || null,
       project_id: header.project_id || null,
@@ -418,24 +425,34 @@ export function ExpenseFormDialog({
       icon={<Receipt className="size-5 text-primary" />}
       eyebrow={
         isEditing
-          ? ar ? "تعديل المصروف" : "Edit Expense"
+          ? ar
+            ? "تعديل المصروف"
+            : "Edit Expense"
           : opMode === "CASH_PAYMENT"
-            ? ar ? "سند صرف نقدي / بنكي" : "Cash Payment Voucher"
-            : ar ? "فاتورة مصروف آجل" : "Accrual Expense Bill"
+            ? ar
+              ? "سند صرف نقدي / بنكي"
+              : "Cash Payment Voucher"
+            : ar
+              ? "فاتورة مصروف آجل"
+              : "Accrual Expense Bill"
       }
       title={isEditing ? editing?.entry.reference : ar ? "توثيق حركة المصروف" : "Record Expense"}
       subtitle={
         opMode === "CASH_PAYMENT"
-          ? ar ? "صرف نقدي فوري مباشر من الصندوق أو البنك وتوليد القيد الآلي" : "Direct cash/bank disbursement"
-          : ar ? "إثبات استحقاق مصروف آجل كالتزام على المنشأة يُسدد لاحقاً" : "Accrued bill to be settled later"
+          ? ar
+            ? "صرف نقدي فوري مباشر من الصندوق أو البنك وتوليد القيد الآلي"
+            : "Direct cash/bank disbursement"
+          : ar
+            ? "إثبات استحقاق مصروف آجل كالتزام على المنشأة يُسدد لاحقاً"
+            : "Accrued bill to be settled later"
       }
       footer={
         <div className="flex w-full flex-wrap items-center justify-between gap-3">
           <div className="flex items-baseline gap-2">
-            <span className="text-xs text-muted-foreground">{ar ? "إجمالي المبلغ:" : "Total Amount:"}</span>
-            <span className="font-mono text-xl font-black text-primary">
-              {money(numAmount)}
+            <span className="text-xs text-muted-foreground">
+              {ar ? "إجمالي المبلغ:" : "Total Amount:"}
             </span>
+            <span className="font-mono text-xl font-black text-primary">{money(numAmount)}</span>
           </div>
 
           <div className="flex items-center gap-2">
@@ -468,10 +485,16 @@ export function ExpenseFormDialog({
             >
               <Sparkles className="size-4 me-1.5" />
               {isEditing
-                ? ar ? "حفظ التعديلات" : "Save Changes"
+                ? ar
+                  ? "حفظ التعديلات"
+                  : "Save Changes"
                 : opMode === "CASH_PAYMENT"
-                  ? ar ? "صرف وسداد المصروف نقداً" : "Disburse & Settle"
-                  : ar ? "إثبات استحقاق المصروف الآجل" : "Record Accrual Bill"}
+                  ? ar
+                    ? "صرف وسداد المصروف نقداً"
+                    : "Disburse & Settle"
+                  : ar
+                    ? "إثبات استحقاق المصروف الآجل"
+                    : "Record Accrual Bill"}
             </Button>
           </div>
         </div>
@@ -490,11 +513,11 @@ export function ExpenseFormDialog({
             }}
             items={[
               {
-                id: "CASH_PAYMENT",
+                value: "CASH_PAYMENT",
                 label: ar ? "💵 سند صرف نقدي / بنكي (سداد فوري)" : "Cash / Bank Payment",
               },
               {
-                id: "ACCRUAL_INVOICE",
+                value: "ACCRUAL_INVOICE",
                 label: ar ? "📑 فاتورة مصروف آجل (استحقاق للمورد)" : "Accrued Bill (Pay Later)",
               },
             ]}
@@ -555,9 +578,7 @@ export function ExpenseFormDialog({
               <span className="block text-[11px] font-medium text-muted-foreground">
                 {ar ? "قيمة المصروف" : "Expense Amount"}
               </span>
-              <span className="font-mono text-2xl font-black text-primary">
-                {money(numAmount)}
-              </span>
+              <span className="font-mono text-2xl font-black text-primary">{money(numAmount)}</span>
             </div>
           </div>
         </div>
@@ -612,7 +633,7 @@ export function ExpenseFormDialog({
                 <option value="">{ar ? "اختر التصنيف المعتمد…" : "Select category…"}</option>
                 {(lookups?.categories ?? []).map((cat) => (
                   <option key={cat.id} value={cat.id}>
-                    {cat.code ? `[${cat.code}] ` : ""}
+                    {(cat as any).code ? `[${(cat as any).code}] ` : ""}
                     {ar ? cat.name_ar || cat.name : cat.name}
                   </option>
                 ))}
@@ -684,7 +705,11 @@ export function ExpenseFormDialog({
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                 {[
                   { id: "cash", label: ar ? "نقدًا (الصندوق 1101)" : "Cash (1101)", icon: Coins },
-                  { id: "bank_transfer", label: ar ? "تحويل بنكي (1111)" : "Bank Transfer", icon: Landmark },
+                  {
+                    id: "bank_transfer",
+                    label: ar ? "تحويل بنكي (1111)" : "Bank Transfer",
+                    icon: Landmark,
+                  },
                   { id: "mobile_money", label: ar ? "محفظة إلكترونية" : "E-Wallet", icon: Wallet },
                   { id: "card", label: ar ? "بطاقة / شبكة" : "Card", icon: CreditCard },
                 ].map((item) => {
@@ -725,7 +750,9 @@ export function ExpenseFormDialog({
                     }}
                     className={cn(selectClass, "h-9 text-xs")}
                   >
-                    <option value="">{ar ? "— الصندوق الرئيسي الافتراضي (حـ/ 1101) —" : "— Default Cash (1101) —"}</option>
+                    <option value="">
+                      {ar ? "— الصندوق الرئيسي الافتراضي (حـ/ 1101) —" : "— Default Cash (1101) —"}
+                    </option>
                     {(lookups?.financial_accounts ?? []).map((acct) => (
                       <option key={acct.id} value={acct.id}>
                         {acct.code} — {acct.name_ar}
@@ -756,12 +783,20 @@ export function ExpenseFormDialog({
                     )}
                   >
                     {type === "NONE"
-                      ? ar ? "عام (صرف مباشر)" : "General"
+                      ? ar
+                        ? "عام (صرف مباشر)"
+                        : "General"
                       : type === "EMPLOYEE"
-                        ? ar ? "موظف / عامل" : "Employee"
+                        ? ar
+                          ? "موظف / عامل"
+                          : "Employee"
                         : type === "SUPPLIER"
-                          ? ar ? "مورد" : "Supplier"
-                          : ar ? "جهة أخرى" : "Other"}
+                          ? ar
+                            ? "مورد"
+                            : "Supplier"
+                          : ar
+                            ? "جهة أخرى"
+                            : "Other"}
                   </button>
                 ))}
               </div>
@@ -888,7 +923,9 @@ export function ExpenseFormDialog({
           >
             <span className="flex items-center gap-2">
               <Landmark className="size-3.5 text-muted-foreground" />
-              {ar ? "خيارات محاسبية إضافية (المستودع، مركز التكلفة، الملاحظات)" : "Additional Dimensions"}
+              {ar
+                ? "خيارات محاسبية إضافية (المستودع، مركز التكلفة، الملاحظات)"
+                : "Additional Dimensions"}
             </span>
             <ChevronDown
               className={cn("size-4 transition-transform", showAdvanced && "rotate-180")}

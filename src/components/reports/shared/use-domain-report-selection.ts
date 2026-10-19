@@ -38,9 +38,7 @@ export function useDomainReportSelection(domain: ReportDomain, defaultReportId: 
       }
     }
 
-    setActiveReportId(
-      definition && definition.domain === domain ? definition.id : defaultReportId,
-    );
+    setActiveReportId(definition && definition.domain === domain ? definition.id : defaultReportId);
   }, [location.searchStr, domain, defaultReportId]);
 
   const selectReport = (reportId: string) => {

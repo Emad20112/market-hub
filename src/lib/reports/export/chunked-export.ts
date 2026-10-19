@@ -130,7 +130,7 @@ export async function generateReportCSVChunked(
     (chunk) => {
       for (const row of chunk) {
         for (const col of rtlCols) {
-          if (col.aggregate === 'sum' || col.aggregate === 'avg') {
+          if (col.aggregate === "sum" || col.aggregate === "avg") {
             aggregateSums.set(
               col.key,
               (aggregateSums.get(col.key) ?? 0) + (Number(row[col.key]) || 0),

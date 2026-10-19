@@ -19,10 +19,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { DataTable, type DataTableColumn, type DataTableSort } from "@/components/ui/data-table";
 import { RecordsToolbar } from "@/components/ui/records-toolbar";
-import {
-  RecordsView,
-  type RecordsViewMode,
-} from "@/components/ui/records-view";
+import { RecordsView, type RecordsViewMode } from "@/components/ui/records-view";
 import { usePersistedViewMode } from "@/hooks/use-persisted-view-mode";
 import { QuickFilterBar, type QuickFilterItem } from "@/components/ui/quick-filter-bar";
 import { PageHeader } from "@/components/page-header";

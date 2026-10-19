@@ -6,21 +6,21 @@
  * اليومية والورديات وإجمالي مبيعات الأصناف بسرعة وكفاءة عالية.
  */
 
-import { getCachedCompanyProfile } from '@/lib/printing/company-profile';
-import type { ReportExportPayload } from './types';
+import { getCachedCompanyProfile } from "@/lib/printing/company-profile";
+import type { ReportExportPayload } from "./types";
 
 function esc(s: unknown): string {
-  return String(s ?? '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
+  return String(s ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
 }
 
 export function generateThermalSlipHtml(payload: ReportExportPayload): string {
-  const { definition, rows, metrics, appliedFilters, currencySymbol = 'ر.س' } = payload;
+  const { definition, rows, metrics, appliedFilters, currencySymbol = "ر.س" } = payload;
   const company = getCachedCompanyProfile();
 
-  const from = appliedFilters.startDate || 'اليوم';
+  const from = appliedFilters.startDate || "اليوم";
   const to = appliedFilters.endDate || from;
 
   // سطور الأصناف المختصرة
@@ -103,12 +103,12 @@ export function generateThermalSlipHtml(payload: ReportExportPayload): string {
 </head>
 <body>
   <div class="center">
-    <div class="title">${esc(company.name || 'Vortex ERP')}</div>
-    ${company.taxNumber ? `<div class="meta">الرقم الضريبي: ${esc(company.taxNumber)}</div>` : ''}
+    <div class="title">${esc(company.name || "Vortex ERP")}</div>
+    ${company.taxNumber ? `<div class="meta">الرقم الضريبي: ${esc(company.taxNumber)}</div>` : ""}
     <div class="divider"></div>
     <div class="subtitle">${esc(definition.titleAr)}</div>
     <div class="meta">الفترة: ${esc(from)} إلى ${esc(to)}</div>
-    <div class="meta">تاريخ الطباعة: ${esc(new Date().toLocaleString('ar-SA'))}</div>
+    <div class="meta">تاريخ الطباعة: ${esc(new Date().toLocaleString("ar-SA"))}</div>
   </div>
 
   <div class="double-divider"></div>
@@ -118,12 +118,12 @@ export function generateThermalSlipHtml(payload: ReportExportPayload): string {
   ${definition.metrics
     .map((m) => {
       const val = metrics[m.key];
-      if (val === undefined || val === null) return '';
+      if (val === undefined || val === null) return "";
       let formatted = String(val);
-      if (m.format === 'money') {
-        formatted = `${Number(val).toLocaleString('en-US', { minimumFractionDigits: 2 })} ${currencySymbol}`;
-      } else if (m.format === 'quantity') {
-        formatted = Number(val).toLocaleString('en-US');
+      if (m.format === "money") {
+        formatted = `${Number(val).toLocaleString("en-US", { minimumFractionDigits: 2 })} ${currencySymbol}`;
+      } else if (m.format === "quantity") {
+        formatted = Number(val).toLocaleString("en-US");
       }
       return `
       <div class="flex-row">
@@ -131,7 +131,7 @@ export function generateThermalSlipHtml(payload: ReportExportPayload): string {
         <span class="mono bold">${formatted}</span>
       </div>`;
     })
-    .join('')}
+    .join("")}
 
   <div class="divider"></div>
 
@@ -147,17 +147,17 @@ export function generateThermalSlipHtml(payload: ReportExportPayload): string {
     <tbody>
       ${topRows
         .map((r) => {
-          const name = r.item_name_ar || r.reference || r.name || '—';
+          const name = r.item_name_ar || r.reference || r.name || "—";
           const qty = r.quantity || r.inbound_quantity || 0;
           const total = r.net_sales || r.total || r.running_balance || 0;
           return `
           <tr>
             <td class="text-right">${esc(name)}</td>
             <td class="text-center mono">${qty}</td>
-            <td class="text-left mono">${Number(total).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+            <td class="text-left mono">${Number(total).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
           </tr>`;
         })
-        .join('')}
+        .join("")}
     </tbody>
   </table>
 
@@ -179,7 +179,7 @@ export function generateThermalSlipHtml(payload: ReportExportPayload): string {
 
 export function printThermalSlipDocument(payload: ReportExportPayload): void {
   const html = generateThermalSlipHtml(payload);
-  const printWindow = window.open('', '_blank');
+  const printWindow = window.open("", "_blank");
   if (printWindow) {
     printWindow.document.open();
     printWindow.document.write(html);

@@ -7,7 +7,15 @@ import { Link } from "@tanstack/react-router";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 export function ThemePaletteQuickSwitcher() {
-  const { theme, accentTheme, setAccentTheme, customColor, setCustomColor, colorArchive, addToArchive } = useTheme();
+  const {
+    theme,
+    accentTheme,
+    setAccentTheme,
+    customColor,
+    setCustomColor,
+    colorArchive,
+    addToArchive,
+  } = useTheme();
   const { lang } = useI18n();
   const isAr = lang === "ar";
   const [isOpen, setIsOpen] = useState(false);
@@ -48,7 +56,9 @@ export function ThemePaletteQuickSwitcher() {
                 {isAr ? "ثيمات وألوان النظام" : "System Color Themes"}
               </h4>
               <p className="text-[10px] text-muted-foreground">
-                {isAr ? "اختر نمطاً تنفيذياً أو لوناً مخصصاً" : "Select an executive preset or custom hue"}
+                {isAr
+                  ? "اختر نمطاً تنفيذياً أو لوناً مخصصاً"
+                  : "Select an executive preset or custom hue"}
               </p>
             </div>
           </div>
@@ -89,8 +99,7 @@ export function ThemePaletteQuickSwitcher() {
                   <div
                     className="h-6 w-6 rounded-full flex items-center justify-center shadow-xs transition-transform group-hover:scale-105"
                     style={{
-                      backgroundColor:
-                        theme === "dark" ? item.dark.primary : item.light.primary,
+                      backgroundColor: theme === "dark" ? item.dark.primary : item.light.primary,
                     }}
                   >
                     {isActive && <Check className="h-3 w-3 text-white stroke-[3]" />}
@@ -192,7 +201,8 @@ export function ThemePaletteQuickSwitcher() {
                     setAccentTheme("custom");
                   }}
                   className={`h-5 w-5 rounded-md border shadow-2xs transition-transform hover:scale-125 ${
-                    accentTheme === "custom" && customColor.toUpperCase() === swatch.hex.toUpperCase()
+                    accentTheme === "custom" &&
+                    customColor.toUpperCase() === swatch.hex.toUpperCase()
                       ? "border-foreground ring-2 ring-primary scale-110"
                       : "border-border/60"
                   }`}

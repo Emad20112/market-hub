@@ -558,10 +558,22 @@ export function PurchaseFormSheet({
                                 ? "bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30"
                                 : "bg-muted text-muted-foreground hover:text-foreground"
                             }`}
-                            title={isAr ? "التبديل بين الشراء بالأكياس والشراء المباشر" : "Toggle buy by bags / direct"}
+                            title={
+                              isAr
+                                ? "التبديل بين الشراء بالأكياس والشراء المباشر"
+                                : "Toggle buy by bags / direct"
+                            }
                           >
                             <Package className="h-3 w-3" />
-                            <span>{l.buy_by_bags ? (isAr ? "بالأكياس" : "By Bags") : (isAr ? "مباشر" : "Direct")}</span>
+                            <span>
+                              {l.buy_by_bags
+                                ? isAr
+                                  ? "بالأكياس"
+                                  : "By Bags"
+                                : isAr
+                                  ? "مباشر"
+                                  : "Direct"}
+                            </span>
                           </button>
                         </div>
                         <button
@@ -587,7 +599,10 @@ export function PurchaseFormSheet({
                                   onClick={() => {
                                     const nextBags = Math.max(1, (l.bags_count ?? 1) - 1);
                                     const cap = l.package_weight_kg || 50;
-                                    updateLine(l.product_id, { bags_count: nextBags, quantity: nextBags * cap });
+                                    updateLine(l.product_id, {
+                                      bags_count: nextBags,
+                                      quantity: nextBags * cap,
+                                    });
                                   }}
                                   aria-label="-"
                                   className="grid size-7 shrink-0 place-items-center rounded-lg border-border text-muted-foreground transition hover:bg-muted hover:text-foreground"
@@ -601,7 +616,10 @@ export function PurchaseFormSheet({
                                   onValueChange={(v) => {
                                     const nextBags = Number(v ?? 0);
                                     const cap = l.package_weight_kg || 50;
-                                    updateLine(l.product_id, { bags_count: nextBags, quantity: nextBags * cap });
+                                    updateLine(l.product_id, {
+                                      bags_count: nextBags,
+                                      quantity: nextBags * cap,
+                                    });
                                   }}
                                 />
                                 <button
@@ -609,7 +627,10 @@ export function PurchaseFormSheet({
                                   onClick={() => {
                                     const nextBags = (l.bags_count ?? 1) + 1;
                                     const cap = l.package_weight_kg || 50;
-                                    updateLine(l.product_id, { bags_count: nextBags, quantity: nextBags * cap });
+                                    updateLine(l.product_id, {
+                                      bags_count: nextBags,
+                                      quantity: nextBags * cap,
+                                    });
                                   }}
                                   aria-label="+"
                                   className="grid size-7 shrink-0 place-items-center rounded-lg border-border text-muted-foreground transition hover:bg-muted hover:text-foreground"
@@ -630,7 +651,7 @@ export function PurchaseFormSheet({
                                 onValueChange={(v) => {
                                   const cap = Number(v ?? 0);
                                   const bags = l.bags_count ?? 1;
-                                  const bagCost = l.bag_cost ?? (l.unit_cost * cap);
+                                  const bagCost = l.bag_cost ?? l.unit_cost * cap;
                                   updateLine(l.product_id, {
                                     package_weight_kg: cap,
                                     quantity: bags * cap,
@@ -647,7 +668,7 @@ export function PurchaseFormSheet({
                               <NumberInput
                                 decimal
                                 className="text-end"
-                                value={l.bag_cost ?? (l.unit_cost * (l.package_weight_kg || 50))}
+                                value={l.bag_cost ?? l.unit_cost * (l.package_weight_kg || 50)}
                                 onValueChange={(v) => {
                                   const bagCost = Number(v ?? 0);
                                   const cap = l.package_weight_kg || 50;
@@ -662,8 +683,13 @@ export function PurchaseFormSheet({
 
                           <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-surface-2/60 px-2 py-1 text-[11px] text-muted-foreground">
                             <span>
-                              الوزن الإجمالي: <strong className="text-foreground">{l.quantity} كجم</strong> (تكلفة الكيلو:{" "}
-                              <strong className="text-foreground font-mono">{money(l.unit_cost)}</strong>)
+                              الوزن الإجمالي:{" "}
+                              <strong className="text-foreground">{l.quantity} كجم</strong> (تكلفة
+                              الكيلو:{" "}
+                              <strong className="text-foreground font-mono">
+                                {money(l.unit_cost)}
+                              </strong>
+                              )
                             </span>
                             <span className="font-mono font-bold text-foreground">
                               {money(l.unit_cost * l.quantity)}
@@ -680,7 +706,9 @@ export function PurchaseFormSheet({
                               <div className="flex items-center gap-1">
                                 <button
                                   type="button"
-                                  onClick={() => updateLine(l.product_id, { quantity: l.quantity - 1 })}
+                                  onClick={() =>
+                                    updateLine(l.product_id, { quantity: l.quantity - 1 })
+                                  }
                                   aria-label="-"
                                   className="grid size-7 shrink-0 place-items-center rounded-lg border-border text-muted-foreground transition hover:bg-muted hover:text-foreground"
                                 >
@@ -696,7 +724,9 @@ export function PurchaseFormSheet({
                                 />
                                 <button
                                   type="button"
-                                  onClick={() => updateLine(l.product_id, { quantity: l.quantity + 1 })}
+                                  onClick={() =>
+                                    updateLine(l.product_id, { quantity: l.quantity + 1 })
+                                  }
                                   aria-label="+"
                                   className="grid size-7 shrink-0 place-items-center rounded-lg border-border text-muted-foreground transition hover:bg-muted hover:text-foreground"
                                 >

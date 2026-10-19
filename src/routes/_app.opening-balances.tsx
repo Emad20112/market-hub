@@ -190,7 +190,10 @@ export function OpeningBalancesPage() {
   );
 
   const post = useMutation(
-    run<void, string>(async (id) => postOpeningDocument(id), "تم ترحيل القيد الافتتاحي بنجاح إلى دفتر الأستاذ والمخازن"),
+    run<void, string>(
+      async (id) => postOpeningDocument(id),
+      "تم ترحيل القيد الافتتاحي بنجاح إلى دفتر الأستاذ والمخازن",
+    ),
   );
 
   const reverse = useMutation(
@@ -298,7 +301,9 @@ export function OpeningBalancesPage() {
   const relevantAccounts = useMemo(() => {
     if (!accounts.data) return [];
     if (section === "BANK") {
-      return accounts.data.filter((a) => a.code.startsWith("111") || a.code.startsWith("112") || a.code.startsWith("113"));
+      return accounts.data.filter(
+        (a) => a.code.startsWith("111") || a.code.startsWith("112") || a.code.startsWith("113"),
+      );
     }
     if (section === "ASSET") {
       return accounts.data.filter((a) => a.code.startsWith("14"));
@@ -542,13 +547,26 @@ export function OpeningBalancesPage() {
                 {Number(qty) > 0 && (
                   <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-surface/80 p-2.5 text-xs text-muted-foreground border border-border/60">
                     <span>
-                      إجمالي الوزن المخزني: <strong className="text-foreground"><Mono>{qty}</Mono> كجم</strong>
+                      إجمالي الوزن المخزني:{" "}
+                      <strong className="text-foreground">
+                        <Mono>{qty}</Mono> كجم
+                      </strong>
                       {unitCost && (
-                        <span> (تكلفة الكيلو: <strong className="text-foreground"><Mono>{unitCost}</Mono></strong>)</span>
+                        <span>
+                          {" "}
+                          (تكلفة الكيلو:{" "}
+                          <strong className="text-foreground">
+                            <Mono>{unitCost}</Mono>
+                          </strong>
+                          )
+                        </span>
                       )}
                     </span>
                     <span>
-                      القيمة الإجمالية: <strong className="text-primary font-mono text-sm">{yer(Number(amount))}</strong>
+                      القيمة الإجمالية:{" "}
+                      <strong className="text-primary font-mono text-sm">
+                        {yer(Number(amount))}
+                      </strong>
                     </span>
                   </div>
                 )}
@@ -668,7 +686,9 @@ export function OpeningBalancesPage() {
                     title="إضافة بند رأس المال لموازنة القيد فوراً"
                   >
                     <Sparkles className="h-3.5 w-3.5 text-amber-500" />
-                    <span>⚡ موازنة القيد آلياً برأس المال (حـ/ 3111: {yer(Math.abs(draftTotals.diff))})</span>
+                    <span>
+                      ⚡ موازنة القيد آلياً برأس المال (حـ/ 3111: {yer(Math.abs(draftTotals.diff))})
+                    </span>
                   </button>
                 )}
               </div>
@@ -686,7 +706,9 @@ export function OpeningBalancesPage() {
                   </thead>
                   <tbody className="divide-y divide-border/50">
                     {draft.map((l, i) => {
-                      const isDebit = ["STOCK", "RECEIVABLE", "CASH", "BANK", "ASSET"].includes(l.section);
+                      const isDebit = ["STOCK", "RECEIVABLE", "CASH", "BANK", "ASSET"].includes(
+                        l.section,
+                      );
                       return (
                         <tr key={i} className="hover:bg-muted/30 transition">
                           <td className="p-3">
@@ -698,7 +720,8 @@ export function OpeningBalancesPage() {
                                   : "bg-rose-500/15 text-rose-700 dark:text-rose-300",
                               )}
                             >
-                              {OPENING_SECTIONS.find((s) => s.value === l.section)?.label} ({isDebit ? "مدين" : "دائن"})
+                              {OPENING_SECTIONS.find((s) => s.value === l.section)?.label} (
+                              {isDebit ? "مدين" : "دائن"})
                             </span>
                           </td>
                           <td className="p-3 font-mono text-muted-foreground">
@@ -731,23 +754,31 @@ export function OpeningBalancesPage() {
               {/* بطاقة ملخص توازن القيد */}
               <div className="grid gap-3 rounded-2xl border border-border/80 bg-surface/70 p-4 sm:grid-cols-4 items-center">
                 <div>
-                  <span className="text-[11px] text-muted-foreground block">إجمالي المدين (الأصول)</span>
+                  <span className="text-[11px] text-muted-foreground block">
+                    إجمالي المدين (الأصول)
+                  </span>
                   <Mono className="text-base font-bold text-emerald-600 dark:text-emerald-400">
                     {yer(draftTotals.debit)}
                   </Mono>
                 </div>
                 <div>
-                  <span className="text-[11px] text-muted-foreground block">إجمالي الدائن (الخصوم والالتزامات)</span>
+                  <span className="text-[11px] text-muted-foreground block">
+                    إجمالي الدائن (الخصوم والالتزامات)
+                  </span>
                   <Mono className="text-base font-bold text-foreground">
                     {yer(draftTotals.credit)}
                   </Mono>
                 </div>
                 <div>
-                  <span className="text-[11px] text-muted-foreground block">فرق التوازن الحسابي</span>
+                  <span className="text-[11px] text-muted-foreground block">
+                    فرق التوازن الحسابي
+                  </span>
                   <Mono
                     className={cn(
                       "text-base font-bold",
-                      draftTotals.diff === 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600",
+                      draftTotals.diff === 0
+                        ? "text-emerald-600 dark:text-emerald-400"
+                        : "text-rose-600",
                     )}
                   >
                     {draftTotals.diff === 0 ? "✓ متوازن تماماً" : yer(draftTotals.diff)}
@@ -795,9 +826,14 @@ export function OpeningBalancesPage() {
           </div>
 
           {documents.isLoading ? (
-            <p className="p-8 text-center text-xs text-muted-foreground">جارٍ تحميل القيود الافتتاحية…</p>
+            <p className="p-8 text-center text-xs text-muted-foreground">
+              جارٍ تحميل القيود الافتتاحية…
+            </p>
           ) : !documents.data?.length ? (
-            <MillingEmpty title="لا توجد قيود افتتاحية مسجلة" hint="سجل قيدك الافتتاحي الأول من النموذج أعلاه." />
+            <MillingEmpty
+              title="لا توجد قيود افتتاحية مسجلة"
+              hint="سجل قيدك الافتتاحي الأول من النموذج أعلاه."
+            />
           ) : (
             <div className="overflow-x-auto p-4">
               <table className="w-full text-xs">
@@ -822,7 +858,9 @@ export function OpeningBalancesPage() {
                         d.id === selectedId && "bg-muted/60",
                       )}
                     >
-                      <td className="p-3 font-bold font-mono text-foreground">{d.document_number}</td>
+                      <td className="p-3 font-bold font-mono text-foreground">
+                        {d.document_number}
+                      </td>
                       <td className="p-3 text-muted-foreground">{d.effective_date}</td>
                       <td className="p-3">
                         <Pill
@@ -834,7 +872,11 @@ export function OpeningBalancesPage() {
                                 : "amber"
                           }
                         >
-                          {d.status === "POSTED" ? "مرحَّل" : d.status === "REVERSED" ? "معكوس" : "مسودة"}
+                          {d.status === "POSTED"
+                            ? "مرحَّل"
+                            : d.status === "REVERSED"
+                              ? "معكوس"
+                              : "مسودة"}
                         </Pill>
                       </td>
                       <td className="p-3 text-end font-mono font-bold text-foreground">
@@ -859,7 +901,9 @@ export function OpeningBalancesPage() {
                             onClick={() => post.mutate(d.id)}
                             disabled={!d.is_balanced || post.isPending}
                             className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white shadow-xs transition hover:bg-emerald-700 disabled:opacity-30 disabled:cursor-not-allowed"
-                            title={d.is_balanced ? "ترحيل إلى الأستاذ والمخازن" : "القيد غير متوازن"}
+                            title={
+                              d.is_balanced ? "ترحيل إلى الأستاذ والمخازن" : "القيد غير متوازن"
+                            }
                           >
                             ترحيل
                           </button>
@@ -897,7 +941,9 @@ export function OpeningBalancesPage() {
             </div>
 
             {lines.isLoading ? (
-              <p className="p-6 text-center text-xs text-muted-foreground">جارٍ تحميل بنود المستند…</p>
+              <p className="p-6 text-center text-xs text-muted-foreground">
+                جارٍ تحميل بنود المستند…
+              </p>
             ) : !lines.data?.length ? (
               <MillingEmpty title="لا توجد بنود لهذا المستند" hint="" />
             ) : (
@@ -941,7 +987,11 @@ export function OpeningBalancesPage() {
 
         {/* بطاقات الإحصاء السفلية */}
         <div className="grid gap-3 sm:grid-cols-3">
-          <StatTile title="إجمالي القيود الافتتاحية" value={documents.data?.length ?? 0} tone="sky" />
+          <StatTile
+            title="إجمالي القيود الافتتاحية"
+            value={documents.data?.length ?? 0}
+            tone="sky"
+          />
           <StatTile
             title="قيود مرحَّلة نهائياً"
             value={(documents.data ?? []).filter((d) => d.status === "POSTED").length}
@@ -949,7 +999,9 @@ export function OpeningBalancesPage() {
           />
           <StatTile
             title="مسودات قيد غير متوازنة"
-            value={(documents.data ?? []).filter((d) => d.status === "DRAFT" && !d.is_balanced).length}
+            value={
+              (documents.data ?? []).filter((d) => d.status === "DRAFT" && !d.is_balanced).length
+            }
             tone="amber"
           />
         </div>

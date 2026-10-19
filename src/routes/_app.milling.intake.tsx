@@ -35,6 +35,7 @@ import { PageHeader } from "@/components/page-header";
 import { ModuleGuard } from "@/lib/modules";
 import { CustomerFormDialog } from "@/components/contacts/customer-form-dialog";
 import { LuxuryPrintPreviewModal } from "@/components/luxury-print-preview-modal";
+import { UnifiedPrintModal } from "@/components/milling/unified-print-modal";
 import { DocumentShareDialog } from "@/components/communication/document-share-dialog";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -1013,16 +1014,14 @@ function MillingIntakePage() {
           </MillingPanel>
         </div>
 
-        {/* نافذة الطباعة الفاخرة الموحدة */}
-        {printDoc && (
-          <LuxuryPrintPreviewModal
+        {/* قالب فاتورة وإيصال المطحنة الأنيق المعتمد والمطابق لقالب الاستلام السريع */}
+        {(activeDetails || printDoc) && (
+          <UnifiedPrintModal
             open={printModalOpen}
             onClose={() => setPrintModalOpen(false)}
+            details={activeDetails}
             doc={printDoc}
-            documentType="customer_invoice"
-            title="معاينة وطباعة فاتورة أجور الاستلام"
-            customerName={selectedCustomer?.name || activeDetails?.customers?.name}
-            customerPhone={selectedCustomer?.phone || activeDetails?.customers?.phone}
+            stage="intake"
           />
         )}
 

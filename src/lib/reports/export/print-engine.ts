@@ -8,46 +8,46 @@
  * 3. movement: كشف الحركات المتسلسلة مع الرصيد الافتتاحي واللحظي ومساحات التوقيع
  */
 
-import { getCachedCompanyProfile } from '@/lib/printing/company-profile';
-import type { ReportExportPayload } from './types';
-import type { ReportColumnDefinition } from '../types';
+import { getCachedCompanyProfile } from "@/lib/printing/company-profile";
+import type { ReportExportPayload } from "./types";
+import type { ReportColumnDefinition } from "../types";
 
 function esc(s: unknown): string {
-  return String(s ?? '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#039;');
+  return String(s ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
 }
 
 export function generateReportPrintHtml(
   payload: ReportExportPayload,
-  templateType: 'summary' | 'detailed' | 'movement' = 'detailed'
+  templateType: "summary" | "detailed" | "movement" = "detailed",
 ): string {
-  const { definition, rows, metrics, appliedFilters, currencySymbol = 'ر.س' } = payload;
+  const { definition, rows, metrics, appliedFilters, currencySymbol = "ر.س" } = payload;
   const company = getCachedCompanyProfile();
 
   const exportableCols: ReportColumnDefinition[] = definition.columns.filter(
-    (c) => c.exportable !== false
+    (c) => c.exportable !== false,
   );
 
   // تنسيق قيم الخلايا في الطباعة
   const formatPrintCell = (val: any, col: ReportColumnDefinition): string => {
-    if (val === undefined || val === null || val === '') return '—';
-    if (col.dataType === 'money') {
-      return `${Number(val || 0).toLocaleString('en-US', {
+    if (val === undefined || val === null || val === "") return "—";
+    if (col.dataType === "money") {
+      return `${Number(val || 0).toLocaleString("en-US", {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2,
       })} <small class="unit">${col.unit || currencySymbol}</small>`;
     }
-    if (col.dataType === 'quantity') {
-      return Number(val || 0).toLocaleString('en-US', {
+    if (col.dataType === "quantity") {
+      return Number(val || 0).toLocaleString("en-US", {
         minimumFractionDigits: 0,
         maximumFractionDigits: 3,
       });
     }
-    if (col.dataType === 'percentage') {
+    if (col.dataType === "percentage") {
       return `${Number(val || 0).toFixed(2)}%`;
     }
     return esc(val);
@@ -57,31 +57,41 @@ export function generateReportPrintHtml(
   const tableRowsHtml = rows
     .map(
       (row, idx) => `
-    <tr class="${idx % 2 === 1 ? 'even' : ''}">
+    <tr class="${idx % 2 === 1 ? "even" : ""}">
       ${exportableCols
         .map((col) => {
-          const align = col.align === 'left' ? 'text-left mono' : col.align === 'center' ? 'text-center' : 'text-right';
+          const align =
+            col.align === "left"
+              ? "text-left mono"
+              : col.align === "center"
+                ? "text-center"
+                : "text-right";
           return `<td class="${align}">${formatPrintCell(row[col.key], col)}</td>`;
         })
-        .join('')}
-    </tr>`
+        .join("")}
+    </tr>`,
     )
-    .join('');
+    .join("");
 
   // سطر الإجماليات
-  const hasAggregates = exportableCols.some((c) => c.aggregate && c.aggregate !== 'none');
-  let totalsRowHtml = '';
+  const hasAggregates = exportableCols.some((c) => c.aggregate && c.aggregate !== "none");
+  let totalsRowHtml = "";
   if (hasAggregates && rows.length > 0) {
     totalsRowHtml = `
     <tr class="totals-row">
       ${exportableCols
         .map((col, idx) => {
-          const align = col.align === 'left' ? 'text-left mono' : col.align === 'center' ? 'text-center' : 'text-right';
-          if (col.aggregate === 'sum') {
+          const align =
+            col.align === "left"
+              ? "text-left mono"
+              : col.align === "center"
+                ? "text-center"
+                : "text-right";
+          if (col.aggregate === "sum") {
             const sum = rows.reduce((acc, r) => acc + (Number(r[col.key]) || 0), 0);
-            return `<td class="${align}">${Number(sum.toFixed(2)).toLocaleString('en-US')} <small class="unit">${col.unit || currencySymbol}</small></td>`;
+            return `<td class="${align}">${Number(sum.toFixed(2)).toLocaleString("en-US")} <small class="unit">${col.unit || currencySymbol}</small></td>`;
           }
-          if (col.aggregate === 'count') {
+          if (col.aggregate === "count") {
             return `<td class="${align}">${rows.length}</td>`;
           }
           if (idx === 0) {
@@ -89,28 +99,28 @@ export function generateReportPrintHtml(
           }
           return `<td></td>`;
         })
-        .join('')}
+        .join("")}
     </tr>`;
   }
 
   // بطاقات المؤشرات (Metrics Cards)
-  let metricsDeckHtml = '';
+  let metricsDeckHtml = "";
   if (definition.metrics.length > 0) {
     metricsDeckHtml = `
     <div class="metrics-deck">
       ${definition.metrics
         .map((m) => {
           const val = metrics[m.key];
-          let formattedVal = '—';
+          let formattedVal = "—";
           if (val !== undefined && val !== null) {
-            if (m.format === 'money') {
-              formattedVal = `${Number(val).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${currencySymbol}`;
-            } else if (m.format === 'quantity') {
-              formattedVal = Number(val).toLocaleString('en-US', { maximumFractionDigits: 3 });
-            } else if (m.format === 'percentage') {
+            if (m.format === "money") {
+              formattedVal = `${Number(val).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${currencySymbol}`;
+            } else if (m.format === "quantity") {
+              formattedVal = Number(val).toLocaleString("en-US", { maximumFractionDigits: 3 });
+            } else if (m.format === "percentage") {
               formattedVal = `${Number(val).toFixed(2)}%`;
             } else {
-              formattedVal = Number(val).toLocaleString('en-US');
+              formattedVal = Number(val).toLocaleString("en-US");
             }
           }
           return `
@@ -119,30 +129,30 @@ export function generateReportPrintHtml(
             <div class="metric-value mono">${formattedVal}</div>
           </div>`;
         })
-        .join('')}
+        .join("")}
     </div>`;
   }
 
   // مربع الرصيد الافتتاحي والختامي لكشف الحركات (Movement Template)
-  let movementHeaderHtml = '';
-  if (templateType === 'movement') {
+  let movementHeaderHtml = "";
+  if (templateType === "movement") {
     movementHeaderHtml = `
     <div class="movement-balance-box">
       <div class="balance-item">
         <span class="label">الرصيد الافتتاحي:</span>
-        <span class="val mono">${Number(metrics.openingBalance || 0).toLocaleString('en-US', { maximumFractionDigits: 3 })}</span>
+        <span class="val mono">${Number(metrics.openingBalance || 0).toLocaleString("en-US", { maximumFractionDigits: 3 })}</span>
       </div>
       <div class="balance-item in">
         <span class="label">إجمالي الوارد (+):</span>
-        <span class="val mono">${Number(metrics.totalInbound || 0).toLocaleString('en-US', { maximumFractionDigits: 3 })}</span>
+        <span class="val mono">${Number(metrics.totalInbound || 0).toLocaleString("en-US", { maximumFractionDigits: 3 })}</span>
       </div>
       <div class="balance-item out">
         <span class="label">إجمالي الصادر (-):</span>
-        <span class="val mono">${Number(metrics.totalOutbound || 0).toLocaleString('en-US', { maximumFractionDigits: 3 })}</span>
+        <span class="val mono">${Number(metrics.totalOutbound || 0).toLocaleString("en-US", { maximumFractionDigits: 3 })}</span>
       </div>
       <div class="balance-item closing">
         <span class="label">الرصيد الختامي:</span>
-        <span class="val mono bold">${Number(metrics.closingBalance || 0).toLocaleString('en-US', { maximumFractionDigits: 3 })}</span>
+        <span class="val mono bold">${Number(metrics.closingBalance || 0).toLocaleString("en-US", { maximumFractionDigits: 3 })}</span>
       </div>
     </div>`;
   }
@@ -151,7 +161,7 @@ export function generateReportPrintHtml(
 <html lang="ar" dir="rtl">
 <head>
   <meta charset="utf-8">
-  <title>${esc(definition.titleAr)} - ${esc(company.name || 'Vortex ERP')}</title>
+  <title>${esc(definition.titleAr)} - ${esc(company.name || "Vortex ERP")}</title>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Cairo:wght@400;600;700;800&family=IBM+Plex+Mono:wght@500;700&display=swap');
 
@@ -368,14 +378,14 @@ export function generateReportPrintHtml(
     <!-- ترويسة المنشأة -->
     <div class="company-header">
       <div class="company-info">
-        <h1>${esc(company.name || 'Vortex ERP')}</h1>
-        <div class="meta">${esc(company.taxNumber ? `الرقم الضريبي: ${company.taxNumber}` : '')} ${esc(company.phone ? `· هاتف: ${company.phone}` : '')}</div>
-        <div class="meta">${esc(company.address || '')}</div>
+        <h1>${esc(company.name || "Vortex ERP")}</h1>
+        <div class="meta">${esc(company.taxNumber ? `الرقم الضريبي: ${company.taxNumber}` : "")} ${esc(company.phone ? `· هاتف: ${company.phone}` : "")}</div>
+        <div class="meta">${esc(company.address || "")}</div>
       </div>
       <div class="report-title-box">
         <h2>${esc(definition.titleAr)}</h2>
-        <div class="period">الفترة: ${esc(appliedFilters.startDate || 'البداية')} إلى ${esc(appliedFilters.endDate || 'الآن')}</div>
-        <div style="font-size:8px;color:#94a3b8;margin-top:2px;">تاريخ الطباعة: ${esc(new Date().toLocaleString('ar-SA'))}</div>
+        <div class="period">الفترة: ${esc(appliedFilters.startDate || "البداية")} إلى ${esc(appliedFilters.endDate || "الآن")}</div>
+        <div style="font-size:8px;color:#94a3b8;margin-top:2px;">تاريخ الطباعة: ${esc(new Date().toLocaleString("ar-SA"))}</div>
       </div>
     </div>
 
@@ -386,7 +396,7 @@ export function generateReportPrintHtml(
     <table>
       <thead>
         <tr>
-          ${exportableCols.map((c) => `<th class="${c.align === 'left' ? 'text-left' : c.align === 'center' ? 'text-center' : 'text-right'}">${esc(c.labelAr)}</th>`).join('')}
+          ${exportableCols.map((c) => `<th class="${c.align === "left" ? "text-left" : c.align === "center" ? "text-center" : "text-right"}">${esc(c.labelAr)}</th>`).join("")}
         </tr>
       </thead>
       <tbody>
@@ -429,10 +439,10 @@ export function generateReportPrintHtml(
 
 export function printReportDocument(
   payload: ReportExportPayload,
-  templateType: 'summary' | 'detailed' | 'movement' = 'detailed'
+  templateType: "summary" | "detailed" | "movement" = "detailed",
 ): void {
   const html = generateReportPrintHtml(payload, templateType);
-  const printWindow = window.open('', '_blank');
+  const printWindow = window.open("", "_blank");
   if (printWindow) {
     printWindow.document.open();
     printWindow.document.write(html);
