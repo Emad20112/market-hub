@@ -1197,11 +1197,12 @@ function PurchasePOSPage() {
                 </label>
                 <AmountInput
                   min={0}
-                  showInWords={false}
+                  hideClear
                   value={discount === "" ? null : Number(discount)}
                   onValueChange={(v) => setDiscount(v == null ? "" : String(v))}
                   placeholder={lang === "ar" ? "الخصم" : "Discount"}
                   aria-label={lang === "ar" ? "الخصم" : "Discount"}
+                  wordsClassName="text-[10px] leading-3"
                   containerClassName="[&_input]:h-10 [&_input]:rounded-xl [&_input]:bg-surface [&_input]:text-xs"
                 />
               </div>

@@ -287,10 +287,10 @@ function OpeningBalancesPage() {
                   <div className="mt-1">
                     <AmountInput
                       min={0}
-                      showInWords={false}
                       aria-label="تكلفة الوحدة"
                       value={unitCost === "" ? null : Number(unitCost)}
                       onValueChange={(v) => setUnitCost(v == null ? "" : String(v))}
+                      wordsClassName="text-[10px] leading-3"
                       className="h-8 text-xs"
                     />
                   </div>
@@ -303,7 +303,6 @@ function OpeningBalancesPage() {
               <div className="mt-1">
                 <AmountInput
                   min={0}
-                  showInWords={false}
                   aria-label="المبلغ"
                   value={amount === "" ? null : Number(amount)}
                   onValueChange={(v) => setAmount(v == null ? "" : String(v))}

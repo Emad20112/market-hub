@@ -773,8 +773,11 @@ function MillingIntakePage() {
                   {/* احتساب أجر الكيس × عدد الأكياس */}
                   <div className="grid gap-2.5 sm:grid-cols-2">
                     <MillingField label="أجر طحن الكيس الواحد" hint="سعر خدمة طحن الكيس الواحد">
+                      {/* أجر الكيس سعر وحدة داخل الحساب، والتفقيط يظهر مرة واحدة
+                          تحت إجمالي أجور الخدمة أسفله — لا نكرره في الحقلين. */}
                       <AmountInput
                         min={0}
+                        showInWords={false}
                         placeholder="1000"
                         aria-label="أجر طحن الكيس الواحد"
                         value={feePerBag === "" ? null : Number(feePerBag)}

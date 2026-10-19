@@ -33,6 +33,8 @@ import { money } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { FieldInput } from "@/components/ui/input";
+import { AmountInput } from "@/components/ui/amount-input";
+import { QuantityInput } from "@/components/ui/quantity-input";
 import { VortexDrawerDialog } from "@/components/vortex-ui";
 import { PaymentMethodPicker } from "@/components/ui/payment-method";
 import { useExpenseMutations, type ExpenseLineInput } from "@/hooks/use-expenses";
@@ -608,12 +610,17 @@ export function ExpenseFormDialog({
                       <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
                         {t("common.qty")}
                       </span>
-                      <FieldInput
+                      {/* الكمية المُوحّدة: أرقام في المنتصف، بلا عجلة ماوس، بحد 3 خانات كسر. */}
+                      <QuantityInput
                         size="sm"
-                        type="decimal"
-                        className="mt-1 text-center"
-                        value={line.quantity}
-                        onValueChange={(value) => patchLine(line.key, { quantity: value })}
+                        className="mt-1"
+                        value={toNumberOrNull(line.quantity)}
+                        onValueChange={(value) =>
+                          patchLine(line.key, { quantity: value == null ? "" : String(value) })
+                        }
+                        decimals={3}
+                        min={0}
+                        liveParseDelay={120}
                       />
                     </div>
 
@@ -621,13 +628,17 @@ export function ExpenseFormDialog({
                       <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
                         {t("expenses.field.unit_price")}
                       </span>
-                      <FieldInput
+                      {/* المبلغ المُوحّد: فاصلة آلاف + تفقيط تحت الرقم. */}
+                      <AmountInput
                         size="sm"
-                        type="decimal"
-                        className="mt-1 text-end"
-                        value={line.unit_price}
-                        onValueChange={(value) => patchLine(line.key, { unit_price: value })}
+                        className="mt-1"
+                        min={0}
+                        value={toNumberOrNull(line.unit_price)}
+                        onValueChange={(value) =>
+                          patchLine(line.key, { unit_price: value == null ? "" : String(value) })
+                        }
                         placeholder="0.00"
+                        wordsClassName="text-[10px] leading-3"
                       />
                     </div>
 
@@ -958,6 +969,20 @@ export function ExpenseFormDialog({
 
 const selectClass =
   "h-9 w-full min-w-0 rounded-[12px] border border-input bg-surface/70 px-3 text-sm text-foreground transition focus:border-primary/60 focus:outline-none focus:ring-4 focus:ring-primary/10";
+
+/**
+ * نصوص النموذج محفوظة كسلاسل (كما تأتي من المسودة)، والمكوّنان الموحّدان
+ * يعملان بقيمة `number | null`. هذه الدالة هي جسر التحويل الوحيد بين العالمين:
+ * النص الفارغ يصبح null، وأي نص غير رقمي كذلك بدل أن يصبح NaN.
+ */
+function toNumberOrNull(value: string | number | null | undefined): number | null {
+  if (value == null) return null;
+  if (typeof value === "number") return Number.isFinite(value) ? value : null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  const parsed = Number(trimmed.replace(/,/g, ""));
+  return Number.isFinite(parsed) ? parsed : null;
+}
 
 function Section({
   icon,
