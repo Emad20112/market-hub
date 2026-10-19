@@ -67,6 +67,8 @@ import { printUnifiedDocument, type PrintRequest } from "@/lib/printing";
 import { printInvoice, type InvoiceTemplate } from "@/lib/invoice-print";
 import type { InvoiceDoc } from "@/lib/pdf";
 import { OperationSuccessModal } from "@/components/communication";
+import { PosBatchSelectorModal } from "@/components/batches/pos-batch-selector-modal";
+import { useBatchSettings } from "@/hooks/use-batch-settings";
 import type { CustomerContext, InvoiceContext } from "@/lib/communication";
 
 export const Route = createFileRoute("/_app/pos")({
@@ -96,6 +98,7 @@ interface Product {
   is_service?: boolean | null;
   item_nature?: string | null;
   inventory_policy?: string | null;
+  tracking?: string | null;
   unit?: { short_name: string; name_ar: string | null; name: string } | null;
   category?: { name: string; name_ar: string | null } | null;
   brand?: { name: string; name_ar: string | null } | null;
@@ -114,6 +117,9 @@ interface CartLine {
   is_service?: boolean;
   item_nature?: string;
   inventory_policy?: string;
+  batch_id?: string | null;
+  batch_number?: string | null;
+  expiry_date?: string | null;
 }
 
 interface Warehouse {
@@ -329,6 +335,10 @@ function POSPage() {
   const [transferRef, setTransferRef] = useState("");
   const [saleDate, setSaleDate] = useState(() => new Date().toISOString().slice(0, 10));
 
+  const { settings: batchSettings } = useBatchSettings();
+  const [batchModalOpen, setBatchModalOpen] = useState(false);
+  const [batchPendingProduct, setBatchPendingProduct] = useState<Product | null>(null);
+
   // Mobile workspace: catalogue is never mounted behind the cart on phones.
   const isDesktop = useIsDesktop();
   const [mobilePickerOpen, setMobilePickerOpen] = useState(false);
@@ -529,7 +539,7 @@ function POSPage() {
         supabase.from("customers").select("id,name,phone,balance,credit_limit").order("name"),
         (supabase.from("products") as any)
           .select(
-            "id,sku,barcode,name,name_ar,sale_price,tax_rate,image_url,category_id,brand_id,unit_id,origin_id,quality_grade_id,is_active,is_service,item_nature,inventory_policy",
+            "id,sku,barcode,name,name_ar,sale_price,tax_rate,image_url,category_id,brand_id,unit_id,origin_id,quality_grade_id,is_active,is_service,item_nature,inventory_policy,tracking",
           )
           // خدمة الطحن لا تباع من POS: تحتاج بيانات الاستلام والأكياس والأمانة
           // الموجودة حصراً في كاونتر المطحنة. تظل الخدمة الحرة في زرها المخصص.
@@ -814,31 +824,20 @@ function POSPage() {
     catalogConfig,
   ]);
 
-  function addToCart(p: Product) {
+  function addToCart(
+    p: Product,
+    selectedBatch?: { id: string; batch_number: string; expiry_date: string | null } | null,
+  ) {
     const prodName = lang === "ar" && p.name_ar ? p.name_ar : p.name;
     // الخدمات (SERVICE) لا مخزون لها إطلاقاً — item_nature = SERVICE يعني
     // inventory_policy = UNTRACKED. فحص "نفد المخزون" كان يرفضها لأن
     // stockMap لا يحملها، فيستحيل بيع أجرة الطحن من نقطة البيع.
     const isService = p.is_service === true;
 
-    if (!isService) {
-      const stock = stockMap[p.id] ?? 0;
-      if (stock <= 0) {
-        return toast.error(
-          lang === "ar" ? `نفد المخزون من: ${prodName}` : `${p.name} ${t("pos.out_of_stock")}`,
-        );
-      }
+    if (isService) {
       setCart((c) => {
         const existing = c.find((l) => l.product_id === p.id);
         if (existing) {
-          if (existing.quantity >= stock) {
-            toast.error(
-              lang === "ar"
-                ? `الحد الأقصى المتاح في المخزون: ${stock}`
-                : `${t("pos.max_stock")}: ${stock}`,
-            );
-            return c;
-          }
           return c.map((l) => (l.product_id === p.id ? { ...l, quantity: l.quantity + 1 } : l));
         }
         return [
@@ -850,18 +849,60 @@ function POSPage() {
             base_price: Number(p.sale_price),
             tax_rate: Number(p.tax_rate ?? 0),
             quantity: 1,
-            is_service: false,
+            is_service: true,
+            item_nature: p.item_nature ?? undefined,
+            inventory_policy: p.inventory_policy ?? undefined,
           },
         ];
       });
       return;
     }
 
-    // مسار الخدمة: بلا فحص مخزون، والحمولة تحمل is_service = true.
+    // التحقق من سياسة المخزون وتتبع الدفعات (BATCH أو سياسة الصرف):
+    const isBatchTracked =
+      p.tracking === "BATCH" ||
+      p.inventory_policy === "BATCH" ||
+      (batchSettings?.enforce_batch_selection_on_pos && (p.tracking === "BATCH" || p.inventory_policy === "BATCH"));
+
+    if (isBatchTracked && selectedBatch === undefined) {
+      if (!warehouseId) {
+        toast.error(
+          lang === "ar"
+            ? "يرجى اختيار المستودع أولاً لاختيار الدفعة"
+            : "Please select a warehouse first to choose a batch",
+        );
+        return;
+      }
+      setBatchPendingProduct(p);
+      setBatchModalOpen(true);
+      return;
+    }
+
+    const stock = stockMap[p.id] ?? 0;
+    if (stock <= 0) {
+      return toast.error(
+        lang === "ar" ? `نفد المخزون من: ${prodName}` : `${p.name} ${t("pos.out_of_stock")}`,
+      );
+    }
+
+    const batchId = selectedBatch?.id ?? null;
+    const batchNumber = selectedBatch?.batch_number ?? null;
+    const expiryDate = selectedBatch?.expiry_date ?? null;
+
     setCart((c) => {
-      const existing = c.find((l) => l.product_id === p.id);
+      const existing = c.find(
+        (l) => l.product_id === p.id && (l.batch_id || null) === batchId,
+      );
       if (existing) {
-        return c.map((l) => (l.product_id === p.id ? { ...l, quantity: l.quantity + 1 } : l));
+        if (existing.quantity >= stock) {
+          toast.error(
+            lang === "ar"
+              ? `الحد الأقصى المتاح في المخزون: ${stock}`
+              : `${t("pos.max_stock")}: ${stock}`,
+          );
+          return c;
+        }
+        return c.map((l) => (l === existing ? { ...l, quantity: l.quantity + 1 } : l));
       }
       return [
         ...c,
@@ -872,7 +913,12 @@ function POSPage() {
           base_price: Number(p.sale_price),
           tax_rate: Number(p.tax_rate ?? 0),
           quantity: 1,
-          is_service: true,
+          is_service: false,
+          item_nature: p.item_nature ?? undefined,
+          inventory_policy: p.inventory_policy ?? undefined,
+          batch_id: batchId,
+          batch_number: batchNumber,
+          expiry_date: expiryDate,
         },
       ];
     });
@@ -887,20 +933,24 @@ function POSPage() {
    * services are uncapped, physical items are capped by stock, and a quantity
    * below the minimum removes the line.
    */
-  function setQty(pid: string, qty: number | null) {
-    const line = cart.find((l) => l.product_id === pid);
-    if (!line) return;
+  function setQty(lineKey: string, qty: number | null) {
+    const lineIndex = cart.findIndex((l, idx) => {
+      const key = l.batch_id ? `${l.product_id}_batch_${l.batch_id}` : `${l.product_id}_${idx}`;
+      return key === lineKey || l.product_id === lineKey;
+    });
+    if (lineIndex === -1) return;
+    const line = cart[lineIndex];
 
     // Empty commit: leave the line untouched, the stepper restores the number.
     if (qty === null || Number.isNaN(qty)) return;
 
     if (qty < 1) {
-      setCart((c) => c.filter((l) => l.product_id !== pid));
+      setCart((c) => c.filter((_, idx) => idx !== lineIndex));
       return;
     }
 
     if (!line.is_service) {
-      const stock = stockMap[pid] ?? 0;
+      const stock = stockMap[line.product_id] ?? 0;
       if (qty > stock) {
         toast.error(
           lang === "ar"
@@ -911,7 +961,7 @@ function POSPage() {
       }
     }
 
-    setCart((c) => c.map((l) => (l.product_id === pid ? { ...l, quantity: qty } : l)));
+    setCart((c) => c.map((l, idx) => (idx === lineIndex ? { ...l, quantity: qty } : l)));
   }
 
   /**
@@ -921,9 +971,12 @@ function POSPage() {
    * `CartLine.unit_price`, which is what `create_sale` already receives. The
    * product's permanent price is therefore untouched.
    */
-  function setPrice(pid: string, price: number) {
+  function setPrice(lineKey: string, price: number) {
     setCart((c) =>
-      c.map((l) => (l.product_id === pid ? { ...l, unit_price: Math.max(0, price) } : l)),
+      c.map((l, idx) => {
+        const key = l.batch_id ? `${l.product_id}_batch_${l.batch_id}` : `${l.product_id}_${idx}`;
+        return key === lineKey || l.product_id === lineKey ? { ...l, unit_price: Math.max(0, price) } : l;
+      }),
     );
   }
 
@@ -1262,6 +1315,8 @@ function POSPage() {
             quantity: l.quantity,
             unit_price: l.unit_price,
             subtotal: l.quantity * l.unit_price,
+            batch_id: l.batch_id || null,
+            batch_number: l.batch_number || null,
           })),
           subtotal,
           discount: discountN,
@@ -1297,6 +1352,8 @@ function POSPage() {
               tax_rate: l.tax_rate,
               is_service: !!l.is_service,
               name: l.name,
+              batch_id: l.batch_id || null,
+              batch_number: l.batch_number || null,
             })),
           });
           if (error) throw error;
@@ -2449,34 +2506,40 @@ function POSPage() {
                   )}
                 </div>
               ) : (
-                cart.map((l) => (
-                  <CartLineRow
-                    key={l.product_id}
-                    line={{
-                      id: l.product_id,
-                      name: l.name,
-                      quantity: l.quantity,
-                      unitPrice: l.unit_price,
-                      taxRate: l.tax_rate,
-                      isService: l.is_service,
-                      priceModified:
-                        l.base_price != null &&
-                        Math.round(l.base_price * 100) !== Math.round(l.unit_price * 100),
-                      stock: l.is_service ? undefined : (stockMap[l.product_id] ?? 0),
-                    }}
-                    labels={{
-                      price: t("pos.price"),
-                      quantity: t("common.qty"),
-                      remove: t("common.delete"),
-                      priceModified: t("pos.price_override"),
-                      stockLabel: t("pos.stock_available"),
-                    }}
-                    formatMoney={money}
-                    onQuantityCommit={(next) => setQty(l.product_id, next)}
-                    onPriceChange={(next) => setPrice(l.product_id, next)}
-                    onRemove={() => setCart((c) => c.filter((x) => x.product_id !== l.product_id))}
-                  />
-                ))
+                cart.map((l, idx) => {
+                  const lineKey = l.batch_id ? `${l.product_id}_batch_${l.batch_id}` : `${l.product_id}_${idx}`;
+                  const displayName = l.batch_number
+                    ? `${l.name} (${lang === "ar" ? "تشغيلة: " : "Batch: "}${l.batch_number})`
+                    : l.name;
+                  return (
+                    <CartLineRow
+                      key={lineKey}
+                      line={{
+                        id: lineKey,
+                        name: displayName,
+                        quantity: l.quantity,
+                        unitPrice: l.unit_price,
+                        taxRate: l.tax_rate,
+                        isService: l.is_service,
+                        priceModified:
+                          l.base_price != null &&
+                          Math.round(l.base_price * 100) !== Math.round(l.unit_price * 100),
+                        stock: l.is_service ? undefined : (stockMap[l.product_id] ?? 0),
+                      }}
+                      labels={{
+                        price: t("pos.price"),
+                        quantity: t("common.qty"),
+                        remove: t("common.delete"),
+                        priceModified: t("pos.price_override"),
+                        stockLabel: t("pos.stock_available"),
+                      }}
+                      formatMoney={money}
+                      onQuantityCommit={(next) => setQty(lineKey, next)}
+                      onPriceChange={(next) => setPrice(lineKey, next)}
+                      onRemove={() => setCart((c) => c.filter((_, i) => i !== idx))}
+                    />
+                  );
+                })
               )}
 
               {/* ─── Payment & Summary Section ─── */}
@@ -3222,6 +3285,28 @@ function POSPage() {
           request={quoteRequest}
           title={t("pos.quote_preview_title")}
           rtl={lang === "ar"}
+        />
+      ) : null}
+
+      {batchPendingProduct ? (
+        <PosBatchSelectorModal
+          open={batchModalOpen}
+          onOpenChange={(open) => {
+            setBatchModalOpen(open);
+            if (!open) setBatchPendingProduct(null);
+          }}
+          productId={batchPendingProduct.id}
+          productName={
+            lang === "ar" && batchPendingProduct.name_ar
+              ? batchPendingProduct.name_ar
+              : batchPendingProduct.name
+          }
+          warehouseId={warehouseId}
+          onSelectBatch={(batch) => {
+            addToCart(batchPendingProduct, batch);
+            setBatchModalOpen(false);
+            setBatchPendingProduct(null);
+          }}
         />
       ) : null}
     </>
