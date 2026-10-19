@@ -58,6 +58,8 @@ import { toast } from "sonner";
 import { printInvoice, type InvoiceTemplate } from "@/lib/invoice-print";
 import type { InvoiceDoc } from "@/lib/pdf";
 import { OperationSuccessModal } from "@/components/communication";
+import { AmountInput } from "@/components/ui/amount-input";
+import { QuantityInput } from "@/components/ui/quantity-input";
 import { LuxuryPrintPreviewModal } from "@/components/luxury-print-preview-modal";
 import {
   createSalesInvoice,
@@ -905,67 +907,61 @@ function SalesInvoicePage() {
 
                 {ticket.feeBasis === "PER_BAG" && (
                   <Field label={isRtl ? "الأجرة لكل شوال" : "Fee per sack"}>
-                    <input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      value={ticket.feePerBag}
-                      onChange={(e) => setT("feePerBag", e.target.value)}
-                      className={inputClass}
-                      placeholder="0.00"
+                    <AmountInput
+                      value={ticket.feePerBag === "" ? null : Number(ticket.feePerBag)}
+                      onValueChange={(v) => setT("feePerBag", v == null ? "" : String(v))}
+                      min={0}
+                      showInWords={false}
+                      containerClassName="[&_input]:h-10 [&_input]:rounded-xl"
                     />
                   </Field>
                 )}
                 {ticket.feeBasis === "PER_TON" && (
                   <Field label={isRtl ? "الأجرة لكل طن" : "Fee per ton"}>
-                    <input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      value={ticket.feePerTon}
-                      onChange={(e) => setT("feePerTon", e.target.value)}
-                      className={inputClass}
-                      placeholder="0.00"
+                    <AmountInput
+                      value={ticket.feePerTon === "" ? null : Number(ticket.feePerTon)}
+                      onValueChange={(v) => setT("feePerTon", v == null ? "" : String(v))}
+                      min={0}
+                      showInWords={false}
+                      containerClassName="[&_input]:h-10 [&_input]:rounded-xl"
                     />
                   </Field>
                 )}
                 {ticket.feeBasis === "LUMP_SUM" && (
                   <Field label={isRtl ? "مبلغ مقطوع" : "Lump sum"}>
-                    <input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      value={ticket.lumpSum}
-                      onChange={(e) => setT("lumpSum", e.target.value)}
-                      className={inputClass}
-                      placeholder="0.00"
+                    <AmountInput
+                      value={ticket.lumpSum === "" ? null : Number(ticket.lumpSum)}
+                      onValueChange={(v) => setT("lumpSum", v == null ? "" : String(v))}
+                      min={0}
+                      showInWords={false}
+                      containerClassName="[&_input]:h-10 [&_input]:rounded-xl"
                     />
                   </Field>
                 )}
 
                 <Field label={isRtl ? "الاستخلاص المتوقع %" : "Expected extraction %"}>
-                  <input
-                    type="number"
-                    min="0"
-                    max="100"
-                    step="0.01"
-                    value={ticket.expectedExtraction}
-                    onChange={(e) => setT("expectedExtraction", e.target.value)}
-                    className={inputClass}
-                    placeholder="—"
+                  <QuantityInput
+                    value={
+                      ticket.expectedExtraction === "" ? null : Number(ticket.expectedExtraction)
+                    }
+                    onValueChange={(v) => setT("expectedExtraction", v == null ? "" : String(v))}
+                    decimals={2}
+                    min={0}
+                    max={100}
+                    unit="%"
+                    containerClassName="[&_input]:h-10 [&_input]:rounded-xl"
                   />
                 </Field>
 
                 <Field label={isRtl ? "الفاقد المسموح %" : "Allowed loss %"}>
-                  <input
-                    type="number"
-                    min="0"
-                    max="100"
-                    step="0.01"
-                    value={ticket.allowedLoss}
-                    onChange={(e) => setT("allowedLoss", e.target.value)}
-                    className={inputClass}
-                    placeholder="—"
+                  <QuantityInput
+                    value={ticket.allowedLoss === "" ? null : Number(ticket.allowedLoss)}
+                    onValueChange={(v) => setT("allowedLoss", v == null ? "" : String(v))}
+                    decimals={2}
+                    min={0}
+                    max={100}
+                    unit="%"
+                    containerClassName="[&_input]:h-10 [&_input]:rounded-xl"
                   />
                 </Field>
               </div>
@@ -1231,26 +1227,22 @@ function SalesInvoicePage() {
 
               <div className="grid grid-cols-2 gap-2">
                 <Field label={t("common.discount")}>
-                  <input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={discount}
-                    onChange={(e) => setDiscount(e.target.value)}
-                    className={inputClass}
-                    placeholder="0.00"
+                  <AmountInput
+                    value={discount === "" ? null : Number(discount)}
+                    onValueChange={(v) => setDiscount(v == null ? "" : String(v))}
+                    min={0}
+                    showInWords={false}
+                    containerClassName="[&_input]:h-10 [&_input]:rounded-xl"
                   />
                 </Field>
                 <Field label={t("common.paid")}>
-                  <input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={paymentMethod === "credit" ? "0" : paid}
+                  <AmountInput
+                    value={paymentMethod === "credit" ? 0 : paid === "" ? null : Number(paid)}
+                    onValueChange={(v) => setPaid(v == null ? "" : String(v))}
+                    min={0}
                     disabled={paymentMethod === "credit"}
-                    onChange={(e) => setPaid(e.target.value)}
-                    className={`${inputClass} disabled:opacity-60`}
-                    placeholder="0.00"
+                    showInWords={false}
+                    containerClassName="[&_input]:h-10 [&_input]:rounded-xl"
                   />
                 </Field>
               </div>

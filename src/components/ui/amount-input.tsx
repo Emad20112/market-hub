@@ -42,6 +42,13 @@ export interface AmountInputProps extends Omit<
   showInWords?: boolean;
   /** كلاسات إضافية لسطر التفقيط. */
   wordsClassName?: string;
+  /**
+   * عند `false` يبقى المبلغ ظاهرًا حين يفقد الحقل التركيز، ويصبح الحقل فارغًا
+   * بمجرد الكتابة فيه (بعد زر التفريغ) — يمنع تغطية زر × للرقم ومزاحمته.
+   */
+  showStoredValue?: boolean;
+  /** تعطيل زر التفريغ نهائيًا في هذا الحقل. */
+  hideClear?: boolean;
 }
 
 /** عدد الأرقام الصريحة داخل سلسلة نصية (لحفظ موضع المؤشر). */
@@ -76,6 +83,11 @@ function formatStored(value: number, decimals: number): string {
     maximumFractionDigits: decimals,
     useGrouping: true,
   }).format(value);
+}
+
+/** هل هذا الرقم صالح لكسر سطر التفقيط؟ */
+function hasAmount(value: number | null | undefined): value is number {
+  return value != null && Number.isFinite(value);
 }
 
 /** إعادة ضبط المؤشر بعد التجميع بحيث يبقى بعد نفس الرقم الذي كان بعده. */
@@ -113,6 +125,8 @@ export const AmountInput = React.forwardRef<HTMLInputElement, AmountInputProps>(
       clearable = true,
       showInWords = true,
       wordsClassName,
+      showStoredValue = true,
+      hideClear = false,
       containerClassName,
       className,
       ...props
@@ -129,11 +143,14 @@ export const AmountInput = React.forwardRef<HTMLInputElement, AmountInputProps>(
     const editing = React.useRef(false);
     const inputRef = React.useRef<HTMLInputElement | null>(null);
     const pendingCaret = React.useRef<number | null>(null);
+    // آخر قيمة وصلت من الخارج (لمقارنة "تغيّر أم لا" دون إعادة إرسال).
+    const valueRef = React.useRef(value);
+    valueRef.current = value;
 
     // مزامنة من الخارج — لكن لا نُقاتل المستخدم أثناء الكتابة.
     React.useEffect(() => {
       if (editing.current) return;
-      setText(value == null ? "" : formatStored(value, decimals));
+      setText(hasAmount(value) ? formatStored(value, decimals) : "");
     }, [value, decimals]);
 
     // استعادة موضع المؤشر بعد إعادة الرسم بالنص المجمع.
@@ -145,7 +162,16 @@ export const AmountInput = React.forwardRef<HTMLInputElement, AmountInputProps>(
     }, [text]);
 
     const wordsText =
-      showInWords && value != null ? numberToArabicWords(value, resolvedCurrency) : "";
+      showInWords && hasAmount(value) ? numberToArabicWords(value, resolvedCurrency) : "";
+
+    // المبلغ المخزّن يُعرض في المنتصف حين يكون الحقل غير محرَّر، ليقرأه المستخدم
+    // كاملًا في وسط الحقل ولا يغطيه زر × أو رمز العملة.
+    const otherChecking = props.readOnly || props.disabled;
+    const canShowStored =
+      showStoredValue && hasAmount(value) && text === "" && !otherChecking && !props.placeholder;
+    const shownText = canShowStored ? formatStored(value, decimals) : text;
+    const showClear = clearable && !hideClear && hasAmount(value);
+    const hasAdornment = Boolean(resolvedSymbol) || showClear;
 
     const clamp = React.useCallback(
       (n: number | null): number | null => {
@@ -172,28 +198,49 @@ export const AmountInput = React.forwardRef<HTMLInputElement, AmountInputProps>(
               (ref as React.RefObject<HTMLInputElement>).current = el as HTMLInputElement;
           }}
           type="currency" // يعرض كنص DOM مع inputMode="decimal" — لا spinner ولا عجلة ماوس
-          clearable={clearable}
+          clearable={clearable && !hideClear}
           suffix={
             resolvedSymbol ? (
-              <span className="pointer-events-none select-none pe-3 text-xs font-bold text-muted-foreground">
+              <span className="pointer-events-none select-none text-xs font-bold text-muted-foreground">
                 {resolvedSymbol}
               </span>
             ) : undefined
           }
           dir="ltr"
-          className={cn("text-start font-semibold tabular-nums", className)}
-          value={text}
+          className={cn(
+            // في المنتصف + عزل اتجاه رقمي: لا يزاحم المبلغ رمز العملة ولا زر ×.
+            "text-center font-semibold tabular-nums [unicode-bidi:isolate]",
+            // طبقة العرض المستقلة ترسم النص عند عدم التحرير؛ أخفِ نص الإدخال تحتها.
+            canShowStored && "text-transparent caret-transparent",
+            className,
+          )}
+          value={shownText}
           onFocus={(e) => {
             editing.current = true;
+            // أول كتابة بعد عرض المبلغ المخزّن تفرغ الحقل، فلا يغطي زر × أي رقم.
+            if (canShowStored) {
+              setText("");
+              pendingCaret.current = 0;
+            }
             props.onFocus?.(e);
           }}
           onBlur={(e) => {
             editing.current = false;
+            // لم يكتب شيئًا بعد عرض المبلغ المخزّن: أبقِ القيمة كما هي.
+            if (canShowStored) {
+              props.onBlur?.(e);
+              return;
+            }
             const parsed = parseNumber(text);
             const bounded = clamp(parsed);
-            onValueChange(bounded);
             setText(bounded == null ? "" : formatStored(bounded, decimals));
             props.onBlur?.(e);
+            // لا نُرسل قيمة مطابقة للقيمة الحالية (منعًا لإعادة الرسم بلا داعٍ).
+            const previous = valueRef.current;
+            const unchanged =
+              previous === bounded ||
+              (previous != null && bounded != null && Math.abs(previous - bounded) < 1e-9);
+            if (!unchanged) onValueChange(bounded);
           }}
           onChange={(e) => {
             // نلتقط موضع المؤشر قبل أن يعيد FieldInput التنقية
@@ -206,12 +253,32 @@ export const AmountInput = React.forwardRef<HTMLInputElement, AmountInputProps>(
             const grouped = groupTyped(next, decimals);
             setText(grouped);
             if (grouped === "" || grouped === "-" || grouped === ".") {
-              onValueChange(null);
+              if (valueRef.current !== null) onValueChange(null);
               return;
             }
-            onValueChange(clamp(parseNumber(grouped)));
+            const parsed = clamp(parseNumber(grouped));
+            const previous = valueRef.current;
+            const unchanged =
+              previous === parsed ||
+              (previous != null && parsed != null && Math.abs(previous - parsed) < 1e-9);
+            if (!unchanged) onValueChange(parsed);
           }}
         />
+        {/*
+         * طبقة عرض مستقلة عن الإدخال: النص يبقى في منتصف الحقل تمامًا (بين رمز
+         * العملة وزر ×، لا تحتهما) أثناء عدم التحرير، والمسافات الجانبية تُحجز
+         * ديناميكيًا على مقاس الزخارف الفعلية فلا يتم قص المبلغ.
+         */}
+        {canShowStored ? (
+          <span
+            aria-hidden
+            dir="ltr"
+            className="pointer-events-none absolute inset-y-0 start-0 end-0 z-20 grid place-items-center text-center font-semibold tabular-nums text-foreground [unicode-bidi:isolate]"
+            style={{ paddingInlineStart: 12, paddingInlineEnd: hasAdornment ? 44 : 12 }}
+          >
+            {shownText}
+          </span>
+        ) : null}
         {wordsText ? (
           <p
             dir="rtl"

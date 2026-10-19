@@ -55,6 +55,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { BarcodeScanner } from "@/components/barcode-scanner";
+import { AmountInput } from "@/components/ui/amount-input";
 import { useKeyboardWedge } from "@/hooks/use-keyboard-wedge";
 import { useCatalogModules } from "@/lib/catalog-modules";
 import { useIsDesktop } from "@/hooks/use-media-query";
@@ -2625,30 +2626,26 @@ function POSPage() {
                         <label className="text-[10px] text-muted-foreground block mb-0.5">
                           {lang === "ar" ? "نقدًا:" : "Cash:"}
                         </label>
-                        <input
-                          type="number"
-                          min="0"
-                          dir="ltr"
-                          value={splitCash}
-                          onChange={(e) => setSplitCash(e.target.value)}
-                          placeholder="0"
+                        <AmountInput
+                          value={splitCash === "" ? null : Number(splitCash)}
+                          onValueChange={(v) => setSplitCash(v == null ? "" : String(v))}
+                          min={0}
+                          showInWords={false}
                           aria-label={lang === "ar" ? "نقدًا" : "Cash"}
-                          className="h-8 w-full rounded-xl border border-border bg-background px-2 text-xs font-mono font-bold outline-none focus:border-violet-500 [unicode-bidi:plaintext]"
+                          containerClassName="[&_input]:h-8 [&_input]:rounded-xl [&_input]:border-border [&_input]:bg-background [&_input]:text-xs"
                         />
                       </div>
                       <div>
                         <label className="text-[10px] text-muted-foreground block mb-0.5">
                           {lang === "ar" ? "شبكة/حوالة:" : "Card/Bank:"}
                         </label>
-                        <input
-                          type="number"
-                          min="0"
-                          dir="ltr"
-                          value={splitCard}
-                          onChange={(e) => setSplitCard(e.target.value)}
-                          placeholder="0"
+                        <AmountInput
+                          value={splitCard === "" ? null : Number(splitCard)}
+                          onValueChange={(v) => setSplitCard(v == null ? "" : String(v))}
+                          min={0}
+                          showInWords={false}
                           aria-label={lang === "ar" ? "شبكة/حوالة" : "Card/Bank"}
-                          className="h-8 w-full rounded-xl border border-border bg-background px-2 text-xs font-mono font-bold outline-none focus:border-violet-500 [unicode-bidi:plaintext]"
+                          containerClassName="[&_input]:h-8 [&_input]:rounded-xl [&_input]:border-border [&_input]:bg-background [&_input]:text-xs"
                         />
                       </div>
                     </div>
@@ -2693,15 +2690,14 @@ function POSPage() {
                     </div>
 
                     <div className="relative">
-                      <input
-                        type="number"
-                        min="0"
-                        dir="ltr"
-                        value={paid}
-                        onChange={(e) => handlePaidChange(e.target.value)}
+                      <AmountInput
+                        value={paid === "" ? null : Number(paid)}
+                        onValueChange={(v) => handlePaidChange(v == null ? "" : String(v))}
+                        min={0}
+                        showInWords={false}
                         placeholder={total > 0 ? String(total) : "0"}
                         aria-label={lang === "ar" ? "المبلغ المستلم من العميل" : "Cash tendered"}
-                        className="h-9 w-full rounded-xl border border-input/90 bg-background px-3 font-mono text-xs font-bold text-foreground outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20 [unicode-bidi:plaintext]"
+                        containerClassName="[&_input]:h-9 [&_input]:rounded-xl [&_input]:border-input/90 [&_input]:bg-background [&_input]:text-xs"
                       />
                     </div>
 
@@ -2777,19 +2773,18 @@ function POSPage() {
                       </span>
                     </div>
 
-                    <input
-                      type="number"
-                      min="0"
-                      dir="ltr"
-                      value={paid}
-                      onChange={(e) => handlePaidChange(e.target.value)}
+                    <AmountInput
+                      value={paid === "" ? null : Number(paid)}
+                      onValueChange={(v) => handlePaidChange(v == null ? "" : String(v))}
+                      min={0}
+                      showInWords={false}
                       placeholder={paymentMethod === "credit" ? "0" : String(total)}
                       aria-label={lang === "ar" ? "المبلغ المدفوع" : "Amount paid"}
-                      className={`h-9 w-full rounded-xl border px-3 text-xs font-mono font-bold outline-none transition ${
+                      containerClassName={`[&_input]:h-9 [&_input]:rounded-xl [&_input]:text-xs ${
                         isOverpaid
-                          ? "border-destructive bg-destructive/10 text-destructive focus:ring-2 focus:ring-destructive/30"
-                          : "border-input/90 bg-background text-foreground focus:border-primary focus:ring-2 focus:ring-primary/20"
-                      } [unicode-bidi:plaintext]`}
+                          ? "[&_input]:border-destructive [&_input]:bg-destructive/10 [&_input]:text-destructive"
+                          : "[&_input]:border-input/90 [&_input]:bg-background"
+                      }`}
                     />
 
                     {paymentMethod === "credit" || remainingDebt > 0 ? (
@@ -2817,14 +2812,14 @@ function POSPage() {
                   <div className="flex items-center justify-between gap-2 text-xs">
                     <span className="text-muted-foreground">{t("pos.discount")}:</span>
                     <div className="flex items-center gap-1.5">
-                      <input
-                        type="number"
-                        min="0"
-                        value={discount}
-                        onChange={(e) => setDiscount(e.target.value)}
-                        placeholder="0"
+                      <AmountInput
+                        value={discount === "" ? null : Number(discount)}
+                        onValueChange={(v) => setDiscount(v == null ? "" : String(v))}
+                        min={0}
+                        showInWords={false}
+                        hideClear
                         aria-label={t("pos.discount")}
-                        className="h-7 w-20 rounded-lg border border-border/80 bg-background/80 px-2 text-center font-mono text-xs font-semibold text-foreground outline-none focus:border-primary focus:ring-1 focus:ring-primary/25"
+                        containerClassName="w-24 shrink-0 [&_input]:h-7 [&_input]:rounded-lg [&_input]:bg-background/80 [&_input]:text-xs"
                       />
                       {discountN > 0 && (
                         <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400 [unicode-bidi:isolate]">
@@ -3156,13 +3151,13 @@ function POSPage() {
                 }
                 className="h-10 w-full rounded-2xl border border-input bg-surface px-3.5 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
               />
-              <input
-                type="number"
-                min="0"
-                value={servicePrice}
-                onChange={(e) => setServicePrice(e.target.value)}
+              <AmountInput
+                value={servicePrice === "" ? null : Number(servicePrice)}
+                onValueChange={(v) => setServicePrice(v == null ? "" : String(v))}
+                min={0}
+                showInWords={false}
                 placeholder={lang === "ar" ? "السعر المتفق عليه" : "Agreed price"}
-                className="h-10 w-full rounded-2xl border border-input bg-surface px-3.5 text-sm font-mono outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+                containerClassName="[&_input]:h-10 [&_input]:rounded-2xl [&_input]:bg-surface"
               />
               <input
                 value={serviceNote}

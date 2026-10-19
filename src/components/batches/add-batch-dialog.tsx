@@ -9,6 +9,8 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { AmountInput } from "@/components/ui/amount-input";
+import { QuantityInput } from "@/components/ui/quantity-input";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import {
@@ -97,11 +99,7 @@ export function AddBatchDialog({
         .select("id, name, name_ar, sku, tracking, cost_price")
         .eq("is_active", true)
         .order("name"),
-      supabase
-        .from("warehouses")
-        .select("id, name, name_ar")
-        .eq("is_active", true)
-        .order("name"),
+      supabase.from("warehouses").select("id, name, name_ar").eq("is_active", true).order("name"),
     ])
       .then(([pRes, wRes]) => {
         const prodList = (pRes.data ?? []) as ProductOption[];
@@ -176,12 +174,16 @@ export function AddBatchDialog({
 
     const qty = Number(form.quantity);
     if (isNaN(qty) || qty <= 0) {
-      return toast.error(isAr ? "الكمية يجب أن تكون أكبر من صفر" : "Quantity must be greater than zero");
+      return toast.error(
+        isAr ? "الكمية يجب أن تكون أكبر من صفر" : "Quantity must be greater than zero",
+      );
     }
 
     const cost = Number(form.unit_cost || 0);
     if (isNaN(cost) || cost < 0) {
-      return toast.error(isAr ? "تكلفة الوحدة لا يمكن أن تكون سالبة" : "Unit cost cannot be negative");
+      return toast.error(
+        isAr ? "تكلفة الوحدة لا يمكن أن تكون سالبة" : "Unit cost cannot be negative",
+      );
     }
 
     if (!form.expiry_date && selectedProduct?.tracking === "BATCH") {
@@ -208,7 +210,9 @@ export function AddBatchDialog({
 
       if (error) throw error;
 
-      toast.success(isAr ? "تم حفظ الدفعة بنجاح وتحديث المخزون" : "Batch recorded and stock updated");
+      toast.success(
+        isAr ? "تم حفظ الدفعة بنجاح وتحديث المخزون" : "Batch recorded and stock updated",
+      );
       onSaved();
       onOpenChange(false);
     } catch (err: any) {
@@ -265,7 +269,9 @@ export function AddBatchDialog({
                 <SearchInput
                   value={productSearch}
                   onValueChange={setProductSearch}
-                  placeholder={isAr ? "بحث عن الصنف بالاسم أو الباركود SKU..." : "Search by name or SKU..."}
+                  placeholder={
+                    isAr ? "بحث عن الصنف بالاسم أو الباركود SKU..." : "Search by name or SKU..."
+                  }
                   className="h-9 text-xs"
                 />
 
@@ -274,8 +280,12 @@ export function AddBatchDialog({
                     <SelectValue
                       placeholder={
                         loadingOptions
-                          ? isAr ? "جاري تحميل المنتجات..." : "Loading products..."
-                          : isAr ? "اختر المنتج من القائمة..." : "Select product..."
+                          ? isAr
+                            ? "جاري تحميل المنتجات..."
+                            : "Loading products..."
+                          : isAr
+                            ? "اختر المنتج من القائمة..."
+                            : "Select product..."
                       }
                     />
                   </SelectTrigger>
@@ -298,7 +308,10 @@ export function AddBatchDialog({
                                 </span>
                               )}
                               {p.tracking === "BATCH" && (
-                                <Badge variant="outline" className="text-[9px] px-1 py-0 border-primary/30 text-primary">
+                                <Badge
+                                  variant="outline"
+                                  className="text-[9px] px-1 py-0 border-primary/30 text-primary"
+                                >
                                   {isAr ? "تتبع دفعات" : "BATCH"}
                                 </Badge>
                               )}
@@ -314,15 +327,21 @@ export function AddBatchDialog({
               {selectedProduct && (
                 <div className="rounded-lg bg-surface border border-border/80 p-2.5 flex items-center justify-between text-xs">
                   <div className="flex items-center gap-2">
-                    <span className="text-muted-foreground">{isAr ? "المنتج المحدد:" : "Selected:"}</span>
+                    <span className="text-muted-foreground">
+                      {isAr ? "المنتج المحدد:" : "Selected:"}
+                    </span>
                     <span className="font-semibold text-foreground">
-                      {isAr ? selectedProduct.name_ar || selectedProduct.name : selectedProduct.name}
+                      {isAr
+                        ? selectedProduct.name_ar || selectedProduct.name
+                        : selectedProduct.name}
                     </span>
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="text-[11px] text-muted-foreground">
                       {isAr ? "سياسة التتبع: " : "Tracking: "}
-                      <span className="font-semibold text-foreground">{selectedProduct.tracking}</span>
+                      <span className="font-semibold text-foreground">
+                        {selectedProduct.tracking}
+                      </span>
                     </span>
                   </div>
                 </div>
@@ -390,16 +409,14 @@ export function AddBatchDialog({
                   <Package className="size-3.5 text-primary" />
                   <span>{isAr ? "الكمية *" : "Quantity *"}</span>
                 </label>
-                <Input
-                  type="number"
-                  min="0.001"
-                  step="any"
-                  value={form.quantity}
-                  onChange={(e) => setForm({ ...form, quantity: e.target.value })}
-                  onWheel={(e) => (e.target as HTMLElement).blur()}
+                <QuantityInput
+                  value={form.quantity === "" ? null : Number(form.quantity)}
+                  onValueChange={(v) => setForm({ ...form, quantity: v == null ? "" : String(v) })}
+                  decimals={3}
+                  min={0.001}
                   placeholder="0"
-                  className="h-10 text-xs font-mono [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                  required
+                  aria-label={isAr ? "الكمية" : "Quantity"}
+                  className="h-10 text-xs"
                 />
               </div>
 
@@ -408,15 +425,12 @@ export function AddBatchDialog({
                   <DollarSign className="size-3.5 text-primary" />
                   <span>{isAr ? "تكلفة الوحدة" : "Unit Cost"}</span>
                 </label>
-                <Input
-                  type="number"
-                  min="0"
-                  step="any"
-                  value={form.unit_cost}
-                  onChange={(e) => setForm({ ...form, unit_cost: e.target.value })}
-                  onWheel={(e) => (e.target as HTMLElement).blur()}
-                  placeholder="0"
-                  className="h-10 text-xs font-mono [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                <AmountInput
+                  value={form.unit_cost === "" ? null : Number(form.unit_cost)}
+                  onValueChange={(v) => setForm({ ...form, unit_cost: v == null ? "" : String(v) })}
+                  min={0}
+                  showInWords={false}
+                  className="h-10 text-xs"
                 />
               </div>
             </div>
@@ -430,7 +444,11 @@ export function AddBatchDialog({
               <Input
                 value={form.note}
                 onChange={(e) => setForm({ ...form, note: e.target.value })}
-                placeholder={isAr ? "أي معلومات أو مرجع فحص مخبري أو ملاحظات إضافية..." : "Any lab tests, references or notes..."}
+                placeholder={
+                  isAr
+                    ? "أي معلومات أو مرجع فحص مخبري أو ملاحظات إضافية..."
+                    : "Any lab tests, references or notes..."
+                }
                 className="h-10 text-xs"
               />
             </div>

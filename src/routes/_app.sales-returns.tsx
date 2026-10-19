@@ -7,6 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { money } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { QuantityInput } from "@/components/ui/quantity-input";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   Table,
@@ -628,12 +629,15 @@ function NewSalesReturn({
                     <TableRow key={l.product_id}>
                       <TableCell className="font-medium">{l.name}</TableCell>
                       <TableCell>
-                        <Input
-                          type="number"
-                          min={1}
+                        <QuantityInput
                           value={l.quantity}
-                          onChange={(e) => updateQty(l.product_id, parseInt(e.target.value) || 1)}
-                          className="w-20 h-8"
+                          onValueChange={(v) => updateQty(l.product_id, v && v > 0 ? v : 1)}
+                          decimals={3}
+                          emptyAsZero
+                          min={1}
+                          aria-label={lang === "ar" ? "الكمية" : "Qty"}
+                          containerClassName="w-28"
+                          className="h-8"
                         />
                       </TableCell>
                       <TableCell className="font-mono">{money(l.unit_price)}</TableCell>

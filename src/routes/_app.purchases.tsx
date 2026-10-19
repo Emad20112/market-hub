@@ -54,6 +54,8 @@ import { IconButton } from "@/components/ui/icon-button";
 import { useBreakpoint } from "@/design/breakpoints";
 import { toast } from "sonner";
 import { PaymentMethodPicker } from "@/components/ui/payment-method";
+import { AmountInput } from "@/components/ui/amount-input";
+import { QuantityInput } from "@/components/ui/quantity-input";
 import {
   getPaymentMethodDefinition,
   paymentMethodLabel,
@@ -1747,8 +1749,8 @@ function CreateDialog({
   const [search, setSearch] = useState("");
   const [stockMap, setStockMap] = useState<Record<string, number>>({});
   const [cart, setCart] = useState<CartLine[]>([]);
-  const [paid, setPaid] = useState("");
-  const [discount, setDiscount] = useState("");
+  const [paid, setPaid] = useState<number | null>(null);
+  const [discount, setDiscount] = useState<number | null>(null);
   const [paymentMethod, setPaymentMethod] = useState<string>("bank_transfer");
   const [note, setNote] = useState("");
   const [loading, setLoading] = useState(false);
@@ -1845,8 +1847,8 @@ function CreateDialog({
 
   function clearCart() {
     setCart([]);
-    setPaid("");
-    setDiscount("");
+    setPaid(null);
+    setDiscount(null);
   }
 
   function update(pid: string, patch: Partial<CartLine>) {
@@ -1855,9 +1857,9 @@ function CreateDialog({
 
   const subtotal = cart.reduce((s, l) => s + l.unit_cost * l.quantity, 0);
   const taxTotal = cart.reduce((s, l) => s + l.unit_cost * l.quantity * (l.tax_rate / 100), 0);
-  const discountN = Number(discount || 0);
+  const discountN = discount ?? 0;
   const total = Math.max(0, subtotal + taxTotal - discountN);
-  const paidN = Number(paid || 0);
+  const paidN = paid ?? 0;
 
   async function submit() {
     if (loading) return;
@@ -2052,21 +2054,34 @@ function CreateDialog({
                       </button>
                     </div>
                     <div className="mt-2 grid grid-cols-3 gap-1">
-                      <NumberInput
-                        label={t("common.qty")}
+                      <QuantityInput
+                        aria-label={t("common.qty")}
                         value={l.quantity}
-                        onChange={(v) => update(l.product_id, { quantity: v })}
+                        onValueChange={(v) => update(l.product_id, { quantity: v ?? 0 })}
+                        decimals={3}
+                        emptyAsZero
+                        min={0}
+                        className="h-7 text-xs"
                       />
-                      <NumberInput
-                        label={t("common.cost")}
+                      <AmountInput
+                        aria-label={t("common.cost")}
                         value={l.unit_cost}
-                        onChange={(v) => update(l.product_id, { unit_cost: v })}
-                        step={0.01}
+                        onValueChange={(v) => update(l.product_id, { unit_cost: v ?? 0 })}
+                        min={0}
+                        showInWords={false}
+                        hideClear
+                        containerClassName="[&_input]:h-7 [&_input]:rounded [&_input]:text-xs"
                       />
-                      <NumberInput
-                        label={t("purchases.tax_pct")}
+                      <QuantityInput
+                        aria-label={t("purchases.tax_pct")}
                         value={l.tax_rate}
-                        onChange={(v) => update(l.product_id, { tax_rate: v })}
+                        onValueChange={(v) => update(l.product_id, { tax_rate: v ?? 0 })}
+                        decimals={2}
+                        emptyAsZero
+                        min={0}
+                        max={100}
+                        unit="%"
+                        className="h-7 text-xs"
                       />
                     </div>
                   </div>
@@ -2092,18 +2107,19 @@ function CreateDialog({
               onChange={(method) => {
                 setPaymentMethod(method);
                 const definition = getPaymentMethodDefinition(method);
-                if (definition?.isCreditTerm) setPaid("0");
+                if (definition?.isCreditTerm) setPaid(0);
               }}
               ensureIds={[paymentMethod]}
               ariaLabel={t("common.method")}
             />
             {!(getPaymentMethodDefinition(paymentMethod)?.isCreditTerm ?? false) && (
-              <input
-                type="number"
+              <AmountInput
                 value={paid}
-                onChange={(e) => setPaid(e.target.value)}
-                placeholder={t("purchases.paid_default", total.toFixed(2))}
-                className="h-9 w-full rounded-md border border-input bg-surface px-2 text-sm"
+                onValueChange={setPaid}
+                min={0}
+                showInWords={false}
+                placeholder={total > 0 ? String(total.toFixed(2)) : undefined}
+                containerClassName="[&_input]:h-9 [&_input]:rounded-md [&_input]:bg-surface"
               />
             )}
             <input
@@ -2118,12 +2134,12 @@ function CreateDialog({
             <Row label={t("common.tax")} value={money(taxTotal)} />
             <div className="flex items-center justify-between gap-2">
               <span className="text-muted-foreground">{t("common.discount")}</span>
-              <input
-                type="number"
+              <AmountInput
                 value={discount}
-                onChange={(e) => setDiscount(e.target.value)}
-                placeholder="0"
-                className="h-7 w-24 rounded border border-border bg-surface px-2 text-end text-xs"
+                onValueChange={setDiscount}
+                min={0}
+                showInWords={false}
+                containerClassName="w-28 shrink-0 [&_input]:h-7 [&_input]:rounded [&_input]:bg-surface [&_input]:text-xs"
               />
             </div>
             <Row label={t("common.total")} value={money(total)} bold />
@@ -2142,30 +2158,6 @@ function CreateDialog({
   );
 }
 
-function NumberInput({
-  label,
-  value,
-  onChange,
-  step = 1,
-}: {
-  label: string;
-  value: number;
-  onChange: (v: number) => void;
-  step?: number;
-}) {
-  return (
-    <div>
-      <label className="block text-[10px] uppercase text-muted-foreground">{label}</label>
-      <input
-        type="number"
-        step={step}
-        value={value}
-        onChange={(e) => onChange(Number(e.target.value))}
-        className="h-7 w-full rounded border border-border bg-surface px-1.5 text-xs"
-      />
-    </div>
-  );
-}
 function Field({ label, value }: { label: string; value: string }) {
   return (
     <div>
