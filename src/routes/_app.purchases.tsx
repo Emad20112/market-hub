@@ -54,9 +54,9 @@ import { IconButton } from "@/components/ui/icon-button";
 import { useBreakpoint } from "@/design/breakpoints";
 import { toast } from "sonner";
 import { PaymentMethodPicker } from "@/components/ui/payment-method";
+import { DynamicPaymentSelector } from "@/components/ui/payment-method/dynamic-payment-selector";
 import { AmountInput } from "@/components/ui/amount-input";
 import { QuantityInput } from "@/components/ui/quantity-input";
-import { DynamicPaymentSelector } from "@/components/ui/payment-method/dynamic-payment-selector";
 import type { PaymentSettlementSelection } from "@/lib/payments/treasury-types";
 import {
   getPaymentMethodDefinition,
@@ -1751,8 +1751,8 @@ function CreateDialog({
   const [search, setSearch] = useState("");
   const [stockMap, setStockMap] = useState<Record<string, number>>({});
   const [cart, setCart] = useState<CartLine[]>([]);
-  const [paid, setPaid] = useState<number | null>(null);
-  const [discount, setDiscount] = useState<number | null>(null);
+  const [paid, setPaid] = useState("");
+  const [discount, setDiscount] = useState("");
   const [paymentMethod, setPaymentMethod] = useState<string>("bank_transfer");
   const [paymentSelection, setPaymentSelection] = useState<PaymentSettlementSelection>({
     method: "bank_transfer",
@@ -1852,8 +1852,8 @@ function CreateDialog({
 
   function clearCart() {
     setCart([]);
-    setPaid(null);
-    setDiscount(null);
+    setPaid("");
+    setDiscount("");
   }
 
   function update(pid: string, patch: Partial<CartLine>) {
@@ -1862,9 +1862,9 @@ function CreateDialog({
 
   const subtotal = cart.reduce((s, l) => s + l.unit_cost * l.quantity, 0);
   const taxTotal = cart.reduce((s, l) => s + l.unit_cost * l.quantity * (l.tax_rate / 100), 0);
-  const discountN = discount ?? 0;
+  const discountN = Number(discount || 0);
   const total = Math.max(0, subtotal + taxTotal - discountN);
-  const paidN = paid ?? 0;
+  const paidN = Number(paid || 0);
 
   async function submit() {
     if (loading) return;
@@ -1890,23 +1890,53 @@ function CreateDialog({
 
     setLoading(true);
     try {
-      const { data: invId, error } = await supabase.rpc("create_purchase", {
-        _warehouse_id: warehouseId,
-        _supplier_id: supplierId,
-        // The picker holds a catalogue id. Convert at the boundary, exactly as
-        // the POS screen does, so `create_purchase` receives the stored value it
-        // casts into the ENUM.
-        _payment_method: toLegacyPaymentValue(paymentMethod),
-        _paid: paymentMethod === "credit" ? 0 : paidN || total,
-        _discount: discountN,
-        _note: (note || null) as any,
-        _items: cart.map((l) => ({
-          product_id: l.product_id,
-          quantity: Number(l.quantity),
-          unit_cost: Number(l.unit_cost),
-          tax_rate: Number(l.tax_rate),
-        })),
-      });
+      let invId: string | null = null;
+      let error: any = null;
+
+      try {
+        const res = await (supabase.rpc as any)("create_purchase", {
+          _warehouse_id: warehouseId,
+          _supplier_id: supplierId,
+          // The picker holds a catalogue id. Convert at the boundary, exactly as
+          // the POS screen does, so `create_purchase` receives the stored value it
+          // casts into the ENUM.
+          _payment_method: toLegacyPaymentValue(paymentMethod),
+          _paid: paymentMethod === "credit" ? 0 : paidN || total,
+          _discount: discountN,
+          _note: (note || null) as any,
+          _items: cart.map((l) => ({
+            product_id: l.product_id,
+            quantity: Number(l.quantity),
+            unit_cost: Number(l.unit_cost),
+            tax_rate: Number(l.tax_rate),
+          })),
+          _cashbox_id: paymentSelection.cashboxId || null,
+          _bank_account_id: paymentSelection.bankAccountId || null,
+          _payment_reference:
+            paymentSelection.reference || paymentSelection.paymentReference || null,
+          _payment_method_id: paymentSelection.paymentMethodId || paymentMethod,
+        });
+        invId = res.data;
+        error = res.error;
+      } catch {
+        const res = await supabase.rpc("create_purchase", {
+          _warehouse_id: warehouseId,
+          _supplier_id: supplierId,
+          _payment_method: toLegacyPaymentValue(paymentMethod),
+          _paid: paymentMethod === "credit" ? 0 : paidN || total,
+          _discount: discountN,
+          _note: (note || null) as any,
+          _items: cart.map((l) => ({
+            product_id: l.product_id,
+            quantity: Number(l.quantity),
+            unit_cost: Number(l.unit_cost),
+            tax_rate: Number(l.tax_rate),
+          })),
+        });
+        invId = res.data;
+        error = res.error;
+      }
+
       if (error) throw error;
 
       // Attach treasury settlement details if provided
@@ -2078,34 +2108,21 @@ function CreateDialog({
                       </button>
                     </div>
                     <div className="mt-2 grid grid-cols-3 gap-1">
-                      <QuantityInput
-                        aria-label={t("common.qty")}
+                      <NumberInput
+                        label={t("common.qty")}
                         value={l.quantity}
-                        onValueChange={(v) => update(l.product_id, { quantity: v ?? 0 })}
-                        decimals={3}
-                        emptyAsZero
-                        min={0}
-                        className="h-7 text-xs"
+                        onChange={(v) => update(l.product_id, { quantity: v })}
                       />
-                      <AmountInput
-                        aria-label={t("common.cost")}
+                      <NumberInput
+                        label={t("common.cost")}
                         value={l.unit_cost}
-                        onValueChange={(v) => update(l.product_id, { unit_cost: v ?? 0 })}
-                        min={0}
-                        showInWords={false}
-                        hideClear
-                        containerClassName="[&_input]:h-7 [&_input]:rounded [&_input]:text-xs"
+                        onChange={(v) => update(l.product_id, { unit_cost: v })}
+                        step={0.01}
                       />
-                      <QuantityInput
-                        aria-label={t("purchases.tax_pct")}
+                      <NumberInput
+                        label={t("purchases.tax_pct")}
                         value={l.tax_rate}
-                        onValueChange={(v) => update(l.product_id, { tax_rate: v ?? 0 })}
-                        decimals={2}
-                        emptyAsZero
-                        min={0}
-                        max={100}
-                        unit="%"
-                        className="h-7 text-xs"
+                        onChange={(v) => update(l.product_id, { tax_rate: v })}
                       />
                     </div>
                   </div>
@@ -2131,7 +2148,7 @@ function CreateDialog({
               onChange={(method) => {
                 setPaymentMethod(method);
                 const definition = getPaymentMethodDefinition(method);
-                if (definition?.isCreditTerm) setPaid(0);
+                if (definition?.isCreditTerm) setPaid("0");
               }}
               settlement={paymentSelection}
               onSettlementChange={setPaymentSelection}
@@ -2139,11 +2156,11 @@ function CreateDialog({
             />
             {!(getPaymentMethodDefinition(paymentMethod)?.isCreditTerm ?? false) && (
               <AmountInput
-                value={paid}
-                onValueChange={setPaid}
                 min={0}
-                placeholder={total > 0 ? String(total.toFixed(2)) : undefined}
-                containerClassName="[&_input]:h-9 [&_input]:rounded-md [&_input]:bg-surface"
+                value={toNumberOrNull(paid)}
+                onValueChange={(v) => setPaid(v == null ? "" : String(v))}
+                placeholder={t("purchases.paid_default", total.toFixed(2))}
+                aria-label={t("common.paid")}
               />
             )}
             <input
@@ -2159,11 +2176,14 @@ function CreateDialog({
             <div className="flex items-center justify-between gap-2">
               <span className="text-muted-foreground">{t("common.discount")}</span>
               <AmountInput
-                value={discount}
-                onValueChange={setDiscount}
                 min={0}
-                showInWords={false}
-                containerClassName="w-28 shrink-0 [&_input]:h-7 [&_input]:rounded [&_input]:bg-surface [&_input]:text-xs"
+                value={toNumberOrNull(discount)}
+                onValueChange={(v) => setDiscount(v == null ? "" : String(v))}
+                placeholder="0"
+                aria-label={t("common.discount")}
+                hideClear
+                wordsClassName="text-[10px] leading-3"
+                containerClassName="w-24 shrink-0 [&_input]:h-7 [&_input]:rounded [&_input]:text-xs"
               />
             </div>
             <Row label={t("common.total")} value={money(total)} bold />
@@ -2182,6 +2202,32 @@ function CreateDialog({
   );
 }
 
+function NumberInput({
+  label,
+  value,
+  onChange,
+  step = 1,
+}: {
+  label: string;
+  value: number;
+  onChange: (v: number) => void;
+  step?: number;
+}) {
+  return (
+    <div>
+      <label className="block text-[10px] uppercase text-muted-foreground">{label}</label>
+      <QuantityInput
+        decimals={2}
+        min={0}
+        value={value}
+        onValueChange={(v) => onChange(v ?? 0)}
+        aria-label={label}
+        className="h-7 text-xs"
+        groupThousands={step >= 1}
+      />
+    </div>
+  );
+}
 function Field({ label, value }: { label: string; value: string }) {
   return (
     <div>
@@ -2199,4 +2245,17 @@ function Row({ label, value, bold }: { label: string; value: string; bold?: bool
       <span className={bold ? "text-foreground" : ""}>{value}</span>
     </div>
   );
+}
+
+/**
+ * حالة النموذج تحتفظ بالمبالغ كسلاسل، بينما المكونان الموحّدان يعملان بقيمة
+ * `number | null`. النص الفارغ أو غير الرقمي يصبح null بدل NaN.
+ */
+function toNumberOrNull(value: string | number | null | undefined): number | null {
+  if (value == null) return null;
+  if (typeof value === "number") return Number.isFinite(value) ? value : null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  const parsed = Number(trimmed.replace(/,/g, ""));
+  return Number.isFinite(parsed) ? parsed : null;
 }

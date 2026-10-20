@@ -36,7 +36,6 @@ import { useAuth } from "@/lib/auth";
 import { money } from "@/lib/format";
 import { PageHeader } from "@/components/page-header";
 import { PageGuideButton, type PageGuideConfig } from "@/components/page-guide";
-import { AmountInput } from "@/components/ui/amount-input";
 import { DollarSign, Archive, Zap } from "lucide-react";
 import { toast } from "sonner";
 import { BarcodeScanner } from "@/components/barcode-scanner";
@@ -49,6 +48,7 @@ import { SupplierFormDialog } from "@/components/contacts/supplier-form-dialog";
 import { UniversalPrintPreview } from "@/components/universal-print-preview";
 import type { PrintRequest } from "@/lib/printing";
 import { DynamicPaymentSelector } from "@/components/ui/payment-method/dynamic-payment-selector";
+import { AmountInput } from "@/components/ui/amount-input";
 import type { PaymentSettlementSelection } from "@/lib/payments/treasury-types";
 import { toLegacyPaymentValue, getPaymentMethodDefinition } from "@/lib/payments/payment-methods";
 
@@ -653,20 +653,52 @@ function PurchasePOSPage() {
         return parts.length ? parts.join(" — ") : null;
       })();
 
-      const { data: invoiceId, error } = await supabase.rpc("create_purchase", {
-        _warehouse_id: warehouseId,
-        _supplier_id: supplierId,
-        _payment_method: toLegacyPaymentValue(paymentMethod),
-        _paid: paidN,
-        _discount: discountN,
-        _note: composedNote as any,
-        _items: cart.map((l) => ({
-          product_id: l.product_id,
-          quantity: Number(l.quantity),
-          unit_cost: Number(l.unit_cost),
-          tax_rate: Number(l.tax_rate),
-        })),
-      });
+      let invoiceId: string | null = null;
+      let error: any = null;
+
+      try {
+        const res = await (supabase.rpc as any)("create_purchase", {
+          _warehouse_id: warehouseId,
+          _supplier_id: supplierId,
+          _payment_method: toLegacyPaymentValue(paymentMethod),
+          _paid: paidN,
+          _discount: discountN,
+          _note: composedNote as any,
+          _items: cart.map((l) => ({
+            product_id: l.product_id,
+            quantity: Number(l.quantity),
+            unit_cost: Number(l.unit_cost),
+            tax_rate: Number(l.tax_rate),
+          })),
+          _cashbox_id: paymentSelection.cashboxId || null,
+          _bank_account_id: paymentSelection.bankAccountId || null,
+          _payment_reference:
+            paymentSelection.reference ||
+            paymentSelection.paymentReference ||
+            transferRef.trim() ||
+            null,
+          _payment_method_id: paymentSelection.paymentMethodId || paymentMethod,
+        });
+        invoiceId = res.data;
+        error = res.error;
+      } catch {
+        const res = await supabase.rpc("create_purchase", {
+          _warehouse_id: warehouseId,
+          _supplier_id: supplierId,
+          _payment_method: toLegacyPaymentValue(paymentMethod),
+          _paid: paidN,
+          _discount: discountN,
+          _note: composedNote as any,
+          _items: cart.map((l) => ({
+            product_id: l.product_id,
+            quantity: Number(l.quantity),
+            unit_cost: Number(l.unit_cost),
+            tax_rate: Number(l.tax_rate),
+          })),
+        });
+        invoiceId = res.data;
+        error = res.error;
+      }
 
       if (error) throw error;
 
@@ -1207,7 +1239,7 @@ function PurchasePOSPage() {
                   <AmountInput
                     min={0}
                     hideClear
-                    value={discount === "" ? null : Number(discount)}
+                    value={toNumberOrNull(discount)}
                     onValueChange={(v) => setDiscount(v == null ? "" : String(v))}
                     placeholder="0"
                     aria-label={lang === "ar" ? "الخصم" : "Discount"}
@@ -1248,16 +1280,11 @@ function PurchasePOSPage() {
                   </div>
                   <AmountInput
                     min={0}
-                    showInWords={false}
-                    value={paid === "" ? null : Number(paid)}
+                    value={toNumberOrNull(paid)}
                     onValueChange={(v) => setPaid(v == null ? "" : String(v))}
                     placeholder={total.toFixed(2)}
                     aria-label={lang === "ar" ? "المبلغ المدفوع" : "Amount paid"}
-                    containerClassName={`[&_input]:h-10 [&_input]:rounded-xl [&_input]:bg-surface [&_input]:text-sm [&_input]:font-bold ${
-                      isOverpaid
-                        ? "[&_input]:border-destructive [&_input]:text-destructive"
-                        : "[&_input]:border-border"
-                    }`}
+                    containerClassName={`[&_input]:h-10 [&_input]:rounded-xl [&_input]:px-3 [&_input]:text-sm ${isOverpaid ? "[&_input]:border-destructive [&_input]:text-destructive" : "[&_input]:border-border"}`}
                   />
                 </div>
               )}
@@ -1469,4 +1496,14 @@ function PurchasePOSPage() {
       ) : null}
     </div>
   );
+}
+
+/** جسر التحويل بين سلسلة النموذج وقيمة `AmountInput` (`number | null`). */
+function toNumberOrNull(value: string | number | null | undefined): number | null {
+  if (value == null) return null;
+  if (typeof value === "number") return Number.isFinite(value) ? value : null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  const parsed = Number(trimmed.replace(/,/g, ""));
+  return Number.isFinite(parsed) ? parsed : null;
 }

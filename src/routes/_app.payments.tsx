@@ -22,11 +22,13 @@ import { useI18n } from "@/lib/i18n";
 import { money } from "@/lib/format";
 import { paymentMethodLabel, requiresPaymentReference } from "@/lib/payments/payment-methods";
 import { PaymentMethodPicker, DynamicPaymentSelector } from "@/components/ui/payment-method";
+import { AmountInput } from "@/components/ui/amount-input";
 import type { PaymentSettlementSelection } from "@/lib/payments/treasury-types";
 import { usePaymentMethodsForContext } from "@/hooks/use-payment-methods";
+import { useCashboxes } from "@/hooks/use-cashboxes";
+import { useCompanyBankAccounts } from "@/hooks/use-company-bank-accounts";
 import { toast } from "sonner";
 import { WhatsAppButton } from "@/components/whatsapp-button";
-import { AmountInput } from "@/components/ui/amount-input";
 import { debtReminderMessage } from "@/lib/whatsapp-templates";
 import {
   VortexDateBadge,
@@ -70,6 +72,10 @@ interface Payment {
   payment_method: string;
   note: string | null;
   invoice_id: string | null;
+  cashbox_id?: string | null;
+  bank_account_id?: string | null;
+  payment_method_id?: string | null;
+  payment_reference?: string | null;
   sales_invoices?: { invoice_number: string } | null;
 }
 
@@ -84,7 +90,7 @@ function PaymentsPage() {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [payments, setPayments] = useState<Payment[]>([]);
   const [invoiceId, setInvoiceId] = useState<string>("");
-  const [amount, setAmountValue] = useState<number | null>(null);
+  const [amount, setAmount] = useState("");
   /**
    * A CATALOGUE ID, held as a plain string.
    *
@@ -99,6 +105,9 @@ function PaymentsPage() {
     method: "cash",
     paymentMethodId: "cash",
   });
+  // الوعاء المالي لكل صندوق/حساب — يُستخدم في جدول الحركات لعرض الوجهة بجانب طريقة الدفع.
+  const { activeCashboxes } = useCashboxes();
+  const { banks, wallets } = useCompanyBankAccounts();
   const [reference, setReference] = useState("");
   const [note, setNote] = useState("");
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
@@ -172,25 +181,51 @@ function PaymentsPage() {
     setSelected(c);
     setPaymentFormOpen(false);
     setInvoiceId("");
-    setAmountValue(null);
+    setAmount("");
     setReference("");
     setNote("");
-    const [inv, pay] = await Promise.all([
-      supabase
-        .from("sales_invoices")
-        .select("id,invoice_number,total,paid,created_at,status")
-        .eq("customer_id", c.id)
-        .order("created_at", { ascending: false }),
-      (supabase.from as any)("customer_payments")
-        .select(
-          "id,amount,payment_date,payment_method,note,invoice_id,sales_invoices(invoice_number)",
-        )
-        .eq("customer_id", c.id)
-        .order("payment_date", { ascending: false })
-        .limit(50),
-    ]);
-    setInvoices((inv.data ?? []) as Invoice[]);
-    setPayments((pay.data ?? []) as Payment[]);
+
+    let invData: any[] = [];
+    let payData: any[] = [];
+
+    try {
+      const [inv, pay] = await Promise.all([
+        supabase
+          .from("sales_invoices")
+          .select("id,invoice_number,total,paid,created_at,status")
+          .eq("customer_id", c.id)
+          .order("created_at", { ascending: false }),
+        (supabase.from as any)("customer_payments")
+          .select(
+            "id,amount,payment_date,payment_method,note,invoice_id,cashbox_id,bank_account_id,payment_method_id,payment_reference,sales_invoices(invoice_number)",
+          )
+          .eq("customer_id", c.id)
+          .order("payment_date", { ascending: false })
+          .limit(50),
+      ]);
+      invData = inv.data ?? [];
+      payData = pay.data ?? [];
+    } catch {
+      const [inv, pay] = await Promise.all([
+        supabase
+          .from("sales_invoices")
+          .select("id,invoice_number,total,paid,created_at,status")
+          .eq("customer_id", c.id)
+          .order("created_at", { ascending: false }),
+        (supabase.from as any)("customer_payments")
+          .select(
+            "id,amount,payment_date,payment_method,note,invoice_id,sales_invoices(invoice_number)",
+          )
+          .eq("customer_id", c.id)
+          .order("payment_date", { ascending: false })
+          .limit(50),
+      ]);
+      invData = inv.data ?? [];
+      payData = pay.data ?? [];
+    }
+
+    setInvoices(invData as Invoice[]);
+    setPayments(payData as Payment[]);
   }
 
   async function refresh() {
@@ -215,7 +250,7 @@ function PaymentsPage() {
 
   async function submit() {
     if (saving || !selected) return;
-    const amt = amount ?? 0;
+    const amt = Number(amount);
     if (!amt || amt <= 0)
       return toast.error(
         t("payments.invalid_amount") || (lang === "ar" ? "أدخل مبلغ صحيح" : "Enter a valid amount"),
@@ -239,23 +274,39 @@ function PaymentsPage() {
       ]
         .filter(Boolean)
         .join(" | ");
-      const { error } = await supabase.rpc("record_customer_payment" as any, {
-        _customer_id: selected.id,
-        _invoice_id: invoiceId || null,
-        _amount: amt,
-        // The RPC validates this exact catalogue id (including its enabled
-        // state and allowed context), then stores its legacy ENUM value.
-        _method: settlement.paymentMethodId || method,
-        _payment_date: date,
-        _note: paymentNote || null,
-        _cashbox_id: settlement.cashboxId || null,
-        _bank_account_id: settlement.bankAccountId || null,
-        _payment_method_id: settlement.paymentMethodId || null,
-        _cheque_number: settlement.chequeNumber || settlement.cheque?.chequeNumber || null,
-        _cheque_bank: settlement.chequeBank || settlement.cheque?.bankName || null,
-        _cheque_due_date: settlement.chequeDueDate || settlement.cheque?.dueDate || null,
-        _cheque_drawer: settlement.chequeDrawer || settlement.cheque?.drawerName || null,
-      });
+
+      let error: any = null;
+      try {
+        const res = await supabase.rpc("record_customer_payment" as any, {
+          _customer_id: selected.id,
+          _invoice_id: invoiceId || null,
+          _amount: amt,
+          // The RPC validates this exact catalogue id (including its enabled
+          // state and allowed context), then stores its legacy ENUM value.
+          _method: settlement.paymentMethodId || method,
+          _payment_date: date,
+          _note: paymentNote || null,
+          _cashbox_id: settlement.cashboxId || null,
+          _bank_account_id: settlement.bankAccountId || null,
+          _payment_method_id: settlement.paymentMethodId || null,
+          _cheque_number: settlement.chequeNumber || settlement.cheque?.chequeNumber || null,
+          _cheque_bank: settlement.chequeBank || settlement.cheque?.bankName || null,
+          _cheque_due_date: settlement.chequeDueDate || settlement.cheque?.dueDate || null,
+          _cheque_drawer: settlement.chequeDrawer || settlement.cheque?.drawerName || null,
+        });
+        error = res.error;
+      } catch {
+        const res = await supabase.rpc("record_customer_payment" as any, {
+          _customer_id: selected.id,
+          _invoice_id: invoiceId || null,
+          _amount: amt,
+          _method: settlement.paymentMethodId || method,
+          _payment_date: date,
+          _note: paymentNote || null,
+        });
+        error = res.error;
+      }
+
       if (error) throw error;
       const receiptNumber = selectedInvoice
         ? `REC-${selectedInvoice.invoice_number}`
@@ -273,13 +324,15 @@ function PaymentsPage() {
         date,
         customerName: selected.name,
         customerPhone: selected.phone,
-        referenceNumber: receiptNumber,
+        referenceNumber: settlement.reference || receiptNumber,
         method: resolvedMethodLabel,
+        cashboxName: settlement.cashboxName,
+        bankAccountName: settlement.bankAccountName,
         notes: paymentNote || undefined,
         remainingBalance: Math.max(Number(selected.balance) - amt, 0),
       });
       setPaymentFormOpen(false);
-      setAmountValue(null);
+      setAmount("");
       setReference("");
       setNote("");
       await refresh();
@@ -301,7 +354,7 @@ function PaymentsPage() {
 
   function beginPayment(invoice?: Invoice) {
     setInvoiceId(invoice?.id ?? "");
-    setAmountValue(invoice ? Number(invoice.total) - Number(invoice.paid) : null);
+    setAmount(invoice ? String(Number(invoice.total) - Number(invoice.paid)) : "");
     setPaymentFormOpen(true);
   }
 
@@ -515,7 +568,7 @@ function PaymentsPage() {
                     setPaymentFormOpen(open);
                     if (!open) {
                       setInvoiceId("");
-                      setAmountValue(null);
+                      setAmount("");
                     }
                   }}
                   size="lg"
@@ -577,20 +630,24 @@ function PaymentsPage() {
                         {selectedInvoice && (
                           <button
                             type="button"
-                            onClick={() => setAmountValue(remaining)}
+                            onClick={() => setAmount(String(remaining))}
                             className="text-[11px] font-bold text-primary hover:underline"
                           >
                             {lang === "ar" ? "سداد كامل" : "Full payment"}
                           </button>
                         )}
                       </div>
+                      {/* المبلغ المُوحّد: فاصلة آلاف + تفقيط تحت الرقم. */}
                       <AmountInput
-                        value={amount}
-                        onValueChange={setAmountValue}
-                        decimals={2}
-                        className="h-11 rounded-xl border-primary/20 bg-card text-base font-mono font-black shadow-sm focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/20"
+                        min={0}
+                        value={toNumberOrNull(amount)}
+                        onValueChange={(v) => setAmount(v == null ? "" : String(v))}
+                        placeholder="0.00"
+                        aria-label={lang === "ar" ? "المبلغ المحصل" : "Collected amount"}
+                        wordsClassName="text-xs"
+                        containerClassName="[&_input]:h-11 [&_input]:rounded-xl [&_input]:border-primary/20 [&_input]:text-base [&_input]:font-black"
                       />
-                      {amount != null && amount > 0 && (
+                      {Number(amount) > 0 && (
                         <div className="mt-1.5 flex justify-between px-1 text-[11px] text-muted-foreground">
                           <span>
                             {lang === "ar" ? "المتبقي بعد التحصيل" : "Remaining after payment"}
@@ -599,7 +656,7 @@ function PaymentsPage() {
                             {money(
                               Math.max(
                                 (selectedInvoice ? remaining : Number(selected.balance)) -
-                                  (amount ?? 0),
+                                  Number(amount),
                                 0,
                               ),
                             )}
@@ -811,51 +868,70 @@ function PaymentsPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {payments.map((p) => (
-                        <tr
-                          key={p.id}
-                          onClick={() => {
-                            setSelectedTx({
-                              id: p.id,
-                              type: "payment",
-                              title: `سند تحصيل #${p.id.slice(-6)}`,
-                              amount: Number(p.amount),
-                              date: p.payment_date,
-                              customerName: selected.name,
-                              customerPhone: selected.phone,
-                              referenceNumber: p.id.slice(-6),
-                              method: pmLabel(p.payment_method),
-                              notes: p.note || undefined,
-                              remainingBalance: Number(selected.balance),
-                            });
-                          }}
-                          className="min-h-[56px] cursor-pointer border-b border-border/50 transition-all hover:bg-surface-2/60 hover:shadow-sm hover:outline hover:outline-1 hover:outline-border/60"
-                        >
-                          <td className="px-3 py-2">
-                            <VortexDateBadge date={p.payment_date} size="sm" />
-                          </td>
-                          <td className="px-3 py-2 font-mono text-xs">
-                            <span className="rounded-full bg-muted/70 px-2 py-0.5 text-muted-foreground">
-                              {p.sales_invoices?.invoice_number ??
-                                (lang === "ar" ? "على الحساب" : "On account")}
-                            </span>
-                          </td>
-                          <td className="px-3 py-2">
-                            <span className="rounded-full border border-border/60 bg-surface-2 px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
-                              {pmLabel(p.payment_method)}
-                            </span>
-                          </td>
-                          <td className="px-3 py-2 max-w-[220px] truncate text-xs text-muted-foreground/80">
-                            {p.note ?? "—"}
-                          </td>
-                          <td className="px-3 py-2 text-end font-mono font-bold tabular-nums text-emerald-600 dark:text-emerald-400">
-                            <div className="flex items-center justify-end gap-1.5">
-                              <span>{money(Number(p.amount))}</span>
-                              <ArrowUpRight className="size-3.5 opacity-60" />
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
+                      {payments.map((p) => {
+                        const destinationName =
+                          (p.cashbox_id &&
+                            activeCashboxes.find((c) => c.id === p.cashbox_id)?.name_ar) ||
+                          (p.bank_account_id &&
+                            [...banks, ...wallets].find((b) => b.id === p.bank_account_id)
+                              ?.name_ar);
+                        const displayMethod = destinationName
+                          ? `${pmLabel(p.payment_method)} (${destinationName})`
+                          : pmLabel(p.payment_method);
+
+                        return (
+                          <tr
+                            key={p.id}
+                            onClick={() => {
+                              setSelectedTx({
+                                id: p.id,
+                                type: "payment",
+                                title: `سند تحصيل #${p.id.slice(-6)}`,
+                                amount: Number(p.amount),
+                                date: p.payment_date,
+                                customerName: selected.name,
+                                customerPhone: selected.phone,
+                                referenceNumber: p.payment_reference || p.id.slice(-6),
+                                method: displayMethod,
+                                cashboxName: p.cashbox_id
+                                  ? activeCashboxes.find((c) => c.id === p.cashbox_id)?.name_ar
+                                  : undefined,
+                                bankAccountName: p.bank_account_id
+                                  ? [...banks, ...wallets].find((b) => b.id === p.bank_account_id)
+                                      ?.name_ar
+                                  : undefined,
+                                notes: p.note || undefined,
+                                remainingBalance: Number(selected.balance),
+                              });
+                            }}
+                            className="min-h-[56px] cursor-pointer border-b border-border/50 transition-all hover:bg-surface-2/60 hover:shadow-sm hover:outline hover:outline-1 hover:outline-border/60"
+                          >
+                            <td className="px-3 py-2">
+                              <VortexDateBadge date={p.payment_date} size="sm" />
+                            </td>
+                            <td className="px-3 py-2 font-mono text-xs">
+                              <span className="rounded-full bg-muted/70 px-2 py-0.5 text-muted-foreground">
+                                {p.sales_invoices?.invoice_number ??
+                                  (lang === "ar" ? "على الحساب" : "On account")}
+                              </span>
+                            </td>
+                            <td className="px-3 py-2">
+                              <span className="rounded-full border border-border/60 bg-surface-2 px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+                                {displayMethod}
+                              </span>
+                            </td>
+                            <td className="px-3 py-2 max-w-[220px] truncate text-xs text-muted-foreground/80">
+                              {p.note ?? "—"}
+                            </td>
+                            <td className="px-3 py-2 text-end font-mono font-bold tabular-nums text-emerald-600 dark:text-emerald-400">
+                              <div className="flex items-center justify-end gap-1.5">
+                                <span>{money(Number(p.amount))}</span>
+                                <ArrowUpRight className="size-3.5 opacity-60" />
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
@@ -881,4 +957,14 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
       {children}
     </div>
   );
+}
+
+/** جسر التحويل بين سلسلة النموذج وقيمة `AmountInput` (`number | null`). */
+function toNumberOrNull(value: string | number | null | undefined): number | null {
+  if (value == null) return null;
+  if (typeof value === "number") return Number.isFinite(value) ? value : null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  const parsed = Number(trimmed.replace(/,/g, ""));
+  return Number.isFinite(parsed) ? parsed : null;
 }

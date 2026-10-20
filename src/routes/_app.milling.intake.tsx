@@ -54,6 +54,8 @@ import {
 } from "@/lib/milling";
 import { PaymentMethodPicker } from "@/components/ui/payment-method";
 import { DynamicPaymentSelector } from "@/components/ui/payment-method/dynamic-payment-selector";
+import { AmountInput } from "@/components/ui/amount-input";
+import { QuantityInput } from "@/components/ui/quantity-input";
 import type { PaymentSettlementSelection } from "@/lib/payments/treasury-types";
 import {
   getPaymentMethodDefinition,
@@ -74,8 +76,6 @@ import {
   fmtNum,
 } from "@/components/milling/milling-ui";
 import { getCompanyCurrencySymbol } from "@/lib/format";
-import { AmountInput } from "@/components/ui/amount-input";
-import { QuantityInput } from "@/components/ui/quantity-input";
 import type { UnifiedDocumentData } from "@/lib/templates/types";
 
 export const Route = createFileRoute("/_app/milling/intake")({
@@ -637,24 +637,22 @@ function MillingIntakePage() {
                       </button>
                     );
                   })}
-                  <div className="ms-auto w-32">
+                  <div className="relative ms-auto w-28">
                     <QuantityInput
-                      decimals={3}
-                      min={1}
+                      min={0}
+                      decimals={1}
                       unit="kg"
                       placeholder="سعة مخصصة"
-                      aria-label="سعة مخصصة"
+                      aria-label="سعة الكيس المخصصة (كجم)"
                       value={capacityKg === "" ? null : Number(capacityKg)}
                       onValueChange={(v) => {
                         const next = v == null ? "" : String(v);
                         setCapacityKg(next);
-                        const n = v ?? 0;
+                        const n = Number(next) || 0;
                         const b = Number(bags) || 0;
-                        if (n > 0 && b > 0 && kgAuto) {
-                          setKg(String(b * n));
-                        }
+                        if (n > 0 && b > 0 && kgAuto) setKg(String(b * n));
                       }}
-                      className="text-center font-bold"
+                      className="font-bold"
                     />
                   </div>
                 </div>
@@ -667,13 +665,13 @@ function MillingIntakePage() {
                   hint="المحدد الأساسي لعمليات الاستلام وأجور الطحن"
                 >
                   <QuantityInput
-                    decimals={0}
                     min={0}
+                    decimals={0}
                     placeholder="0"
                     aria-label="عدد الأكياس"
                     value={bags === "" ? null : Number(bags)}
                     onValueChange={(v) => handleBagsChange(v == null ? "" : String(v))}
-                    className="text-lg font-black text-primary"
+                    className="font-black text-primary"
                   />
                 </MillingField>
 
@@ -687,8 +685,8 @@ function MillingIntakePage() {
                 >
                   <div className="space-y-1">
                     <QuantityInput
-                      decimals={2}
                       min={0}
+                      decimals={2}
                       unit="kg"
                       placeholder="0.00"
                       aria-label="الوزن الإجمالي (كجم)"
@@ -784,8 +782,8 @@ function MillingIntakePage() {
                   {/* احتساب أجر الكيس × عدد الأكياس */}
                   <div className="grid gap-2.5 sm:grid-cols-2">
                     <MillingField label="أجر طحن الكيس الواحد" hint="سعر خدمة طحن الكيس الواحد">
-                      {/* أجر الكيس سعر وحدة داخل الحساب، والتفقيط يظهر مرة واحدة
-                          تحت إجمالي أجور الخدمة أسفله — لا نكرره في الحقلين. */}
+                      {/* أجر الكيس سعر وحدة داخل الحساب — التفقيط يظهر مرة واحدة
+                          تحت إجمالي أجور الخدمة أسفله، لا نكرره في الحقلين. */}
                       <AmountInput
                         min={0}
                         showInWords={false}
@@ -807,6 +805,8 @@ function MillingIntakePage() {
                     >
                       <AmountInput
                         min={0}
+                        placeholder="0.00"
+                        aria-label="إجمالي أجور الخدمة"
                         value={servicePrice === "" ? null : Number(servicePrice)}
                         onValueChange={(v) => setServicePrice(v == null ? "" : String(v))}
                         className="font-black text-amber-600 dark:text-amber-400"
@@ -835,6 +835,8 @@ function MillingIntakePage() {
                 <MillingField label="الخصم (إن وجد)">
                   <AmountInput
                     min={0}
+                    placeholder="0.00"
+                    aria-label="الخصم"
                     value={discount === "" ? null : Number(discount)}
                     onValueChange={(v) => setDiscount(v == null ? "" : String(v))}
                     className="font-medium"
@@ -913,21 +915,23 @@ function MillingIntakePage() {
                         </button>
                       )}
                     </div>
-                    <AmountInput
-                      min={0}
-                      disabled={isCredit}
-                      placeholder="0.00"
-                      aria-label="المبلغ المستلم (المدفوع)"
-                      value={isCredit ? 0 : paid === "" ? null : Number(paid)}
-                      onValueChange={(v) => setPaid(v == null ? "" : String(v))}
-                      className={`font-bold ${
-                        isCredit
-                          ? "cursor-not-allowed opacity-60"
-                          : isOverpaid
-                            ? "text-rose-600"
-                            : "text-emerald-600"
-                      }`}
-                    />
+                    <div className="relative">
+                      <AmountInput
+                        min={0}
+                        disabled={isCredit}
+                        placeholder="0.00"
+                        aria-label="المبلغ المستلم (المدفوع)"
+                        value={isCredit ? null : paid === "" ? null : Number(paid)}
+                        onValueChange={(v) => setPaid(v == null ? "" : String(v))}
+                        className={`font-bold ${
+                          isCredit
+                            ? "cursor-not-allowed opacity-60"
+                            : isOverpaid
+                              ? "border-rose-500 text-rose-600 bg-rose-500/5"
+                              : "text-emerald-600"
+                        }`}
+                      />
+                    </div>
                     <span className="text-[11px] text-muted-foreground block">
                       {isCredit ? "معطّل لأن الطريقة آجلة" : "المبلغ المستلم كاش أو شبكة"}
                     </span>

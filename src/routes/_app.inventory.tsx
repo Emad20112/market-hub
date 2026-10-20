@@ -250,10 +250,10 @@ function InventoryPage() {
               (byWarehouseByItem[pos.item_id][pos.warehouse_id] ?? 0) + Number(pos.quantity ?? 0);
           }
         } else {
-          // Fallback to inventory table — نقطة مهمة: owner_type يميّز مخزون المنشأة
-          // عن الأمانات؛ بدونه تظهر أمانة المطاحن كثروة للمنشأة.
-          const { data: invData } = await supabase
-            .from("inventory")
+          // Fallback to inventory table — `owner_type` موجود في قاعدة البيانات لكنه
+          // غائب عن الأنواع المولّدة، فنمرّر الطلب عبر `any` بدل حذف الفلتر
+          // (الفتر ضروري لتمييز مخزون المنشأة عن الأمانات).
+          const { data: invData } = await (supabase.from("inventory") as any)
             .select("product_id, warehouse_id, quantity")
             .eq("owner_type", "COMPANY")
             .in("product_id", pageIds);

@@ -24,8 +24,8 @@ import { cn } from "@/lib/utils";
 import { useFinancialPosting } from "@/hooks/use-financial-posting";
 import { usePaymentMethodsForContext } from "@/hooks/use-payment-methods";
 import { PaymentMethodPicker } from "@/components/ui/payment-method";
-import { AmountInput } from "@/components/ui/amount-input";
 import { DynamicPaymentSelector } from "@/components/ui/payment-method/dynamic-payment-selector";
+import { AmountInput } from "@/components/ui/amount-input";
 import type { PaymentSettlementSelection } from "@/lib/payments/treasury-types";
 import { paymentMethodLabel, requiresPaymentReference } from "@/lib/payments/payment-methods";
 
@@ -51,6 +51,8 @@ export interface CollectionReceipt {
   date: string;
   paymentDate: string;
   notes?: string;
+  cashboxName?: string | null;
+  bankAccountName?: string | null;
 }
 
 export interface VortexCollectionSheetProps {
@@ -158,7 +160,12 @@ export function VortexCollectionSheet({
   const buildTemplateMessage = (r: CollectionReceipt, tpl: MessageTemplateType) => {
     const formattedAmount = money(r.amount);
     const formattedRemaining = money(r.remainingBalance);
-    const mLabel = labelForMethod(r.method);
+    const destination = r.bankAccountName
+      ? ` (${r.bankAccountName})`
+      : r.cashboxName
+        ? ` (${r.cashboxName})`
+        : "";
+    const mLabel = labelForMethod(r.method) + destination;
     const balanceLine =
       r.collectionMode === "advance"
         ? "💳 تم تسجيل دفعة مقدمة مستقلة على حساب العميل."
@@ -254,8 +261,13 @@ export function VortexCollectionSheet({
             type: "customer_collection",
             amount: payAmount,
             method: settlement.paymentMethodId || method,
+            paymentMethodId: settlement.paymentMethodId || method,
             cashboxId: settlement.cashboxId || null,
             bankAccountId: settlement.bankAccountId || null,
+            chequeNumber: settlement.chequeNumber || settlement.cheque?.chequeNumber || null,
+            chequeBank: settlement.chequeBank || settlement.cheque?.bankName || null,
+            chequeDueDate: settlement.chequeDueDate || settlement.cheque?.dueDate || null,
+            chequeDrawer: settlement.chequeDrawer || settlement.cheque?.drawerName || null,
             invoiceId: collectionMode === "advance" ? null : (initialInvoiceId ?? null),
             paymentDate,
             reference: trimmedReference || null,
@@ -280,6 +292,8 @@ export function VortexCollectionSheet({
         date: toSystemDigits(displayDate),
         paymentDate,
         notes: receiptNotes || undefined,
+        cashboxName: settlement.cashboxName || null,
+        bankAccountName: settlement.bankAccountName || null,
       };
 
       setReceipt(newReceipt);
@@ -601,7 +615,7 @@ export function VortexCollectionSheet({
             <div className="relative">
               <AmountInput
                 min={0.01}
-                value={amount === "" ? null : Number(amount)}
+                value={toNumberOrNull(amount)}
                 onValueChange={(v) => setAmount(v == null ? "" : String(v))}
                 placeholder="0.00"
                 aria-label={collectionMode === "advance" ? "قيمة الدفعة المقدمة" : "المبلغ المحصل"}
@@ -692,4 +706,17 @@ export function VortexCollectionSheet({
       )}
     </VortexDrawerDialog>
   );
+}
+
+/**
+ * حالة النموذج تحتفظ بالمبلغ كسلسلة، بينما `AmountInput` يعمل بقيمة
+ * `number | null`. النص الفارغ أو غير الرقمي يصبح null بدل NaN.
+ */
+function toNumberOrNull(value: string | number | null | undefined): number | null {
+  if (value == null) return null;
+  if (typeof value === "number") return Number.isFinite(value) ? value : null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  const parsed = Number(trimmed.replace(/,/g, ""));
+  return Number.isFinite(parsed) ? parsed : null;
 }

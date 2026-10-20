@@ -48,6 +48,9 @@ import {
 } from "lucide-react";
 import { useCashboxes } from "@/hooks/use-cashboxes";
 import { useCompanyBankAccounts } from "@/hooks/use-company-bank-accounts";
+import { DynamicPaymentSelector } from "@/components/ui/payment-method";
+import type { PaymentSettlementSelection } from "@/lib/payments/treasury-types";
+import { toLegacyPaymentValue } from "@/lib/payments/payment-methods";
 
 export const Route = createFileRoute("/_app/supplier-ledger")({
   head: () => ({
@@ -110,11 +113,29 @@ function SupplierLedgerPage() {
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
 
-  // Treasury hooks
+  // Treasury hooks & Dynamic Settlement State
   const { activeCashboxes, defaultCashbox } = useCashboxes();
   const { banks, wallets, defaultBank, defaultWallet } = useCompanyBankAccounts();
   const [selectedCashboxId, setSelectedCashboxId] = useState<string>("");
   const [selectedBankAccountId, setSelectedBankAccountId] = useState<string>("");
+  const [settlement, setSettlement] = useState<PaymentSettlementSelection>({
+    method: "cash",
+    paymentMethodId: "cash",
+  });
+
+  // Read URL query params on initial mount
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const sp = new URLSearchParams(window.location.search);
+      const urlSupplierId = sp.get("supplierId");
+      if (urlSupplierId) {
+        setSelectedSupplierId(urlSupplierId);
+        if (sp.get("action") === "payment") {
+          setPaymentDialogOpen(true);
+        }
+      }
+    }
+  }, []);
 
   // Payment Dialog State
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
@@ -143,7 +164,11 @@ function SupplierLedgerPage() {
       }));
       setSuppliers(list);
       if (list.length > 0 && !selectedSupplierId) {
-        setSelectedSupplierId(list[0].id);
+        const urlSupplierId =
+          typeof window !== "undefined"
+            ? new URLSearchParams(window.location.search).get("supplierId")
+            : null;
+        setSelectedSupplierId(urlSupplierId || list[0].id);
       }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
@@ -303,17 +328,23 @@ function SupplierLedgerPage() {
       let data: any = null;
       let error: any = null;
 
+      const resolvedCashbox =
+        settlement.cashboxId || selectedCashboxId || defaultCashbox?.id || null;
+      const resolvedBank =
+        settlement.bankAccountId || selectedBankAccountId || defaultBank?.id || null;
+      const resolvedMethod = toLegacyPaymentValue(settlement.method || payMethod).toUpperCase();
+      const resolvedAccount = settlement.chartAccountId || payAccount || "1101";
+
       try {
         const res = await (supabase as any).rpc("record_supplier_payment", {
           p_supplier_id: selectedSupplierId,
           p_amount: amt,
-          p_payment_method: payMethod,
-          p_account_code: payAccount,
+          p_payment_method: resolvedMethod,
+          p_account_code: resolvedAccount,
           p_payment_date: payDate || new Date().toISOString().slice(0, 10),
           p_notes: payNotes || null,
-          p_cashbox_id:
-            payMethod === "CASH" ? selectedCashboxId || defaultCashbox?.id || null : null,
-          p_bank_account_id: payMethod !== "CASH" ? selectedBankAccountId || null : null,
+          p_cashbox_id: resolvedMethod === "CASH" ? resolvedCashbox : null,
+          p_bank_account_id: resolvedMethod !== "CASH" ? resolvedBank : null,
         });
         data = res.data;
         error = res.error;
@@ -321,8 +352,8 @@ function SupplierLedgerPage() {
         const res = await (supabase as any).rpc("record_supplier_payment", {
           p_supplier_id: selectedSupplierId,
           p_amount: amt,
-          p_payment_method: payMethod,
-          p_account_code: payAccount,
+          p_payment_method: resolvedMethod,
+          p_account_code: resolvedAccount,
           p_payment_date: payDate || new Date().toISOString().slice(0, 10),
           p_notes: payNotes || null,
         });
@@ -337,9 +368,9 @@ function SupplierLedgerPage() {
           await (supabase as any)
             .from("supplier_payments")
             .update({
-              cashbox_id:
-                payMethod === "CASH" ? selectedCashboxId || defaultCashbox?.id || null : null,
-              bank_account_id: payMethod !== "CASH" ? selectedBankAccountId || null : null,
+              cashbox_id: resolvedMethod === "CASH" ? resolvedCashbox : null,
+              bank_account_id: resolvedMethod !== "CASH" ? resolvedBank : null,
+              payment_method_id: settlement.paymentMethodId || settlement.method || null,
             })
             .eq("id", data.payment_id);
         } catch {
@@ -350,7 +381,7 @@ function SupplierLedgerPage() {
       const voucherNo = data?.voucher_number || "";
       setActionMessage({
         type: "success",
-        text: `تم تسجيل وترحيل سند الصرف بنجاح (رقم السند: ${voucherNo})، وقيد المحاسبة Dr 2111 / Cr ${payAccount}.`,
+        text: `تم تسجيل وترحيل سند الصرف بنجاح (رقم السند: ${voucherNo})، وقيد المحاسبة Dr 2111 / Cr ${resolvedAccount}.`,
       });
 
       setPaymentDialogOpen(false);
@@ -749,11 +780,12 @@ function SupplierLedgerPage() {
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label className="text-xs">المبلغ المسدد *</Label>
+                {/* المبلغ المُوحّد: فاصلة آلاف + تفقيط تحت الرقم. */}
                 <AmountInput
                   min={0.01}
                   placeholder="0.00"
                   aria-label="المبلغ المسدد"
-                  value={payAmount === "" ? null : Number(payAmount)}
+                  value={toNumberOrNull(payAmount)}
                   onValueChange={(v) => setPayAmount(v == null ? "" : String(v))}
                 />
               </div>
@@ -763,106 +795,29 @@ function SupplierLedgerPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label className="text-xs">طريقة الدفع</Label>
-                <Select value={payMethod} onValueChange={handleMethodChange}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="CASH">نقداً (Cash)</SelectItem>
-                    <SelectItem value="BANK">تحويل بنكي (Bank Transfer)</SelectItem>
-                    <SelectItem value="WALLET">محفظة إلكترونية (Mobile Wallet)</SelectItem>
-                    <SelectItem value="CHEQUE">شيك (Cheque)</SelectItem>
-                    <SelectItem value="CARD">بطاقة / مدى (Card)</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-1.5">
-                <Label className="text-xs">
-                  {payMethod === "CASH"
-                    ? "الصندوق / الخزينة"
-                    : payMethod === "WALLET"
-                      ? "المحفظة الإلكترونية"
-                      : "الحساب البنكي / جهة الصرف"}
-                </Label>
-
-                {payMethod === "CASH" ? (
-                  <Select
-                    value={selectedCashboxId || defaultCashbox?.id || "fallback_cash"}
-                    onValueChange={(id) => {
-                      setSelectedCashboxId(id);
-                      const box = activeCashboxes.find((c) => c.id === id);
-                      if (box) setPayAccount(box.account?.code || "1101");
-                    }}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="اختر الصندوق..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {activeCashboxes.length > 0 ? (
-                        activeCashboxes.map((box) => (
-                          <SelectItem key={box.id} value={box.id}>
-                            {box.name_ar} ({box.account?.code || box.code})
-                          </SelectItem>
-                        ))
-                      ) : (
-                        <SelectItem value="fallback_cash">1101 — الصندوق الرئيسي</SelectItem>
-                      )}
-                    </SelectContent>
-                  </Select>
-                ) : payMethod === "WALLET" ? (
-                  <Select
-                    value={selectedBankAccountId || defaultWallet?.id || "fallback_wallet"}
-                    onValueChange={(id) => {
-                      setSelectedBankAccountId(id);
-                      const w = wallets.find((b) => b.id === id);
-                      if (w) setPayAccount(w.account?.code || "1131");
-                    }}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="اختر المحفظة..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {wallets.length > 0 ? (
-                        wallets.map((w) => (
-                          <SelectItem key={w.id} value={w.id}>
-                            {w.name_ar} — {w.bank_name} ({w.account?.code || "1131"})
-                          </SelectItem>
-                        ))
-                      ) : (
-                        <SelectItem value="fallback_wallet">1131 — المحافظ الإلكترونية</SelectItem>
-                      )}
-                    </SelectContent>
-                  </Select>
-                ) : (
-                  <Select
-                    value={selectedBankAccountId || defaultBank?.id || "fallback_bank"}
-                    onValueChange={(id) => {
-                      setSelectedBankAccountId(id);
-                      const b = banks.find((bk) => bk.id === id);
-                      if (b) setPayAccount(b.account?.code || "1111");
-                    }}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="اختر الحساب البنكي..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {banks.length > 0 ? (
-                        banks.map((b) => (
-                          <SelectItem key={b.id} value={b.id}>
-                            {b.name_ar} — {b.bank_name} ({b.account?.code || "1111"})
-                          </SelectItem>
-                        ))
-                      ) : (
-                        <SelectItem value="fallback_bank">1111 — الحساب البنكي</SelectItem>
-                      )}
-                    </SelectContent>
-                  </Select>
-                )}
-              </div>
+            <div className="space-y-2">
+              <Label className="text-xs font-semibold">
+                طريقة الصرف وتحديد الوعاء المالي (خزينة / بنك / محفظة)
+              </Label>
+              <DynamicPaymentSelector
+                context="purchases"
+                value={settlement.paymentMethodId || settlement.method || "cash"}
+                onChange={(m) => {
+                  setSettlement((prev) => ({ ...prev, method: m }));
+                  setPayMethod(toLegacyPaymentValue(m).toUpperCase());
+                }}
+                settlement={settlement}
+                onSettlementChange={(next) => {
+                  setSettlement(next);
+                  setPayMethod(toLegacyPaymentValue(next.method).toUpperCase());
+                  setSelectedCashboxId(next.cashboxId || "");
+                  setSelectedBankAccountId(next.bankAccountId || "");
+                  if (next.chartAccountId) {
+                    setPayAccount(next.chartAccountId);
+                  }
+                }}
+                includeCredit={false}
+              />
             </div>
 
             <div className="space-y-1.5">
@@ -898,4 +853,17 @@ function SupplierLedgerPage() {
       </Dialog>
     </div>
   );
+}
+
+/**
+ * حالة النموذج تحتفظ بالمبلغ كسلسلة، بينما `AmountInput` يعمل بقيمة
+ * `number | null`. النص الفارغ أو غير الرقمي يصبح null بدل NaN.
+ */
+function toNumberOrNull(value: string | number | null | undefined): number | null {
+  if (value == null) return null;
+  if (typeof value === "number") return Number.isFinite(value) ? value : null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  const parsed = Number(trimmed.replace(/,/g, ""));
+  return Number.isFinite(parsed) ? parsed : null;
 }

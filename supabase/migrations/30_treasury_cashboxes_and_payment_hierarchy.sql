@@ -1461,8 +1461,9 @@ GRANT ALL ON public.cheques_register TO authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.resolve_document_settlement_account(text, uuid, uuid, text) TO authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.post_sales_invoice(uuid) TO authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.post_purchase_invoice(uuid) TO authenticated, service_role;
+-- التوقيع القديم ذو السبعة وسائط (معرّف في 20_accounting_phase1_close_the_loop): يبقى قابلاً للتنفيذ للتوافق العكسي
 GRANT EXECUTE ON FUNCTION public.create_purchase(uuid, uuid, text, numeric, numeric, text, jsonb) TO authenticated, service_role;
--- التوافق العكسي: التوقيع القديم ذو السبعة وسائط يبقى قابلاً للتنفيذ بعد إعادة تعريفه
+-- التوقيع الجديد بأحد عشر وسيطًا (البند 11.3 أعلاه) مع الصناديق والحسابات البنكية
 GRANT EXECUTE ON FUNCTION public.create_purchase(uuid, uuid, text, numeric, numeric, text, jsonb, uuid, uuid, text, text) TO authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.record_customer_payment(uuid, uuid, numeric, text, date, text, uuid, uuid, text, text, text, date, text) TO authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.record_customer_payment(uuid, uuid, numeric, text, date, text) TO authenticated, service_role;

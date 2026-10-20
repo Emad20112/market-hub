@@ -650,15 +650,14 @@ function NewSalesReturn({
                     <TableRow key={l.product_id}>
                       <TableCell className="font-medium">{l.name}</TableCell>
                       <TableCell>
+                        {/* الكمية المُوحّدة: أرقام في المنتصف، بلا عجلة ماوس. */}
                         <QuantityInput
-                          value={l.quantity}
-                          onValueChange={(v) => updateQty(l.product_id, v && v > 0 ? v : 1)}
-                          decimals={3}
-                          emptyAsZero
+                          decimals={0}
                           min={1}
-                          aria-label={lang === "ar" ? "الكمية" : "Qty"}
-                          containerClassName="w-28"
-                          className="h-8"
+                          aria-label={lang === "ar" ? "الكمية" : "Quantity"}
+                          value={l.quantity}
+                          onValueChange={(v) => updateQty(l.product_id, v == null ? 1 : v)}
+                          className="h-8 w-20"
                         />
                       </TableCell>
                       <TableCell className="font-mono">{money(l.unit_price)}</TableCell>

@@ -39,8 +39,6 @@ import {
   getDomainDimensions,
   type ReportDimensionKey,
 } from "@/lib/reports/registry/groupby-registry";
-import { usePaymentMethods } from "@/hooks/use-payment-methods";
-import { useI18n } from "@/lib/i18n";
 
 interface ReportFiltersBarProps {
   filters: ReportFilterDefinition[];
@@ -126,35 +124,6 @@ export function ReportFiltersBar({
     () => getDomainDimensions(definition?.domain || "sales"),
     [definition?.domain],
   );
-
-  const { lang } = useI18n();
-  const isAr = lang === "ar";
-  const { methods: allPaymentMethods } = usePaymentMethods();
-
-  const paymentMethodOptions = useMemo(() => {
-    const list = allPaymentMethods
-      .filter((m) => m.isActive && m.enabled)
-      .map((m) => ({
-        value: m.id,
-        label: isAr ? m.nameAr : (m.nameEn ?? m.nameAr),
-      }));
-
-    const existingValues = new Set(list.map((x) => x.value));
-    for (const fb of [
-      { value: "cash", label: isAr ? "نقداً" : "Cash" },
-      { value: "card", label: isAr ? "شبكة / بطاقة" : "Card" },
-      { value: "mobile_money", label: isAr ? "محفظة إلكترونية" : "Mobile Wallet" },
-      { value: "bank_transfer", label: isAr ? "تحويل بنكي" : "Bank Transfer" },
-      { value: "cheque", label: isAr ? "شيك" : "Cheque" },
-      { value: "credit", label: isAr ? "آجل" : "Credit" },
-      { value: "split", label: isAr ? "دفع مجزأ" : "Split" },
-    ]) {
-      if (!existingValues.has(fb.value)) {
-        list.push(fb);
-      }
-    }
-    return list;
-  }, [allPaymentMethods, isAr]);
 
   const selectableFilters = useMemo(
     () => filters.filter((f) => f.controlType in optionSourceByControl),
@@ -407,7 +376,7 @@ export function ReportFiltersBar({
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="all">كل طرق الدفع</SelectItem>
-                        {paymentMethodOptions.map((pm) => (
+                        {PAYMENT_METHODS.map((pm) => (
                           <SelectItem key={pm.value} value={pm.value}>
                             {pm.label}
                           </SelectItem>
@@ -662,7 +631,7 @@ export function ReportFiltersBar({
                 dimensionKey="payment_method"
                 isGrouped={selectedDimensions.includes("payment_method")}
                 onToggleGroup={() => onToggleDimension?.("payment_method")}
-                options={paymentMethodOptions.map((pm) => ({ id: pm.value, label: pm.label }))}
+                options={PAYMENT_METHODS.map((pm) => ({ id: pm.value, label: pm.label }))}
                 selectedIds={
                   values.paymentMethods || (values.paymentMethod ? [values.paymentMethod] : [])
                 }

@@ -23,9 +23,9 @@ import { Button } from "@/components/ui/button";
 import { FieldInput } from "@/components/ui/input";
 import { AmountInput } from "@/components/ui/amount-input";
 import { VortexDrawerDialog } from "@/components/vortex-ui";
-import { SegmentedTabs } from "@/components/ui/segmented-tabs";
 import { DynamicPaymentSelector } from "@/components/ui/payment-method/dynamic-payment-selector";
 import type { PaymentSettlementSelection } from "@/lib/payments/treasury-types";
+import { SegmentedTabs } from "@/components/ui/segmented-tabs";
 import { useExpenseMutations, type ExpenseLineInput } from "@/hooks/use-expenses";
 import { parseAmount, roundMoney, today } from "@/lib/expenses/query-keys";
 import type {
@@ -614,17 +614,22 @@ export function ExpenseFormDialog({
                 </span>
               )}
             </label>
-            {/* المبلغ المُوحّد: فاصلة آلاف + تفقيط تحت الرقم + رمز العملة من الإعدادات. */}
-            <AmountInput
-              ref={amountInputRef}
-              min={0}
-              value={toNumberOrNull(primaryLine.unit_price)}
-              onValueChange={(value) => updateAmount(value == null ? "" : String(value))}
-              placeholder="0.00"
-              aria-label={ar ? "مبلغ المصروف المطلوب صرفه" : "Expense amount"}
-              wordsClassName="text-xs"
-              containerClassName="[&_input]:h-14 [&_input]:rounded-xl [&_input]:px-4 [&_input]:text-2xl [&_input]:font-black"
-            />
+            <div className="relative">
+              {/* المبلغ المُوحّد: فاصلة آلاف + تفقيط تحت الرقم — لا spinner ولا عجلة ماوس. */}
+              <AmountInput
+                ref={amountInputRef}
+                min={0}
+                value={toNumberOrNull(primaryLine.unit_price)}
+                onValueChange={(value) => updateAmount(value == null ? "" : String(value))}
+                placeholder="0.00"
+                aria-label={ar ? "مبلغ المصروف المطلوب صرفه" : "Expense amount"}
+                wordsClassName="text-xs"
+                containerClassName="[&_input]:h-14 [&_input]:rounded-xl [&_input]:px-4 [&_input]:text-2xl [&_input]:font-black"
+              />
+              <span className="absolute end-4 top-1/2 -translate-y-1/2 text-sm font-bold text-muted-foreground">
+                {ar ? "ريال" : "YER"}
+              </span>
+            </div>
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
@@ -704,71 +709,25 @@ export function ExpenseFormDialog({
               </h3>
             </div>
 
-            {/* أزرار طريقة الدفع الفوري */}
+            {/* اختيار طريقة الدفع والخزينة / المحفظة / الحساب البنكي عبر DynamicPaymentSelector الموحد */}
             <div className="space-y-2">
               <label className="block text-xs font-bold text-muted-foreground">
-                {ar ? "وسيلة الخصم النقدي:" : "Payment method:"}
+                {ar
+                  ? "وسيلة الخصم والوعاء المالي (خزينة / بنك / محفظة):"
+                  : "Payment Method & Financial Account:"}
               </label>
 
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                {[
-                  { id: "cash", label: ar ? "نقدًا (الصندوق 1101)" : "Cash (1101)", icon: Coins },
-                  {
-                    id: "bank_transfer",
-                    label: ar ? "تحويل بنكي (1111)" : "Bank Transfer",
-                    icon: Landmark,
-                  },
-                  { id: "mobile_money", label: ar ? "محفظة إلكترونية" : "E-Wallet", icon: Wallet },
-                  { id: "card", label: ar ? "بطاقة / شبكة" : "Card", icon: CreditCard },
-                ].map((item) => {
-                  const Icon = item.icon;
-                  const isSelected = paymentMethod === item.id;
-                  return (
-                    <button
-                      key={item.id}
-                      type="button"
-                      onClick={() => setPaymentMethod(item.id)}
-                      className={cn(
-                        "flex items-center gap-2 rounded-xl border p-2.5 text-xs font-bold transition text-start",
-                        isSelected
-                          ? "border-primary bg-primary text-primary-foreground shadow-xs"
-                          : "border-border bg-surface text-foreground hover:bg-muted",
-                      )}
-                    >
-                      <Icon className="size-4 shrink-0" />
-                      <span className="truncate">{item.label}</span>
-                    </button>
-                  );
-                })}
-              </div>
-
-              {/* اختيار الحساب المالي المحدد عند توفره */}
-              {(lookups?.financial_accounts ?? []).length > 0 && (
-                <div className="pt-2">
-                  <label className="mb-1 block text-[11px] font-semibold text-muted-foreground">
-                    {ar ? "حساب الصندوق / البنك المحدد للخصم:" : "Financial Account:"}
-                  </label>
-                  <select
-                    value={accountId}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      setAccountId(val);
-                      const matched = lookups?.financial_accounts?.find((a) => a.id === val);
-                      if (matched) setAccountLabel(matched.name_ar);
-                    }}
-                    className={cn(selectClass, "h-9 text-xs")}
-                  >
-                    <option value="">
-                      {ar ? "— الصندوق الرئيسي الافتراضي (حـ/ 1101) —" : "— Default Cash (1101) —"}
-                    </option>
-                    {(lookups?.financial_accounts ?? []).map((acct) => (
-                      <option key={acct.id} value={acct.id}>
-                        {acct.code} — {acct.name_ar}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
+              <DynamicPaymentSelector
+                context="expenses"
+                value={paymentMethod}
+                onChange={setPaymentMethod}
+                settlement={settlement}
+                onSettlementChange={(s) => {
+                  setSettlement(s);
+                  if (s.chartAccountId) setAccountId(s.chartAccountId);
+                }}
+                includeCredit={false}
+              />
             </div>
 
             {/* المستلم / الجهة المستفيدة (بدون أي سوبر أدمن) */}

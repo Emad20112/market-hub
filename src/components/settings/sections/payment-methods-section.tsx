@@ -77,10 +77,16 @@ import { PaymentMethodIdentityEditor } from "@/components/ui/payment-method/paym
 interface DraftRow {
   id: string;
   enabled: boolean;
+  contexts: PaymentContext[];
 }
 
 /**
  * The whole editable state: the rows plus their order.
+ *
+ * Order is a separate array rather than a field on each row because that is what
+ * it actually is — one sequence the operator manipulates — and it makes
+ * "did the order change?" a single array comparison instead of a scan for a
+ * monotonicity violation.
  */
 interface DraftState {
   rows: Record<string, DraftRow>;
@@ -92,11 +98,18 @@ function buildDraft(methods: ResolvedPaymentMethod[]): DraftState {
   const order: string[] = [];
 
   for (const method of methods) {
+    // EVERY active catalogue row is listed, including the ones this business
+    // created. A filter against a shipped-id whitelist used to hide them from
+    // the very screen whose job is to configure them.
+    // A method the developers retired is not offered at all; showing it as a
+    // switch the operator cannot use would be noise.
     if (!method.isActive) continue;
     rows[method.id] = {
       id: method.id,
       enabled: method.enabled,
+      contexts: [...method.effectiveContexts],
     };
+    // `methods` already arrives in effective presentation order.
     order.push(method.id);
   }
 
@@ -212,7 +225,7 @@ export function PaymentMethodsSection() {
       if (selectedLedgerKind && method.ledgerKind !== selectedLedgerKind) return false;
       if (
         selectedContext &&
-        !method.effectiveContexts.includes(selectedContext as PaymentContext)
+        !draft.rows[method.id]?.contexts.includes(selectedContext as PaymentContext)
       ) {
         return false;
       }
@@ -265,6 +278,17 @@ export function PaymentMethodsSection() {
     );
   }, []);
 
+  const toggleContext = useCallback((id: string, context: PaymentContext, on: boolean) => {
+    setDraft((prev) => {
+      const row = prev.rows[id];
+      if (!row) return prev;
+      const contexts = on
+        ? Array.from(new Set([...row.contexts, context]))
+        : row.contexts.filter((c) => c !== context);
+      return { ...prev, rows: { ...prev.rows, [id]: { ...row, contexts } } };
+    });
+  }, []);
+
   /**
    * Move a method one slot. Order is stored as an array index when saved, so a
    * gap left by a disabled method cannot make the picker render in a sequence
@@ -285,12 +309,14 @@ export function PaymentMethodsSection() {
   const reset = useCallback(() => setDraft(savedSnapshot), [savedSnapshot]);
 
   const handleSave = useCallback(async () => {
-    // Approved methods appear across all operational sections.
+    // Order is written as the array index times ten. Ten, not one, so a future
+    // hand-inserted catalogue row can be placed between two existing methods
+    // without renumbering every business's configuration.
     const payload = draft.order.map((id, index) => ({
       payment_method_id: id,
       enabled: draft.rows[id].enabled,
       sort_order: index * 10,
-      enabled_contexts: [...PAYMENT_CONTEXTS],
+      enabled_contexts: draft.rows[id].contexts,
     }));
 
     if (payload.length === 0) {
@@ -441,8 +467,8 @@ export function PaymentMethodsSection() {
               </CardTitle>
               <CardDescription className="mt-1.5 text-xs">
                 {isAr
-                  ? "طرق الدفع المفعّلة هنا تظهر مباشرة في كافة شاشات وأقسام النظام (نقطة البيع، المبيعات، المشتريات، المصروفات، السندات والتقارير)."
-                  : "Enabled payment methods appear across all system screens and sections (POS, sales, purchases, expenses, vouchers, and reports)."}
+                  ? "الطريقة غير المفعّلة لا تظهر في أي شاشة. وتخصيص الأقسام مستقل لكل طريقة."
+                  : "A disabled method appears nowhere. Section scoping is independent per method."}
               </CardDescription>
             </CardHeader>
 
@@ -567,12 +593,17 @@ export function PaymentMethodsSection() {
                               <span>
                                 {row.enabled
                                   ? isAr
-                                    ? "مفعّلة وشاملة لكافة الشاشات"
-                                    : "Enabled across all screens"
+                                    ? "مفعّلة"
+                                    : "Enabled"
                                   : isAr
                                     ? "متوقفة"
                                     : "Disabled"}
                               </span>
+                              {row.enabled ? (
+                                <span>
+                                  {row.contexts.length} {isAr ? "أماكن ظهور" : "places"}
+                                </span>
+                              ) : null}
                               {method.defaultAccountCode ? (
                                 <span>{isAr ? "حساب مرتبط" : "Linked account"}</span>
                               ) : null}
@@ -623,6 +654,48 @@ export function PaymentMethodsSection() {
                             className="flex-1"
                           />
                         </div>
+
+                        {/* ── Row 3: contexts. Only those the developers allow. ── */}
+                        {row.enabled && (
+                          <div className="mt-2.5 border-t border-border/40 pt-2.5">
+                            <p className="mb-1.5 text-[10px] font-semibold text-muted-foreground">
+                              {isAr ? "يظهر في:" : "Appears in:"}
+                            </p>
+                            <div className="flex flex-wrap gap-1">
+                              {PAYMENT_CONTEXTS.filter((c) =>
+                                method.allowedContexts.includes(c),
+                              ).map((context) => {
+                                const on = row.contexts.includes(context);
+                                const label = PAYMENT_CONTEXT_LABELS[context];
+                                return (
+                                  <button
+                                    key={context}
+                                    type="button"
+                                    aria-pressed={on}
+                                    onClick={() => toggleContext(method.id, context, !on)}
+                                    className={cn(
+                                      "inline-flex h-7 items-center gap-1 rounded-lg border px-2 text-[10px] font-medium transition-all",
+                                      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
+                                      on
+                                        ? "border-primary/60 bg-primary/10 text-foreground"
+                                        : "border-border/60 bg-background/60 text-muted-foreground hover:border-primary/30 hover:text-foreground",
+                                    )}
+                                  >
+                                    {on && <Check className="h-3 w-3" />}
+                                    {isAr ? label.ar : label.en}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                            {method.allowedContexts.length < PAYMENT_CONTEXTS.length && (
+                              <p className="mt-1.5 text-[10px] text-muted-foreground/80">
+                                {isAr
+                                  ? `غير متاح في ${PAYMENT_CONTEXTS.length - method.allowedContexts.length} أقسام بحسب تعريف النظام.`
+                                  : `Not available in ${PAYMENT_CONTEXTS.length - method.allowedContexts.length} sections by system definition.`}
+                              </p>
+                            )}
+                          </div>
+                        )}
                       </div>
                     );
                   })}
