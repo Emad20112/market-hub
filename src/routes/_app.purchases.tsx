@@ -1888,23 +1888,53 @@ function CreateDialog({
 
     setLoading(true);
     try {
-      const { data: invId, error } = await supabase.rpc("create_purchase", {
-        _warehouse_id: warehouseId,
-        _supplier_id: supplierId,
-        // The picker holds a catalogue id. Convert at the boundary, exactly as
-        // the POS screen does, so `create_purchase` receives the stored value it
-        // casts into the ENUM.
-        _payment_method: toLegacyPaymentValue(paymentMethod),
-        _paid: paymentMethod === "credit" ? 0 : paidN || total,
-        _discount: discountN,
-        _note: (note || null) as any,
-        _items: cart.map((l) => ({
-          product_id: l.product_id,
-          quantity: Number(l.quantity),
-          unit_cost: Number(l.unit_cost),
-          tax_rate: Number(l.tax_rate),
-        })),
-      });
+      let invId: string | null = null;
+      let error: any = null;
+
+      try {
+        const res = await (supabase.rpc as any)("create_purchase", {
+          _warehouse_id: warehouseId,
+          _supplier_id: supplierId,
+          // The picker holds a catalogue id. Convert at the boundary, exactly as
+          // the POS screen does, so `create_purchase` receives the stored value it
+          // casts into the ENUM.
+          _payment_method: toLegacyPaymentValue(paymentMethod),
+          _paid: paymentMethod === "credit" ? 0 : paidN || total,
+          _discount: discountN,
+          _note: (note || null) as any,
+          _items: cart.map((l) => ({
+            product_id: l.product_id,
+            quantity: Number(l.quantity),
+            unit_cost: Number(l.unit_cost),
+            tax_rate: Number(l.tax_rate),
+          })),
+          _cashbox_id: paymentSelection.cashboxId || null,
+          _bank_account_id: paymentSelection.bankAccountId || null,
+          _payment_reference:
+            paymentSelection.reference || paymentSelection.paymentReference || null,
+          _payment_method_id: paymentSelection.paymentMethodId || paymentMethod,
+        });
+        invId = res.data;
+        error = res.error;
+      } catch {
+        const res = await supabase.rpc("create_purchase", {
+          _warehouse_id: warehouseId,
+          _supplier_id: supplierId,
+          _payment_method: toLegacyPaymentValue(paymentMethod),
+          _paid: paymentMethod === "credit" ? 0 : paidN || total,
+          _discount: discountN,
+          _note: (note || null) as any,
+          _items: cart.map((l) => ({
+            product_id: l.product_id,
+            quantity: Number(l.quantity),
+            unit_cost: Number(l.unit_cost),
+            tax_rate: Number(l.tax_rate),
+          })),
+        });
+        invId = res.data;
+        error = res.error;
+      }
+
       if (error) throw error;
 
       // Attach treasury settlement details if provided
@@ -1916,7 +1946,8 @@ function CreateDialog({
               cashbox_id: paymentSelection.cashboxId || null,
               bank_account_id: paymentSelection.bankAccountId || null,
               payment_method_id: paymentSelection.paymentMethodId || paymentMethod,
-              payment_reference: paymentSelection.reference || paymentSelection.paymentReference || null,
+              payment_reference:
+                paymentSelection.reference || paymentSelection.paymentReference || null,
             })
             .eq("id", invId);
         } catch (updateErr) {

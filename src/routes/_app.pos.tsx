@@ -341,7 +341,12 @@ function POSPage() {
 
   // Treasury & Dynamic Settlement State
   const { activeCashboxes, defaultCashbox } = useCashboxes();
-  const { banks: companyBanks, wallets: companyWallets, defaultBank, defaultWallet } = useCompanyBankAccounts();
+  const {
+    banks: companyBanks,
+    wallets: companyWallets,
+    defaultBank,
+    defaultWallet,
+  } = useCompanyBankAccounts();
   const [settlement, setSettlement] = useState<PaymentSettlementSelection>({
     method: "cash",
     paymentMethodId: "cash",
@@ -1330,15 +1335,42 @@ function POSPage() {
           try {
             await (supabase.from("sales_invoices") as any)
               .update({
-                cashbox_id: paymentMethod === "cash" ? settlement.cashboxId || defaultCashbox?.id || null : null,
-                bank_account_id:
-                  paymentMethod === "bank_transfer" || paymentMethod === "mobile_money"
-                    ? settlement.bankAccountId || null
+                cashbox_id:
+                  paymentMethod === "cash"
+                    ? settlement.cashboxId || defaultCashbox?.id || null
                     : null,
-                payment_method_id: settlement.paymentMethodId || (paymentMethod === "cash" ? "cash" : null),
+                bank_account_id:
+                  paymentMethod === "bank_transfer" ||
+                  paymentMethod === "mobile_money" ||
+                  paymentMethod === "card"
+                    ? settlement.bankAccountId || defaultBank?.id || null
+                    : null,
+                payment_method_id:
+                  settlement.paymentMethodId || (paymentMethod === "cash" ? "cash" : null),
                 payment_reference: transferRef.trim() || settlement.reference || null,
               })
               .eq("id", invoiceId);
+
+            if (isSplitPayment) {
+              if (splitCashN > 0) {
+                await (supabase.from("customer_payment_splits") as any)
+                  .update({
+                    cashbox_id: settlement.cashboxId || defaultCashbox?.id || null,
+                    payment_method_id: "cash",
+                  })
+                  .eq("invoice_id", invoiceId)
+                  .eq("method", "cash");
+              }
+              if (splitCardN > 0) {
+                await (supabase.from("customer_payment_splits") as any)
+                  .update({
+                    bank_account_id: settlement.bankAccountId || defaultBank?.id || null,
+                    payment_method_id: "card",
+                  })
+                  .eq("invoice_id", invoiceId)
+                  .eq("method", "card");
+              }
+            }
           } catch (metaErr) {
             console.warn("Settlement metadata update skipped or column not yet migrated:", metaErr);
           }
@@ -2582,7 +2614,12 @@ function POSPage() {
                         setSettlement((s) => ({
                           ...s,
                           method: "mobile_money",
-                          paymentMethodId: s.paymentMethodId && s.paymentMethodId !== "cash" && s.paymentMethodId !== "bank_transfer" ? s.paymentMethodId : "jaib",
+                          paymentMethodId:
+                            s.paymentMethodId &&
+                            s.paymentMethodId !== "cash" &&
+                            s.paymentMethodId !== "bank_transfer"
+                              ? s.paymentMethodId
+                              : "jaib",
                           bankAccountId: defaultWallet?.id,
                         }));
                       }}
@@ -2627,7 +2664,11 @@ function POSPage() {
                         setIsSplitPayment(false);
                         setPaymentMethod("credit");
                         setPaid("0");
-                        setSettlement((s) => ({ ...s, method: "credit", paymentMethodId: "credit" }));
+                        setSettlement((s) => ({
+                          ...s,
+                          method: "credit",
+                          paymentMethodId: "credit",
+                        }));
                       }}
                       className={`flex flex-col items-center justify-center gap-0.5 rounded-lg py-1.5 text-[11px] font-bold transition ${
                         !isSplitPayment && paymentMethod === "credit"
@@ -2689,7 +2730,8 @@ function POSPage() {
                           </div>
                         ) : (
                           <span className="text-[11px] font-semibold text-emerald-800 dark:text-emerald-300">
-                            {defaultCashbox?.name_ar || (lang === "ar" ? "الصندوق الرئيسي" : "Main Till")}
+                            {defaultCashbox?.name_ar ||
+                              (lang === "ar" ? "الصندوق الرئيسي" : "Main Till")}
                           </span>
                         )}
                       </div>
@@ -2716,8 +2758,11 @@ function POSPage() {
                                     ...s,
                                     paymentMethodId: w.id,
                                     bankAccountId:
-                                      companyWallets.find((acc) => acc.name_ar.includes(w.nameAr) || acc.bank_name.includes(w.nameAr))?.id ||
-                                      s.bankAccountId,
+                                      companyWallets.find(
+                                        (acc) =>
+                                          acc.name_ar.includes(w.nameAr) ||
+                                          acc.bank_name.includes(w.nameAr),
+                                      )?.id || s.bankAccountId,
                                   }))
                                 }
                                 className={`inline-flex items-center gap-1 text-[11px] px-2 py-1 rounded-lg border font-medium transition ${
@@ -2727,7 +2772,11 @@ function POSPage() {
                                 }`}
                               >
                                 {asset ? (
-                                  <img src={asset.src} alt={asset.alt} className="h-3.5 w-3.5 object-contain" />
+                                  <img
+                                    src={asset.src}
+                                    alt={asset.alt}
+                                    className="h-3.5 w-3.5 object-contain"
+                                  />
                                 ) : (
                                   <Smartphone className="h-3 w-3 text-sky-600" />
                                 )}
@@ -2764,7 +2813,10 @@ function POSPage() {
                             { id: "yemen_kuwait_bank", nameAr: "بنك اليمن الدولي" },
                             ...companyBanks.map((b) => ({ id: b.id, nameAr: b.name_ar })),
                           ]
-                            .filter((item, idx, all) => all.findIndex((x) => x.nameAr === item.nameAr) === idx)
+                            .filter(
+                              (item, idx, all) =>
+                                all.findIndex((x) => x.nameAr === item.nameAr) === idx,
+                            )
                             .map((b) => {
                               const isChosen =
                                 settlement.paymentMethodId === b.id ||
@@ -2777,7 +2829,10 @@ function POSPage() {
                                     setSettlement((s) => ({
                                       ...s,
                                       paymentMethodId: b.id,
-                                      bankAccountId: companyBanks.find((acc) => acc.id === b.id || acc.name_ar === b.nameAr)?.id || s.bankAccountId,
+                                      bankAccountId:
+                                        companyBanks.find(
+                                          (acc) => acc.id === b.id || acc.name_ar === b.nameAr,
+                                        )?.id || s.bankAccountId,
                                     }))
                                   }
                                   className={`inline-flex items-center gap-1 text-[11px] px-2 py-1 rounded-lg border font-medium transition ${
