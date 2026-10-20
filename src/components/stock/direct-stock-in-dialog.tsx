@@ -15,6 +15,8 @@ import {
   DollarSign,
   ArrowUpRight,
 } from "lucide-react";
+import { AmountInput } from "@/components/ui/amount-input";
+import { QuantityInput } from "@/components/ui/quantity-input";
 
 type ProductItem = {
   id: string;
@@ -344,16 +346,15 @@ export function DirectStockInDialog({
                   <label className="text-[11px] font-bold text-emerald-600 dark:text-emerald-300 block">
                     {isAr ? "الكمية الواردة *" : "Incoming Qty *"}
                   </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0.01"
-                    value={incomingQtyStr}
-                    onChange={(e) => setIncomingQtyStr(e.target.value)}
-                    className="h-8 w-full rounded-lg border border-emerald-500/50 bg-surface px-2 font-mono text-base font-extrabold outline-none focus:ring-2 focus:ring-emerald-500/20"
+                  <QuantityInput
+                    value={incomingQtyStr === "" ? null : Number(incomingQtyStr)}
+                    onValueChange={(v) => setIncomingQtyStr(v == null ? "" : String(v))}
+                    decimals={3}
+                    min={0.01}
                     placeholder="+0.00"
+                    aria-label={isAr ? "الكمية الواردة" : "Incoming qty"}
                     autoFocus
-                    required
+                    containerClassName="[&_input]:h-8 [&_input]:rounded-lg [&_input]:border-emerald-500/50 [&_input]:bg-surface [&_input]:text-base [&_input]:font-extrabold"
                   />
                 </div>
 
@@ -375,13 +376,12 @@ export function DirectStockInDialog({
                     <DollarSign className="h-3.5 w-3.5 text-muted-foreground" />
                     {isAr ? "تكلفة شراء الوارد للقطعة" : "Unit Purchase Cost"}
                   </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    value={unitCostStr}
-                    onChange={(e) => setUnitCostStr(e.target.value)}
-                    className="h-10 w-full rounded-xl border border-border bg-surface px-3 font-mono text-xs outline-none focus:border-emerald-500"
+                  <AmountInput
+                    value={unitCostStr === "" ? null : Number(unitCostStr)}
+                    onValueChange={(v) => setUnitCostStr(v == null ? "" : String(v))}
+                    min={0}
+                    showInWords={false}
+                    containerClassName="[&_input]:h-10 [&_input]:rounded-xl [&_input]:bg-surface [&_input]:text-xs"
                   />
                 </div>
 

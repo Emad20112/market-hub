@@ -131,13 +131,13 @@ const IOS_ZOOM_GUARD_SCRIPT = `
 (function() {
   if (typeof window === "undefined") return;
   var tags = ["INPUT", "TEXTAREA", "SELECT"];
-  var meta = document.querySelector("meta[name=\"viewport\"]");
+  var meta = document.querySelector('meta[name="viewport"]');
   var fixedContent = "width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover";
 
   function enforceScale(e) {
     var t = e.target;
     if (t && (tags.indexOf(t.tagName) !== -1 || t.isContentEditable)) {
-      if (!meta) meta = document.querySelector("meta[name=\"viewport\"]");
+      if (!meta) meta = document.querySelector('meta[name="viewport"]');
       if (meta && meta.getAttribute("content") !== fixedContent) {
         meta.setAttribute("content", fixedContent);
       }

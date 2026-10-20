@@ -250,9 +250,10 @@ function InventoryPage() {
               (byWarehouseByItem[pos.item_id][pos.warehouse_id] ?? 0) + Number(pos.quantity ?? 0);
           }
         } else {
-          // Fallback to inventory table
-          const { data: invData } = await supabase
-            .from("inventory")
+          // Fallback to inventory table — `owner_type` موجود في قاعدة البيانات لكنه
+          // غائب عن الأنواع المولّدة، فنمرّر الطلب عبر `any` بدل حذف الفلتر
+          // (الفتر ضروري لتمييز مخزون المنشأة عن الأمانات).
+          const { data: invData } = await (supabase.from("inventory") as any)
             .select("product_id, warehouse_id, quantity")
             .eq("owner_type", "COMPANY")
             .in("product_id", pageIds);
@@ -261,7 +262,8 @@ function InventoryPage() {
             for (const inv of invData) {
               if (!byWarehouseByItem[inv.product_id]) byWarehouseByItem[inv.product_id] = {};
               byWarehouseByItem[inv.product_id][inv.warehouse_id] =
-                (byWarehouseByItem[inv.product_id][inv.warehouse_id] ?? 0) + Number(inv.quantity ?? 0);
+                (byWarehouseByItem[inv.product_id][inv.warehouse_id] ?? 0) +
+                Number(inv.quantity ?? 0);
             }
           }
         }
@@ -271,7 +273,7 @@ function InventoryPage() {
 
       const metaById = new Map<string, any>((detailRows ?? []).map((d: any) => [d.id, d]));
       const rows: Row[] = pageIds
-        .map((id) => {
+        .map((id): Row | null => {
           const meta = metaById.get(id);
           if (!meta) return null;
           return {
@@ -336,10 +338,7 @@ function InventoryPage() {
     { table: "inventory", queryKey: QUERY_KEYS.inventory(warehouseId), debounceMs: 150 },
     qc,
   );
-  useRealtimeTable(
-    { table: "products", queryKey: ["inventory", "item-ids"], debounceMs: 250 },
-    qc,
-  );
+  useRealtimeTable({ table: "products", queryKey: ["inventory", "item-ids"], debounceMs: 250 }, qc);
 
   const label = (en?: string | null, ar?: string | null) =>
     (lang === "ar" ? ar || en : en || ar) ?? "—";

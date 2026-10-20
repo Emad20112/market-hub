@@ -29,7 +29,11 @@ import {
   Check,
   Scale,
 } from "lucide-react";
-import { useBatchSettings, type BatchDispatchStrategy, type BatchSettings } from "@/hooks/use-batch-settings";
+import {
+  useBatchSettings,
+  type BatchDispatchStrategy,
+  type BatchSettings,
+} from "@/hooks/use-batch-settings";
 import { useI18n } from "@/lib/i18n";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -94,8 +98,12 @@ export function BatchSettingsDialog({ open, onOpenChange }: BatchSettingsDialogP
           supabase.from("warehouses").select("id, name, name_ar").in("id", warehouseIds),
         ]);
 
-        const pMap = new Map((pRes.data ?? []).map((p) => [p.id, isAr ? p.name_ar || p.name : p.name]));
-        const wMap = new Map((wRes.data ?? []).map((w) => [w.id, isAr ? w.name_ar || w.name : w.name]));
+        const pMap = new Map(
+          (pRes.data ?? []).map((p) => [p.id, isAr ? p.name_ar || p.name : p.name]),
+        );
+        const wMap = new Map(
+          (wRes.data ?? []).map((w) => [w.id, isAr ? w.name_ar || w.name : w.name]),
+        );
 
         const enriched = items.map((i) => ({
           ...i,
@@ -144,7 +152,10 @@ export function BatchSettingsDialog({ open, onOpenChange }: BatchSettingsDialogP
                   <span className="text-sm font-semibold text-foreground">
                     {isAr ? "طريقة الصرف الآلي في نقطة البيع" : "POS Dispatch Strategy"}
                   </span>
-                  <Badge variant="outline" className="text-[10px] font-mono border-primary/30 text-primary">
+                  <Badge
+                    variant="outline"
+                    className="text-[10px] font-mono border-primary/30 text-primary"
+                  >
                     {form.dispatch_strategy}
                   </Badge>
                 </div>
@@ -224,19 +235,27 @@ export function BatchSettingsDialog({ open, onOpenChange }: BatchSettingsDialogP
               <div className="w-24 shrink-0">
                 <Select
                   value={String(form.warning_days)}
-                  onValueChange={(val) =>
-                    setForm((f) => ({ ...f, warning_days: Number(val) }))
-                  }
+                  onValueChange={(val) => setForm((f) => ({ ...f, warning_days: Number(val) }))}
                 >
                   <SelectTrigger className="h-8 text-xs">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="15" className="text-xs">{isAr ? "15 يوماً" : "15 days"}</SelectItem>
-                    <SelectItem value="30" className="text-xs">{isAr ? "30 يوماً" : "30 days"}</SelectItem>
-                    <SelectItem value="60" className="text-xs">{isAr ? "60 يوماً" : "60 days"}</SelectItem>
-                    <SelectItem value="90" className="text-xs">{isAr ? "90 يوماً" : "90 days"}</SelectItem>
-                    <SelectItem value="180" className="text-xs">{isAr ? "180 يوماً" : "180 days"}</SelectItem>
+                    <SelectItem value="15" className="text-xs">
+                      {isAr ? "15 يوماً" : "15 days"}
+                    </SelectItem>
+                    <SelectItem value="30" className="text-xs">
+                      {isAr ? "30 يوماً" : "30 days"}
+                    </SelectItem>
+                    <SelectItem value="60" className="text-xs">
+                      {isAr ? "60 يوماً" : "60 days"}
+                    </SelectItem>
+                    <SelectItem value="90" className="text-xs">
+                      {isAr ? "90 يوماً" : "90 days"}
+                    </SelectItem>
+                    <SelectItem value="180" className="text-xs">
+                      {isAr ? "180 يوماً" : "180 days"}
+                    </SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -347,7 +366,9 @@ export function BatchSettingsDialog({ open, onOpenChange }: BatchSettingsDialogP
                         <div key={idx} className="p-2.5 flex items-center justify-between gap-2">
                           <div>
                             <div className="font-semibold text-foreground">{item.product_name}</div>
-                            <div className="text-[10px] text-muted-foreground">{item.warehouse_name}</div>
+                            <div className="text-[10px] text-muted-foreground">
+                              {item.warehouse_name}
+                            </div>
                           </div>
                           <div className="text-end font-mono">
                             <div>
@@ -356,7 +377,13 @@ export function BatchSettingsDialog({ open, onOpenChange }: BatchSettingsDialogP
                               {isAr ? "المخزون: " : "Stock: "}
                               <span className="font-bold">{item.inventory_qty}</span>
                             </div>
-                            <div className={item.difference > 0 ? "text-emerald-500 text-[11px]" : "text-rose-500 text-[11px]"}>
+                            <div
+                              className={
+                                item.difference > 0
+                                  ? "text-emerald-500 text-[11px]"
+                                  : "text-rose-500 text-[11px]"
+                              }
+                            >
                               {isAr ? "الفارق: " : "Diff: "}
                               {item.difference > 0 ? `+${item.difference}` : item.difference}
                             </div>

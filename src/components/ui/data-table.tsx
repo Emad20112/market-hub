@@ -351,16 +351,6 @@ export function DataTable<T>({
     return () => observer.disconnect();
   }, [infinite, hasMore]);
 
-  /* ---- error ---- */
-  if (error) {
-    return (
-      <div className={cn("flex min-w-0 flex-col", className)}>
-        {toolbar ? <div className="border-b border-border/60 px-3 py-2.5">{toolbar}</div> : null}
-        <QueryErrorState error={error} onRetry={onRetry} />
-      </div>
-    );
-  }
-
   const loadedCount = displayRows.length;
 
   /*
@@ -376,6 +366,8 @@ export function DataTable<T>({
   const isScrollable = Boolean(horizontalScroll || minWidth);
   const detachedHeader = isScrollable && stickyHeader;
 
+  // Hooks must run before any early return, so the width geometry lives above
+  // the error branch (react-hooks/rules-of-hooks).
   const columnWidths = React.useMemo(() => {
     return visibleColumns.map((c) => parseColumnWidth(c.width) ?? 130);
   }, [visibleColumns]);
@@ -383,6 +375,16 @@ export function DataTable<T>({
   const totalExplicitWidth = React.useMemo(() => {
     return columnWidths.reduce((sum, w) => sum + w, 0);
   }, [columnWidths]);
+
+  /* ---- error ---- */
+  if (error) {
+    return (
+      <div className={cn("flex min-w-0 flex-col", className)}>
+        {toolbar ? <div className="border-b border-border/60 px-3 py-2.5">{toolbar}</div> : null}
+        <QueryErrorState error={error} onRetry={onRetry} />
+      </div>
+    );
+  }
 
   const effectiveTableWidth = isScrollable
     ? Math.max(minWidth ?? 0, totalExplicitWidth)

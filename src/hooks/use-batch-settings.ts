@@ -47,7 +47,11 @@ export function setLocalBatchSettings(settings: BatchSettings) {
 export function useBatchSettings() {
   const qc = useQueryClient();
 
-  const { data: settings = getLocalBatchSettings(), isLoading, isFetching } = useQuery({
+  const {
+    data: settings = getLocalBatchSettings(),
+    isLoading,
+    isFetching,
+  } = useQuery({
     queryKey: ["batch-settings"],
     queryFn: async (): Promise<BatchSettings> => {
       // 1. Try to fetch from company_settings.batch_settings

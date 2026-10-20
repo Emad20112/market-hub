@@ -5,8 +5,9 @@ import { useI18n } from "@/lib/i18n";
 import { postStockAdjustment } from "@/lib/items/stock-operations";
 import { toast } from "sonner";
 import { SearchInput } from "@/components/ui/search-input";
-import { FieldInput } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { AmountInput } from "@/components/ui/amount-input";
+import { QuantityInput } from "@/components/ui/quantity-input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -157,7 +158,7 @@ export function StockAdjustmentDialog({
     const tokens = q.split(/\s+/).filter(Boolean);
     return products.filter((p) => {
       const candidate = normalizeSearchText(
-        `${p.name} ${p.name_ar ?? ""} ${p.sku ?? ""} ${p.barcode ?? ""}`
+        `${p.name} ${p.name_ar ?? ""} ${p.sku ?? ""} ${p.barcode ?? ""}`,
       );
       return tokens.every((token) => candidate.includes(token));
     });
@@ -269,7 +270,9 @@ export function StockAdjustmentDialog({
       });
 
       if (!result.ok) {
-        throw new Error(result.message || (isAr ? "فشل تنفيذ التسوية" : "Failed to apply adjustment"));
+        throw new Error(
+          result.message || (isAr ? "فشل تنفيذ التسوية" : "Failed to apply adjustment"),
+        );
       }
 
       toast.success(
@@ -308,7 +311,10 @@ export function StockAdjustmentDialog({
                 <h2 className="text-base font-bold text-foreground">
                   {isAr ? "تسوية مخزنية (جرد فعلي)" : "Stock Adjustment (Physical Count)"}
                 </h2>
-                <Badge variant="outline" className="border-sky-500/30 bg-sky-500/10 text-sky-600 dark:text-sky-400 font-semibold text-[11px]">
+                <Badge
+                  variant="outline"
+                  className="border-sky-500/30 bg-sky-500/10 text-sky-600 dark:text-sky-400 font-semibold text-[11px]"
+                >
                   {isAr ? "مطابقة الأرصدة" : "Reconciliation"}
                 </Badge>
               </div>
@@ -356,7 +362,8 @@ export function StockAdjustmentDialog({
                   <option value="">{isAr ? "اختر المستودع..." : "Select Warehouse..."}</option>
                   {warehouses.map((w) => (
                     <option key={w.id} value={w.id}>
-                      {isAr ? w.name_ar || w.name : w.name || w.name_ar} {w.code ? `(${w.code})` : ""}
+                      {isAr ? w.name_ar || w.name : w.name || w.name_ar}{" "}
+                      {w.code ? `(${w.code})` : ""}
                     </option>
                   ))}
                 </select>
@@ -371,7 +378,10 @@ export function StockAdjustmentDialog({
             </div>
 
             {/* Product Selection with System SearchInput */}
-            <div className="rounded-2xl border border-border/80 bg-surface p-4 space-y-2 shadow-xs" ref={searchContainerRef}>
+            <div
+              className="rounded-2xl border border-border/80 bg-surface p-4 space-y-2 shadow-xs"
+              ref={searchContainerRef}
+            >
               <label className="text-xs font-semibold text-foreground flex items-center justify-between">
                 <span className="flex items-center gap-1.5">
                   <Package className="h-4 w-4 text-sky-500" />
@@ -398,7 +408,9 @@ export function StockAdjustmentDialog({
                 <div className="flex items-center justify-between rounded-xl border border-primary/30 bg-primary/5 px-3.5 py-2">
                   <div className="min-w-0 flex-1">
                     <span className="font-bold text-foreground text-xs block truncate">
-                      {isAr ? selectedProduct.name_ar || selectedProduct.name : selectedProduct.name}
+                      {isAr
+                        ? selectedProduct.name_ar || selectedProduct.name
+                        : selectedProduct.name}
                     </span>
                     <div className="flex items-center gap-2 text-[10px] text-muted-foreground font-mono">
                       <span>{selectedProduct.sku ? `SKU: ${selectedProduct.sku}` : "No SKU"}</span>
@@ -429,7 +441,9 @@ export function StockAdjustmentDialog({
                     }}
                     onFocus={() => setIsSearchDropdownOpen(true)}
                     placeholder={
-                      isAr ? "ابحث باسم المنتج، الكود، أو الباركود..." : "Search name, SKU, or barcode..."
+                      isAr
+                        ? "ابحث باسم المنتج، الكود، أو الباركود..."
+                        : "Search name, SKU, or barcode..."
                     }
                     size="sm"
                     containerClassName="w-full"
@@ -456,7 +470,9 @@ export function StockAdjustmentDialog({
                                 setProductSearch("");
                               }}
                               className={`flex w-full items-center justify-between rounded-lg p-2 text-start text-xs transition hover:bg-accent ${
-                                isSelected ? "bg-primary/10 text-primary font-bold" : "text-foreground"
+                                isSelected
+                                  ? "bg-primary/10 text-primary font-bold"
+                                  : "text-foreground"
                               }`}
                             >
                               <div className="min-w-0 flex-1 pe-2">
@@ -491,7 +507,9 @@ export function StockAdjustmentDialog({
                   </span>
                   <div>
                     <h3 className="font-bold text-foreground text-sm">
-                      {isAr ? selectedProduct.name_ar || selectedProduct.name : selectedProduct.name}
+                      {isAr
+                        ? selectedProduct.name_ar || selectedProduct.name
+                        : selectedProduct.name}
                     </h3>
                     <span className="text-[11px] font-mono text-muted-foreground">
                       {selectedProduct.sku ? `SKU: ${selectedProduct.sku}` : ""}{" "}
@@ -563,14 +581,14 @@ export function StockAdjustmentDialog({
                     </button>
 
                     <div className="w-24 sm:w-28">
-                      <FieldInput
-                        type="integer"
-                        size="sm"
-                        value={actualQtyStr}
-                        onValueChange={(val) => setActualQtyStr(val.replace(/,/g, ""))}
-                        onWheel={(e) => (e.target as HTMLInputElement).blur()}
+                      <QuantityInput
+                        decimals={0}
+                        min={0}
+                        aria-label={isAr ? "الكمية المحصورة" : "Counted quantity"}
+                        value={actualQtyStr === "" ? null : Number(actualQtyStr)}
+                        onValueChange={(v) => setActualQtyStr(v == null ? "" : formatQty(v))}
                         placeholder="0"
-                        className="text-center font-mono text-base font-bold text-foreground"
+                        className="text-center text-base font-bold text-foreground"
                         required
                       />
                     </div>
@@ -595,9 +613,14 @@ export function StockAdjustmentDialog({
                       {isShortage && <TrendingDown className="h-4 w-4 text-rose-500" />}
                       {isSurplus && <TrendingUp className="h-4 w-4 text-emerald-500" />}
                       <span>
-                        {isMatching && (isAr ? "الرصيد مطابق تماماً — لا توجد فروقات" : "Stock is matching — No difference")}
-                        {isShortage && (isAr ? "عجز جردي (نقص في المخزون)" : "Stock Shortage (Deficit)")}
-                        {isSurplus && (isAr ? "فائض جردي (زيادة في المخزون)" : "Stock Surplus (Excess)")}
+                        {isMatching &&
+                          (isAr
+                            ? "الرصيد مطابق تماماً — لا توجد فروقات"
+                            : "Stock is matching — No difference")}
+                        {isShortage &&
+                          (isAr ? "عجز جردي (نقص في المخزون)" : "Stock Shortage (Deficit)")}
+                        {isSurplus &&
+                          (isAr ? "فائض جردي (زيادة في المخزون)" : "Stock Surplus (Excess)")}
                       </span>
                     </div>
 
@@ -674,13 +697,23 @@ export function StockAdjustmentDialog({
                             reasonError ? "border-rose-500 ring-1 ring-rose-500" : "border-border"
                           }`}
                         >
-                          <option value="">{isAr ? "حدد سبب التسوية..." : "Select reason..."}</option>
+                          <option value="">
+                            {isAr ? "حدد سبب التسوية..." : "Select reason..."}
+                          </option>
                           <option value="shortfall">{isAr ? "عجز جردي" : "Stock Shortfall"}</option>
                           <option value="surplus">{isAr ? "فائض جردي" : "Stock Surplus"}</option>
-                          <option value="damaged">{isAr ? "تلف سوء تخزين / كسر" : "Damaged / Broken"}</option>
-                          <option value="expiry">{isAr ? "انتهاء صلاحية" : "Expired Product"}</option>
-                          <option value="stocktake">{isAr ? "تسوية جرد دوري" : "Periodic Stocktake"}</option>
-                          <option value="other">{isAr ? "سبب آخر (اذكره في الملاحظات)" : "Other Reason"}</option>
+                          <option value="damaged">
+                            {isAr ? "تلف سوء تخزين / كسر" : "Damaged / Broken"}
+                          </option>
+                          <option value="expiry">
+                            {isAr ? "انتهاء صلاحية" : "Expired Product"}
+                          </option>
+                          <option value="stocktake">
+                            {isAr ? "تسوية جرد دوري" : "Periodic Stocktake"}
+                          </option>
+                          <option value="other">
+                            {isAr ? "سبب آخر (اذكره في الملاحظات)" : "Other Reason"}
+                          </option>
                         </select>
                         <ChevronDown className="pointer-events-none absolute end-3 top-2.5 h-4 w-4 text-muted-foreground opacity-60" />
                       </div>
@@ -695,13 +728,13 @@ export function StockAdjustmentDialog({
                       <label className="text-[11px] font-semibold text-foreground">
                         {isAr ? "تكلفة الوحدة للتسوية" : "Unit Cost for Adjustment"}
                       </label>
-                      <FieldInput
-                        type="decimal"
-                        size="sm"
-                        value={unitCostStr}
-                        onValueChange={(val) => setUnitCostStr(val.replace(/,/g, ""))}
-                        onWheel={(e) => (e.target as HTMLInputElement).blur()}
-                        className="font-mono text-xs"
+                      <AmountInput
+                        value={unitCostStr === "" ? null : Number(unitCostStr)}
+                        onValueChange={(v) => setUnitCostStr(v == null ? "" : String(v))}
+                        min={0}
+                        showInWords={false}
+                        aria-label={isAr ? "تكلفة الوحدة للتسوية" : "Unit cost"}
+                        className="text-xs"
                       />
                     </div>
                   </div>

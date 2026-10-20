@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { PrimaryAction } from "@/components/ui/primary-action";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { PageHeader } from "@/components/page-header";
 import { useAuth } from "@/lib/auth";
 import { useI18n } from "@/lib/i18n";
@@ -225,7 +225,6 @@ function formatQty(val: number | string | null | undefined): string {
   const rounded = Math.round(n * 1000) / 1000;
   return Number.isInteger(rounded) ? String(rounded) : String(rounded);
 }
-
 
 function getArabicMovementLabel(type: string): string {
   const map: Record<string, string> = {
@@ -627,9 +626,7 @@ function SettlementsPage() {
         align: "end",
         width: "w-[120px]",
         sortValue: (row) => Number(row.quantity),
-        cell: (row) => (
-          <span className="font-mono text-foreground">{formatQty(row.quantity)}</span>
-        ),
+        cell: (row) => <span className="font-mono text-foreground">{formatQty(row.quantity)}</span>,
       },
       {
         key: "reason",
@@ -905,9 +902,7 @@ function SettlementsPage() {
                 <div className="text-xs text-muted-foreground font-medium">كمية الحركة</div>
                 <div
                   className={`mt-1 font-mono text-xl font-bold ${
-                    Number(selectedMovement.quantity) >= 0
-                      ? "text-emerald-500"
-                      : "text-rose-500"
+                    Number(selectedMovement.quantity) >= 0 ? "text-emerald-500" : "text-rose-500"
                   }`}
                 >
                   {Number(selectedMovement.quantity) >= 0
@@ -921,9 +916,7 @@ function SettlementsPage() {
                 <div className="mt-1.5 text-xs font-bold text-foreground flex items-center gap-1.5">
                   <span
                     className={`size-2 rounded-full ${
-                      Number(selectedMovement.quantity) >= 0
-                        ? "bg-emerald-500"
-                        : "bg-rose-500"
+                      Number(selectedMovement.quantity) >= 0 ? "bg-emerald-500" : "bg-rose-500"
                     }`}
                   />
                   <span>
@@ -937,14 +930,18 @@ function SettlementsPage() {
               {selectedMovement.unit_cost != null && (
                 <>
                   <div className="rounded-xl border border-border/70 bg-surface/60 p-3.5">
-                    <div className="text-xs text-muted-foreground font-medium">سعر تكلفة الوحدة</div>
+                    <div className="text-xs text-muted-foreground font-medium">
+                      سعر تكلفة الوحدة
+                    </div>
                     <div className="mt-1 font-mono text-base font-bold text-foreground">
                       {money(Number(selectedMovement.unit_cost))}
                     </div>
                   </div>
 
                   <div className="rounded-xl border border-border/70 bg-surface/60 p-3.5">
-                    <div className="text-xs text-muted-foreground font-medium">إجمالي قيمة الحركة</div>
+                    <div className="text-xs text-muted-foreground font-medium">
+                      إجمالي قيمة الحركة
+                    </div>
                     <div className="mt-1 font-mono text-base font-bold text-primary">
                       {money(
                         Math.abs(
@@ -1015,7 +1012,9 @@ function SettlementsPage() {
 
                 {selectedMovement.note && (
                   <div className="p-3 bg-muted/20">
-                    <div className="text-muted-foreground text-[11px] mb-1">البيان والسبب المسجل:</div>
+                    <div className="text-muted-foreground text-[11px] mb-1">
+                      البيان والسبب المسجل:
+                    </div>
                     <div className="text-foreground font-medium leading-relaxed bg-surface/80 p-2.5 rounded-xl border border-border/50">
                       {selectedMovement.note}
                     </div>

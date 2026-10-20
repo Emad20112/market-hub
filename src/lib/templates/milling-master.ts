@@ -473,7 +473,7 @@ export function renderMillingMasterTemplate(
         ? `
     <div class="inama-footer">
       <span>تاريخ الطباعة: ${new Date().toLocaleDateString("ar-YE")}</span>
-      <span class="inama-badge">عمل بواسطة شركة إنما سوفت - هاتف: 772217218</span>
+      ${L.poweredBy ? `<span class="inama-badge">${esc(L.poweredBy)}</span>` : ""}
     </div>`
         : ""
     }
@@ -526,18 +526,16 @@ export function renderMillingThermalTemplate(
 
   const linesHtml = doc.lines
     ? doc.lines
-        .map(
-          (l, idx) => {
-            const isCustody =
-              (l.price === 0 || l.price === undefined) &&
-              (l.total === 0 || l.total === undefined);
-            return `
+        .map((l, idx) => {
+          const isCustody =
+            (l.price === 0 || l.price === undefined) && (l.total === 0 || l.total === undefined);
+          return `
       <div class="hairline-row" style="${idx < doc.lines.length - 1 ? "border-bottom: 1px solid rgba(0, 0, 0, 0.08);" : ""}">
         <div style="font-weight: 800; font-size: 12px; color: #000;">${esc(l.product)}</div>
         <div style="display:flex; justify-content:space-between; font-size: 11px; margin-top: 2px;">
           <span>${l.qty} ${esc(l.unit || "")}${!isCustody && !isDelivery ? ` × ${money(l.price)}` : ""}</span>
           <span style="font-weight:800; color: ${isCustody ? "#059669" : "#000"};">
-            ${isCustody ? (isDelivery ? "تسليم أمانة" : "أمانة عينية") : (!isDelivery ? money(l.total) : "تسليم")}
+            ${isCustody ? (isDelivery ? "تسليم أمانة" : "أمانة عينية") : !isDelivery ? money(l.total) : "تسليم"}
           </span>
         </div>
         ${
@@ -550,8 +548,7 @@ export function renderMillingThermalTemplate(
         }
         ${l.note ? `<div style="font-size: 10px; color: #555; margin-top: 1px;">${esc(l.note)}</div>` : ""}
       </div>`;
-          },
-        )
+        })
         .join("")
     : "";
 
@@ -677,10 +674,10 @@ export function renderMillingThermalTemplate(
   }
 
   ${
-    opts.showFooter
+    opts.showFooter && L.poweredBy
       ? `
   <div class="inama-footer">
-    عمل بواسطة شركة إنما سوفت - هاتف: 772217218
+    ${esc(L.poweredBy)}
   </div>`
       : ""
   }

@@ -11,7 +11,14 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { useI18n } from "@/lib/i18n";
-import { CalendarClock, Check, Sparkles, AlertCircle, ShieldAlert, PackageCheck } from "lucide-react";
+import {
+  CalendarClock,
+  Check,
+  Sparkles,
+  AlertCircle,
+  ShieldAlert,
+  PackageCheck,
+} from "lucide-react";
 import { useBatchSettings } from "@/hooks/use-batch-settings";
 
 interface BatchItem {
@@ -28,7 +35,9 @@ interface PosBatchSelectorModalProps {
   productName: string;
   warehouseId: string;
   currentBatchId?: string | null;
-  onSelectBatch: (batch: { id: string; batch_number: string; expiry_date: string | null } | null) => void;
+  onSelectBatch: (
+    batch: { id: string; batch_number: string; expiry_date: string | null } | null,
+  ) => void;
 }
 
 function getLocalDateString(date: Date = new Date()): string {
@@ -62,13 +71,15 @@ export function PosBatchSelectorModal({
     setLoading(true);
     setSelectedId(currentBatchId || null);
 
-    supabase
-      .from("product_batches")
-      .select("id, batch_number, expiry_date, quantity")
-      .eq("product_id", productId)
-      .eq("warehouse_id", warehouseId)
-      .gt("quantity", 0)
-      .order("expiry_date", { ascending: true, nullsFirst: false })
+    void Promise.resolve(
+      supabase
+        .from("product_batches")
+        .select("id, batch_number, expiry_date, quantity")
+        .eq("product_id", productId)
+        .eq("warehouse_id", warehouseId)
+        .gt("quantity", 0)
+        .order("expiry_date", { ascending: true, nullsFirst: false }),
+    )
       .then(({ data, error }) => {
         if (!error && data) {
           setBatches(data as BatchItem[]);
@@ -130,7 +141,10 @@ export function PosBatchSelectorModal({
               <div>
                 <div className="text-xs font-bold text-foreground flex items-center gap-1.5">
                   <span>{isAr ? "الصرف التلقائي الذكي" : "Smart Auto-Dispatch"}</span>
-                  <Badge variant="outline" className="text-[9px] py-0 border-primary/40 text-primary">
+                  <Badge
+                    variant="outline"
+                    className="text-[9px] py-0 border-primary/40 text-primary"
+                  >
                     {settings.dispatch_strategy}
                   </Badge>
                 </div>
@@ -163,7 +177,7 @@ export function PosBatchSelectorModal({
           ) : (
             <div className="space-y-2 max-h-60 overflow-y-auto pe-1">
               {batches.map((b) => {
-                const isExpired = b.expiry_date && b.expiry_date.slice(0, 10) <= todayStr;
+                const isExpired = Boolean(b.expiry_date && b.expiry_date.slice(0, 10) <= todayStr);
                 const isDisabled = isExpired && settings.prevent_selling_expired;
                 const isSelected = selectedId === b.id;
 
@@ -191,7 +205,10 @@ export function PosBatchSelectorModal({
                             {isAr ? "منتهي" : "Expired"}
                           </Badge>
                         ) : (
-                          <Badge variant="outline" className="text-[9px] py-0 border-emerald-500/30 text-emerald-500">
+                          <Badge
+                            variant="outline"
+                            className="text-[9px] py-0 border-emerald-500/30 text-emerald-500"
+                          >
                             {isAr ? "صالح" : "Valid"}
                           </Badge>
                         )}
@@ -200,7 +217,9 @@ export function PosBatchSelectorModal({
                       <div className="flex items-center gap-3 text-[11px] text-muted-foreground">
                         <span>
                           {isAr ? "الرصيد: " : "Stock: "}
-                          <span className="font-mono font-semibold text-foreground">{b.quantity}</span>
+                          <span className="font-mono font-semibold text-foreground">
+                            {b.quantity}
+                          </span>
                         </span>
                         <span>
                           {isAr ? "الانتهاء: " : "Exp: "}

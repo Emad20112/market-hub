@@ -261,8 +261,7 @@ function BatchesPage() {
         const expStr = r.expiry_date.slice(0, 10);
         if (filters.expiry_date.from && expStr < filters.expiry_date.from.slice(0, 10))
           return false;
-        if (filters.expiry_date.to && expStr > filters.expiry_date.to.slice(0, 10))
-          return false;
+        if (filters.expiry_date.to && expStr > filters.expiry_date.to.slice(0, 10)) return false;
       }
       if (quickFilter !== "all" && state !== quickFilter) return false;
       return true;
@@ -409,7 +408,11 @@ function BatchesPage() {
   const removeRow = useCallback(
     (id: string) => {
       if (deleting) return;
-      if (!confirm(isRtl ? "هل أنت متأكد من حذف هذه الدفعة وتحديث المخزون؟" : t("common.confirm_delete")))
+      if (
+        !confirm(
+          isRtl ? "هل أنت متأكد من حذف هذه الدفعة وتحديث المخزون؟" : t("common.confirm_delete"),
+        )
+      )
         return;
       setDeleting(id);
       remove.mutate(id, { onSettled: () => setDeleting(null) });
@@ -426,7 +429,9 @@ function BatchesPage() {
         sortable: true,
         width: "w-[150px]",
         sortValue: (r) => r.batch_number,
-        cell: (r) => <span className="font-mono text-xs font-bold text-foreground">{r.batch_number}</span>,
+        cell: (r) => (
+          <span className="font-mono text-xs font-bold text-foreground">{r.batch_number}</span>
+        ),
       },
       {
         key: "product",
@@ -460,7 +465,11 @@ function BatchesPage() {
         align: "end",
         width: "w-[110px]",
         sortValue: (r) => Number(r.quantity),
-        cell: (r) => <span className="font-mono text-xs font-semibold tabular-nums">{formatQty(r.quantity)}</span>,
+        cell: (r) => (
+          <span className="font-mono text-xs font-semibold tabular-nums">
+            {formatQty(r.quantity)}
+          </span>
+        ),
       },
       {
         key: "expiry",
@@ -538,7 +547,11 @@ function BatchesPage() {
     <div className="space-y-4 pb-12">
       <PageHeader
         title={isRtl ? "الدفعات وتواريخ الصلاحية" : t("batches.title")}
-        subtitle={isRtl ? "إدارة وتتبع تشغيلات المنتجات، وتواريخ الانتهاء، وسياسات الصرف" : t("batches.subtitle")}
+        subtitle={
+          isRtl
+            ? "إدارة وتتبع تشغيلات المنتجات، وتواريخ الانتهاء، وسياسات الصرف"
+            : t("batches.subtitle")
+        }
       />
 
       {counts.atRisk > 0 && (
@@ -571,7 +584,11 @@ function BatchesPage() {
         <VortexMetricCard
           title={isRtl ? "قريب الانتهاء" : t("batches.status.soon")}
           value={counts.soon}
-          subtitle={isRtl ? `خلال ${settings.warning_days || 30} يوماً` : `Within ${settings.warning_days || 30} days`}
+          subtitle={
+            isRtl
+              ? `خلال ${settings.warning_days || 30} يوماً`
+              : `Within ${settings.warning_days || 30} days`
+          }
           icon={<AlertTriangle className="size-5" />}
           tone="warning"
           highlight={quickFilter === "soon"}
@@ -636,8 +653,18 @@ function BatchesPage() {
           onChange={(id) => setQuickFilter(id as QuickFilter)}
           items={[
             { id: "all", label: isRtl ? "الكل" : "All", count: counts.total, tone: "primary" },
-            { id: "valid", label: isRtl ? "صالح" : t("batches.status.valid"), count: counts.valid, tone: "success" },
-            { id: "soon", label: isRtl ? "قريب الانتهاء" : t("batches.status.soon"), count: counts.soon, tone: "warning" },
+            {
+              id: "valid",
+              label: isRtl ? "صالح" : t("batches.status.valid"),
+              count: counts.valid,
+              tone: "success",
+            },
+            {
+              id: "soon",
+              label: isRtl ? "قريب الانتهاء" : t("batches.status.soon"),
+              count: counts.soon,
+              tone: "warning",
+            },
             {
               id: "expired",
               label: isRtl ? "منتهي" : t("batches.status.expired"),
@@ -704,10 +731,7 @@ function BatchesPage() {
       />
 
       {/* Batch Settings Dialog */}
-      <BatchSettingsDialog
-        open={openSettingsDialog}
-        onOpenChange={setOpenSettingsDialog}
-      />
+      <BatchSettingsDialog open={openSettingsDialog} onOpenChange={setOpenSettingsDialog} />
     </div>
   );
 }
@@ -816,7 +840,9 @@ function BatchCard({
 
         <div className="flex items-center gap-2">
           <div className="text-end">
-            <div className="font-mono text-[11px] text-muted-foreground">{r.expiry_date ?? "—"}</div>
+            <div className="font-mono text-[11px] text-muted-foreground">
+              {r.expiry_date ?? "—"}
+            </div>
           </div>
           <BatchRowActions
             row={r}

@@ -18,6 +18,7 @@ import { toast } from "sonner";
 import { CountrySelector } from "@/components/country-selector";
 import { COUNTRIES, Country, DEFAULT_COUNTRY } from "@/lib/country-data";
 import { formatPhoneE164 } from "@/lib/phone-utils";
+import { AmountInput } from "@/components/ui/amount-input";
 
 /**
  * CustomerFormDialog — the ONE customer form for the whole application.
@@ -331,14 +332,13 @@ export function CustomerFormDialog({
                 <label className="mb-1.5 block text-xs font-medium text-foreground">
                   {isAr ? "حد الائتمان المسموح" : "Credit Limit"}
                 </label>
-                <input
-                  type="number"
-                  dir="ltr"
+                <AmountInput
                   min={0}
-                  step="any"
-                  value={edit.credit_limit ?? 0}
-                  onChange={(e) => setEdit({ ...edit, credit_limit: Number(e.target.value) })}
-                  className="h-12 w-full rounded-2xl border border-border/80 bg-surface/80 px-4 text-right font-mono text-sm font-medium transition focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  showInWords={false}
+                  aria-label={isAr ? "حد الائتمان المسموح" : "Credit limit"}
+                  value={edit.credit_limit ?? null}
+                  onValueChange={(v) => setEdit({ ...edit, credit_limit: v ?? 0 })}
+                  className="h-12 rounded-2xl text-sm font-medium"
                 />
                 <p className="mt-1 text-[10px] text-muted-foreground">
                   {isAr
