@@ -50,6 +50,8 @@ export interface CollectionReceipt {
   date: string;
   paymentDate: string;
   notes?: string;
+  cashboxName?: string | null;
+  bankAccountName?: string | null;
 }
 
 export interface VortexCollectionSheetProps {
@@ -87,7 +89,10 @@ export function VortexCollectionSheet({
   const { postPayment, isPosting } = useFinancialPosting();
   const [amount, setAmount] = useState<string>("");
   const [method, setMethod] = useState<PaymentMethod>("cash");
-  const [settlement, setSettlement] = useState<PaymentSettlementSelection>({ method: "cash", paymentMethodId: "cash" });
+  const [settlement, setSettlement] = useState<PaymentSettlementSelection>({
+    method: "cash",
+    paymentMethodId: "cash",
+  });
   const [collectionMode, setCollectionMode] = useState<CollectionMode>("receivable");
   const [paymentDate, setPaymentDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [reference, setReference] = useState<string>("");
@@ -154,7 +159,12 @@ export function VortexCollectionSheet({
   const buildTemplateMessage = (r: CollectionReceipt, tpl: MessageTemplateType) => {
     const formattedAmount = money(r.amount);
     const formattedRemaining = money(r.remainingBalance);
-    const mLabel = labelForMethod(r.method);
+    const destination = r.bankAccountName
+      ? ` (${r.bankAccountName})`
+      : r.cashboxName
+        ? ` (${r.cashboxName})`
+        : "";
+    const mLabel = labelForMethod(r.method) + destination;
     const balanceLine =
       r.collectionMode === "advance"
         ? "💳 تم تسجيل دفعة مقدمة مستقلة على حساب العميل."
@@ -250,8 +260,13 @@ export function VortexCollectionSheet({
             type: "customer_collection",
             amount: payAmount,
             method: settlement.paymentMethodId || method,
+            paymentMethodId: settlement.paymentMethodId || method,
             cashboxId: settlement.cashboxId || null,
             bankAccountId: settlement.bankAccountId || null,
+            chequeNumber: settlement.chequeNumber || settlement.cheque?.chequeNumber || null,
+            chequeBank: settlement.chequeBank || settlement.cheque?.bankName || null,
+            chequeDueDate: settlement.chequeDueDate || settlement.cheque?.dueDate || null,
+            chequeDrawer: settlement.chequeDrawer || settlement.cheque?.drawerName || null,
             invoiceId: collectionMode === "advance" ? null : (initialInvoiceId ?? null),
             paymentDate,
             reference: trimmedReference || null,
@@ -276,6 +291,8 @@ export function VortexCollectionSheet({
         date: toSystemDigits(displayDate),
         paymentDate,
         notes: receiptNotes || undefined,
+        cashboxName: settlement.cashboxName || null,
+        bankAccountName: settlement.bankAccountName || null,
       };
 
       setReceipt(newReceipt);
