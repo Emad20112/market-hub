@@ -121,7 +121,10 @@ check("Arabic search: سجل الأحداث → audit", searchRoutes("سجل ا�
 
 /** البحث بالإنجليزية. */
 check("English search: transfers", searchRoutes("transfers", false)[0]?.id === "transfers");
-check("English search: audit", searchRoutes("audit", false).some((entry) => entry.id === "audit"));
+check(
+  "English search: audit",
+  searchRoutes("audit", false).some((entry) => entry.id === "audit"),
+);
 check("English search: inventory", searchRoutes("inventory", false)[0]?.id === "inventory");
 
 /** البحث بالمرادفات. */

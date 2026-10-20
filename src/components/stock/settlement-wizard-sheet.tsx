@@ -33,6 +33,7 @@ import {
 } from "lucide-react";
 
 import { supabase } from "@/integrations/supabase/client";
+import { postStockAdjustment } from "@/lib/items/stock-operations";
 import { VortexDrawerDialog } from "@/components/vortex-ui";
 import { FormField } from "@/components/ui/form-field";
 import { FieldInput, NumberInput } from "@/components/ui/input";
@@ -333,30 +334,21 @@ export function SettlementWizardSheet({
 
     setSaving(true);
     try {
-      for (const line of resolved) {
-        const actual = line.actualQty as number;
-        const { error: invErr } = await supabase.from("inventory").upsert(
-          {
-            product_id: line.product_id,
-            warehouse_id: warehouseId,
-            quantity: actual,
-            updated_at: new Date().toISOString(),
-          },
-          { onConflict: "product_id,warehouse_id" },
-        );
-        if (invErr) throw invErr;
-
-        const { error: mvErr } = await supabase.from("stock_movements").insert({
-          product_id: line.product_id,
-          warehouse_id: warehouseId,
-          movement_type: "adjustment",
+      const result = await postStockAdjustment({
+        warehouseId,
+        reason,
+        note: note.trim() || undefined,
+        effectiveDate: new Date().toISOString().slice(0, 10),
+        lines: resolved.map((line) => ({
+          productId: line.product_id,
           quantity: line.diff,
-          unit_cost: Number(unitCost ?? 0),
-          note: note.trim() || null,
-          adjustment_reason: reason,
-          created_by: user?.id ?? null,
-        } as never);
-        if (mvErr) throw mvErr;
+          unitCost: Number(unitCost ?? 0),
+          note: note.trim() || undefined,
+        })),
+      });
+
+      if (!result.ok) {
+        throw new Error(result.message || (isAr ? "فشل تنفيذ التسوية" : "Failed to post adjustment"));
       }
 
       toast.success(

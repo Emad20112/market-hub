@@ -339,10 +339,10 @@ function PaymentsPage() {
 
   /** الانتقال إلى شاشة كشف الحساب — بلا منطق حسابي محلي */
   function goStatement(customerId: string) {
-    void (navigate as any)({
+    void navigate({
       to: "/statements/$entityType",
       params: { entityType: "customer" },
-      search: { customerId },
+      search: { customerId } as never,
     });
   }
 

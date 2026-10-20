@@ -205,10 +205,10 @@ function DebtsPage() {
 
   /** ينتقل إلى شاشة كشف الحساب — بلا قالب محلي مكرر */
   function goStatement(customerIdToOpen: string) {
-    void (navigate as any)({
+    void navigate({
       to: "/statements/$entityType",
       params: { entityType: "customer" },
-      search: { customerId: customerIdToOpen },
+      search: { customerId: customerIdToOpen } as never,
     });
   }
   return (

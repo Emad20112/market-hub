@@ -527,15 +527,30 @@ export function renderMillingThermalTemplate(
   const linesHtml = doc.lines
     ? doc.lines
         .map(
-          (l, idx) => `
+          (l, idx) => {
+            const isCustody =
+              (l.price === 0 || l.price === undefined) &&
+              (l.total === 0 || l.total === undefined);
+            return `
       <div class="hairline-row" style="${idx < doc.lines.length - 1 ? "border-bottom: 1px solid rgba(0, 0, 0, 0.08);" : ""}">
         <div style="font-weight: 800; font-size: 12px; color: #000;">${esc(l.product)}</div>
         <div style="display:flex; justify-content:space-between; font-size: 11px; margin-top: 2px;">
-          <span>${l.qty} ${esc(l.unit || "")} ${!isDelivery ? `× ${money(l.price)}` : ""}</span>
-          <span style="font-weight:800;">${!isDelivery ? money(l.total) : "تسليم"}</span>
+          <span>${l.qty} ${esc(l.unit || "")}${!isCustody && !isDelivery ? ` × ${money(l.price)}` : ""}</span>
+          <span style="font-weight:800; color: ${isCustody ? "#059669" : "#000"};">
+            ${isCustody ? (isDelivery ? "تسليم أمانة" : "أمانة عينية") : (!isDelivery ? money(l.total) : "تسليم")}
+          </span>
         </div>
+        ${
+          l.previousQty !== undefined
+            ? `<div style="display: flex; justify-content: space-between; font-size: 10px; color: #64748b; margin-top: 2px;">
+                <span>السابق: ${l.previousQty} ${esc(l.unit || "")}</span>
+                <span style="color: #b45309; font-weight: bold;">المتبقي: ${l.remainingQty ?? 0} ${esc(l.unit || "")}</span>
+              </div>`
+            : ""
+        }
         ${l.note ? `<div style="font-size: 10px; color: #555; margin-top: 1px;">${esc(l.note)}</div>` : ""}
-      </div>`,
+      </div>`;
+          },
         )
         .join("")
     : "";

@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { RecordsSkeleton } from "@/components/ui/records-states";
 import { IconButton } from "@/components/ui/icon-button";
 import { FieldInput, NumberInput, fieldSurfaceClass } from "@/components/ui/input";
 import { FormField } from "@/components/ui/form-field";
@@ -708,16 +709,12 @@ function TransfersPage() {
       {viewMode === "cards" ? (
         <div className="space-y-4">
           {isLoading ? (
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {Array.from({ length: 8 }).map((_, i) => (
-                <div key={i} className="card-mullak h-44 shimmer rounded-2xl bg-surface-2/40" />
-              ))}
-            </div>
+            <RecordsSkeleton mode="cards" />
           ) : sortedRows.length === 0 ? (
             emptyState
           ) : (
             <>
-              <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3 xl:grid-cols-4">
+              <div className="grid grid-cols-2 gap-2.5 sm:gap-4 md:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5">
                 {sortedRows.map((r) => (
                   <div
                     key={r.id}
@@ -811,11 +808,7 @@ function TransfersPage() {
         /* ─── List view ─── */
         <div className="space-y-3">
           {isLoading ? (
-            <div className="space-y-3">
-              {Array.from({ length: 6 }).map((_, i) => (
-                <div key={i} className="card-mullak h-20 shimmer rounded-2xl bg-surface-2/40" />
-              ))}
-            </div>
+            <RecordsSkeleton mode="list" />
           ) : sortedRows.length === 0 ? (
             emptyState
           ) : (

@@ -41,7 +41,11 @@ export function ReportColumnVisibilityButton({
     visibleCount !== undefined
       ? visibleCount
       : columns
-        ? columns.filter((c) => (columnVisibility[c.key] !== undefined ? columnVisibility[c.key] : c.defaultVisible !== false)).length
+        ? columns.filter((c) =>
+            columnVisibility[c.key] !== undefined
+              ? columnVisibility[c.key]
+              : c.defaultVisible !== false,
+          ).length
         : undefined;
 
   const handleClick = (e: React.MouseEvent) => {
@@ -55,7 +59,10 @@ export function ReportColumnVisibilityButton({
 
   const handleToggleColumn = (col: ReportColumnDefinition) => {
     if (col.essential) return;
-    const currentVal = columnVisibility[col.key] !== undefined ? columnVisibility[col.key] : col.defaultVisible !== false;
+    const currentVal =
+      columnVisibility[col.key] !== undefined
+        ? columnVisibility[col.key]
+        : col.defaultVisible !== false;
     const newVal = !currentVal;
     if (onChangeVisibility) {
       onChangeVisibility({
@@ -138,7 +145,9 @@ export function ReportColumnVisibilityButton({
                       ) : (
                         <Square className="h-4 w-4 text-muted-foreground shrink-0" />
                       )}
-                      <span className="font-medium text-foreground">{col.labelAr || col.labelEn}</span>
+                      <span className="font-medium text-foreground">
+                        {col.labelAr || col.labelEn}
+                      </span>
                     </div>
                     {isEssential ? (
                       <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground font-semibold">

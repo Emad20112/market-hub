@@ -8,23 +8,23 @@
  * 3. يدعم التنسيقات الرقمية المناسبة للخلايا المالية والكمية مع ترويسات أنيقة.
  */
 
-import type { ReportExportPayload } from './types';
-import type { ReportColumnDefinition } from '../types';
+import type { ReportExportPayload } from "./types";
+import type { ReportColumnDefinition } from "../types";
 
 function escapeXml(unsafe: any): string {
-  if (unsafe === undefined || unsafe === null) return '';
+  if (unsafe === undefined || unsafe === null) return "";
   return String(unsafe)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&apos;');
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&apos;");
 }
 
 export function generateReportExcelXml(payload: ReportExportPayload): string {
-  const { definition, rows, metrics, appliedFilters, currencySymbol = 'ر.س' } = payload;
+  const { definition, rows, metrics, appliedFilters, currencySymbol = "ر.س" } = payload;
   const exportableCols: ReportColumnDefinition[] = definition.columns.filter(
-    (c) => c.exportable !== false
+    (c) => c.exportable !== false,
   );
 
   let xml = `<?xml version="1.0" encoding="UTF-8"?>
@@ -118,7 +118,7 @@ export function generateReportExcelXml(payload: ReportExportPayload): string {
    </Row>
    <Row>
     <Cell ss:StyleID="MetaLabelStyle"><Data ss:Type="String">تاريخ الاستخراج</Data></Cell>
-    <Cell ss:StyleID="MetaValueStyle"><Data ss:Type="String">${escapeXml(new Date().toLocaleString('ar-SA'))}</Data></Cell>
+    <Cell ss:StyleID="MetaValueStyle"><Data ss:Type="String">${escapeXml(new Date().toLocaleString("ar-SA"))}</Data></Cell>
    </Row>
    <Row>
     <Cell ss:StyleID="MetaLabelStyle"><Data ss:Type="String">نطاق التقرير</Data></Cell>
@@ -126,7 +126,7 @@ export function generateReportExcelXml(payload: ReportExportPayload): string {
    </Row>
    <Row>
     <Cell ss:StyleID="MetaLabelStyle"><Data ss:Type="String">الفترة المحددة</Data></Cell>
-    <Cell ss:StyleID="MetaValueStyle"><Data ss:Type="String">${escapeXml(`من: ${appliedFilters.startDate || 'البداية'} إلى: ${appliedFilters.endDate || 'الآن'}`)}</Data></Cell>
+    <Cell ss:StyleID="MetaValueStyle"><Data ss:Type="String">${escapeXml(`من: ${appliedFilters.startDate || "البداية"} إلى: ${appliedFilters.endDate || "الآن"}`)}</Data></Cell>
    </Row>
    <Row ss:Height="10"/>
    <Row ss:Height="25">
@@ -139,7 +139,7 @@ export function generateReportExcelXml(payload: ReportExportPayload): string {
     const val = metrics[m.key] ?? 0;
     xml += `   <Row>
     <Cell ss:StyleID="MetricLabelStyle"><Data ss:Type="String">${escapeXml(m.labelAr)}</Data></Cell>
-    <Cell ss:StyleID="MetricValueStyle"><Data ss:Type="${m.format === 'integer' ? 'Number' : 'Number'}">${val}</Data></Cell>
+    <Cell ss:StyleID="MetricValueStyle"><Data ss:Type="${m.format === "integer" ? "Number" : "Number"}">${val}</Data></Cell>
    </Row>
 `;
   }
@@ -160,7 +160,7 @@ export function generateReportExcelXml(payload: ReportExportPayload): string {
 
   // تعريف أعمدة الجدول
   for (const col of exportableCols) {
-    const width = col.dataType === 'money' || col.dataType === 'quantity' ? 120 : 160;
+    const width = col.dataType === "money" || col.dataType === "quantity" ? 120 : 160;
     xml += `   <Column ss:Width="${width}"/>\n`;
   }
 
@@ -169,7 +169,7 @@ export function generateReportExcelXml(payload: ReportExportPayload): string {
   for (const col of exportableCols) {
     let header = col.labelAr;
     if (col.unit) header += ` (${col.unit})`;
-    else if (col.dataType === 'money') header += ` (${currencySymbol})`;
+    else if (col.dataType === "money") header += ` (${currencySymbol})`;
     xml += `    <Cell ss:StyleID="HeaderStyle"><Data ss:Type="String">${escapeXml(header)}</Data></Cell>\n`;
   }
   xml += `   </Row>\n`;
@@ -179,23 +179,27 @@ export function generateReportExcelXml(payload: ReportExportPayload): string {
     xml += `   <Row>\n`;
     for (const col of exportableCols) {
       const val = row[col.key];
-      if (col.dataType === 'money' || col.dataType === 'quantity' || col.dataType === 'percentage') {
+      if (
+        col.dataType === "money" ||
+        col.dataType === "quantity" ||
+        col.dataType === "percentage"
+      ) {
         const numVal = Number(val) || 0;
         xml += `    <Cell ss:StyleID="DataNumber"><Data ss:Type="Number">${numVal}</Data></Cell>\n`;
       } else {
-        xml += `    <Cell ss:StyleID="DataText"><Data ss:Type="String">${escapeXml(val ?? '')}</Data></Cell>\n`;
+        xml += `    <Cell ss:StyleID="DataText"><Data ss:Type="String">${escapeXml(val ?? "")}</Data></Cell>\n`;
       }
     }
     xml += `   </Row>\n`;
   }
 
   // صف الإجماليات
-  const hasAggregates = exportableCols.some((c) => c.aggregate && c.aggregate !== 'none');
+  const hasAggregates = exportableCols.some((c) => c.aggregate && c.aggregate !== "none");
   if (hasAggregates && rows.length > 0) {
     xml += `   <Row ss:Height="24">\n`;
     for (let i = 0; i < exportableCols.length; i++) {
       const col = exportableCols[i];
-      if (col.aggregate === 'sum') {
+      if (col.aggregate === "sum") {
         const sum = rows.reduce((acc, r) => acc + (Number(r[col.key]) || 0), 0);
         xml += `    <Cell ss:StyleID="TotalRowStyle"><Data ss:Type="Number">${Number(sum.toFixed(3))}</Data></Cell>\n`;
       } else if (i === 0) {
@@ -219,12 +223,12 @@ export function generateReportExcelXml(payload: ReportExportPayload): string {
 
 export function downloadReportExcel(payload: ReportExportPayload, filename?: string): void {
   const xml = generateReportExcelXml(payload);
-  const blob = new Blob([xml], { type: 'application/vnd.ms-excel;charset=utf-8;' });
-  const link = document.createElement('a');
+  const blob = new Blob([xml], { type: "application/vnd.ms-excel;charset=utf-8;" });
+  const link = document.createElement("a");
   const fname = filename || `${payload.definition.id}-${new Date().toISOString().slice(0, 10)}.xls`;
 
   link.href = URL.createObjectURL(blob);
-  link.setAttribute('download', fname);
+  link.setAttribute("download", fname);
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);

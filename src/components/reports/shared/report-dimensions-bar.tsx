@@ -94,7 +94,10 @@ export function ReportDimensionsBar({
             )}
           </div>
         ) : (
-          <Badge variant="outline" className="h-5 px-1.5 text-[10px] text-muted-foreground bg-background/50">
+          <Badge
+            variant="outline"
+            className="h-5 px-1.5 text-[10px] text-muted-foreground bg-background/50"
+          >
             عرض تفصيلي (كامل السندات)
           </Badge>
         )}

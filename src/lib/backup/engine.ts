@@ -28,6 +28,104 @@ import { computeSHA256, decryptPayload, encryptPayload } from "./crypto";
 const SETTINGS_STORAGE_KEY = "vortex_backup_settings";
 const LOGS_STORAGE_KEY = "vortex_backup_history_logs";
 
+/* -------------------------------------------------------------------------- */
+/* SERVER-SIDE DYNAMIC BACKUP ENGINE (v3 — Migration 31 RPCs)                  */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Result shape of the server-side dynamic export (RPC backup_export_all).
+ * The server reads every public base table from information_schema at call
+ * time — the table list adapts automatically to any new migration.
+ */
+export interface ServerDynamicExport {
+  kind: "server_dynamic_export";
+  exported_at: string;
+  schema_fingerprint: string;
+  table_count: number;
+  total_rows: number;
+  capped_log_tables: number;
+  tables: Record<string, any[]>;
+}
+
+export interface ServerRestoreResult {
+  restored_at: string;
+  inserted_rows: number;
+  skipped_tables: string[];
+  schema_fingerprint_mismatch: boolean;
+  current_fingerprint: string;
+}
+
+/**
+ * Server-side dynamic schema fingerprint (RPC backup_schema_fingerprint).
+ * SHA-256 over every public table + columns + types. Compare it against the
+ * fingerprint stored inside a backup to detect schema drift between backup
+ * and restore.
+ */
+export async function getSchemaFingerprint(): Promise<string | null> {
+  try {
+    const { data, error } = await supabase.rpc("backup_schema_fingerprint" as never);
+    if (error) {
+      console.warn("backup_schema_fingerprint RPC failed:", error.message);
+      return null;
+    }
+    return (data as unknown as string) ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * SERVER-SIDE FULL EXPORT: calls `backup_export_all` (Migration 31).
+ * SECURITY DEFINER — guarded to owner/manager inside the function. Returns
+ * ALL public base tables dynamically, with capped recent rows for large log
+ * tables (audit_logs, backup_logs, idempotency_keys).
+ */
+export async function exportTenantDataServerSide(
+  maxLogRows: number = 5000,
+): Promise<ServerDynamicExport> {
+  const { data, error } = await supabase.rpc(
+    "backup_export_all" as never,
+    {
+      p_max_log_rows: maxLogRows,
+    } as never,
+  );
+  if (error) {
+    throw new Error(`فشل التفريغ الخادمي: ${error.message}`);
+  }
+  const exported = data as unknown as ServerDynamicExport;
+  if (!exported || exported.kind !== "server_dynamic_export" || !exported.tables) {
+    throw new Error("الحمولة الخادمية غير صالحة (kind أو tables مفقود)");
+  }
+  return exported;
+}
+
+/**
+ * SERVER-SIDE FULL RESTORE: calls `backup_restore_all` (Migration 31).
+ * Owner-only. Executes inside a single server transaction: disables FK
+ * triggers, truncates every public base table, reinserts by column NAME
+ * (adapts to new column order), resets sequences. The payload must be a
+ * server_dynamic_export payload (from exportTenantDataServerSide or a
+ * decrypted .vortexbak whose payload matches that shape).
+ */
+export async function restoreTenantDataServerSide(
+  payload: ServerDynamicExport,
+): Promise<ServerRestoreResult> {
+  const { data, error } = await supabase.rpc(
+    "backup_restore_all" as never,
+    {
+      p_payload: payload as never,
+    } as never,
+  );
+  if (error) {
+    throw new Error(`فشلت الاستعادة الخادمية: ${error.message}`);
+  }
+  const restored = data as unknown as ServerRestoreResult;
+  if (!restored || typeof restored.inserted_rows !== "number") {
+    throw new Error("نتيجة الاستعادة الخادمية غير صالحة");
+  }
+  return restored;
+}
+
 /**
  * Get Saved Backup Preferences from LocalStorage (Fallback client store)
  */
@@ -607,4 +705,182 @@ export async function validateBackupFile(
   }
 
   return result;
+}
+
+/* -------------------------------------------------------------------------- */
+/* CLOUD STORAGE UPLOAD (Supabase Storage — يعمل محلياً بالدوكر وسحابياً)      */
+/* -------------------------------------------------------------------------- */
+
+const BACKUP_BUCKET = "tenant-backups";
+
+/**
+ * رفع ملف النسخة الاحتياطية إلى Supabase Storage في الحاوية "tenant-backups".
+ * يعمل بنفس الكود في البيئة المحلية (Docker) والسحابية — لأن عميل supabase
+ * متصل بالنقطة النشطة أياً كانت. على Docker يجب إنشاء الحاوية مرة واحدة:
+ *   supabase buckets create tenant-backups (أو عبر dashboard المحلي).
+ */
+export async function uploadBackupToStorage(
+  content: string,
+  fileName: string,
+): Promise<{ ok: boolean; path: string | null; error: string | null }> {
+  try {
+    const blob = new Blob([content], { type: "application/json;charset=utf-8" });
+    const { error } = await supabase.storage
+      .from(BACKUP_BUCKET)
+      .upload(fileName, blob, { upsert: false, contentType: "application/json" });
+    if (error) {
+      return { ok: false, path: null, error: error.message };
+    }
+    return { ok: true, path: `${BACKUP_BUCKET}/${fileName}`, error: null };
+  } catch (err: any) {
+    return { ok: false, path: null, error: err?.message || "فشل الرفع السحابي" };
+  }
+}
+
+/**
+ * هل حاوية النسخ الاحتياطي موجودة؟ (لعرض تنبيه إن لم تُنشأ بعد).
+ */
+export async function backupBucketExists(): Promise<boolean> {
+  try {
+    const { data, error } = await supabase.storage.from(BACKUP_BUCKET).list("", { limit: 1 });
+    return !error && Array.isArray(data);
+  } catch {
+    return false;
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/* CUSTOM LOCAL DIRECTORY PATHS (File System Access API)                      */
+/* -------------------------------------------------------------------------- */
+
+const DIRS_KEY = "vortex_backup_custom_dirs"; // IndexedDB store name
+const DB_NAME = "vortex_backup_fs";
+
+/** فتح/إنشاء IndexedDB لتخزين مقابض المجلدات المختارة. */
+function openDirDB(): Promise<IDBDatabase> {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(DB_NAME, 1);
+    req.onupgradeneeded = () => {
+      if (!req.result.objectStoreNames.contains(DIRS_KEY)) {
+        req.result.createObjectStore(DIRS_KEY, { autoIncrement: true });
+      }
+    };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+/**
+ * هل المتصفح يدعم File System Access API؟ (Chrome / Edge فقط — Firefox لا).
+ */
+export function customDirSupported(): boolean {
+  return typeof window !== "undefined" && "showDirectoryPicker" in window;
+}
+
+/**
+ * فتح نافذة اختيار مجلد على الجهاز (نظامية — بذاتية المستخدم) وحفظ المقبض.
+ * يمكن استدعاؤها أكثر من مرة لإضافة عدة مسارات.
+ */
+export async function addCustomBackupDirectory(): Promise<string> {
+  if (!customDirSupported()) {
+    throw new Error("المتصفح لا يدعم كتابة الملفات في مسارات مخصصة (يتطلب Chrome أو Edge)");
+  }
+  const handle = await (window as any).showDirectoryPicker({
+    mode: "readwrite",
+    id: "vortex-backup-dir",
+  });
+  const db = await openDirDB();
+  const tx = db.transaction(DIRS_KEY, "readwrite");
+  const id = await new Promise<number>((resolve, reject) => {
+    const r = tx.objectStore(DIRS_KEY).add({ handle, name: handle.name, added_at: Date.now() });
+    r.onsuccess = () => resolve(Number(r.result));
+    r.onerror = () => reject(r.error);
+  });
+  tx.commit?.();
+  db.close();
+  return `${handle.name} (#${id})`;
+}
+
+/** قائمة المجلدات المخصصة المسجلة. */
+export async function listCustomBackupDirectories(): Promise<{ id: number; name: string }[]> {
+  if (typeof indexedDB === "undefined") return [];
+  try {
+    const db = await openDirDB();
+    const tx = db.transaction(DIRS_KEY, "readonly");
+    const items = await new Promise<{ id: number; name: string }[]>((resolve, reject) => {
+      const out: { id: number; name: string }[] = [];
+      const r = tx.objectStore(DIRS_KEY).openCursor();
+      r.onsuccess = () => {
+        const cursor = r.result;
+        if (!cursor) return resolve(out);
+        out.push({ id: cursor.key as number, name: cursor.value?.name || "مجلد" });
+        cursor.continue();
+      };
+      r.onerror = () => reject(r.error);
+    });
+    db.close();
+    return items;
+  } catch {
+    return [];
+  }
+}
+
+/** حذف مسار مخصص بالمعرف. */
+export async function removeCustomBackupDirectory(id: number): Promise<void> {
+  const db = await openDirDB();
+  const tx = db.transaction(DIRS_KEY, "readwrite");
+  tx.objectStore(DIRS_KEY).delete(id);
+  tx.commit?.();
+  db.close();
+}
+
+/**
+ * كتابة محتوى النسخة إلى كل المسارات المخصصة المسجلة.
+ * تُستدعى بعد إنشاء النسخة (يدوياً أو مجدولة). في أول استخدام لكل جلسة
+ * قد يطلب المتصفح إعادة السماح بالوصول للقرص — يُعالج تلقائياً هنا.
+ */
+export async function writeBackupToCustomDirs(
+  content: string,
+  fileName: string,
+): Promise<{ ok: number; failed: string[] }> {
+  if (typeof indexedDB === "undefined" || !customDirSupported()) {
+    return { ok: 0, failed: ["المتصفح لا يدعم الكتابة المباشرة في مسارات مخصصة"] };
+  }
+  let ok = 0;
+  const failed: string[] = [];
+  const db = await openDirDB();
+  const tx = db.transaction(DIRS_KEY, "readonly");
+  const entries = await new Promise<{ key: number; handle: any }[]>((resolve, reject) => {
+    const out: { key: number; handle: any }[] = [];
+    const r = tx.objectStore(DIRS_KEY).openCursor();
+    r.onsuccess = () => {
+      const cursor = r.result;
+      if (!cursor) return resolve(out);
+      out.push({ key: cursor.key as number, handle: cursor.value?.handle });
+      cursor.continue();
+    };
+    r.onerror = () => reject(r.error);
+  });
+  db.close();
+
+  for (const entry of entries) {
+    try {
+      const handle = entry.handle;
+      if (!handle) throw new Error("مقبض غير صالح");
+      // إعادة السماح بالوصول إن لزم (بعد إعادة فتح الجلسة)
+      const perm = await handle.queryPermission({ mode: "readwrite" });
+      if (perm !== "granted") {
+        const req = await handle.requestPermission({ mode: "readwrite" });
+        if (req !== "granted") throw new Error("رُفض الوصول للمسار");
+      }
+      const fileHandle = await handle.getFileHandle(fileName, { create: true });
+      const writable = await fileHandle.createWritable();
+      await writable.write(new Blob([content], { type: "application/json;charset=utf-8" }));
+      await writable.close();
+      ok++;
+    } catch (err: any) {
+      failed.push(`مسار #${entry.key}: ${err?.message || "فشل الكتابة"}`);
+    }
+  }
+  return { ok, failed };
 }

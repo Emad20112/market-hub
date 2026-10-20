@@ -3,7 +3,7 @@
  * المرحلة 2: REP-011
  */
 
-import { z } from 'zod';
+import { z } from "zod";
 
 export const DateRangeFilterSchema = z.object({
   startDate: z.string().optional(),
@@ -17,7 +17,7 @@ export const PaginationSchema = z.object({
 
 export const SortSchema = z.object({
   field: z.string(),
-  order: z.enum(['asc', 'desc']).default('desc'),
+  order: z.enum(["asc", "desc"]).default("desc"),
 });
 
 export const SalesRegisterFilterSchema = DateRangeFilterSchema.extend({
@@ -65,4 +65,3 @@ export const PurchaseRegisterFilterSchema = DateRangeFilterSchema.extend({
 });
 
 export type PurchaseRegisterFilters = z.infer<typeof PurchaseRegisterFilterSchema>;
-

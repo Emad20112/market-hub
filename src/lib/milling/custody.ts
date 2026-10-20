@@ -486,10 +486,14 @@ export async function fetchMillingDocumentDetails(
     const totalBagsMilled = milledLines.reduce((acc, l) => acc + l.bags_out, 0);
     const totalKgMilled = milledLines.reduce((acc, l) => acc + l.kg_out, 0);
 
+    const derivedCapacity =
+      firstIntake.package_weight_kg ||
+      (totalBagsIn > 0 && totalKgIn > 0 ? Math.round(totalKgIn / totalBagsIn) : null);
+
     intakeGrain = {
       itemId: firstIntake.item_id,
       nameAr: firstIntake.item_name_ar,
-      packageWeightKg: firstIntake.package_weight_kg,
+      packageWeightKg: derivedCapacity,
       bagsReceived: totalBagsIn,
       kgReceived: totalKgIn,
       bagsMilled: totalBagsMilled,
@@ -575,13 +579,20 @@ export function buildMillingDocumentUnifiedDoc(
   // سطر الاستلام
   if (details.intakeGrain) {
     const g = details.intakeGrain;
+    const bagSize =
+      g.packageWeightKg ||
+      (g.bagsReceived > 0 && g.kgReceived > 0 ? Math.round(g.kgReceived / g.bagsReceived) : 50);
     lines.push({
       product: `حبوب مستلمة: ${g.nameAr}`,
       qty: g.bagsReceived > 0 ? g.bagsReceived : g.kgReceived,
       unit: g.bagsReceived > 0 ? "كيس" : "كجم",
       price: 0,
       total: 0,
-      note: `${g.kgReceived} كجم إجمالي${g.packageWeightKg ? ` (سعة العبوة ${g.packageWeightKg} كجم)` : ""}`,
+      remainingKg: g.kgReceived,
+      note:
+        g.bagsReceived > 0
+          ? `${g.bagsReceived} كيس سعة ${bagSize} كجم (إجمالي ${g.kgReceived.toLocaleString()} كجم)`
+          : `إجمالي ${g.kgReceived.toLocaleString()} كجم`,
     });
   }
 

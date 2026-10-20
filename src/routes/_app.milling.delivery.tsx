@@ -39,6 +39,7 @@ import {
   type CustodyBalance,
 } from "@/lib/milling";
 import { LuxuryPrintPreviewModal } from "@/components/luxury-print-preview-modal";
+import { UnifiedPrintModal } from "@/components/milling/unified-print-modal";
 import type { UnifiedDocumentData } from "@/lib/templates/types";
 import {
   MillingPanel,
@@ -685,17 +686,14 @@ function MillingDeliveryPage() {
 
         {/* نافذة المعاينة والطباعة الفاخرة المعتمدة لسند التسليم الموحد */}
         {deliveryPrintDoc && (
-          <LuxuryPrintPreviewModal
+          <UnifiedPrintModal
             open={isPrintModalOpen}
-            onOpenChange={(open) => {
-              setIsPrintModalOpen(open);
-              if (!open) setDeliveryPrintDoc(null);
+            onClose={() => {
+              setIsPrintModalOpen(false);
+              setDeliveryPrintDoc(null);
             }}
-            document={deliveryPrintDoc}
-            documentType="delivery_note"
-            title="سند تسليم أمانات نواتج طحن"
-            customerPhone={selectedCustomer?.phone || undefined}
-            customerName={selectedCustomer?.name}
+            doc={deliveryPrintDoc}
+            stage="delivery"
           />
         )}
       </div>

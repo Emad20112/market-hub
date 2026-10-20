@@ -455,7 +455,7 @@ export function VortexWelcomeOnboarding() {
                     className="px-3 py-1.5 rounded-xl bg-background border border-border hover:border-primary/50 text-foreground font-semibold inline-flex items-center gap-1.5 transition"
                   >
                     <ClipboardList className="size-3 text-amber-500" />
-                    <span>{isAr ? "تسويات الجرد" : "Settlements"}</span>
+                    <span>{isAr ? "حركة المخزون" : "Stock Movements"}</span>
                   </Link>
                   <Link
                     to="/barcodes"
@@ -639,8 +639,8 @@ export function VortexWelcomeOnboarding() {
                       <ArrowUpRight className="size-3.5" />
                     </Link>
                     <Link
-                      to={"/statements/$entityType" as any}
-                      params={{ entityType: "customer" } as any}
+                      to="/statements/$entityType"
+                      params={{ entityType: "customer" }}
                       onClick={handleFinish}
                       className="text-muted-foreground hover:text-foreground font-medium"
                     >

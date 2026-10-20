@@ -30,11 +30,13 @@ export function ReportEmptyState({
     Icon = AlertCircle;
   } else if (context && !context.hasAnyFilters) {
     displayTitle = displayTitle || "لا توجد سجلات مسجلة بعد في هذه الفترة";
-    displayDescription = displayDescription || "قم بإدخال الفواتير والعمليات لتظهر في تحليلات التقرير تلقائياً.";
+    displayDescription =
+      displayDescription || "قم بإدخال الفواتير والعمليات لتظهر في تحليلات التقرير تلقائياً.";
     Icon = InboxIcon;
   } else {
     displayTitle = displayTitle || "لا توجد بيانات تطابق الفلاتر المحددة";
-    displayDescription = displayDescription || "جرّب توسيع النطاق الزمني أو تفريغ الفلاتر للبحث عن سجلات أخرى.";
+    displayDescription =
+      displayDescription || "جرّب توسيع النطاق الزمني أو تفريغ الفلاتر للبحث عن سجلات أخرى.";
     Icon = SearchX;
   }
 
