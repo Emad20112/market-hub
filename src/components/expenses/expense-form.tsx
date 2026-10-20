@@ -24,6 +24,8 @@ import { FieldInput } from "@/components/ui/input";
 import { AmountInput } from "@/components/ui/amount-input";
 import { VortexDrawerDialog } from "@/components/vortex-ui";
 import { SegmentedTabs } from "@/components/ui/segmented-tabs";
+import { DynamicPaymentSelector } from "@/components/ui/payment-method/dynamic-payment-selector";
+import type { PaymentSettlementSelection } from "@/lib/payments/treasury-types";
 import { useExpenseMutations, type ExpenseLineInput } from "@/hooks/use-expenses";
 import { parseAmount, roundMoney, today } from "@/lib/expenses/query-keys";
 import type {
@@ -119,6 +121,10 @@ export function ExpenseFormDialog({
   const [header, setHeader] = useState<ExpenseFormHeader>(blankHeader);
   const [lines, setLines] = useState<ExpenseLineDraft[]>([blankLine()]);
   const [paymentMethod, setPaymentMethod] = useState("cash");
+  const [settlement, setSettlement] = useState<PaymentSettlementSelection>({
+    method: "cash",
+    paymentMethodId: "cash",
+  });
   const [accountId, setAccountId] = useState("");
   const [accountLabel, setAccountLabel] = useState("");
   const [showAdvanced, setShowAdvanced] = useState(false);
@@ -181,6 +187,7 @@ export function ExpenseFormDialog({
       setLines([blankLine()]);
       setOpMode("CASH_PAYMENT");
       setPaymentMethod("cash");
+      setSettlement({ method: "cash", paymentMethodId: "cash" });
       setAccountId("");
       setAccountLabel("");
       setShowAdvanced(false);
@@ -387,10 +394,14 @@ export function ExpenseFormDialog({
               id: created.id,
               version: created.version,
               payNow: true,
-              paymentMethod,
-              accountId: accountId || null,
+              paymentMethod: settlement.paymentMethodId || paymentMethod || "cash",
+              paymentMethodId: settlement.paymentMethodId || paymentMethod || "cash",
+              cashboxId: settlement.cashboxId || null,
+              bankAccountId: settlement.bankAccountId || null,
+              accountId: settlement.chartAccountId || accountId || null,
               accountLabel: accountLabel || null,
               paymentDate: header.expense_date,
+              referenceNo: settlement.reference || null,
             });
           } catch {
             // المصروف محفوظ

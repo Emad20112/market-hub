@@ -250,7 +250,8 @@ function InventoryPage() {
               (byWarehouseByItem[pos.item_id][pos.warehouse_id] ?? 0) + Number(pos.quantity ?? 0);
           }
         } else {
-          // Fallback to inventory table
+          // Fallback to inventory table — نقطة مهمة: owner_type يميّز مخزون المنشأة
+          // عن الأمانات؛ بدونه تظهر أمانة المطاحن كثروة للمنشأة.
           const { data: invData } = await supabase
             .from("inventory")
             .select("product_id, warehouse_id, quantity")
@@ -272,7 +273,7 @@ function InventoryPage() {
 
       const metaById = new Map<string, any>((detailRows ?? []).map((d: any) => [d.id, d]));
       const rows: Row[] = pageIds
-        .map((id) => {
+        .map((id): Row | null => {
           const meta = metaById.get(id);
           if (!meta) return null;
           return {

@@ -56,6 +56,8 @@ import { toast } from "sonner";
 import { PaymentMethodPicker } from "@/components/ui/payment-method";
 import { AmountInput } from "@/components/ui/amount-input";
 import { QuantityInput } from "@/components/ui/quantity-input";
+import { DynamicPaymentSelector } from "@/components/ui/payment-method/dynamic-payment-selector";
+import type { PaymentSettlementSelection } from "@/lib/payments/treasury-types";
 import {
   getPaymentMethodDefinition,
   paymentMethodLabel,
@@ -1752,6 +1754,9 @@ function CreateDialog({
   const [paid, setPaid] = useState<number | null>(null);
   const [discount, setDiscount] = useState<number | null>(null);
   const [paymentMethod, setPaymentMethod] = useState<string>("bank_transfer");
+  const [paymentSelection, setPaymentSelection] = useState<PaymentSettlementSelection>({
+    method: "bank_transfer",
+  });
   const [note, setNote] = useState("");
   const [loading, setLoading] = useState(false);
   const productLabel = (p?: Pick<Product, "name" | "name_ar"> | null) =>
@@ -1885,7 +1890,7 @@ function CreateDialog({
 
     setLoading(true);
     try {
-      const { error } = await supabase.rpc("create_purchase", {
+      const { data: invId, error } = await supabase.rpc("create_purchase", {
         _warehouse_id: warehouseId,
         _supplier_id: supplierId,
         // The picker holds a catalogue id. Convert at the boundary, exactly as
@@ -1903,6 +1908,25 @@ function CreateDialog({
         })),
       });
       if (error) throw error;
+
+      // Attach treasury settlement details if provided
+      if (invId) {
+        try {
+          await (supabase as any)
+            .from("purchase_invoices")
+            .update({
+              cashbox_id: paymentSelection.cashboxId || null,
+              bank_account_id: paymentSelection.bankAccountId || null,
+              payment_method_id: paymentSelection.paymentMethodId || paymentMethod,
+              payment_reference:
+                paymentSelection.reference || paymentSelection.paymentReference || null,
+            })
+            .eq("id", invId);
+        } catch (updateErr) {
+          console.warn("Could not attach treasury metadata to purchase_invoice:", updateErr);
+        }
+      }
+
       toast.success(t("purchases.recorded"));
       onDone();
     } catch (e: any) {
@@ -2101,7 +2125,7 @@ function CreateDialog({
               business enabled for purchases, and آجل appears only because the
               catalogue allows it here.
             */}
-            <PaymentMethodPicker
+            <DynamicPaymentSelector
               context="purchases"
               value={paymentMethod}
               onChange={(method) => {
@@ -2109,8 +2133,9 @@ function CreateDialog({
                 const definition = getPaymentMethodDefinition(method);
                 if (definition?.isCreditTerm) setPaid(0);
               }}
-              ensureIds={[paymentMethod]}
-              ariaLabel={t("common.method")}
+              settlement={paymentSelection}
+              onSettlementChange={setPaymentSelection}
+              includeCredit={true}
             />
             {!(getPaymentMethodDefinition(paymentMethod)?.isCreditTerm ?? false) && (
               <AmountInput

@@ -71,13 +71,15 @@ export function PosBatchSelectorModal({
     setLoading(true);
     setSelectedId(currentBatchId || null);
 
-    supabase
-      .from("product_batches")
-      .select("id, batch_number, expiry_date, quantity")
-      .eq("product_id", productId)
-      .eq("warehouse_id", warehouseId)
-      .gt("quantity", 0)
-      .order("expiry_date", { ascending: true, nullsFirst: false })
+    void Promise.resolve(
+      supabase
+        .from("product_batches")
+        .select("id, batch_number, expiry_date, quantity")
+        .eq("product_id", productId)
+        .eq("warehouse_id", warehouseId)
+        .gt("quantity", 0)
+        .order("expiry_date", { ascending: true, nullsFirst: false }),
+    )
       .then(({ data, error }) => {
         if (!error && data) {
           setBatches(data as BatchItem[]);
@@ -175,7 +177,7 @@ export function PosBatchSelectorModal({
           ) : (
             <div className="space-y-2 max-h-60 overflow-y-auto pe-1">
               {batches.map((b) => {
-                const isExpired = b.expiry_date && b.expiry_date.slice(0, 10) <= todayStr;
+                const isExpired = Boolean(b.expiry_date && b.expiry_date.slice(0, 10) <= todayStr);
                 const isDisabled = isExpired && settings.prevent_selling_expired;
                 const isSelected = selectedId === b.id;
 

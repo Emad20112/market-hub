@@ -36,6 +36,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 // Payment-method picker (this branch) alongside the unified print preview (main).
 import { PaymentMethodPicker, PaymentMethodChip } from "@/components/ui/payment-method";
+import { DynamicPaymentSelector } from "@/components/ui/payment-method/dynamic-payment-selector";
+import type { PaymentSettlementSelection } from "@/lib/payments/treasury-types";
 import { paymentMethodLabel } from "@/lib/payments/payment-methods";
 import { usePaymentMethodOverrides } from "@/hooks/use-payment-methods";
 import { Plus, Trash2, RotateCcw, Search, Loader2, Printer } from "lucide-react";
@@ -276,6 +278,10 @@ function NewSalesReturn({
   const [warehouseId, setWarehouseId] = useState("");
   const [customerId, setCustomerId] = useState<string>("");
   const [refundMethod, setRefundMethod] = useState("cash");
+  const [settlement, setSettlement] = useState<PaymentSettlementSelection>({
+    method: "cash",
+    paymentMethodId: "cash",
+  });
   const [note, setNote] = useState("");
   const [search, setSearch] = useState("");
   const [customerInvoiceId, setCustomerInvoiceId] = useState<string>("");
@@ -433,7 +439,7 @@ function NewSalesReturn({
       toast.error(t("common.fill_form"));
       return;
     }
-    const { error } = await supabase.rpc("create_sales_return" as any, {
+    const { data: retData, error } = await supabase.rpc("create_sales_return" as any, {
       _invoice_id: customerInvoiceId || null,
       _warehouse_id: warehouseId,
       _customer_id: customerId || null,
@@ -444,6 +450,28 @@ function NewSalesReturn({
     if (error) {
       toast.error(error.message);
       return;
+    }
+    const returnId = typeof retData === "string" ? retData : (retData as any)?.id;
+    if (
+      returnId &&
+      (settlement.cashboxId ||
+        settlement.bankAccountId ||
+        settlement.paymentMethodId ||
+        settlement.reference)
+    ) {
+      try {
+        await (supabase as any)
+          .from("sales_returns")
+          .update({
+            cashbox_id: settlement.cashboxId || null,
+            bank_account_id: settlement.bankAccountId || null,
+            payment_method_id: settlement.paymentMethodId || refundMethod || null,
+            payment_reference: settlement.reference || null,
+          })
+          .eq("id", returnId);
+      } catch (e) {
+        console.warn("Could not set treasury settlement on sales_return:", e);
+      }
     }
     toast.success(
       lang === "ar" ? "تم تسجيل مرتجع المبيعات بنجاح" : "Sales return recorded successfully",
@@ -526,23 +554,16 @@ function NewSalesReturn({
                 </SelectContent>
               </Select>
             </div>
-            <div className="grid gap-1.5">
-              <Label>{lang === "ar" ? "طريقة الاسترداد" : "Refund method"}</Label>
-              {/*
-                Same catalogue, different context: the returns section has its
-                own scoping, so a business can refund in cash while it never
-                takes cash at the till.
-
-                Replaces a Select whose "bank" option could not be cast to the
-                payment_method ENUM.
-              */}
-              <PaymentMethodPicker
+            <div className="grid gap-1.5 sm:col-span-2">
+              <Label>{lang === "ar" ? "طريقة ومصدر الاسترداد" : "Refund method & source"}</Label>
+              <DynamicPaymentSelector
                 context="sales_returns"
                 value={refundMethod}
                 onChange={setRefundMethod}
+                settlement={settlement}
+                onSettlementChange={setSettlement}
                 includeCredit
-                ensureIds={[refundMethod]}
-                ariaLabel={lang === "ar" ? "طريقة الاسترداد" : "Refund method"}
+                compact
               />
             </div>
           </div>

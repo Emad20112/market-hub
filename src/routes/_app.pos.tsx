@@ -27,8 +27,15 @@ import {
   Receipt,
   FileText,
   SkipForward,
+  Landmark,
+  Check,
+  Building2,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { useCashboxes } from "@/hooks/use-cashboxes";
+import { useCompanyBankAccounts } from "@/hooks/use-company-bank-accounts";
+import { paymentMethodIconAsset } from "@/lib/payments/payment-methods";
+import type { PaymentSettlementSelection } from "@/lib/payments/treasury-types";
 import {
   posOfflineService,
   productsRepo,
@@ -364,6 +371,25 @@ function POSPage() {
   const { settings: batchSettings } = useBatchSettings();
   const [batchModalOpen, setBatchModalOpen] = useState(false);
   const [batchPendingProduct, setBatchPendingProduct] = useState<Product | null>(null);
+
+  // Treasury & Dynamic Settlement State
+  const { activeCashboxes, defaultCashbox } = useCashboxes();
+  const {
+    banks: companyBanks,
+    wallets: companyWallets,
+    defaultBank,
+    defaultWallet,
+  } = useCompanyBankAccounts();
+  const [settlement, setSettlement] = useState<PaymentSettlementSelection>({
+    method: "cash",
+    paymentMethodId: "cash",
+  });
+
+  useEffect(() => {
+    if (paymentMethod === "cash" && !settlement.cashboxId && defaultCashbox) {
+      setSettlement((s) => ({ ...s, cashboxId: defaultCashbox.id, paymentMethodId: "cash" }));
+    }
+  }, [paymentMethod, defaultCashbox, settlement.cashboxId]);
 
   // Mobile workspace: catalogue is never mounted behind the cart on phones.
   const isDesktop = useIsDesktop();
@@ -1446,6 +1472,28 @@ function POSPage() {
           });
           if (error) throw error;
           invoiceId = data as string;
+
+          // Update invoice with specific treasury & settlement routing metadata
+          try {
+            await (supabase.from("sales_invoices") as any)
+              .update({
+                cashbox_id:
+                  paymentMethod === "cash"
+                    ? settlement.cashboxId || defaultCashbox?.id || null
+                    : null,
+                bank_account_id:
+                  paymentMethod === "bank_transfer" || paymentMethod === "mobile_money"
+                    ? settlement.bankAccountId || null
+                    : null,
+                payment_method_id:
+                  settlement.paymentMethodId || (paymentMethod === "cash" ? "cash" : null),
+                payment_reference: transferRef.trim() || settlement.reference || null,
+              })
+              .eq("id", invoiceId);
+          } catch (metaErr) {
+            console.warn("Settlement metadata update skipped or column not yet migrated:", metaErr);
+          }
+
           const { data: inv } = await supabase
             .from("sales_invoices")
             .select("invoice_number")
@@ -2581,69 +2629,345 @@ function POSPage() {
 
               {/* ─── Payment & Summary Section ─── */}
               <div className="mt-3 space-y-2.5 border-t border-border/70 bg-surface/95 pt-2.5 pr-0.5">
-                {/* طريقة الدفع + الخصم — صف واحد كما في السلة السابقة ونقطة المشتريات */}
-                <div className="grid grid-cols-[minmax(0,1fr)_7.5rem] gap-2">
-                  <label className="relative min-w-0">
-                    <span className="sr-only">
+                {/* طريقة الدفع: شبكة أزرار الخزينة (فرع الدفع) + حقل الخصم — صفان
+                    إن لزم. الأزرار ضرورية لأنها ترتبط مباشرة بـ settlement (الصندوق /
+                    البنك / المحفظة)، وحقل الخصم يحتفظ بالتفقيط تحت رقمه. */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
                       {lang === "ar" ? "طريقة الدفع" : "Payment method"}
                     </span>
-                    <select
-                      value={isSplitPayment ? "split" : paymentMethod}
-                      onChange={(e) => {
-                        const method = e.target.value;
-                        if (method === "split") {
-                          setIsSplitPayment(true);
-                          setSplitCash(String(total));
-                          setSplitCard("");
-                          return;
-                        }
+                    <AmountInput
+                      min={0}
+                      hideClear
+                      value={discount === "" ? null : Number(discount)}
+                      onValueChange={(v) => setDiscount(v == null ? "" : String(v))}
+                      placeholder={lang === "ar" ? "الخصم" : "Discount"}
+                      aria-label={t("pos.discount")}
+                      wordsClassName="text-[10px] leading-3"
+                      containerClassName="w-32 shrink-0 [&_input]:h-8 [&_input]:rounded-lg [&_input]:bg-surface [&_input]:text-xs"
+                    />
+                  </div>
+                  <div className="grid grid-cols-3 gap-1 rounded-xl border border-border/80 bg-muted/50 p-1 shadow-2xs sm:grid-cols-6">
+                    {/* Cash */}
+                    <button
+                      type="button"
+                      onClick={() => {
                         setIsSplitPayment(false);
-                        setPaymentMethod(method as typeof paymentMethod);
-                        setPaid(method === "credit" ? "0" : "");
+                        setPaymentMethod("cash");
+                        setPaid("");
+                        setSettlement((s) => ({
+                          ...s,
+                          method: "cash",
+                          paymentMethodId: "cash",
+                          cashboxId: defaultCashbox?.id,
+                        }));
                       }}
-                      aria-label={lang === "ar" ? "طريقة الدفع" : "Payment method"}
-                      className="h-10 w-full appearance-none rounded-xl border border-border/80 bg-surface px-3 text-xs font-semibold text-foreground outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
+                      className={`flex flex-col items-center justify-center gap-0.5 rounded-lg py-1.5 text-[11px] font-bold transition ${
+                        !isSplitPayment && paymentMethod === "cash"
+                          ? "bg-background text-emerald-700 dark:text-emerald-400 shadow-xs ring-1 ring-emerald-500/30"
+                          : "text-muted-foreground hover:text-foreground hover:bg-background/50"
+                      }`}
                     >
-                      <option value="cash">{t("pos.pm.cash")}</option>
-                      <option value="card">{lang === "ar" ? "شبكة / بطاقة" : "Card"}</option>
-                      <option value="mobile_money">{lang === "ar" ? "محفظة" : "Wallet"}</option>
-                      <option value="bank_transfer">
-                        {lang === "ar" ? "حوالة بنكية" : "Transfer"}
-                      </option>
-                      <option value="credit">{t("pos.pm.credit")}</option>
-                      <option value="split">{t("pos.pm.split")}</option>
-                    </select>
-                    <ChevronDown className="pointer-events-none absolute end-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                  </label>
-                  <AmountInput
-                    min={0}
-                    hideClear
-                    value={discount === "" ? null : Number(discount)}
-                    onValueChange={(v) => setDiscount(v == null ? "" : String(v))}
-                    placeholder={lang === "ar" ? "الخصم" : "Discount"}
-                    aria-label={t("pos.discount")}
-                    wordsClassName="text-[10px] leading-3"
-                    containerClassName="[&_input]:h-10 [&_input]:rounded-xl [&_input]:bg-surface [&_input]:text-xs"
-                  />
+                      <Banknote className="h-4 w-4" />
+                      <span>{t("pos.pm.cash")}</span>
+                    </button>
+
+                    {/* Card */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsSplitPayment(false);
+                        setPaymentMethod("card");
+                        setPaid("");
+                        setSettlement((s) => ({ ...s, method: "card", paymentMethodId: "card" }));
+                      }}
+                      className={`flex flex-col items-center justify-center gap-0.5 rounded-lg py-1.5 text-[11px] font-bold transition ${
+                        !isSplitPayment && paymentMethod === "card"
+                          ? "bg-background text-blue-700 dark:text-blue-400 shadow-xs ring-1 ring-blue-500/30"
+                          : "text-muted-foreground hover:text-foreground hover:bg-background/50"
+                      }`}
+                    >
+                      <CreditCard className="h-4 w-4" />
+                      <span>{lang === "ar" ? "شبكة" : "Card"}</span>
+                    </button>
+
+                    {/* Wallet */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsSplitPayment(false);
+                        setPaymentMethod("mobile_money");
+                        setPaid("");
+                        setSettlement((s) => ({
+                          ...s,
+                          method: "mobile_money",
+                          paymentMethodId:
+                            s.paymentMethodId &&
+                            s.paymentMethodId !== "cash" &&
+                            s.paymentMethodId !== "bank_transfer"
+                              ? s.paymentMethodId
+                              : "jaib",
+                          bankAccountId: defaultWallet?.id,
+                        }));
+                      }}
+                      className={`flex flex-col items-center justify-center gap-0.5 rounded-lg py-1.5 text-[11px] font-bold transition ${
+                        !isSplitPayment && paymentMethod === "mobile_money"
+                          ? "bg-background text-sky-700 dark:text-sky-400 shadow-xs ring-1 ring-sky-500/30"
+                          : "text-muted-foreground hover:text-foreground hover:bg-background/50"
+                      }`}
+                    >
+                      <Smartphone className="h-4 w-4" />
+                      <span>{lang === "ar" ? "محفظة" : "Wallet"}</span>
+                    </button>
+
+                    {/* Bank Transfer */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsSplitPayment(false);
+                        setPaymentMethod("bank_transfer");
+                        setPaid("");
+                        setSettlement((s) => ({
+                          ...s,
+                          method: "bank_transfer",
+                          paymentMethodId: "kuraimi_bank",
+                          bankAccountId: defaultBank?.id,
+                        }));
+                      }}
+                      className={`flex flex-col items-center justify-center gap-0.5 rounded-lg py-1.5 text-[11px] font-bold transition ${
+                        !isSplitPayment && paymentMethod === "bank_transfer"
+                          ? "bg-background text-indigo-700 dark:text-indigo-400 shadow-xs ring-1 ring-indigo-500/30"
+                          : "text-muted-foreground hover:text-foreground hover:bg-background/50"
+                      }`}
+                    >
+                      <Landmark className="h-4 w-4" />
+                      <span>{lang === "ar" ? "حوالة" : "Transfer"}</span>
+                    </button>
+
+                    {/* Credit (Debt) */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsSplitPayment(false);
+                        setPaymentMethod("credit");
+                        setPaid("0");
+                        setSettlement((s) => ({
+                          ...s,
+                          method: "credit",
+                          paymentMethodId: "credit",
+                        }));
+                      }}
+                      className={`flex flex-col items-center justify-center gap-0.5 rounded-lg py-1.5 text-[11px] font-bold transition ${
+                        !isSplitPayment && paymentMethod === "credit"
+                          ? "bg-background text-amber-600 dark:text-amber-400 shadow-xs ring-1 ring-amber-500/30"
+                          : "text-muted-foreground hover:text-foreground hover:bg-background/50"
+                      }`}
+                    >
+                      <Clock className="h-4 w-4" />
+                      <span>{t("pos.pm.credit")}</span>
+                    </button>
+
+                    {/* Split Payment */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsSplitPayment(true);
+                        setSplitCash(String(total));
+                        setSplitCard("");
+                        setSettlement((s) => ({ ...s, method: "split", paymentMethodId: "split" }));
+                      }}
+                      className={`flex flex-col items-center justify-center gap-0.5 rounded-lg py-1.5 text-[11px] font-bold transition ${
+                        isSplitPayment
+                          ? "bg-background text-violet-600 dark:text-violet-400 shadow-xs ring-1 ring-violet-500/30"
+                          : "text-muted-foreground hover:text-foreground hover:bg-background/50"
+                      }`}
+                    >
+                      <Layers className="h-4 w-4" />
+                      <span>{t("pos.pm.split")}</span>
+                    </button>
+                  </div>
                 </div>
 
-                {/* Transfer reference input */}
-                {!isSplitPayment &&
-                  (paymentMethod === "bank_transfer" || paymentMethod === "mobile_money") && (
-                    <input
-                      value={transferRef}
-                      onChange={(e) => setTransferRef(e.target.value)}
-                      placeholder={
-                        paymentMethod === "mobile_money"
-                          ? lang === "ar"
-                            ? "رقم عملية المحفظة / المرجع الإلكتروني"
-                            : "Wallet transaction / reference number"
-                          : t("pos.pm.transfer_ref")
-                      }
-                      aria-label={lang === "ar" ? "مرجع الحوالة" : "Transfer reference"}
-                      className="h-9 w-full rounded-xl border border-input/80 bg-background px-3 text-xs outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
-                    />
-                  )}
+                {/* Sub-Entity Details & Settlement Options */}
+                {!isSplitPayment && (
+                  <div className="rounded-xl border border-border/60 bg-muted/20 p-2 space-y-1.5 animate-in fade-in duration-150">
+                    {/* CASH: Active Cashbox Indicator & Picker */}
+                    {paymentMethod === "cash" && (
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-[11px] text-muted-foreground flex items-center gap-1">
+                          <Banknote className="h-3.5 w-3.5 text-emerald-600" />
+                          {lang === "ar" ? "الصندوق:" : "Cashbox:"}
+                        </span>
+                        {activeCashboxes.length > 1 ? (
+                          <div className="flex items-center gap-1">
+                            {activeCashboxes.map((b) => (
+                              <button
+                                key={b.id}
+                                type="button"
+                                onClick={() => setSettlement((s) => ({ ...s, cashboxId: b.id }))}
+                                className={`text-[10px] px-2 py-0.5 rounded-md font-semibold border transition ${
+                                  settlement.cashboxId === b.id
+                                    ? "bg-emerald-600 text-white border-emerald-600"
+                                    : "bg-background text-muted-foreground border-border hover:text-foreground"
+                                }`}
+                              >
+                                {b.name_ar}
+                              </button>
+                            ))}
+                          </div>
+                        ) : (
+                          <span className="text-[11px] font-semibold text-emerald-800 dark:text-emerald-300">
+                            {defaultCashbox?.name_ar ||
+                              (lang === "ar" ? "الصندوق الرئيسي" : "Main Till")}
+                          </span>
+                        )}
+                      </div>
+                    )}
+
+                    {/* WALLET: Specific Wallet Pills (Jaib, One Cash, Floosak, Jawali) */}
+                    {paymentMethod === "mobile_money" && (
+                      <div className="space-y-1.5">
+                        <div className="flex flex-wrap items-center gap-1">
+                          {[
+                            { id: "jaib", nameAr: "جيب", alt: "Jaib" },
+                            { id: "one_cash", nameAr: "ون كاش", alt: "One Cash" },
+                            { id: "floosak", nameAr: "فلوسك", alt: "Floosak" },
+                            { id: "jawali", nameAr: "جوالي", alt: "Jawali" },
+                          ].map((w) => {
+                            const isChosen = settlement.paymentMethodId === w.id;
+                            const asset = paymentMethodIconAsset(w.id);
+                            return (
+                              <button
+                                key={w.id}
+                                type="button"
+                                onClick={() =>
+                                  setSettlement((s) => ({
+                                    ...s,
+                                    paymentMethodId: w.id,
+                                    bankAccountId:
+                                      companyWallets.find(
+                                        (acc) =>
+                                          acc.name_ar.includes(w.nameAr) ||
+                                          acc.bank_name.includes(w.nameAr),
+                                      )?.id || s.bankAccountId,
+                                  }))
+                                }
+                                className={`inline-flex items-center gap-1 text-[11px] px-2 py-1 rounded-lg border font-medium transition ${
+                                  isChosen
+                                    ? "bg-sky-500/20 text-sky-950 dark:text-sky-200 border-sky-500/50 font-bold"
+                                    : "bg-background text-muted-foreground border-border/80 hover:bg-muted"
+                                }`}
+                              >
+                                {asset ? (
+                                  <img
+                                    src={asset.src}
+                                    alt={asset.alt}
+                                    className="h-3.5 w-3.5 object-contain"
+                                  />
+                                ) : (
+                                  <Smartphone className="h-3 w-3 text-sky-600" />
+                                )}
+                                <span>{w.nameAr}</span>
+                                {isChosen && <Check className="h-3 w-3 text-sky-600" />}
+                              </button>
+                            );
+                          })}
+                        </div>
+
+                        <input
+                          value={transferRef}
+                          onChange={(e) => {
+                            setTransferRef(e.target.value);
+                            setSettlement((s) => ({ ...s, reference: e.target.value }));
+                          }}
+                          placeholder={
+                            lang === "ar"
+                              ? "رقم عملية المحفظة / المرجع الإلكتروني..."
+                              : "Wallet transaction reference number..."
+                          }
+                          aria-label={lang === "ar" ? "مرجع المحفظة" : "Wallet reference"}
+                          className="h-8 w-full rounded-lg border border-input/80 bg-background px-2.5 text-xs outline-none transition focus:border-primary focus:ring-1 focus:ring-primary/20"
+                        />
+                      </div>
+                    )}
+
+                    {/* BANK TRANSFER: Company Banks Pills */}
+                    {paymentMethod === "bank_transfer" && (
+                      <div className="space-y-1.5">
+                        <div className="flex flex-wrap items-center gap-1">
+                          {[
+                            { id: "kuraimi_bank", nameAr: "بنك الكريمي" },
+                            { id: "yemen_kuwait_bank", nameAr: "بنك اليمن الدولي" },
+                            ...companyBanks.map((b) => ({ id: b.id, nameAr: b.name_ar })),
+                          ]
+                            .filter(
+                              (item, idx, all) =>
+                                all.findIndex((x) => x.nameAr === item.nameAr) === idx,
+                            )
+                            .map((b) => {
+                              const isChosen =
+                                settlement.paymentMethodId === b.id ||
+                                settlement.bankAccountId === b.id;
+                              return (
+                                <button
+                                  key={b.id}
+                                  type="button"
+                                  onClick={() =>
+                                    setSettlement((s) => ({
+                                      ...s,
+                                      paymentMethodId: b.id,
+                                      bankAccountId:
+                                        companyBanks.find(
+                                          (acc) => acc.id === b.id || acc.name_ar === b.nameAr,
+                                        )?.id || s.bankAccountId,
+                                    }))
+                                  }
+                                  className={`inline-flex items-center gap-1 text-[11px] px-2 py-1 rounded-lg border font-medium transition ${
+                                    isChosen
+                                      ? "bg-indigo-500/20 text-indigo-950 dark:text-indigo-200 border-indigo-500/50 font-bold"
+                                      : "bg-background text-muted-foreground border-border/80 hover:bg-muted"
+                                  }`}
+                                >
+                                  <Landmark className="h-3 w-3 text-indigo-600" />
+                                  <span>{b.nameAr}</span>
+                                  {isChosen && <Check className="h-3 w-3 text-indigo-600" />}
+                                </button>
+                              );
+                            })}
+                        </div>
+
+                        <input
+                          value={transferRef}
+                          onChange={(e) => {
+                            setTransferRef(e.target.value);
+                            setSettlement((s) => ({ ...s, reference: e.target.value }));
+                          }}
+                          placeholder={
+                            lang === "ar"
+                              ? "رقم الحوالة البنكية / إشعار الإيداع..."
+                              : "Bank transfer reference number..."
+                          }
+                          aria-label={lang === "ar" ? "مرجع الحوالة" : "Transfer reference"}
+                          className="h-8 w-full rounded-lg border border-input/80 bg-background px-2.5 text-xs outline-none transition focus:border-primary focus:ring-1 focus:ring-primary/20"
+                        />
+                      </div>
+                    )}
+
+                    {/* CARD: Direct Settlement */}
+                    {paymentMethod === "card" && (
+                      <div className="flex items-center justify-between text-[11px] text-blue-700 dark:text-blue-300 px-1 py-0.5">
+                        <span className="flex items-center gap-1">
+                          <CreditCard className="h-3.5 w-3.5" />
+                          {lang === "ar" ? "سداد عبر جهاز الشبكة / مدى" : "POS Debit Terminal"}
+                        </span>
+                        <span className="text-[10px] text-muted-foreground">
+                          {lang === "ar" ? "تسوية بنكية" : "Bank settlement"}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 {/* Split Payment Details */}
                 {isSplitPayment ? (

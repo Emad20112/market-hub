@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { PrimaryAction } from "@/components/ui/primary-action";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { PageHeader } from "@/components/page-header";
 import { useAuth } from "@/lib/auth";
 import { useI18n } from "@/lib/i18n";

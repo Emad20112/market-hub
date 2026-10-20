@@ -25,6 +25,8 @@ import { useFinancialPosting } from "@/hooks/use-financial-posting";
 import { usePaymentMethodsForContext } from "@/hooks/use-payment-methods";
 import { PaymentMethodPicker } from "@/components/ui/payment-method";
 import { AmountInput } from "@/components/ui/amount-input";
+import { DynamicPaymentSelector } from "@/components/ui/payment-method/dynamic-payment-selector";
+import type { PaymentSettlementSelection } from "@/lib/payments/treasury-types";
 import { paymentMethodLabel, requiresPaymentReference } from "@/lib/payments/payment-methods";
 
 /** Catalogue id from the business's configured payment-method list. */
@@ -64,6 +66,8 @@ export interface VortexCollectionSheetProps {
     collectionMode?: CollectionMode;
     paymentDate?: string;
     reference?: string;
+    cashboxId?: string | null;
+    bankAccountId?: string | null;
     notes?: string;
   }) => Promise<{ receiptNumber: string }>;
   /** A preselected invoice may be supplied by the sales screen without changing the old sheet UI. */
@@ -84,6 +88,10 @@ export function VortexCollectionSheet({
   const { postPayment, isPosting } = useFinancialPosting();
   const [amount, setAmount] = useState<string>("");
   const [method, setMethod] = useState<PaymentMethod>("cash");
+  const [settlement, setSettlement] = useState<PaymentSettlementSelection>({
+    method: "cash",
+    paymentMethodId: "cash",
+  });
   const [collectionMode, setCollectionMode] = useState<CollectionMode>("receivable");
   const [paymentDate, setPaymentDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [reference, setReference] = useState<string>("");
@@ -213,10 +221,11 @@ export function VortexCollectionSheet({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!customer || payAmount <= 0 || isOverpayment || (needsReference && !reference.trim()))
+    const effectiveReference = (settlement.reference || reference).trim();
+    if (!customer || payAmount <= 0 || isOverpayment || (needsReference && !effectiveReference))
       return;
 
-    const trimmedReference = reference.trim();
+    const trimmedReference = effectiveReference;
     const trimmedNotes = notes.trim();
     const receiptNotes = [
       trimmedReference ? `مرجع: ${trimmedReference}` : null,
@@ -231,10 +240,12 @@ export function VortexCollectionSheet({
         ? await onSavePayment({
             customerId: customer.id,
             amount: payAmount,
-            method,
+            method: settlement.paymentMethodId || method,
             collectionMode,
             paymentDate,
             reference: trimmedReference || undefined,
+            cashboxId: settlement.cashboxId || null,
+            bankAccountId: settlement.bankAccountId || null,
             notes: receiptNotes || undefined,
           })
         : await postPayment({
@@ -242,7 +253,9 @@ export function VortexCollectionSheet({
             partyType: "customer",
             type: "customer_collection",
             amount: payAmount,
-            method,
+            method: settlement.paymentMethodId || method,
+            cashboxId: settlement.cashboxId || null,
+            bankAccountId: settlement.bankAccountId || null,
             invoiceId: collectionMode === "advance" ? null : (initialInvoiceId ?? null),
             paymentDate,
             reference: trimmedReference || null,
@@ -612,13 +625,14 @@ export function VortexCollectionSheet({
 
           {/* Payment Method Selector */}
           <div className="space-y-1.5">
-            <label className="text-xs font-bold text-foreground">طريقة الدفع</label>
-            <PaymentMethodPicker
+            <label className="text-xs font-bold text-foreground">طريقة الدفع ومصدر التحصيل</label>
+            <DynamicPaymentSelector
               context="customer_collection"
               value={method}
               onChange={setMethod}
+              settlement={settlement}
+              onSettlementChange={setSettlement}
               includeCredit={false}
-              ariaLabel="طريقة دفع سند القبض"
               className="w-full"
             />
           </div>

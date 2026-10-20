@@ -102,7 +102,7 @@ export function AddBatchDialog({
       supabase.from("warehouses").select("id, name, name_ar").eq("is_active", true).order("name"),
     ])
       .then(([pRes, wRes]) => {
-        const prodList = (pRes.data ?? []) as ProductOption[];
+        const prodList = (pRes.data ?? []) as unknown as ProductOption[];
         const whList = (wRes.data ?? []) as WarehouseOption[];
         setProducts(prodList);
         setWarehouses(whList);

@@ -53,6 +53,8 @@ import {
   type MillingDocumentDetails,
 } from "@/lib/milling";
 import { PaymentMethodPicker } from "@/components/ui/payment-method";
+import { DynamicPaymentSelector } from "@/components/ui/payment-method/dynamic-payment-selector";
+import type { PaymentSettlementSelection } from "@/lib/payments/treasury-types";
 import {
   getPaymentMethodDefinition,
   toLegacyPaymentValue,
@@ -123,6 +125,10 @@ function MillingIntakePage() {
   const [servicePrice, setServicePrice] = useState("");
   const [discount, setDiscount] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("cash");
+  const [settlement, setSettlement] = useState<PaymentSettlementSelection>({
+    method: "cash",
+    paymentMethodId: "cash",
+  });
   const [paid, setPaid] = useState("");
 
   // المستند والطباعة
@@ -341,6 +347,10 @@ function MillingIntakePage() {
         serviceUnitPrice: currentSubtotal,
         discount: currentDiscount,
         paymentMethod: toLegacyPaymentValue(paymentMethod),
+        cashboxId: settlement.cashboxId || null,
+        bankAccountId: settlement.bankAccountId || null,
+        paymentMethodId: settlement.paymentMethodId || paymentMethod || null,
+        paymentReference: settlement.reference || null,
         paid: isCredit ? 0 : Number(paid) || 0,
         notes: notes.trim() || undefined,
       }),
@@ -870,7 +880,7 @@ function MillingIntakePage() {
                     </div>
                   </div>
 
-                  <PaymentMethodPicker
+                  <DynamicPaymentSelector
                     context="sales"
                     value={paymentMethod}
                     onChange={(method) => {
@@ -879,8 +889,10 @@ function MillingIntakePage() {
                         setPaid("");
                       }
                     }}
-                    ensureIds={[paymentMethod]}
-                    ariaLabel="طريقة دفع فاتورة الاستلام"
+                    settlement={settlement}
+                    onSettlementChange={setSettlement}
+                    includeCredit
+                    compact
                   />
                 </div>
 
