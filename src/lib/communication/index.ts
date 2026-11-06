@@ -10,3 +10,4 @@ export * from "./action-resolver";
 export * from "./context-builder";
 export * from "./document-share";
 export * from "./audio";
+export * from "./message-settings";

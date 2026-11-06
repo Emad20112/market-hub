@@ -40,6 +40,8 @@ export function buildUnifiedContext(options: BuildContextOptions): UnifiedCommun
       phone: options.customer.phone || null,
       email: options.customer.email || null,
       balance: Number(options.customer.balance ?? 0),
+      currentBalance:
+        options.customer.currentBalance != null ? Number(options.customer.currentBalance) : null,
       creditLimit: Number(options.customer.creditLimit ?? 0),
       preferredLanguage: options.customer.preferredLanguage,
       hasLedgerActivity: options.customer.hasLedgerActivity,

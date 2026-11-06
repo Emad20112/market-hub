@@ -515,8 +515,8 @@ export function MillingDocumentWorkflow({
           documentType={printStage === "delivery" ? "delivery_note" : "mill_document"}
           title={
             printStage === "delivery"
-              ? "معاينة وطباعة سند تسليم نواتج الأمانة"
-              : "معاينة وطباعة سند استلام أمانة وفاتورة أجور"
+              ? "معاينة وطباعة سند تسليم نواتج الطحن"
+              : "معاينة وطباعة سند استلام حبوب وفاتورة أجور"
           }
           customerName={details.customers?.name || undefined}
           customerPhone={details.customers?.phone || undefined}

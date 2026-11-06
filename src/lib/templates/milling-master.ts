@@ -46,7 +46,7 @@ export function renderMillingMasterTemplate(
 
   const isDelivery = doc.docType === "delivery_note";
   const title = esc(
-    doc.title || (isDelivery ? "سند تسليم أمانات عميل" : "فاتورة وسند استلام وخدمات طحن"),
+    doc.title || (isDelivery ? "سند تسليم نواتج الطحن" : "فاتورة وسند استلام وخدمات طحن"),
   );
 
   const compName = esc(
@@ -382,7 +382,7 @@ export function renderMillingMasterTemplate(
     <div class="milling-details-box">
       <div class="hairline-row">
         <span class="hairline-row-label">نوع الحركة:</span>
-        <span class="hairline-row-val">${esc(doc.movementType || "طحن وخدمات أمانات")}</span>
+        <span class="hairline-row-val">${esc(doc.movementType || "طحن وخدمات")}</span>
       </div>
       <div class="hairline-row">
         <span class="hairline-row-label">إجمالي العمليات:</span>
@@ -514,7 +514,7 @@ export function renderMillingThermalTemplate(
 
   const isDelivery = doc.docType === "delivery_note";
   const title = esc(
-    doc.title || (isDelivery ? "سند تسليم نواتج الأمانة" : "سند استلام أمانة وفاتورة أجور"),
+    doc.title || (isDelivery ? "سند تسليم نواتج الطحن" : "سند استلام حبوب وفاتورة أجور"),
   );
 
   const compName = esc(
@@ -540,7 +540,7 @@ export function renderMillingThermalTemplate(
         <div style="display:flex; justify-content:space-between; font-size: 11px; margin-top: 2px;">
           <span>${l.qty} ${esc(l.unit || "")}${!isCustody && !isDelivery ? ` × ${money(l.price)}` : ""}</span>
           <span style="font-weight:800; color: ${isCustody ? "#059669" : "#000"};">
-            ${isCustody ? (isDelivery ? "تسليم أمانة" : "أمانة عينية") : !isDelivery ? money(l.total) : "تسليم"}
+            ${isCustody ? (isDelivery ? "تسليم" : "حبوب العميل") : !isDelivery ? money(l.total) : "تسليم"}
           </span>
         </div>
         ${
@@ -679,11 +679,7 @@ export function renderMillingThermalTemplate(
       : ""
   }
 
-  ${
-    opts.showFooter
-      ? renderUniversalFooter(companyProfile, rtl, true)
-      : ""
-  }
+  ${opts.showFooter ? renderUniversalFooter(companyProfile, rtl, true) : ""}
   <div style="text-align:center;font-size:7.5px;color:#9ca3af;padding:2px 0">${COMPANY_RIGHTS_TEXT}</div>
 </body>
 </html>`;

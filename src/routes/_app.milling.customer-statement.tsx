@@ -417,7 +417,7 @@ export function CustomerCustodyPageBase({ mode }: { mode: CustodyMode }) {
   const custodyColumns: DataTableColumn<CustodyStatementRow>[] = [
     {
       key: "customer_name_ar",
-      header: "العميل صاحب الأمانة",
+      header: "العميل العميل",
       align: "start",
       sortable: true,
       sortValue: (r) => r.customer_name_ar ?? "",
@@ -801,7 +801,7 @@ export function CustomerCustodyPageBase({ mode }: { mode: CustodyMode }) {
           subtitle={
             mode === "milling"
               ? "متابعة أرصدة الحبوب الخام المودعة وتسجيل عمليات الطحن وإيداع النواتج."
-              : "متابعة النواتج الجاهزة وتسليمها لصاحب الأمانة مع سند تسليم رسمي."
+              : "متابعة النواتج الجاهزة وتسليمها لالعميل مع سند تسليم رسمي."
           }
           actions={
             <div className="flex flex-wrap items-center gap-2">
@@ -1058,8 +1058,8 @@ export function CustomerCustodyPageBase({ mode }: { mode: CustodyMode }) {
             documentType={printDoc.docType === "delivery_note" ? "delivery_note" : "mill_document"}
             title={
               printDoc.docType === "delivery_note"
-                ? "معاينة وطباعة سند تسليم نواتج الأمانة"
-                : "معاينة وطباعة سند استلام أمانة وفاتورة أجور"
+                ? "معاينة وطباعة سند تسليم نواتج الطحن"
+                : "معاينة وطباعة سند استلام حبوب وفاتورة أجور"
             }
             customerName={printDoc.partyName || undefined}
             customerPhone={printDoc.partyPhone || undefined}
@@ -1070,7 +1070,7 @@ export function CustomerCustodyPageBase({ mode }: { mode: CustodyMode }) {
         <DocumentShareDialog
           open={shareDialogOpen}
           onClose={() => setShareDialogOpen(false)}
-          title="مشاركة كشف وسند الأمانة"
+          title="مشاركة كشف وسند العميل"
           documentType="milling_document"
           millingDocumentNumber={shareData?.docNumber || ""}
           customer={
@@ -1361,7 +1361,9 @@ function QuickMillingModal({
             <MillingField label="العميل *">
               {initialRow ? (
                 <div className="flex h-10 items-center rounded-2xl border border-border/70 bg-muted/50 px-3 text-xs font-semibold text-foreground">
-                  {customers.find((c) => c.id === customerId)?.name || initialRow.customer_name_ar || "—"}
+                  {customers.find((c) => c.id === customerId)?.name ||
+                    initialRow.customer_name_ar ||
+                    "—"}
                 </div>
               ) : (
                 <PartyPicker
@@ -1557,32 +1559,32 @@ function QuickMillingModal({
             </button>
           </div>
 
-            {/* شريط المطابقة الذكي */}
-            <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-muted/60 p-3 text-xs">
-              <div className="flex items-center gap-3">
-                <span>
-                  حبوب خام مطحونة: <strong className="text-foreground">{totalGrainKg}</strong> كجم
-                </span>
-                <span>•</span>
-                <span>
-                  إجمالي النواتج: <strong className="text-foreground">{totalOutputsKg}</strong> كجم
-                </span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <span className="text-muted-foreground">نسبة الاستخراج:</span>
-                <span
-                  className={`font-black tabular-nums ${
-                    extractionRatio > 105
-                      ? "text-rose-600"
-                      : extractionRatio >= 90
-                        ? "text-emerald-600"
-                        : "text-amber-600"
-                  }`}
-                >
-                  {extractionRatio}%
-                </span>
-              </div>
+          {/* شريط المطابقة الذكي */}
+          <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-muted/60 p-3 text-xs">
+            <div className="flex items-center gap-3">
+              <span>
+                حبوب خام مطحونة: <strong className="text-foreground">{totalGrainKg}</strong> كجم
+              </span>
+              <span>•</span>
+              <span>
+                إجمالي النواتج: <strong className="text-foreground">{totalOutputsKg}</strong> كجم
+              </span>
             </div>
+            <div className="flex items-center gap-1.5">
+              <span className="text-muted-foreground">نسبة الاستخراج:</span>
+              <span
+                className={`font-black tabular-nums ${
+                  extractionRatio > 105
+                    ? "text-rose-600"
+                    : extractionRatio >= 90
+                      ? "text-emerald-600"
+                      : "text-amber-600"
+                }`}
+              >
+                {extractionRatio}%
+              </span>
+            </div>
+          </div>
 
           {/* ملاحظات الطحن */}
           <MillingField label="ملاحظات تشغيلية">
@@ -1737,9 +1739,9 @@ function QuickDeliveryModal({
               <PackageCheck className="h-5 w-5" />
             </div>
             <div>
-              <h3 className="font-bold text-sm text-foreground">تسليم أمانة للعميل</h3>
+              <h3 className="font-bold text-sm text-foreground">تسليم للعميل</h3>
               <p className="text-xs text-muted-foreground">
-                صرف وخروج الأمانات من المستودع لصاحب الأمانة.
+                صرف وخروج الأمانات من المستودع لالعميل.
               </p>
             </div>
           </div>
@@ -1758,7 +1760,9 @@ function QuickDeliveryModal({
             <MillingField label="العميل المستلم *">
               {initialRow ? (
                 <div className="flex h-10 items-center rounded-2xl border border-border/70 bg-muted/50 px-3 text-xs font-semibold text-foreground">
-                  {customers.find((c) => c.id === customerId)?.name || initialRow.customer_name_ar || "—"}
+                  {customers.find((c) => c.id === customerId)?.name ||
+                    initialRow.customer_name_ar ||
+                    "—"}
                 </div>
               ) : (
                 <PartyPicker
@@ -1970,7 +1974,7 @@ function CustomerCustodyHistoryModal({
       title: "كشف حساب أمانات العميل العيني",
       number: `CUST-${row.customer_id.slice(0, 8).toUpperCase()}`,
       date: new Date().toISOString(),
-      partyLabel: "صاحب الأمانة / العميل:",
+      partyLabel: "العميل:",
       partyName: row.customer_name_ar,
       warehouse: row.warehouse_name_ar || "المستودع الرئيسي",
       movementType: `حركات الصنف: ${row.item_name_ar} (${row.item_class === "RAW_MATERIAL" ? "حبوب خام" : "نواتج"})`,

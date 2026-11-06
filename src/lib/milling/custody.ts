@@ -307,7 +307,7 @@ export async function fetchGrainType(id: string): Promise<GrainType | null> {
   return (data ?? null) as GrainType | null;
 }
 
-/** نواتج الأمانات فقط — من RPC `custody_output_items` المعزول. */
+/** نواتج الطحن فقط — من RPC `custody_output_items` المعزول. */
 export async function fetchOutputItems(): Promise<ProductOption[]> {
   const { data, error } = await db.rpc("custody_output_items");
   if (error) {
@@ -408,7 +408,7 @@ export interface CustodyIntakeInput {
 }
 
 export async function custodyIntake(input: CustodyIntakeInput): Promise<OpResult> {
-  if (!input.customerId) return { ok: false, message: "اختر العميل صاحب الأمانات." };
+  if (!input.customerId) return { ok: false, message: "اختر العميل." };
   if (!input.warehouseId) return { ok: false, message: "اختر المستودع." };
   if (!input.itemId) return { ok: false, message: "اختر صنف الحبوب." };
   if ((input.bags ?? 0) <= 0 && (input.kg ?? 0) <= 0) {
@@ -444,7 +444,7 @@ export async function custodyIntakeMulti(input: {
   lines: CustodyIntakeLineInput[];
   notes?: string;
 }): Promise<OpResult> {
-  if (!input.customerId) return { ok: false, message: "اختر العميل صاحب الأمانات." };
+  if (!input.customerId) return { ok: false, message: "اختر العميل." };
   if (!input.warehouseId) return { ok: false, message: "اختر المستودع." };
   const valid = (input.lines ?? []).filter(
     (l) => l.itemId && ((l.bags ?? 0) > 0 || (l.kg ?? 0) > 0),
@@ -797,10 +797,10 @@ export function buildMillingDocumentUnifiedDoc(
   const remaining = Math.max(0, total - paid);
   const title =
     stage === "delivery"
-      ? "سند تسليم نواتج الأمانة"
+      ? "سند تسليم نواتج الطحن"
       : stage === "milled"
-        ? "سند طحن أمانة"
-        : "سند استلام أمانة وفاتورة أجور";
+        ? "سند طحن"
+        : "سند استلام حبوب وفاتورة أجور";
 
   const lines: any[] = [];
 
@@ -890,11 +890,11 @@ export function buildMillingDocumentUnifiedDoc(
     number: details.document_number,
     relatedRef: inv?.invoice_number ? `فاتورة رسمية #${inv.invoice_number}` : undefined,
     date: details.received_at || new Date().toISOString(),
-    partyLabel: "صاحب الأمانة / العميل:",
-    partyName: details.customers?.name || "صاحب الأمانة",
+    partyLabel: "العميل:",
+    partyName: details.customers?.name || "العميل",
     partyPhone: details.customers?.phone || undefined,
     warehouse: details.warehouses?.name_ar || details.warehouses?.name || "المستودع الرئيسي",
-    movementType: "أمانة عينية خاصة بالعميل + فاتورة أجور رسمية للعملية كاملة",
+    movementType: "حبوب خاصة بالعميل + فاتورة أجور رسمية للعملية كاملة",
     status: statusLabel,
     lines,
     subtotal,
@@ -908,7 +908,7 @@ export function buildMillingDocumentUnifiedDoc(
     // ورقة يُقرأ سنينَ بعد التسليم، والافتراض الخاطئ فيه لا يمكن تصحيحه لاحقًا.
     payment: inv?.payment_method ? paymentMethodLabel(inv.payment_method) : "—",
     notes:
-      "حبوب ونواتج ملك العميل (أمانة عينية خارج مخزون المنشأة). أجور الخدمة مثبتة بالفاتورة الرسمية المبينة أعلاه.",
+      "حبوب ونواتج ملك العميل (خارج مخزون المنشأة). أجور الخدمة مثبتة بالفاتورة الرسمية المبينة أعلاه.",
     options: {
       showFinancialDetails: true,
       showPaymentInfo: true,
@@ -1286,9 +1286,9 @@ export interface CustodyVoucherData {
 }
 
 const VOUCHER_TITLES: Record<CustodyVoucherData["entryType"], string> = {
-  INTAKE: "سند استلام أمانة",
-  MILLING: "سند طحن أمانة",
-  DELIVERY: "سند تسليم أمانة",
+  INTAKE: "سند استلام حبوب",
+  MILLING: "سند طحن",
+  DELIVERY: "سند تسليم نواتج الطحن",
   ADJUSTMENT: "سند تعديل جردي",
 };
 
@@ -1345,11 +1345,11 @@ export function custodyVoucherToDoc(v: CustodyVoucherData): UnifiedDocumentData 
     title,
     number: v.docNumber,
     date: new Date(v.createdAt).toLocaleString("ar-EG"),
-    partyLabel: "صاحب الأمانة / العميل:",
+    partyLabel: "العميل:",
     partyName: v.customerName,
     partyPhone: v.customerPhone ?? undefined,
     warehouse: v.warehouseName,
-    movementType: isDelivery ? "تسليم أمانات عينية للعميل" : "أمانة — بلا أثر مخزني أو مالي",
+    movementType: isDelivery ? "تسليم نواتج الطحن للعميل" : "حبوب العميل — بلا أثر مخزني أو مالي",
     status: "مسجّل",
     lines: v.lines.map((l: any) => ({
       product: l.item,
@@ -1367,8 +1367,8 @@ export function custodyVoucherToDoc(v: CustodyVoucherData): UnifiedDocumentData 
     notes:
       v.notes ??
       (isDelivery
-        ? "تم تسليم الأمانات للعميل بحالة ممتازة."
-        : "حبوب/نواتج ملك العميل — أمانة لا ذمة. صفر أثر على مخزون المطحنة."),
+        ? "تم تسليم النواتج للعميل بحالة ممتازة."
+        : "حبوب/نواتج ملك العميل. صفر أثر على مخزون المطحنة."),
     options: {
       showFinancialDetails: false,
       showPaymentInfo: false,
@@ -1409,14 +1409,14 @@ export function buildCustodyDeliveryDoc({
 }): UnifiedDocumentData {
   return {
     docType: "delivery_note",
-    title: "سند تسليم نواتج الأمانة",
+    title: "سند تسليم نواتج الطحن",
     number: docNumber,
     date: date || new Date().toISOString(),
     partyLabel: "العميل المستلم:",
     partyName: customerName,
     partyPhone: customerPhone || undefined,
     warehouse: warehouseName,
-    movementType: "صرف وتسليم أمانات عينية (دفعات)",
+    movementType: "صرف وتسليم نواتج الطحن (دفعات)",
     status: "تم التسليم",
     lines: lines.map((l) => ({
       product: l.itemName,
@@ -1432,7 +1432,7 @@ export function buildCustodyDeliveryDoc({
       note:
         l.note || (l.deliveredBags > 0 && l.deliveredKg > 0 ? `${l.deliveredKg} كجم` : undefined),
     })),
-    notes: notes || "تم تسليم الأمانات الموضحة أعلاه للعميل بموجب إذن الصرف المعتمد.",
+    notes: notes || "تم تسليم النواتج الموضحة أعلاه للعميل بموجب إذن الصرف المعتمد.",
     options: {
       showFinancialDetails: false,
       showPaymentInfo: false,

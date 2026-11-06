@@ -63,7 +63,7 @@ import { useI18n } from "@/lib/i18n";
 import { WarehouseBadge } from "@/components/ui/warehouse-badge";
 
 export const Route = createFileRoute("/_app/milling/milling")({
-  head: () => ({ meta: [{ title: "عمليات الطحن ونواتج الأمانات — فورتكس ERP" }] }),
+  head: () => ({ meta: [{ title: "عمليات الطحن ونواتج الطحن — فورتكس ERP" }] }),
   component: MillingMillPage,
 });
 
@@ -439,7 +439,7 @@ function MillingMillPage() {
             <div className="space-y-4 p-4">
               {/* العميل والمستودع — المستودع شارة، لا حقل يزاحم العميل */}
               <div className="space-y-2">
-                <MillingField label="صاحب الأمانة (العميل) *">
+                <MillingField label="العميل (العميل) *">
                   <div className="flex min-w-0 flex-1 items-center gap-1.5">
                     <PartyPicker
                       options={customers.data ?? []}

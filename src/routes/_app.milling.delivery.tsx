@@ -61,7 +61,7 @@ import { useI18n } from "@/lib/i18n";
 import { WarehouseBadge } from "@/components/ui/warehouse-badge";
 
 export const Route = createFileRoute("/_app/milling/delivery")({
-  head: () => ({ meta: [{ title: "تسليم نواتج الأمانات — فورتكس ERP" }] }),
+  head: () => ({ meta: [{ title: "تسليم نواتج الطحن — فورتكس ERP" }] }),
   component: MillingDeliveryPage,
 });
 
@@ -319,7 +319,7 @@ function MillingDeliveryPage() {
       <div className="mx-auto max-w-7xl space-y-4 p-4">
         {/* شريط رأس الصفحة */}
         <PageHeader
-          title="تسليم نواتج الأمانات"
+          title="تسليم نواتج الطحن"
           subtitle="صرف وخروج نواتج الطحن والأمانات العينية للعميل مع احتساب الأرصدة المتبقية وسند تسليم رسمي."
           actions={
             <div className="flex items-center gap-2">
@@ -364,7 +364,7 @@ function MillingDeliveryPage() {
             <div className="space-y-4 p-4">
               {/* العميل والمستودع */}
               <div className="grid gap-3 sm:grid-cols-2">
-                <MillingField label="العميل صاحب الأمانة *">
+                <MillingField label="العميل العميل *">
                   <div className="flex min-w-0 flex-1 items-center gap-1.5">
                     <PartyPicker
                       options={customers.data ?? []}
@@ -604,7 +604,7 @@ function MillingDeliveryPage() {
             }}
             doc={deliveryPrintDoc}
             documentType="delivery_note"
-            title="معاينة وطباعة سند تسليم نواتج الأمانة"
+            title="معاينة وطباعة سند تسليم نواتج الطحن"
             customerName={selectedCustomer?.name || undefined}
             customerPhone={selectedCustomer?.phone || undefined}
           />

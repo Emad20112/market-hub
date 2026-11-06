@@ -126,7 +126,7 @@ export const SAMPLE_INVENTORY_DOC: UnifiedDocumentData = {
 
 export const SAMPLE_DELIVERY_NOTE: UnifiedDocumentData = {
   docType: "delivery_note",
-  title: "سند تسليم نواتج الأمانة",
+  title: "سند تسليم نواتج الطحن",
   number: "DEL-2026-0054",
   relatedRef: "JOB-2026-0031",
   date: new Date().toISOString(),
@@ -134,11 +134,11 @@ export const SAMPLE_DELIVERY_NOTE: UnifiedDocumentData = {
   partyName: "مطاعم الشيباني الحديثة",
   partyPhone: "774433221",
   warehouse: "بوابة خروج وتسليم المطحنة",
-  movementType: "صرف وتسليم أمانات عينية للعميل",
+  movementType: "صرف وتسليم نواتج الطحن للعميل",
   operatorName: "كاشير صالة المطحنة",
   lines: [
     {
-      product: "دقيق نمرة 1 فاخر (ناتج طحن أمانات)",
+      product: "دقيق نمرة 1 فاخر (ناتج طحن)",
       qty: 20,
       unit: "كيس",
       previousQty: 25,
@@ -200,15 +200,15 @@ export const SAMPLE_RETURN_DOC: UnifiedDocumentData = {
 
 export const SAMPLE_MILL_DOC: UnifiedDocumentData = {
   docType: "mill_document",
-  title: "سند استلام أمانة وفاتورة أجور",
+  title: "سند استلام حبوب وفاتورة أجور",
   number: "MIL-2026-0088",
   relatedRef: "فاتورة رسمية #INV-2026-0090",
   date: new Date().toISOString(),
-  partyLabel: "صاحب الأمانة / العميل:",
+  partyLabel: "العميل:",
   partyName: "مزارع الخير والبركة",
   partyPhone: "777889900",
   warehouse: "مطحنة وصوامع البركة",
-  movementType: "أمانة عينية خاصة بالعميل + فاتورة أجور رسمية للعملية كاملة",
+  movementType: "حبوب خاصة بالعميل + فاتورة أجور رسمية للعملية كاملة",
   status: "مستلم — بانتظار الطحن",
   lines: [
     {
@@ -237,7 +237,7 @@ export const SAMPLE_MILL_DOC: UnifiedDocumentData = {
   balance: 0,
   payment: "نقداً",
   currency: "ر.ي",
-  notes: "حبوب ونواتج ملك العميل (أمانة عينية خارج مخزون المنشأة). أجور الخدمة مثبتة بالفاتورة الرسمية.",
+  notes: "حبوب ونواتج ملك العميل (خارج مخزون المنشأة). أجور الخدمة مثبتة بالفاتورة الرسمية.",
 };
 
 /** يعيد مستند معاينة مناسبًا لنوع المستند المطلوب. */

@@ -5,6 +5,7 @@ import { QuickFilterBar } from "@/components/ui/quick-filter-bar";
 import { PrimaryAction } from "@/components/ui/primary-action";
 import { InvoiceSectionTabs } from "@/components/invoices/invoice-section-tabs";
 import type { RecordsViewMode } from "@/components/ui/records-view";
+import { fetchCustomerBalance } from "@/hooks/use-live-customer-balance";
 import { createFileRoute, Link, useNavigate, useSearch } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -497,7 +498,7 @@ export function SalesPage() {
     window.open(`sms:${clean}?body=${encodeURIComponent(text)}`, "_blank");
   };
 
-  const shareInvoiceWhatsApp = (inv: Invoice) => {
+  const shareInvoiceWhatsApp = async (inv: Invoice) => {
     const hasPhone = Boolean(inv.customers?.phone && inv.customers.phone.trim().length > 0);
     if (!hasPhone) {
       toast.warning(
@@ -509,13 +510,16 @@ export function SalesPage() {
     }
 
     const remaining = Math.max(0, Number(inv.total) - Number(inv.paid));
+    // رصيد العميل الحي يشمل هذه الفاتورة؛ يُستخدم لفصل المديونية السابقة عنها.
+    const liveBalance = inv.customer_id ? await fetchCustomerBalance(inv.customer_id) : null;
     const ctx = buildUnifiedContext({
       event: "invoice_share",
       customer: {
         id: inv.customer_id || "",
         name: inv.customers?.name || (isRtl ? "العميل الكريم" : "Valued Customer"),
         phone: inv.customers?.phone,
-        balance: remaining,
+        balance: 0,
+        currentBalance: liveBalance,
       },
       invoice: {
         id: inv.id,

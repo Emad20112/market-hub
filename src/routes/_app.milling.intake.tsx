@@ -580,7 +580,7 @@ function MillingIntakePage() {
             <div className="space-y-4 p-4">
               {/* العميل يُختار بحثًا، والمستودع شارة ثابتة لا حقل يزاحمه */}
               <div className="space-y-2">
-                <MillingField label="صاحب الأمانة / العميل *">
+                <MillingField label="العميل / العميل *">
                   <div className="flex min-w-0 flex-1 items-center gap-1.5">
                     <PartyPicker
                       options={customers.data ?? []}
@@ -1097,7 +1097,7 @@ function MillingIntakePage() {
             onClose={() => setPrintModalOpen(false)}
             doc={printDoc}
             documentType="mill_document"
-            title="معاينة وطباعة سند استلام أمانة وفاتورة أجور"
+            title="معاينة وطباعة سند استلام حبوب وفاتورة أجور"
             customerName={activeDetails?.customers?.name || undefined}
             customerPhone={activeDetails?.customers?.phone || undefined}
           />

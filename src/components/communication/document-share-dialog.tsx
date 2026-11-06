@@ -22,6 +22,7 @@ import {
 } from "@/lib/communication";
 import { useI18n } from "@/lib/i18n";
 import { toast } from "sonner";
+import { useLiveCustomerBalance } from "@/hooks/use-live-customer-balance";
 
 export interface DocumentShareDialogProps {
   open: boolean;
@@ -65,17 +66,30 @@ export function DocumentShareDialog({
         ? "invoice_share"
         : "statement_share";
 
+  const liveBalance = useLiveCustomerBalance(customer?.id, open);
+
   const messageContext = React.useMemo(() => {
     return buildUnifiedContext({
       event: eventType,
-      customer,
+      customer: customer
+        ? { ...customer, currentBalance: liveBalance ?? customer.currentBalance }
+        : customer,
       invoice,
       statement,
       millingDocumentNumber,
       millingStatus,
       language: isAr ? "ar" : "en",
     });
-  }, [eventType, customer, invoice, statement, millingDocumentNumber, millingStatus, isAr]);
+  }, [
+    eventType,
+    customer,
+    liveBalance,
+    invoice,
+    statement,
+    millingDocumentNumber,
+    millingStatus,
+    isAr,
+  ]);
 
   const rendered = React.useMemo(() => {
     return renderMessage(messageContext);

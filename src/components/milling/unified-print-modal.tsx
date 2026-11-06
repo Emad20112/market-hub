@@ -24,6 +24,8 @@ import { generateBarcodeSvg } from "@/lib/printing/barcode-qr";
 import type { MillingDocumentDetails } from "@/lib/milling";
 import type { UnifiedDocumentData } from "@/lib/templates/types";
 import { toast } from "sonner";
+import { buildBalanceLines, buildUnifiedContext } from "@/lib/communication";
+import { fetchCustomerBalance } from "@/hooks/use-live-customer-balance";
 
 export type MillingTicketStage = "intake" | "milled" | "delivery" | "unified";
 export type ThermalWidth = "80mm" | "58mm";
@@ -33,6 +35,8 @@ export interface UnifiedTicketPrintData {
   ticketNumber: string;
   invoiceNumber?: string;
   customerName: string;
+  /** معرّف العميل — لجلب رصيده الحي وعرض الرصيد السابق في رسالة واتساب. */
+  customerId?: string;
   customerPhone?: string;
   warehouseName?: string;
   createdAt: string;
@@ -161,7 +165,8 @@ export function documentDetailsToTicketData(
           : "intake"),
     ticketNumber: details.document_number,
     invoiceNumber: inv?.invoice_number || undefined,
-    customerName: details.customers?.name || "صاحب الأمانة",
+    customerName: details.customers?.name || "العميل",
+    customerId: (details as { customer_id?: string | null }).customer_id || undefined,
     customerPhone: details.customers?.phone || undefined,
     warehouseName: details.warehouses?.name_ar || details.warehouses?.name || "المستودع الرئيسي",
     createdAt: details.received_at || new Date().toISOString(),
@@ -221,7 +226,7 @@ export function unifiedDocToTicketData(doc: UnifiedDocumentData): UnifiedTicketP
     stage: isDelivery ? "delivery" : "intake",
     ticketNumber: doc.number,
     invoiceNumber: doc.relatedRef?.replace(/[^0-9A-Za-z-]/g, "") || undefined,
-    customerName: doc.partyName || "صاحب الأمانة",
+    customerName: doc.partyName || "العميل",
     customerPhone: doc.partyPhone || undefined,
     warehouseName: doc.warehouse || "المستودع الرئيسي",
     createdAt: doc.date || new Date().toISOString(),
@@ -315,7 +320,7 @@ export function UnifiedPrintModal({
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const handleWhatsAppShare = () => {
+  const handleWhatsAppShare = async () => {
     const phone = (data.customerPhone || "").replace(/[^0-9]/g, "");
 
     const bagSizePart = data.bagSizeKg ? ` × ${data.bagSizeKg} كجم` : "";
@@ -323,7 +328,7 @@ export function UnifiedPrintModal({
     let msg = `*${data.companyName || ""}*\n`;
     msg += `━━━━━━━━━━━━━━━\n`;
     if (isDelivery) {
-      msg += `📄 *سند تسليم نواتج أمانات*\n`;
+      msg += `📄 *سند تسليم نواتج الطحن*\n`;
       msg += `🔢 رقم السند: ${data.ticketNumber}\n`;
       msg += `👤 العميل: ${data.customerName}\n`;
       msg += `📅 التاريخ: ${formatPrintedDateTime(data.createdAt)}\n`;
@@ -337,13 +342,13 @@ export function UnifiedPrintModal({
         });
       }
     } else if (isMilled) {
-      msg += `⚙️ *سند طحن أمانة*\n`;
+      msg += `⚙️ *سند طحن*\n`;
       msg += `🔢 رقم السند: ${data.ticketNumber}\n`;
       msg += `👤 العميل: ${data.customerName}\n`;
       msg += `📅 التاريخ: ${formatPrintedDateTime(data.createdAt)}\n`;
       msg += `🌾 الحبوب: ${data.grainType} (${data.bagCount} كيس — ${(data.totalWeightKg || 0).toLocaleString()} كجم)\n`;
     } else {
-      msg += `🧾 *سند استلام أمانة وفاتورة أجور*\n`;
+      msg += `🧾 *سند استلام حبوب وفاتورة أجور*\n`;
       msg += `🔢 رقم السند: ${data.ticketNumber}\n`;
       if (data.invoiceNumber) msg += `📋 فاتورة الأجور: #${data.invoiceNumber}\n`;
       msg += `👤 العميل: ${data.customerName}\n`;
@@ -352,10 +357,31 @@ export function UnifiedPrintModal({
       msg += `⚖️ الأكياس والوزن: ${data.bagCount} كيس${bagSizePart} (${(data.totalWeightKg || 0).toLocaleString()} كجم)\n`;
       msg += `💰 الإجمالي المستحق: ${data.grandTotal.toLocaleString()} ر.ي\n`;
       msg += `💵 المدفوع: ${data.paidAmount.toLocaleString()} ر.ي\n`;
-      if (data.remainingAmount > 0) {
-        msg += `⚠️ المتبقي ذمة: ${data.remainingAmount.toLocaleString()} ر.ي\n`;
-      }
     }
+    // أرصدة ذكية: متبقي هذه الفاتورة + الرصيد السابق + إجمالي المستحق.
+    const liveBalance = data.customerId ? await fetchCustomerBalance(data.customerId) : null;
+    const balanceLines = buildBalanceLines(
+      buildUnifiedContext({
+        event: "milling_document_share",
+        language: "ar",
+        // بدون رصيد حي لا نفترض أن الحساب مسدد.
+        customer:
+          liveBalance != null
+            ? {
+                id: data.customerId || "",
+                name: data.customerName,
+                balance: 0,
+                currentBalance: liveBalance,
+              }
+            : null,
+        invoice: isIntake
+          ? { total: data.grandTotal, paid: data.paidAmount, remaining: data.remainingAmount }
+          : null,
+      }),
+      true,
+      isIntake ? data.remainingAmount : null,
+    );
+    if (balanceLines.length) msg += balanceLines.join("\n") + "\n";
     msg += `━━━━━━━━━━━━━━━\n`;
     msg += `شكراً لتعاملكم معنا — نسعد بخدمتكم دائماً ✨`;
 
@@ -367,10 +393,10 @@ export function UnifiedPrintModal({
   };
 
   const badgeTitle = isDelivery
-    ? "سند تسليم نواتج الأمانة"
+    ? "سند تسليم نواتج الطحن"
     : isMilled
-      ? "سند طحن أمانة"
-      : "سند استلام أمانة وفاتورة أجور";
+      ? "سند طحن"
+      : "سند استلام حبوب وفاتورة أجور";
 
   const barcodeSvg = generateBarcodeSvg(data.ticketNumber, 32);
 
@@ -389,10 +415,10 @@ export function UnifiedPrintModal({
                 <h3 className="text-sm sm:text-base font-black text-foreground tracking-tight flex items-center gap-2">
                   <span>
                     {isDelivery
-                      ? "سند تسليم نواتج الأمانة"
+                      ? "سند تسليم نواتج الطحن"
                       : isMilled
-                        ? "سند طحن أمانة"
-                        : "سند استلام أمانة وفاتورة أجور"}
+                        ? "سند طحن"
+                        : "سند استلام حبوب وفاتورة أجور"}
                   </span>
                 </h3>
                 <div className="flex items-center gap-1.5 mt-0.5">
@@ -583,7 +609,7 @@ export function UnifiedPrintModal({
                   <div className="font-black text-slate-900 text-[11.5px] flex items-center justify-between">
                     <span>تفاصيل الحبوب المستلمة:</span>
                     <span className="text-[10px] bg-amber-100 text-amber-800 px-2 py-0.5 rounded-md font-bold">
-                      أمانة عينية
+                      حبوب العميل
                     </span>
                   </div>
                   <div className="bg-slate-50/90 p-3 rounded-2xl border border-slate-200/80 space-y-1.5 text-[11px]">
@@ -634,7 +660,7 @@ export function UnifiedPrintModal({
                   </div>
                 </div>
               ) : isDelivery ? (
-                /* شاشة تسليم نواتج الأمانات */
+                /* شاشة تسليم نواتج الطحن */
                 <div className="space-y-2 border-b border-dashed border-slate-300 pb-3">
                   <div className="font-black text-slate-900 text-[11.5px]">
                     تفاصيل نواتج الطحن المسلمة:
@@ -775,10 +801,10 @@ export function UnifiedPrintModal({
               <div className="text-center pt-1 text-[10.5px] text-slate-600 space-y-1">
                 <p className="font-medium">
                   {isDelivery
-                    ? "تم تسليم نواتج الأمانة للعميل كاملة بموجب سند التسليم المعتمد."
+                    ? "تم تسليم نواتج الطحن للعميل كاملة بموجب سند التسليم المعتمد."
                     : isMilled
-                      ? "تم إتمام عملية الطحن وإثبات النواتج في حساب أمانة العميل."
-                      : "تم استلام الحبوب كأمانة عينية وإثباتها باسم العميل."}
+                      ? "تم إتمام عملية الطحن وإثبات النواتج في حساب العميل."
+                      : "تم استلام الحبوب وإثباتها باسم العميل."}
                 </p>
                 <p className="font-black text-slate-950 text-xs">
                   شكرًا لتعاملكم معنا — نسعد بخدمتكم دائماً
@@ -809,10 +835,10 @@ export function UnifiedPrintModal({
                 <div className="text-left space-y-1">
                   <div className="inline-block rounded-xl bg-amber-500/15 text-amber-800 border border-amber-300 px-3.5 py-1 text-xs font-black">
                     {isDelivery
-                      ? "سند تسليم نواتج الأمانة"
+                      ? "سند تسليم نواتج الطحن"
                       : isMilled
-                        ? "سند طحن أمانة"
-                        : "سند استلام أمانة وفاتورة أجور"}
+                        ? "سند طحن"
+                        : "سند استلام حبوب وفاتورة أجور"}
                   </div>
                   <p className="text-sm font-mono font-black text-slate-950 tracking-wider">
                     {data.ticketNumber}
@@ -1012,7 +1038,7 @@ export function UnifiedPrintModal({
               {isDelivery
                 ? "تم تسجيل التسليم وإصدار سند التسليم بنجاح"
                 : isMilled
-                  ? "تم تسجيل نواتج الطحن وإثباتها في أمانة العميل بنجاح"
+                  ? "تم تسجيل نواتج الطحن وإثباتها في حساب العميل بنجاح"
                   : "تم تسجيل الاستلام وإصدار فاتورة الأجور بنجاح"}
             </span>
             <span className="sm:hidden">تم التوثيق بنجاح</span>
@@ -1104,10 +1130,10 @@ function renderThermalHtml(d: UnifiedTicketPrintData, width: ThermalWidth = "80m
   const isIntake = !isDelivery && !isMilled;
 
   const badgeTitle = isDelivery
-    ? "سند تسليم نواتج الأمانة"
+    ? "سند تسليم نواتج الطحن"
     : isMilled
-      ? "سند طحن أمانة"
-      : "سند استلام أمانة وفاتورة أجور";
+      ? "سند طحن"
+      : "سند استلام حبوب وفاتورة أجور";
 
   const barcodeSvg = generateBarcodeSvg(d.ticketNumber, width === "58mm" ? 28 : 34);
 
@@ -1119,7 +1145,7 @@ function renderThermalHtml(d: UnifiedTicketPrintData, width: ThermalWidth = "80m
 <html dir="rtl" lang="ar">
 <head>
   <meta charset="utf-8" />
-  <title>سند استلام أمانة ${d.ticketNumber}</title>
+  <title>سند استلام حبوب ${d.ticketNumber}</title>
   <style>
     @page { size: ${paperWidth} auto; margin: 0; }
     * { box-sizing: border-box; }
@@ -1267,10 +1293,10 @@ function renderThermalHtml(d: UnifiedTicketPrintData, width: ThermalWidth = "80m
   <div class="center" style="font-size: 10px; margin-top: 6px; color: #444;">
     <div>${
       isDelivery
-        ? "تم تسليم نواتج الأمانة للعميل كاملة بموجب سند التسليم المعتمد."
+        ? "تم تسليم نواتج الطحن للعميل كاملة بموجب سند التسليم المعتمد."
         : isMilled
-          ? "تم إتمام عملية الطحن وإثبات النواتج في حساب أمانة العميل."
-          : "تم استلام الحبوب كأمانة عينية وإثباتها باسم العميل."
+          ? "تم إتمام عملية الطحن وإثبات النواتج في حساب العميل."
+          : "تم استلام الحبوب وإثباتها باسم العميل."
     }</div>
     <div style="font-weight: bold; margin-top: 4px; color: #000;">شكراً لتعاملكم معنا — نسعد بخدمتكم دائماً</div>
   </div>
@@ -1286,7 +1312,7 @@ function renderA4Html(d: UnifiedTicketPrintData): string {
 <html dir="rtl" lang="ar">
 <head>
   <meta charset="utf-8" />
-  <title>سند استلام أمانة ${d.ticketNumber}</title>
+  <title>سند استلام حبوب ${d.ticketNumber}</title>
   <style>
     @page { size: A4 portrait; margin: 15mm; }
     * { box-sizing: border-box; }
@@ -1307,7 +1333,7 @@ function renderA4Html(d: UnifiedTicketPrintData): string {
       ${d.companyPhone ? `<p style="margin: 2px 0 0 0; color: #64748b;">هاتف: ${d.companyPhone}</p>` : ""}
     </div>
     <div style="text-align: left;">
-      <h3 style="margin: 0; color: #b45309;">${isDelivery ? "سند تسليم نواتج الأمانة" : isMilled ? "سند طحن أمانة" : "سند استلام أمانة وفاتورة أجور"}</h3>
+      <h3 style="margin: 0; color: #b45309;">${isDelivery ? "سند تسليم نواتج الطحن" : isMilled ? "سند طحن" : "سند استلام حبوب وفاتورة أجور"}</h3>
       <p style="margin: 4px 0; font-weight: bold; font-family: monospace;">${d.ticketNumber}</p>
       <p style="margin: 0; color: #64748b; font-family: monospace;">${formatPrintedDateTime(d.createdAt)}</p>
     </div>

@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { cacheMessageSettingsFromRow } from "@/lib/communication/message-settings";
 
 export interface CompanyProfile {
   name: string;
@@ -84,6 +85,7 @@ export function getCachedCompanyProfile(): CompanyProfile {
 }
 
 export function cacheCompanyProfile(row: Record<string, unknown>): CompanyProfile {
+  cacheMessageSettingsFromRow(row);
   if (typeof window === "undefined") {
     memoryProfile = fromRow(row);
     return memoryProfile;

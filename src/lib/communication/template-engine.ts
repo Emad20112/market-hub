@@ -11,6 +11,7 @@
 
 import { money } from "@/lib/format";
 import { toSystemDigits } from "@/lib/format-preferences";
+import { getMessageSettings, splitCustomerBalance } from "./message-settings";
 import { buildWhatsAppLink, normalizeWhatsAppPhone } from "./phone";
 import type {
   CommunicationEventType,
@@ -37,6 +38,88 @@ function formatAmount(amount?: number | null, currency?: string): string {
   if (amount == null || isNaN(amount)) return "";
   const formatted = money(amount);
   return toSystemDigits(currency ? `${formatted} ${currency}` : formatted);
+}
+
+/**
+ * أسطر الأرصدة الذكية: متبقي الفاتورة الحالية، الرصيد السابق، وإجمالي المستحق.
+ * تظهر المديونية السابقة حتى لو كانت الفاتورة الحالية مسددة بالكامل.
+ */
+export function buildBalanceLines(
+  ctx: UnifiedCommunicationContext,
+  isAr: boolean,
+  invoiceRemainingRaw: number | null,
+  fallbackTotal?: number | null,
+): string[] {
+  const settings = getMessageSettings();
+  const cur = ctx.company?.currency;
+  const hasInvoice = invoiceRemainingRaw != null;
+  const currentBalance = ctx.customer?.currentBalance ?? fallbackTotal ?? null;
+  const split = splitCustomerBalance({
+    invoiceRemaining: invoiceRemainingRaw ?? 0,
+    currentBalance,
+    balanceBefore: ctx.customer ? ctx.customer.balance : 0,
+  });
+  const lines: string[] = [];
+  if (hasInvoice && settings.showInvoiceRemaining) {
+    lines.push(
+      split.invoiceRemaining > 0
+        ? isAr
+          ? `⏳ *متبقي هذه الفاتورة:* ${formatAmount(split.invoiceRemaining, cur)}`
+          : `⏳ *Remaining on this invoice:* ${formatAmount(split.invoiceRemaining, cur)}`
+        : isAr
+          ? `✅ *هذه الفاتورة:* مسددة بالكامل`
+          : `✅ *This invoice:* Fully paid`,
+    );
+  }
+  if (!ctx.customer) return lines;
+  const prev = hasInvoice ? split.previousBalance : 0;
+  if (hasInvoice && settings.showPreviousBalance && Math.abs(prev) >= 0.01) {
+    lines.push(
+      prev > 0
+        ? isAr
+          ? `📌 *رصيد سابق عليكم:* ${formatAmount(prev, cur)}`
+          : `📌 *Previous balance due:* ${formatAmount(prev, cur)}`
+        : isAr
+          ? `💚 *رصيد سابق لكم:* ${formatAmount(Math.abs(prev), cur)}`
+          : `💚 *Previous credit:* ${formatAmount(Math.abs(prev), cur)}`,
+    );
+  }
+  const total = split.totalBalance;
+  // الإجمالي يظهر عند وجود رصيد سابق أو عند غياب الفاتورة (رسالة دفعة/كشف).
+  const showTotal = settings.showTotalBalance && (!hasInvoice || Math.abs(prev) >= 0.01);
+  if (showTotal) {
+    if (total > 0.005) {
+      lines.push(
+        isAr
+          ? `💰 *إجمالي المستحق عليكم:* *${formatAmount(total, cur)}*`
+          : `💰 *Total amount due:* *${formatAmount(total, cur)}*`,
+      );
+    } else if (total < -0.005) {
+      lines.push(
+        isAr
+          ? `💚 *رصيدكم الدائن لدينا:* ${formatAmount(Math.abs(total), cur)}`
+          : `💚 *Your credit with us:* ${formatAmount(Math.abs(total), cur)}`,
+      );
+    } else if (currentBalance != null) {
+      lines.push(isAr ? `✨ *حسابكم مسدد بالكامل*` : `✨ *Your account is fully settled*`);
+    }
+  }
+  return lines;
+}
+
+function greeting(isAr: boolean, fallback: string): string {
+  const custom = getMessageSettings().greetingAr;
+  return isAr && custom ? custom : fallback;
+}
+
+function closing(ctx: UnifiedCommunicationContext, isAr: boolean, fallback: string): string[] {
+  const settings = getMessageSettings();
+  const out = [isAr && settings.closingAr ? `\n${settings.closingAr}` : fallback];
+  const phone = ctx.company?.phone || ctx.company?.contacts?.[0];
+  if (settings.showCompanyPhone && phone) {
+    out.push(isAr ? `📞 للتواصل: ${phone}` : `📞 Contact: ${phone}`);
+  }
+  return out;
 }
 
 export const TEMPLATES: Record<CommunicationEventType, TemplateDefinition> = {
@@ -113,13 +196,9 @@ export const TEMPLATES: Record<CommunicationEventType, TemplateDefinition> = {
       const customerName = ctx.customer?.name || "العميل الكريم";
       const p = ctx.payment;
       const amount = formatAmount(p?.amount, ctx.company?.currency);
-      const remaining =
-        p?.remainingBalance !== undefined
-          ? formatAmount(p.remainingBalance, ctx.company?.currency)
-          : null;
 
       const lines = [
-        `السلام عليكم ورحمة الله وبركاته ${customerName}،`,
+        `${greeting(true, "السلام عليكم ورحمة الله وبركاته")} ${customerName}،`,
         companyName ? `*${companyName}*` : "",
         `🧾 *إشعار سند قبض مالي*`,
         `تم بحمد الله استلام دفعة بمبلغ: *${amount}*`,
@@ -127,12 +206,13 @@ export const TEMPLATES: Record<CommunicationEventType, TemplateDefinition> = {
         p?.receiptNumber ? `🔖 رقم السند: #${p.receiptNumber}` : "",
         p?.method ? `💳 طريقة الدفع: ${p.method}` : "",
         p?.invoiceNumber ? `📄 الفاتورة: #${p.invoiceNumber}` : "",
-        remaining !== null && (p?.remainingBalance ?? 0) > 0
-          ? `⏳ الرصيد المتبقي: *${remaining}*`
-          : (p?.remainingBalance ?? 0) <= 0 && remaining !== null
-            ? `✨ الحساب مسدد بالكامل`
-            : "",
-        `نسعد بخدمتكم وشاكرين لتعاملكم معنا دائماً.`,
+        ...buildBalanceLines(
+          ctx,
+          true,
+          ctx.invoice ? ctx.invoice.remaining : null,
+          p?.remainingBalance ?? null,
+        ),
+        ...closing(ctx, true, `نسعد بخدمتكم وشاكرين لتعاملكم معنا دائماً.`),
       ].filter(Boolean);
 
       return lines.join("\n");
@@ -142,10 +222,6 @@ export const TEMPLATES: Record<CommunicationEventType, TemplateDefinition> = {
       const customerName = ctx.customer?.name || "Valued Customer";
       const p = ctx.payment;
       const amount = formatAmount(p?.amount, ctx.company?.currency);
-      const remaining =
-        p?.remainingBalance !== undefined
-          ? formatAmount(p.remainingBalance, ctx.company?.currency)
-          : null;
 
       const lines = [
         `Hello ${customerName},`,
@@ -156,12 +232,13 @@ export const TEMPLATES: Record<CommunicationEventType, TemplateDefinition> = {
         p?.receiptNumber ? `🔖 Receipt #: ${p.receiptNumber}` : "",
         p?.method ? `💳 Method: ${p.method}` : "",
         p?.invoiceNumber ? `📄 Invoice #: ${p.invoiceNumber}` : "",
-        remaining !== null && (p?.remainingBalance ?? 0) > 0
-          ? `⏳ Remaining Balance: *${remaining}*`
-          : (p?.remainingBalance ?? 0) <= 0 && remaining !== null
-            ? `✨ Account is fully settled`
-            : "",
-        `Thank you for your business!`,
+        ...buildBalanceLines(
+          ctx,
+          false,
+          ctx.invoice ? ctx.invoice.remaining : null,
+          p?.remainingBalance ?? null,
+        ),
+        ...closing(ctx, false, `Thank you for your business!`),
       ].filter(Boolean);
 
       return lines.join("\n");
@@ -175,18 +252,17 @@ export const TEMPLATES: Record<CommunicationEventType, TemplateDefinition> = {
       const inv = ctx.invoice;
       const total = formatAmount(inv?.total, ctx.company?.currency);
       const paid = formatAmount(inv?.paid, ctx.company?.currency);
-      const remaining = formatAmount(inv?.remaining, ctx.company?.currency);
 
       const lines = [
-        `السلام عليكم ورحمة الله وبركاته،`,
+        `${greeting(true, "السلام عليكم ورحمة الله وبركاته")}،`,
         `عزيزنا *${customerName}*،`,
         companyName ? `تفاصيل فاتورتكم من *${companyName}*:` : `تفاصيل الفاتورة:`,
         inv?.invoiceNumber ? `🧾 *رقم الفاتورة:* #${inv.invoiceNumber}` : "",
         inv?.date ? `📅 *التاريخ:* ${inv.date}` : "",
         `💵 *الإجمالي:* ${total}`,
         `✅ *المدفوع:* ${paid}`,
-        (inv?.remaining ?? 0) > 0 ? `⏳ *المتبقي:* ${remaining}` : `✨ *الحالة:* مسددة بالكامل`,
-        `\nشكراً لتعاملكم معنا ونسعد بخدمتكم دائماً.`,
+        ...buildBalanceLines(ctx, true, inv ? inv.remaining : null),
+        ...closing(ctx, true, `\nشكراً لتعاملكم معنا ونسعد بخدمتكم دائماً.`),
       ].filter(Boolean);
 
       return lines.join("\n");
@@ -197,7 +273,6 @@ export const TEMPLATES: Record<CommunicationEventType, TemplateDefinition> = {
       const inv = ctx.invoice;
       const total = formatAmount(inv?.total, ctx.company?.currency);
       const paid = formatAmount(inv?.paid, ctx.company?.currency);
-      const remaining = formatAmount(inv?.remaining, ctx.company?.currency);
 
       const lines = [
         `Hello *${customerName}*,`,
@@ -206,8 +281,8 @@ export const TEMPLATES: Record<CommunicationEventType, TemplateDefinition> = {
         inv?.date ? `📅 *Date:* ${inv.date}` : "",
         `💵 *Total:* ${total}`,
         `✅ *Paid:* ${paid}`,
-        (inv?.remaining ?? 0) > 0 ? `⏳ *Remaining:* ${remaining}` : `✨ *Status:* Fully Paid`,
-        `\nThank you for choosing us!`,
+        ...buildBalanceLines(ctx, false, inv ? inv.remaining : null),
+        ...closing(ctx, false, `\nThank you for choosing us!`),
       ].filter(Boolean);
 
       return lines.join("\n");
@@ -335,23 +410,22 @@ export const TEMPLATES: Record<CommunicationEventType, TemplateDefinition> = {
       const inv = ctx.invoice;
       const total = formatAmount(inv?.total, ctx.company?.currency);
       const paid = formatAmount(inv?.paid, ctx.company?.currency);
-      const remaining = formatAmount(inv?.remaining, ctx.company?.currency);
       const docNum = ctx.millingDocumentNumber || "";
       const statusText = ctx.millingStatus || "";
 
       const lines = [
-        `السلام عليكم ورحمة الله وبركاته،`,
+        `${greeting(true, "السلام عليكم ورحمة الله وبركاته")}،`,
         `عزيزنا *${customerName}*،`,
-        companyName ? `تحية طيبة من *${companyName}* — خدمة المطحنة:` : `خدمة المطحنة والأمانات:`,
-        docNum ? `🔖 *مستند الطحن:* #${docNum}` : "",
+        companyName
+          ? `تحية طيبة من *${companyName}* — ${getMessageSettings().millingServiceName}:`
+          : `${getMessageSettings().millingServiceName}:`,
+        docNum ? `🔖 *سند ${getMessageSettings().millingGoodsTerm}:* #${docNum}` : "",
         inv?.invoiceNumber ? `🧾 *فاتورة الأجور الرسمية:* #${inv.invoiceNumber}` : "",
         statusText ? `⚙️ *الحالة:* ${statusText}` : "",
-        `💵 *الإجمالي:* ${total}`,
-        `✅ *المدفوع:* ${paid}`,
-        (inv?.remaining ?? 0) > 0
-          ? `⏳ *المتبقي المستحق:* *${remaining}*`
-          : `✨ *الحالة المالية:* مسددة بالكامل`,
-        `\nشاكرين لكم ثقتكم ونسعد بخدمتكم دائماً.`,
+        inv ? `💵 *الإجمالي:* ${total}` : "",
+        inv ? `✅ *المدفوع:* ${paid}` : "",
+        ...buildBalanceLines(ctx, true, inv ? inv.remaining : null),
+        ...closing(ctx, true, `\nشاكرين لكم ثقتكم ونسعد بخدمتكم دائماً.`),
       ].filter(Boolean);
 
       return lines.join("\n");
@@ -362,7 +436,6 @@ export const TEMPLATES: Record<CommunicationEventType, TemplateDefinition> = {
       const inv = ctx.invoice;
       const total = formatAmount(inv?.total, ctx.company?.currency);
       const paid = formatAmount(inv?.paid, ctx.company?.currency);
-      const remaining = formatAmount(inv?.remaining, ctx.company?.currency);
       const docNum = ctx.millingDocumentNumber || "";
       const statusText = ctx.millingStatus || "";
 
@@ -372,12 +445,10 @@ export const TEMPLATES: Record<CommunicationEventType, TemplateDefinition> = {
         docNum ? `🔖 *Milling Doc:* #${docNum}` : "",
         inv?.invoiceNumber ? `🧾 *Invoice:* #${inv.invoiceNumber}` : "",
         statusText ? `⚙️ *Status:* ${statusText}` : "",
-        `💵 *Total:* ${total}`,
-        `✅ *Paid:* ${paid}`,
-        (inv?.remaining ?? 0) > 0
-          ? `⏳ *Remaining Balance:* *${remaining}*`
-          : `✨ *Status:* Fully Paid`,
-        `\nThank you for choosing us!`,
+        inv ? `💵 *Total:* ${total}` : "",
+        inv ? `✅ *Paid:* ${paid}` : "",
+        ...buildBalanceLines(ctx, false, inv ? inv.remaining : null),
+        ...closing(ctx, false, `\nThank you for choosing us!`),
       ].filter(Boolean);
 
       return lines.join("\n");

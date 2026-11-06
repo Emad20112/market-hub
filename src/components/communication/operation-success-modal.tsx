@@ -13,6 +13,7 @@ import {
   type PaymentContext,
 } from "@/lib/communication";
 import { useI18n } from "@/lib/i18n";
+import { useLiveCustomerBalance } from "@/hooks/use-live-customer-balance";
 import { money } from "@/lib/format";
 
 export interface OperationSuccessModalProps {
@@ -81,17 +82,21 @@ export function OperationSuccessModal({
     (payment ? "payment_received" : invoice ? "invoice_created" : "general_customer_notice");
 
   // Render WhatsApp message via the unified Communication Engine
+  const liveBalance = useLiveCustomerBalance(customer?.id, open);
+
   const renderedMessage = React.useMemo(() => {
     if (!open) return null;
     const ctx = buildUnifiedContext({
       event: resolvedEvent,
-      customer,
+      customer: customer
+        ? { ...customer, currentBalance: liveBalance ?? customer.currentBalance }
+        : customer,
       invoice,
       payment,
       language: lang === "ar" ? "ar" : "en",
     });
     return renderMessage(ctx);
-  }, [open, resolvedEvent, customer, invoice, payment, lang]);
+  }, [open, resolvedEvent, customer, liveBalance, invoice, payment, lang]);
 
   const handleWhatsAppClick = () => {
     if (!renderedMessage?.canSendWhatsApp || !renderedMessage.whatsAppUrl) return;

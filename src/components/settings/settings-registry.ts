@@ -13,6 +13,7 @@ import {
   Boxes,
   PanelLeft,
   LucideIcon,
+  MessageSquareText,
 } from "lucide-react";
 import { CompanySection } from "./sections/company-section";
 import { InvoicingSection } from "./sections/invoicing-section";
@@ -20,6 +21,7 @@ import { PrintingSection } from "./sections/printing-section";
 import { CatalogSection } from "./sections/catalog-section";
 import { StockSettingsSection } from "./sections/stock-settings-section";
 import { MillingModeSection } from "./sections/milling-mode-section";
+import { MessagesSection } from "./sections/messages-section";
 import { SubscriptionSection } from "./sections/subscription-section";
 import { AppearanceSection } from "./sections/appearance-section";
 import { NumberFormatSection } from "./sections/number-format-section";
@@ -105,6 +107,16 @@ registerSettingsSection({
   descriptionEn: "Default templates, paper size, and auto print",
   icon: Printer,
   component: PrintingSection,
+});
+
+registerSettingsSection({
+  id: "messages",
+  titleAr: "رسائل العملاء",
+  titleEn: "Customer Messages",
+  descriptionAr: "مصطلحات المطحنة وعرض متبقي الفاتورة والرصيد السابق في رسائل واتساب",
+  descriptionEn: "Milling terms and invoice/previous balance lines in WhatsApp messages",
+  icon: MessageSquareText,
+  component: MessagesSection,
 });
 
 registerSettingsSection({

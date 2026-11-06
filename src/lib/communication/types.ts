@@ -29,6 +29,12 @@ export interface CustomerContext {
   phone?: string | null;
   email?: string | null;
   balance: number;
+  /**
+   * رصيد العميل الحي من قاعدة البيانات بعد العملية (يشمل الفاتورة الحالية).
+   * عند توفره تُحسب المديونية السابقة = currentBalance − متبقي الفاتورة.
+   * عند غيابه يُعامل `balance` كرصيد ما قبل الفاتورة.
+   */
+  currentBalance?: number | null;
   creditLimit?: number;
   preferredLanguage?: MessageLanguage;
   hasLedgerActivity?: boolean;
