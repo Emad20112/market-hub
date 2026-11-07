@@ -890,9 +890,10 @@ export function buildMillingDocumentUnifiedDoc(
     title,
     number: details.document_number,
     relatedRef: inv?.invoice_number ? `فاتورة رسمية ${inv.invoice_number}` : undefined,
-    date: details.received_at || new Date().toISOString(),
-    partyLabel: "العميل / صاحب الحبوب:",
-    partyName: details.customers?.name || "العميل",
+    // لا نستبدل تاريخ العملية المفقود بتاريخ إعادة الطباعة الحالي.
+    date: details.received_at || "",
+    partyLabel: "صاحب الأمانة / العميل:",
+    partyName: details.customers?.name || "صاحب الأمانة",
     partyPhone: details.customers?.phone || undefined,
     warehouse: details.warehouses?.name_ar || details.warehouses?.name || "المستودع الرئيسي",
     movementType: "حبوب ومنتجات خاصة بالعميل + فاتورة أجور رسمية للعملية كاملة",

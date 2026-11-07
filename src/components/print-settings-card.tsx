@@ -267,6 +267,7 @@ export function PrintSettingsCard({ canEdit = true }: PrintSettingsCardProps) {
   ) {
     const theme: PrintTheme =
       templateId === "elegant" ? "luxury" : templateId === "formal" ? "formal" : "standard";
+    const method: PrintMethod = paperId.startsWith("thermal") ? "thermal" : "browser";
 
     const nextOverrides = {
       ...unified.overrides,
@@ -274,6 +275,7 @@ export function PrintSettingsCard({ canEdit = true }: PrintSettingsCardProps) {
         ...unified.overrides[docType],
         templateId,
         paperId,
+        method,
         theme,
       },
     };
@@ -296,6 +298,13 @@ export function PrintSettingsCard({ canEdit = true }: PrintSettingsCardProps) {
             }
           : current,
     );
+  }
+
+  function openDepartmentPreview(docType: PrintingDocumentType) {
+    setPreviewTemplateOverride(null);
+    setPreviewPaperOverride(null);
+    setPreviewDocType(docType);
+    setPreviewOpen(true);
   }
 
   function handleDepartmentCopiesChange(docType: PrintingDocumentType, copies: number) {
@@ -343,10 +352,17 @@ export function PrintSettingsCard({ canEdit = true }: PrintSettingsCardProps) {
       override?.accentColor ??
       (theme === "luxury" ? unified.luxuryAccentColor : unified.standardAccentColor) ??
       undefined;
+    const method: PrintMethod =
+      previewTemplateOverride || previewPaperOverride
+        ? paperId.startsWith("thermal")
+          ? "thermal"
+          : "browser"
+        : override?.method ?? (dept?.defaultMethod === "page" ? "browser" : "thermal");
 
     return {
       doc: sampleDoc,
       documentType: previewDocType,
+      method,
       paperId,
       templateId,
       theme,
@@ -749,10 +765,7 @@ export function PrintSettingsCard({ canEdit = true }: PrintSettingsCardProps) {
                           type="button"
                           variant="ghost"
                           size="sm"
-                          onClick={() => {
-                            setPreviewDocType(dept.id);
-                            setPreviewOpen(true);
-                          }}
+                          onClick={() => openDepartmentPreview(dept.id)}
                           className="h-8 rounded-xl gap-1.5 text-xs text-primary hover:bg-primary/10"
                         >
                           <Eye className="h-3.5 w-3.5" />
