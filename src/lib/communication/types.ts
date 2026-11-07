@@ -9,16 +9,20 @@ export type MessageLanguage = "ar" | "en";
 
 export type CommunicationChannel = "whatsapp" | "sms" | "native_share" | "clipboard" | "print";
 
-export type CommunicationEventType =
-  | "payment_received"
-  | "payment_request"
-  | "debt_reminder"
-  | "invoice_created"
-  | "invoice_share"
-  | "statement_share"
-  | "supplier_notice"
-  | "general_customer_notice"
-  | "milling_document_share";
+export const COMMUNICATION_EVENT_TYPES = [
+  "payment_received",
+  "payment_request",
+  "debt_reminder",
+  "invoice_created",
+  "invoice_share",
+  "purchase_invoice_share",
+  "statement_share",
+  "supplier_notice",
+  "general_customer_notice",
+  "milling_document_share",
+] as const;
+
+export type CommunicationEventType = (typeof COMMUNICATION_EVENT_TYPES)[number];
 
 export type DeliveryStatus =
   "idle" | "preparing" | "ready" | "opened" | "shared" | "copied" | "failed";
@@ -69,12 +73,44 @@ export interface StatementContext {
   transactionsCount: number;
 }
 
+export interface MillingOutputContext {
+  name: string;
+  bags?: number | null;
+  weightKg?: number | null;
+  remainingBags?: number | null;
+}
+
+export interface MillingGrainLineContext {
+  name: string;
+  bags?: number | null;
+  bagSizeKg?: number | null;
+  weightKg?: number | null;
+}
+
+export interface MillingCommunicationContext {
+  stage: "intake" | "milled" | "delivery";
+  ticketNumber?: string | null;
+  invoiceNumber?: string | null;
+  date?: string | null;
+  status?: string | null;
+  grainType?: string | null;
+  grainLines?: MillingGrainLineContext[];
+  bagCount?: number | null;
+  bagSizeKg?: number | null;
+  totalWeightKg?: number | null;
+  grandTotal?: number | null;
+  paidAmount?: number | null;
+  remainingAmount?: number | null;
+  items?: MillingOutputContext[];
+}
+
 export interface UnifiedCommunicationContext {
   customer?: CustomerContext | null;
   company?: CompanyProfile | null;
   invoice?: InvoiceContext | null;
   payment?: PaymentContext | null;
   statement?: StatementContext | null;
+  milling?: MillingCommunicationContext | null;
   millingDocumentNumber?: string | null;
   millingStatus?: string | null;
   event: CommunicationEventType;
@@ -111,8 +147,11 @@ export interface RenderedMessage {
   recipientPhone?: string | null;
   normalizedPhone?: string | null;
   isValidRecipient: boolean;
+  eventEnabled: boolean;
   canSendWhatsApp: boolean;
+  canSendSms: boolean;
   whatsAppUrl: string | null;
+  smsUrl: string | null;
 }
 
 export interface DocumentExportResult {

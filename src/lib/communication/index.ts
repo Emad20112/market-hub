@@ -6,6 +6,7 @@
 export * from "./types";
 export * from "./phone";
 export * from "./template-engine";
+export * from "./settings";
 export * from "./action-resolver";
 export * from "./context-builder";
 export * from "./document-share";

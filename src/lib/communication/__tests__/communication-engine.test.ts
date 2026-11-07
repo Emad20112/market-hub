@@ -3,9 +3,11 @@ import assert from "node:assert/strict";
 import {
   normalizeWhatsAppPhone,
   buildWhatsAppLink,
+  buildSmsLink,
   isValidWhatsAppPhone,
   toAsciiDigits,
 } from "../phone";
+import { DEFAULT_COMMUNICATION_SETTINGS } from "../settings";
 import { getAvailableCustomerActions } from "../action-resolver";
 import { renderMessage } from "../template-engine";
 import { buildUnifiedContext } from "../context-builder";
@@ -166,6 +168,14 @@ describe("Communication Engine — Available Customer Actions Resolver", () => {
   });
 });
 
+describe("Communication Engine — SMS Links", () => {
+  it("creates SMS links only for valid recipients", () => {
+    assert.equal(buildSmsLink(null, "Test message"), null);
+    assert.equal(buildSmsLink("invalid", "Test message"), null);
+    assert.ok(buildSmsLink("771234567", "مرحبا")?.startsWith("sms:+967771234567?body="));
+  });
+});
+
 describe("Communication Engine — Template Engine", () => {
   it("renders real company name from profile, never hardcoded brand", () => {
     const ctx = buildUnifiedContext({
@@ -188,6 +198,38 @@ describe("Communication Engine — Template Engine", () => {
     assert.ok(!rendered.text.includes("فورتكس ERP"));
     assert.ok(rendered.canSendWhatsApp);
     assert.ok(rendered.whatsAppUrl?.startsWith("https://wa.me/967771234567"));
+  });
+
+  it("hides prices and respects disabled SMS and event settings", () => {
+    const ctx = buildUnifiedContext({
+      event: "payment_received",
+      customer: { id: "c9", name: "ليلى", phone: "771234567", balance: 900 },
+      payment: {
+        receiptNumber: "R-9",
+        date: "2026-11-07",
+        amount: 1200,
+        method: "نقداً",
+        remainingBalance: 900,
+      },
+    });
+    const settings = {
+      ...DEFAULT_COMMUNICATION_SETTINGS,
+      channels: { ...DEFAULT_COMMUNICATION_SETTINGS.channels, sms: false },
+      fields: { ...DEFAULT_COMMUNICATION_SETTINGS.fields, showPrices: false },
+    };
+    const rendered = renderMessage(ctx, settings);
+
+    assert.ok(!rendered.text.includes("المبلغ المستلم"));
+    assert.ok(!rendered.text.includes("الرصيد المتبقي"));
+    assert.equal(rendered.canSendSms, false);
+    assert.equal(rendered.canSendWhatsApp, true);
+
+    const disabledEvent = renderMessage(ctx, {
+      ...settings,
+      events: { ...settings.events, payment_received: false },
+    });
+    assert.equal(disabledEvent.text, "");
+    assert.equal(disabledEvent.canSendWhatsApp, false);
   });
 
   it("renders payment receipt with amount and remaining balance", () => {
@@ -215,7 +257,7 @@ describe("Communication Engine — Template Engine", () => {
 
     const rendered = renderMessage(ctx);
     assert.ok(rendered.text.includes("RC-1001"));
-    assert.ok(rendered.text.includes("سند قبض"));
+    assert.ok(rendered.text.includes("إشعار استلام دفعة"));
     assert.ok(rendered.text.includes("مؤسسة النور"));
   });
 });

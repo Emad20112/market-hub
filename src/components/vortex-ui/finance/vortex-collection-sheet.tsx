@@ -32,6 +32,12 @@ import {
   paymentReferenceLabel,
   requiresPaymentReference,
 } from "@/lib/payments/payment-methods";
+import {
+  buildUnifiedContext,
+  buildWhatsAppLink,
+  buildSmsLink,
+  renderMessage,
+} from "@/lib/communication";
 
 /** Catalogue id from the business's configured payment-method list. */
 export type PaymentMethod = string;
@@ -157,67 +163,37 @@ export function VortexCollectionSheet({
   // اسم حقل المرجع من الكتالوج الموحّد — لا نسخة محلية ثانية.
   const referenceLabel = paymentReferenceLabel(selectedPaymentMethod, "ar");
 
-  const buildTemplateMessage = (r: CollectionReceipt, tpl: MessageTemplateType) => {
-    const formattedAmount = money(r.amount);
-    const formattedRemaining = money(r.remainingBalance);
+  const buildReceiptContext = (r: CollectionReceipt) => {
     const destination = r.bankAccountName
       ? ` (${r.bankAccountName})`
       : r.cashboxName
         ? ` (${r.cashboxName})`
         : "";
-    const mLabel = labelForMethod(r.method) + destination;
-    const balanceLine =
-      r.collectionMode === "advance"
-        ? "💳 تم تسجيل دفعة مقدمة مستقلة على حساب العميل."
-        : r.remainingBalance > 0
-          ? "📊 الرصيد المتبقي: " + formattedRemaining
-          : "✅ تم سداد كامل الرصيد المستحق.";
 
-    if (tpl === "official") {
-      const parts = [
-        "*سند قبض إلكتروني - فورتيكس ERP*",
-        "--------------------------------",
-        "👤 العميل: " + r.customerName,
-        "💵 المبلغ المستلم: " + formattedAmount,
-        "💳 طريقة الدفع: " + mLabel,
-        "🔖 رقم السند: #" + r.receiptNumber,
-        "📅 التاريخ: " + r.date,
-        balanceLine,
-        "--------------------------------",
-        "شكراً لتعاملكم معنا ونسعد بخدمتكم دائماً.",
-      ];
-      return parts.join("\n");
-    }
-
-    if (tpl === "reminder") {
-      const parts = [
-        "مرحباً " + r.customerName + "،",
-        "تم بنجاح تسجيل دفعة بقيمة " + formattedAmount + " برقم سند #" + r.receiptNumber + ".",
-        r.collectionMode === "advance"
-          ? "تم تسجيل الدفعة كمبلغ مقدم مستقل على حسابكم."
-          : r.remainingBalance > 0
-            ? "نود تذكيركم بأن الرصيد المتبقي على حسابكم هو: " + formattedRemaining + "."
-            : "حسابكم الآن مسدد بالكامل.",
-        "شاكرين لكم حسن تعاونكم.",
-      ];
-      return parts.join("\n");
-    }
-
-    return (
-      "تم استلام " +
-      formattedAmount +
-      " من " +
-      r.customerName +
-      " بموجب سند #" +
-      r.receiptNumber +
-      " بتاريخ " +
-      r.date +
-      (r.collectionMode === "advance"
-        ? ". تم تسجيلها كدفعة مقدمة."
-        : ". المتبقي: " + formattedRemaining) +
-      ". شكراً لكم."
-    );
+    return buildUnifiedContext({
+      event: "payment_received",
+      customer: {
+        id: customer?.id || "",
+        name: r.customerName,
+        phone: r.customerPhone,
+        balance: r.remainingBalance,
+      },
+      payment: {
+        receiptNumber: r.receiptNumber,
+        date: r.paymentDate || r.date,
+        amount: r.amount,
+        method: labelForMethod(r.method) + destination,
+        remainingBalance: r.remainingBalance,
+        notes: r.notes,
+      },
+      language: "ar",
+    });
   };
+
+  const renderReceiptMessage = (r: CollectionReceipt) => renderMessage(buildReceiptContext(r));
+
+  const buildTemplateMessage = (r: CollectionReceipt, _tpl: MessageTemplateType) =>
+    renderReceiptMessage(r).text;
 
   const handleTemplateChange = (tpl: MessageTemplateType) => {
     setSelectedTemplate(tpl);
@@ -315,17 +291,20 @@ export function VortexCollectionSheet({
   const showLegacyReceiptScreen: boolean = !receipt;
   const shareWhatsApp = () => {
     if (!receipt) return;
-    const text = encodeURIComponent(activeMessageText);
-    const phone = (receipt.customerPhone || "").replace(/\D/g, "");
-    const url = phone ? `https://wa.me/${phone}?text=${text}` : `https://wa.me/?text=${text}`;
-    window.open(url, "_blank");
+    const rendered = renderReceiptMessage(receipt);
+    const link = buildWhatsAppLink(receipt.customerPhone, activeMessageText);
+    if (rendered.canSendWhatsApp && link) {
+      window.open(link, "_blank", "noopener,noreferrer");
+    }
   };
 
   const shareSMS = () => {
     if (!receipt) return;
-    const text = encodeURIComponent(activeMessageText);
-    const phone = (receipt.customerPhone || "").replace(/\D/g, "");
-    window.open(`sms:${phone}?body=${text}`, "_blank");
+    const rendered = renderReceiptMessage(receipt);
+    const link = buildSmsLink(receipt.customerPhone, activeMessageText);
+    if (rendered.canSendSms && link) {
+      window.open(link, "_blank", "noopener,noreferrer");
+    }
   };
 
   const copyReceiptText = () => {

@@ -14,6 +14,7 @@ import type {
   MessageLanguage,
   PaymentContext,
   StatementContext,
+  MillingCommunicationContext,
   UnifiedCommunicationContext,
 } from "./types";
 
@@ -23,6 +24,7 @@ export interface BuildContextOptions {
   invoice?: Partial<InvoiceContext> | null;
   payment?: Partial<PaymentContext> | null;
   statement?: Partial<StatementContext> | null;
+  milling?: Partial<MillingCommunicationContext> | null;
   millingDocumentNumber?: string | null;
   millingStatus?: string | null;
   company?: CompanyProfile | null;
@@ -96,6 +98,38 @@ export function buildUnifiedContext(options: BuildContextOptions): UnifiedCommun
     };
   }
 
+  let millingCtx: MillingCommunicationContext | null = null;
+  if (options.milling) {
+    millingCtx = {
+      stage: options.milling.stage ?? "intake",
+      ticketNumber: options.milling.ticketNumber,
+      invoiceNumber: options.milling.invoiceNumber,
+      date: options.milling.date,
+      status: options.milling.status,
+      grainType: options.milling.grainType,
+      grainLines: options.milling.grainLines?.map((line) => ({
+        name: line.name || "",
+        bags: line.bags == null ? null : Number(line.bags),
+        bagSizeKg: line.bagSizeKg == null ? null : Number(line.bagSizeKg),
+        weightKg: line.weightKg == null ? null : Number(line.weightKg),
+      })),
+      bagCount: options.milling.bagCount == null ? null : Number(options.milling.bagCount),
+      bagSizeKg: options.milling.bagSizeKg == null ? null : Number(options.milling.bagSizeKg),
+      totalWeightKg:
+        options.milling.totalWeightKg == null ? null : Number(options.milling.totalWeightKg),
+      grandTotal: options.milling.grandTotal == null ? null : Number(options.milling.grandTotal),
+      paidAmount: options.milling.paidAmount == null ? null : Number(options.milling.paidAmount),
+      remainingAmount:
+        options.milling.remainingAmount == null ? null : Number(options.milling.remainingAmount),
+      items: options.milling.items?.map((item) => ({
+        name: item.name || "",
+        bags: item.bags == null ? null : Number(item.bags),
+        weightKg: item.weightKg == null ? null : Number(item.weightKg),
+        remainingBags: item.remainingBags == null ? null : Number(item.remainingBags),
+      })),
+    };
+  }
+
   return {
     event: options.event,
     customer: customerCtx,
@@ -103,6 +137,7 @@ export function buildUnifiedContext(options: BuildContextOptions): UnifiedCommun
     invoice: invoiceCtx,
     payment: paymentCtx,
     statement: statementCtx,
+    milling: millingCtx,
     millingDocumentNumber: options.millingDocumentNumber,
     millingStatus: options.millingStatus,
     language: options.language,

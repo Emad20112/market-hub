@@ -9,6 +9,7 @@ import { SettingsLayout } from "@/components/settings/settings-layout";
 import { supabase } from "@/integrations/supabase/client";
 import { setCompanySettingsCache } from "@/lib/format";
 import { cacheCompanyProfile } from "@/lib/printing";
+import { useCommunicationSettings } from "@/lib/communication/settings-store";
 
 interface SettingsSnapshot {
   form: Record<string, unknown>;
@@ -42,6 +43,8 @@ function SettingsPage() {
   const navigate = useNavigate();
   const { hasRole } = useAuth();
   const canEdit = hasRole("owner") || hasRole("manager");
+  const { settings: communicationSettings, isLoading: communicationSettingsLoading } =
+    useCommunicationSettings({ enabled: canEdit });
   const [form, setForm] = useState<any>({
     name: "",
     legal_name: "",
@@ -155,7 +158,11 @@ function SettingsPage() {
       ...form,
       id: form.id ?? 1,
       tax_rate: taxRate,
-      catalog_modules: { ...currentCatalog, enablePosServiceFee },
+      catalog_modules: {
+        ...currentCatalog,
+        enablePosServiceFee,
+        ...(communicationSettingsLoading ? {} : { communications: communicationSettings }),
+      },
     };
 
     try {

@@ -121,8 +121,19 @@ export function buildWhatsAppLink(
   defaultCountryDialCode?: string,
 ): string | null {
   const normalized = normalizeWhatsAppPhone(phone, defaultCountryDialCode);
-  if (!normalized) return null;
+  if (!normalized || !message.trim()) return null;
   return `https://wa.me/${normalized}?text=${encodeURIComponent(message)}`;
+}
+
+/** Builds an SMS composer link only when both the recipient and message are valid. */
+export function buildSmsLink(
+  phone: string | null | undefined,
+  message: string,
+  defaultCountryDialCode?: string,
+): string | null {
+  const normalized = normalizeWhatsAppPhone(phone, defaultCountryDialCode);
+  if (!normalized || !message.trim()) return null;
+  return `sms:+${normalized}?body=${encodeURIComponent(message)}`;
 }
 
 /**

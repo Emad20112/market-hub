@@ -132,13 +132,22 @@ export function saveCatalogModulesConfig(config: CatalogModulesConfig): void {
 
     void supabase
       .from("company_settings")
-      .update({
-        catalog_modules: config,
-        // مزامنة علم الباركود مع عمود المنشأة المحفوظ ليكون المصدر
-        // متسقاً على كل الأجهزة (كان يُحفظ ولا يُقرأ).
-        barcode_enabled: config.enableBarcode,
-      } as any)
+      .select("catalog_modules" as any)
       .eq("id", 1)
+      .maybeSingle()
+      .then(({ data, error }) => {
+        if (error) return;
+        const currentCatalog = ((data as any)?.catalog_modules ?? {}) as Record<string, unknown>;
+        return supabase
+          .from("company_settings")
+          .update({
+            catalog_modules: { ...currentCatalog, ...config },
+            // Keep the legacy barcode field synchronized without dropping
+            // settings owned by other sections in the shared JSON document.
+            barcode_enabled: config.enableBarcode,
+          } as any)
+          .eq("id", 1);
+      })
       .then(
         () => {},
         () => {},

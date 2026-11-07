@@ -1,6 +1,7 @@
 import { openWhatsApp, normalizeWhatsAppPhone } from "@/lib/whatsapp";
 import { useI18n } from "@/lib/i18n";
 import { WhatsAppIcon } from "@/components/whatsapp-icon";
+import { getCommunicationSettings } from "@/lib/communication/settings";
 
 /**
  * زر «واتساب» موحّد — يفتح محادثة برسالة جاهزة.
@@ -22,22 +23,29 @@ export function WhatsAppButton({
 }) {
   const { lang } = useI18n();
   const valid = normalizeWhatsAppPhone(phone) !== null;
-  const title = valid
+  const enabled = getCommunicationSettings().channels.whatsapp && Boolean(message.trim());
+  const title = !enabled
     ? lang === "ar"
-      ? "إرسال عبر واتساب"
-      : "Send via WhatsApp"
-    : lang === "ar"
-      ? "لا يوجد رقم جوال صالح"
-      : "No valid phone number";
+      ? "تم إيقاف هذا النوع من الرسائل من الإعدادات"
+      : "This message type is disabled in settings"
+    : valid
+      ? lang === "ar"
+        ? "إرسال عبر واتساب"
+        : "Send via WhatsApp"
+      : lang === "ar"
+        ? "لا يوجد رقم جوال صالح"
+        : "No valid phone number";
 
   return (
     <button
       type="button"
-      disabled={!valid}
+      disabled={!valid || !enabled}
       title={title}
       onClick={(e) => {
         if (stopPropagation) e.stopPropagation();
-        openWhatsApp(phone, message);
+        if (getCommunicationSettings().channels.whatsapp && message.trim()) {
+          openWhatsApp(phone, message);
+        }
       }}
       className={
         className ||

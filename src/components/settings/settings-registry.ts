@@ -12,6 +12,7 @@ import {
   CreditCard,
   Boxes,
   PanelLeft,
+  MessageSquareText,
   LucideIcon,
 } from "lucide-react";
 import { CompanySection } from "./sections/company-section";
@@ -26,6 +27,7 @@ import { NumberFormatSection } from "./sections/number-format-section";
 import { PaymentMethodsSection } from "./sections/payment-methods-section";
 import { BackupSettingsCard } from "@/components/backup-settings-card";
 import { SidebarNavigationSection } from "./sections/sidebar-navigation-section";
+import { CommunicationSection } from "./sections/communication-section";
 
 export type SettingsSectionId =
   | "company"
@@ -95,6 +97,16 @@ registerSettingsSection({
   descriptionEn: "Choose the methods you use, order them, and scope them per section",
   icon: CreditCard,
   component: PaymentMethodsSection,
+});
+
+registerSettingsSection({
+  id: "communication",
+  titleAr: "الرسائل وواتساب",
+  titleEn: "Messages & WhatsApp",
+  descriptionAr: "قنوات الإرسال، محتوى القوالب، وأنواع الرسائل المفعلة",
+  descriptionEn: "Delivery channels, template content, and enabled message types",
+  icon: MessageSquareText,
+  component: CommunicationSection,
 });
 
 registerSettingsSection({

@@ -11,12 +11,14 @@ import {
   Maximize2,
   Scale,
   QrCode,
+  MessageSquareText,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { WhatsAppIcon } from "@/components/whatsapp-icon";
 import { useAuth } from "@/lib/auth";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompanyCurrency } from "@/hooks/use-company-currency";
+import { buildUnifiedContext, renderMessage } from "@/lib/communication";
 import {
   renderUnifiedDocument,
   printUnifiedDocument,
@@ -398,6 +400,40 @@ export function LuxuryPrintPreviewModal({
       ? "w-full max-w-[590px]"
       : "w-full max-w-[850px]";
   const modalTitle = title || unifiedDoc.title || PRINTING_LABELS[rtl ? "ar" : "en"].preview;
+  const invoiceData = unifiedDoc as UnifiedDocumentData & {
+    paid?: number | string;
+    remaining?: number | string;
+    balance?: number | string;
+    subtotal?: number | string;
+    status?: string;
+  };
+  const invoiceTotal = Number(unifiedDoc.total ?? 0);
+  const invoicePaid = Number(invoiceData.paid ?? 0);
+  const invoiceRemaining = Number(
+    invoiceData.remaining ?? invoiceData.balance ?? Math.max(invoiceTotal - invoicePaid, 0),
+  );
+  const renderedInvoiceMessage = renderMessage(
+    buildUnifiedContext({
+      event: "invoice_share",
+      language: rtl ? "ar" : "en",
+      customer: {
+        id: "",
+        name: customerName || unifiedDoc.partyName || "",
+        phone: customerPhone || unifiedDoc.partyPhone || null,
+        balance: invoiceRemaining,
+      },
+      invoice: {
+        id: "",
+        invoiceNumber: String(unifiedDoc.number || ""),
+        date: String(unifiedDoc.date || new Date().toISOString()),
+        subtotal: Number(invoiceData.subtotal ?? invoiceTotal),
+        total: invoiceTotal,
+        paid: invoicePaid,
+        remaining: invoiceRemaining,
+        status: invoiceData.status,
+      },
+    }),
+  );
 
   const handlePrint = async () => {
     setIsPrinting(true);
@@ -414,13 +450,27 @@ export function LuxuryPrintPreviewModal({
   };
 
   const handleWhatsAppShare = () => {
-    const phone = customerPhone || unifiedDoc.partyPhone || "";
-    const cleanPhone = phone.replace(/[^0-9]/g, "");
-    const message = `مرحباً ${customerName || unifiedDoc.partyName || "عزيزنا العميل"}،\nمرفق تفاصيل ${unifiedDoc.title || "الفاتورة"} رقم: ${unifiedDoc.number}\nالإجمالي: ${unifiedDoc.total ? Number(unifiedDoc.total).toLocaleString() : "0"} ${unifiedDoc.currency || "ر.ي"}\nشكراً لتعاملكم معنا.`;
-    const url = cleanPhone
-      ? `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`
-      : `https://wa.me/?text=${encodeURIComponent(message)}`;
-    window.open(url, "_blank", "noopener,noreferrer");
+    if (!renderedInvoiceMessage.canSendWhatsApp || !renderedInvoiceMessage.whatsAppUrl) {
+      toast.warning(
+        rtl
+          ? "تأكد من تفعيل واتساب وتسجيل رقم صالح للعميل."
+          : "Enable WhatsApp and provide a valid customer phone number.",
+      );
+      return;
+    }
+    window.open(renderedInvoiceMessage.whatsAppUrl, "_blank", "noopener,noreferrer");
+  };
+
+  const handleSmsShare = () => {
+    if (!renderedInvoiceMessage.canSendSms || !renderedInvoiceMessage.smsUrl) {
+      toast.warning(
+        rtl
+          ? "تأكد من تفعيل الرسائل النصية وتسجيل رقم صالح للعميل."
+          : "Enable SMS and provide a valid customer phone number.",
+      );
+      return;
+    }
+    window.open(renderedInvoiceMessage.smsUrl, "_blank", "noopener,noreferrer");
   };
 
   const handlePdfShare = async () => {
@@ -485,7 +535,7 @@ export function LuxuryPrintPreviewModal({
       ) {
         await navigator.share({
           title: `${unifiedDoc.title || "مستند"} ${unifiedDoc.number}`,
-          text: `مرفق ملف PDF الخاص بـ ${unifiedDoc.title || "المستند"} رقم: ${unifiedDoc.number}`,
+          text: renderedInvoiceMessage.text,
           files: [file],
         });
         toast.success("تم فتح نافذة المشاركة بنجاح");
@@ -913,11 +963,22 @@ export function LuxuryPrintPreviewModal({
               <Button
                 type="button"
                 variant="outline"
+                disabled={!renderedInvoiceMessage.canSendWhatsApp}
                 onClick={handleWhatsAppShare}
                 className="h-9 w-full justify-start gap-2 rounded-md text-emerald-700 hover:text-emerald-800"
               >
                 <WhatsAppIcon className="h-4 w-4" />
                 <span>مشاركة عبر واتساب</span>
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={!renderedInvoiceMessage.canSendSms}
+                onClick={handleSmsShare}
+                className="h-9 w-full justify-start gap-2 rounded-md"
+              >
+                <MessageSquareText data-icon="inline-start" aria-hidden="true" />
+                <span>رسالة نصية</span>
               </Button>
               <Button
                 type="button"
@@ -960,12 +1021,23 @@ export function LuxuryPrintPreviewModal({
               </button>
               <button
                 type="button"
+                disabled={!renderedInvoiceMessage.canSendWhatsApp}
                 onClick={handleWhatsAppShare}
                 aria-label="مشاركة عبر واتساب"
                 title="مشاركة عبر واتساب"
-                className="flex size-12 items-center justify-center rounded-full border border-emerald-600/25 bg-emerald-600/5 text-emerald-700 transition hover:bg-emerald-600/10 active:scale-[0.98]"
+                className="flex size-12 items-center justify-center rounded-full border border-emerald-600/25 bg-emerald-600/5 text-emerald-700 transition hover:bg-emerald-600/10 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <WhatsAppIcon className="size-5" />
+              </button>
+              <button
+                type="button"
+                disabled={!renderedInvoiceMessage.canSendSms}
+                onClick={handleSmsShare}
+                aria-label="إرسال رسالة نصية"
+                title="إرسال رسالة نصية"
+                className="flex size-12 items-center justify-center rounded-full border border-border bg-background text-foreground transition hover:bg-muted active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <MessageSquareText className="size-5" aria-hidden="true" />
               </button>
             </div>
           </aside>
