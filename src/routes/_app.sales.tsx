@@ -475,70 +475,63 @@ export function SalesPage() {
     );
   };
 
-  // WhatsApp Message Generator via Unified Communication Engine
+  const renderSalesInvoiceMessage = (inv: Invoice) => {
+    const remaining = Math.max(0, Number(inv.total) - Number(inv.paid));
+    return renderMessage(
+      buildUnifiedContext({
+        event: "invoice_share",
+        customer: {
+          id: inv.customer_id || "",
+          name: inv.customers?.name || (isRtl ? "العميل الكريم" : "Valued Customer"),
+          phone: inv.customers?.phone,
+          balance: remaining,
+        },
+        invoice: {
+          id: inv.id,
+          invoiceNumber: inv.invoice_number,
+          date: inv.created_at,
+          subtotal: Number(inv.subtotal || inv.total),
+          total: Number(inv.total),
+          paid: Number(inv.paid),
+          remaining,
+        },
+        payment: {
+          receiptNumber: inv.invoice_number,
+          date: inv.created_at,
+          amount: Number(inv.paid),
+          method: inv.payment_method,
+          remainingBalance: remaining,
+          invoiceNumber: inv.invoice_number,
+        },
+        language: isRtl ? "ar" : "en",
+      }),
+    );
+  };
 
   const shareInvoiceSms = (inv: Invoice) => {
-    const hasPhone = Boolean(inv.customers?.phone && inv.customers.phone.trim().length > 0);
-    if (!hasPhone) {
-      toast.warning(
-        isRtl
-          ? "هذا العميل لا يوجد لديه رقم هاتف مسجل في النظام"
-          : "This customer has no phone number registered in the system",
-      );
+    const rendered = renderSalesInvoiceMessage(inv);
+    if (rendered.canSendSms && rendered.smsUrl) {
+      window.open(rendered.smsUrl, "_blank", "noopener,noreferrer");
       return;
     }
-
-    const remaining = Math.max(0, Number(inv.total) - Number(inv.paid));
-    const text = isRtl
-      ? `فاتورة مبيعات ${inv.invoice_number}\nالعميل: ${inv.customers?.name || "العميل الكريم"}\nالإجمالي: ${money(Number(inv.total))}\nالمدفوع: ${money(Number(inv.paid))}${remaining > 0 ? `\nالمتبقي: ${money(remaining)}` : ""}`
-      : `Sales Invoice ${inv.invoice_number}\nTotal: ${money(Number(inv.total))}\nPaid: ${money(Number(inv.paid))}${remaining > 0 ? `\nDue: ${money(remaining)}` : ""}`;
-
-    const clean = (inv.customers?.phone || "").replace(/[^\d+]/g, "");
-    window.open(`sms:${clean}?body=${encodeURIComponent(text)}`, "_blank");
+    toast.warning(
+      isRtl
+        ? "تعذر الإرسال؛ تحقق من رقم العميل وتفعيل الرسائل النصية لهذا النوع من الرسائل."
+        : "Unable to send. Check the customer phone number and SMS settings for this message type.",
+    );
   };
 
   const shareInvoiceWhatsApp = (inv: Invoice) => {
-    const hasPhone = Boolean(inv.customers?.phone && inv.customers.phone.trim().length > 0);
-    if (!hasPhone) {
-      toast.warning(
-        isRtl
-          ? "هذا العميل لا يوجد لديه رقم هاتف مسجل في النظام"
-          : "This customer has no phone number registered in the system",
-      );
-      return;
-    }
-
-    const remaining = Math.max(0, Number(inv.total) - Number(inv.paid));
-    const ctx = buildUnifiedContext({
-      event: "invoice_share",
-      customer: {
-        id: inv.customer_id || "",
-        name: inv.customers?.name || (isRtl ? "العميل الكريم" : "Valued Customer"),
-        phone: inv.customers?.phone,
-        balance: remaining,
-      },
-      invoice: {
-        id: inv.id,
-        invoiceNumber: inv.invoice_number,
-        date: inv.created_at,
-        subtotal: Number(inv.subtotal || inv.total),
-        total: Number(inv.total),
-        paid: Number(inv.paid),
-        remaining,
-      },
-      language: isRtl ? "ar" : "en",
-    });
-
-    const rendered = renderMessage(ctx);
+    const rendered = renderSalesInvoiceMessage(inv);
     if (rendered.canSendWhatsApp && rendered.whatsAppUrl) {
       window.open(rendered.whatsAppUrl, "_blank", "noopener,noreferrer");
-    } else {
-      toast.error(
-        isRtl
-          ? "رقم الهاتف المسجل للعميل غير صالح للإرسال"
-          : "Customer phone number is invalid for WhatsApp",
-      );
+      return;
     }
+    toast.warning(
+      isRtl
+        ? "تعذر الإرسال؛ تحقق من رقم العميل وتفعيل واتساب لهذا النوع من الرسائل."
+        : "Unable to send. Check the customer phone number and WhatsApp settings for this message type.",
+    );
   };
 
   // Quick Collect trigger

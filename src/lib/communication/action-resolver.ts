@@ -19,7 +19,13 @@
  */
 
 import { isValidWhatsAppPhone } from "./phone";
-import type { ActionDescriptor, CustomerContext, InvoiceContext } from "./types";
+import { getCommunicationSettings } from "./settings";
+import type {
+  ActionDescriptor,
+  CustomerContext,
+  InvoiceContext,
+  CommunicationEventType,
+} from "./types";
 
 export interface CustomerActionContext {
   customer: CustomerContext;
@@ -178,5 +184,20 @@ export function getAvailableCustomerActions(ctx: CustomerActionContext): ActionD
     category: "general",
   });
 
-  return actions;
+  const settings = getCommunicationSettings();
+  const eventByAction: Partial<Record<ActionDescriptor["key"], CommunicationEventType>> = {
+    payment_request: "payment_request",
+    debt_reminder: "debt_reminder",
+    invoice_share: "invoice_share",
+    payment_receipt: "payment_received",
+    statement_share: "statement_share",
+    customer_general_message: "general_customer_notice",
+  };
+
+  return actions.filter((action) => {
+    if (action.key === "statement_export_pdf" || action.key === "statement_export_excel")
+      return true;
+    const event = eventByAction[action.key];
+    return Boolean(settings.channels.whatsapp && event && settings.events[event]);
+  });
 }

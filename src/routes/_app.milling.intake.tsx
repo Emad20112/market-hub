@@ -1132,7 +1132,7 @@ function MillingIntakePage() {
                   subtotal: Number(activeDetails?.sales_invoices?.subtotal ?? currentSubtotal),
                   total: Number(activeDetails?.sales_invoices?.total ?? grandTotal),
                   paid: Number(activeDetails?.sales_invoices?.paid ?? currentPaid),
-                  remaining: Number(activeDetails?.sales_invoices?.remaining ?? remainingDue),
+                  remaining: remainingDue,
                   status: remainingDue === 0 ? "paid" : "partial",
                 }
               : null

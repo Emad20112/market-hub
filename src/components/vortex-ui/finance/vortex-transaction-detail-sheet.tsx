@@ -17,6 +17,8 @@ import { VortexDrawerDialog } from "../form/vortex-drawer-dialog";
 import { VortexDateBadge } from "../display/vortex-date-badge";
 import { formatSystemNumber, toSystemDigits } from "@/lib/format-preferences";
 import { useCompanyCurrency } from "@/hooks/use-company-currency";
+import { buildUnifiedContext, renderMessage } from "@/lib/communication";
+import { useCommunicationSettings } from "@/lib/communication/settings-store";
 
 export interface VortexTransaction {
   id: string;
@@ -48,34 +50,62 @@ export function VortexTransactionDetailContent({
 }) {
   const [copied, setCopied] = React.useState(false);
   const { currencySymbol } = useCompanyCurrency();
+  const { settings } = useCommunicationSettings();
 
-  const isPayment = transaction.type === "payment";
-
-  const generateMessage = () => {
-    return `مرحباً أستاذ/ة ${transaction.customerName}،
-إشعار بعملية: ${transaction.title}
-المبلغ: ${formatSystemNumber(transaction.amount, { currency: currencySymbol })}
-رقم المرجع: ${transaction.referenceNumber || transaction.id.slice(-6)}
-التاريخ: ${transaction.date}
-${transaction.cashboxName || transaction.bankAccountName ? `الجهة/الوعاء: ${transaction.cashboxName || transaction.bankAccountName}\n` : ""}${transaction.remainingBalance !== undefined ? `المتبقي في الحساب: ${formatSystemNumber(transaction.remainingBalance, { currency: currencySymbol })}` : ""}
-شاكرين لكم ومقدرين حسن تعاونكم.`;
-  };
+  const event =
+    transaction.type === "payment"
+      ? "payment_received"
+      : transaction.type === "invoice"
+        ? "invoice_share"
+        : "debt_reminder";
+  const renderedMessage = renderMessage(
+    buildUnifiedContext({
+      event,
+      customer: {
+        id: "",
+        name: transaction.customerName,
+        phone: transaction.customerPhone,
+        balance: transaction.remainingBalance ?? transaction.amount,
+      },
+      invoice:
+        transaction.type === "invoice"
+          ? {
+              id: transaction.id,
+              invoiceNumber: transaction.referenceNumber || transaction.id.slice(-6),
+              date: transaction.date,
+              total: transaction.amount,
+              remaining: transaction.remainingBalance ?? transaction.amount,
+            }
+          : undefined,
+      payment:
+        transaction.type === "payment"
+          ? {
+              id: transaction.id,
+              receiptNumber: transaction.referenceNumber || transaction.id.slice(-6),
+              date: transaction.date,
+              amount: transaction.amount,
+              method: transaction.method,
+              remainingBalance: transaction.remainingBalance,
+              notes: transaction.notes,
+            }
+          : undefined,
+      language: "ar",
+    }),
+    settings,
+  );
 
   const shareWhatsApp = () => {
-    const text = encodeURIComponent(generateMessage());
-    const phone = (transaction.customerPhone || "").replace(/\D/g, "");
-    const url = phone ? `https://wa.me/${phone}?text=${text}` : `https://wa.me/?text=${text}`;
-    window.open(url, "_blank");
+    if (!renderedMessage.canSendWhatsApp || !renderedMessage.whatsAppUrl) return;
+    window.open(renderedMessage.whatsAppUrl, "_blank", "noopener,noreferrer");
   };
 
   const shareSMS = () => {
-    const text = encodeURIComponent(generateMessage());
-    const phone = (transaction.customerPhone || "").replace(/\D/g, "");
-    window.open(`sms:${phone}?body=${text}`, "_blank");
+    if (!renderedMessage.canSendSms || !renderedMessage.smsUrl) return;
+    window.open(renderedMessage.smsUrl, "_blank", "noopener,noreferrer");
   };
 
   const copyText = () => {
-    navigator.clipboard.writeText(generateMessage());
+    navigator.clipboard.writeText(renderedMessage.text);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -144,7 +174,8 @@ ${transaction.cashboxName || transaction.bankAccountName ? `الجهة/الوع�
           <button
             type="button"
             onClick={shareWhatsApp}
-            className="h-12 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-md shadow-emerald-600/20 active:scale-98 transition cursor-pointer"
+            disabled={!renderedMessage.canSendWhatsApp}
+            className="h-12 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-md shadow-emerald-600/20 active:scale-98 transition cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
           >
             <MessageCircle className="size-4" />
             <span>واتساب للعميل</span>
@@ -153,7 +184,8 @@ ${transaction.cashboxName || transaction.bankAccountName ? `الجهة/الوع�
           <button
             type="button"
             onClick={shareSMS}
-            className="h-12 rounded-2xl bg-sky-600 hover:bg-sky-700 text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-md shadow-sky-600/20 active:scale-98 transition cursor-pointer"
+            disabled={!renderedMessage.canSendSms}
+            className="h-12 rounded-2xl bg-sky-600 hover:bg-sky-700 text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-md shadow-sky-600/20 active:scale-98 transition cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
           >
             <Send className="size-4" />
             <span>رسالة SMS</span>
@@ -163,7 +195,8 @@ ${transaction.cashboxName || transaction.bankAccountName ? `الجهة/الوع�
         <button
           type="button"
           onClick={copyText}
-          className="w-full h-11 rounded-2xl border border-border bg-card text-foreground font-bold text-xs flex items-center justify-center gap-2 hover:bg-muted transition cursor-pointer"
+          disabled={!renderedMessage.text}
+          className="w-full h-11 rounded-2xl border border-border bg-card text-foreground font-bold text-xs flex items-center justify-center gap-2 hover:bg-muted transition cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
         >
           {copied ? <Check className="size-4 text-emerald-500" /> : <Copy className="size-4" />}
           <span>{copied ? "تم نسخ نص الإشعار" : "نسخ نص الإشعار كاملاً"}</span>

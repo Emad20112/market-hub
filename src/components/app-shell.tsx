@@ -37,6 +37,7 @@ import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { setCompanySettingsCache } from "@/lib/format";
 import { checkBackupReminderStatus } from "@/lib/backup/reminder";
+import { useCommunicationSettings } from "@/lib/communication/settings-store";
 import { useMillingMode, isRouteVisibleByMillingMode } from "@/lib/milling-mode";
 import { startAutoBackupScheduler } from "@/lib/backup/auto-scheduler";
 import { useTheme } from "@/lib/theme";
@@ -991,6 +992,7 @@ const SidebarContents = memo(function SidebarContents({
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const { t, dir } = useI18n();
+  useCommunicationSettings();
 
   const navigate = useNavigate();
   const router = useRouter();

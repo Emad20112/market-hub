@@ -100,8 +100,14 @@ type FilterType = "all" | "debt" | "credit" | "active";
 type ViewMode = "cards" | "list" | "table";
 
 function handleCustomerSMS(customer: Customer, lang: "ar" | "en") {
-  if (!customer.phone) return;
-  const phone = customer.phone.replace(/[^\d+]/g, "");
+  if (!customer.phone) {
+    toast.warning(
+      lang === "ar"
+        ? "لا يوجد رقم هاتف مسجل لهذا العميل."
+        : "No phone number is registered for this customer.",
+    );
+    return;
+  }
   const ctx = buildUnifiedContext({
     event: Number(customer.balance) > 0 ? "debt_reminder" : "general_customer_notice",
     customer: {
@@ -112,8 +118,16 @@ function handleCustomerSMS(customer: Customer, lang: "ar" | "en") {
     },
     language: lang,
   });
-  const text = renderMessage(ctx).text;
-  window.open(`sms:${phone}?body=${encodeURIComponent(text)}`, "_blank");
+  const rendered = renderMessage(ctx);
+  if (!rendered.canSendSms || !rendered.smsUrl) {
+    toast.warning(
+      lang === "ar"
+        ? "الرسائل النصية أو هذا النوع من الرسائل متوقف من الإعدادات."
+        : "SMS or this message type is disabled in settings.",
+    );
+    return;
+  }
+  window.open(rendered.smsUrl, "_blank", "noopener,noreferrer");
 }
 
 function CustomersPage() {

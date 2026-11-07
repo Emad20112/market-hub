@@ -18,6 +18,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { WhatsAppIcon } from "@/components/whatsapp-icon";
 import { getCachedCompanyProfile } from "@/lib/printing/company-profile";
+import { buildUnifiedContext, renderMessage } from "@/lib/communication";
+import { getCommunicationSettings } from "@/lib/communication/settings";
 import { formatPrintedDateTime } from "@/lib/printing/date-time";
 import { numberToArabicWords } from "@/lib/templates/tafqeet";
 import { generateBarcodeSvg } from "@/lib/printing/barcode-qr";
@@ -315,55 +317,67 @@ export function UnifiedPrintModal({
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const messagingContext = buildUnifiedContext({
+    event: "milling_document_share",
+    language: "ar",
+    customer: {
+      id: "",
+      name: data.customerName,
+      phone: data.customerPhone || null,
+      balance: Number(data.remainingAmount || 0),
+    },
+    invoice: {
+      id: "",
+      invoiceNumber: data.invoiceNumber || "",
+      date: data.createdAt,
+      subtotal: Number(data.grandTotal || 0),
+      total: Number(data.grandTotal || 0),
+      paid: Number(data.paidAmount || 0),
+      remaining: Number(data.remainingAmount || 0),
+    },
+    milling: {
+      stage: isDelivery ? "delivery" : isMilled ? "milled" : "intake",
+      ticketNumber: data.ticketNumber,
+      invoiceNumber: data.invoiceNumber || null,
+      date: data.createdAt,
+      status: isDelivery ? "مسلّم" : isMilled ? "تم الطحن" : "تم الاستلام",
+      grainType: data.grainType || null,
+      grainLines: data.grainLines?.map((line) => ({
+        name: line.name,
+        bags: line.bags,
+        bagSizeKg: line.bagSizeKg,
+        weightKg: line.kg,
+      })),
+      bagCount: data.bagCount,
+      bagSizeKg: data.bagSizeKg,
+      totalWeightKg: data.totalWeightKg,
+      grandTotal: data.grandTotal,
+      paidAmount: data.paidAmount,
+      remainingAmount: data.remainingAmount,
+      items: data.items?.map((item) => ({
+        name: item.name,
+        bags: item.bags,
+        weightKg: item.kg,
+        remainingBags: item.remainingBags,
+      })),
+    },
+  });
+  const renderedCommunication = renderMessage(messagingContext, getCommunicationSettings());
+
   const handleWhatsAppShare = () => {
-    const phone = (data.customerPhone || "").replace(/[^0-9]/g, "");
-
-    const bagSizePart = data.bagSizeKg ? ` × ${data.bagSizeKg} كجم` : "";
-
-    let msg = `*${data.companyName || ""}*\n`;
-    msg += `━━━━━━━━━━━━━━━\n`;
-    if (isDelivery) {
-      msg += `📄 *سند تسليم نواتج أمانات*\n`;
-      msg += `🔢 رقم السند: ${data.ticketNumber}\n`;
-      msg += `👤 العميل: ${data.customerName}\n`;
-      msg += `📅 التاريخ: ${formatPrintedDateTime(data.createdAt)}\n`;
-      if (data.items && data.items.length > 0) {
-        msg += `📦 *النواتج المسلمة:*\n`;
-        data.items.forEach((it) => {
-          msg += `• ${it.name}: ${it.bags} كيس (${it.kg.toLocaleString()} كجم)\n`;
-          if (it.remainingBags !== undefined) {
-            msg += `  (المتبقي طرفنا: ${it.remainingBags} كيس)\n`;
-          }
-        });
-      }
-    } else if (isMilled) {
-      msg += `⚙️ *سند طحن أمانة*\n`;
-      msg += `🔢 رقم السند: ${data.ticketNumber}\n`;
-      msg += `👤 العميل: ${data.customerName}\n`;
-      msg += `📅 التاريخ: ${formatPrintedDateTime(data.createdAt)}\n`;
-      msg += `🌾 الحبوب: ${data.grainType} (${data.bagCount} كيس — ${(data.totalWeightKg || 0).toLocaleString()} كجم)\n`;
-    } else {
-      msg += `🧾 *سند استلام أمانة وفاتورة أجور*\n`;
-      msg += `🔢 رقم السند: ${data.ticketNumber}\n`;
-      if (data.invoiceNumber) msg += `📋 فاتورة الأجور: ${data.invoiceNumber}\n`;
-      msg += `👤 العميل: ${data.customerName}\n`;
-      msg += `📅 التاريخ: ${formatPrintedDateTime(data.createdAt)}\n`;
-      msg += `🌾 نوع الحبوب: ${data.grainType || "—"}\n`;
-      msg += `⚖️ الأكياس والوزن: ${data.bagCount} كيس${bagSizePart} (${(data.totalWeightKg || 0).toLocaleString()} كجم)\n`;
-      msg += `💰 الإجمالي المستحق: ${data.grandTotal.toLocaleString()} ر.ي\n`;
-      msg += `💵 المدفوع: ${data.paidAmount.toLocaleString()} ر.ي\n`;
-      if (data.remainingAmount > 0) {
-        msg += `⚠️ المتبقي ذمة: ${data.remainingAmount.toLocaleString()} ر.ي\n`;
-      }
+    if (!renderedCommunication.canSendWhatsApp || !renderedCommunication.whatsAppUrl) {
+      toast.warning("تأكد من تفعيل واتساب وإضافة رقم صالح للعميل من الإعدادات.");
+      return;
     }
-    msg += `━━━━━━━━━━━━━━━\n`;
-    msg += `شكراً لتعاملكم معنا — نسعد بخدمتكم دائماً ✨`;
+    window.open(renderedCommunication.whatsAppUrl, "_blank", "noopener,noreferrer");
+  };
 
-    const url = phone
-      ? `https://wa.me/${phone}?text=${encodeURIComponent(msg)}`
-      : `https://wa.me/?text=${encodeURIComponent(msg)}`;
-
-    window.open(url, "_blank");
+  const handleSmsShare = () => {
+    if (!renderedCommunication.canSendSms || !renderedCommunication.smsUrl) {
+      toast.warning("تأكد من تفعيل الرسائل النصية وإضافة رقم صالح للعميل من الإعدادات.");
+      return;
+    }
+    window.open(renderedCommunication.smsUrl, "_blank", "noopener,noreferrer");
   };
 
   const badgeTitle = isDelivery
@@ -1020,17 +1034,30 @@ export function UnifiedPrintModal({
 
           {/* أزرار الإجراءات الفورية */}
           <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
-            {/* زر المشاركة عبر واتساب بلمسة واحدة */}
-            <Button
-              type="button"
-              variant="outline"
-              onClick={handleWhatsAppShare}
-              className="rounded-xl px-3.5 py-2 text-xs font-bold gap-1.5 border-emerald-500/30 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-500/10 active:scale-95 transition-all shadow-xs"
-              title="إرسال السند عبر واتساب"
-            >
-              <WhatsAppIcon className="h-4 w-4" />
-              <span className="hidden xs:inline">واتساب</span>
-            </Button>
+            {renderedCommunication.canSendWhatsApp && (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleWhatsAppShare}
+                className="rounded-xl px-3.5 py-2 text-xs font-bold gap-1.5 border-emerald-500/30 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-500/10 active:scale-95 transition-all shadow-xs"
+                title="إرسال السند عبر واتساب"
+              >
+                <WhatsAppIcon className="h-4 w-4" />
+                <span className="hidden xs:inline">واتساب</span>
+              </Button>
+            )}
+            {renderedCommunication.canSendSms && (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleSmsShare}
+                className="rounded-xl px-3.5 py-2 text-xs font-bold gap-1.5"
+                title="إرسال السند برسالة نصية"
+              >
+                <Smartphone className="h-4 w-4" aria-hidden="true" />
+                <span className="hidden xs:inline">رسالة نصية</span>
+              </Button>
+            )}
 
             {/* زر الإغلاق */}
             <Button

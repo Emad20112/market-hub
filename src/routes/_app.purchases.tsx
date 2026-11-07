@@ -33,6 +33,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { useI18n } from "@/lib/i18n";
 import { money } from "@/lib/format";
+import { buildUnifiedContext, renderMessage } from "@/lib/communication";
 import { translateRpcError } from "@/lib/errors/rpc-errors";
 import { toSystemDigits } from "@/lib/format-preferences";
 import { Ltr } from "@/components/ltr-value";
@@ -202,42 +203,66 @@ function PurchasesPage() {
     setTimeout(() => setCopiedInvoiceId(null), 2000);
   };
 
+  const renderPurchaseInvoiceMessage = (inv: Invoice) => {
+    const remaining = Math.max(0, Number(inv.total) - Number(inv.paid));
+    return renderMessage(
+      buildUnifiedContext({
+        event: "purchase_invoice_share",
+        customer: {
+          id: "",
+          name: inv.suppliers?.name || (isRtl ? "المورد الكريم" : "Valued Supplier"),
+          phone: inv.suppliers?.phone,
+          balance: remaining,
+        },
+        invoice: {
+          id: inv.id,
+          invoiceNumber: inv.invoice_number,
+          date: inv.created_at,
+          subtotal: Number(inv.subtotal || inv.total),
+          discount: Number(inv.discount || 0),
+          tax: Number(inv.tax || 0),
+          total: Number(inv.total),
+          paid: Number(inv.paid),
+          remaining,
+          status: inv.status,
+        },
+        payment: {
+          receiptNumber: inv.invoice_number,
+          date: inv.created_at,
+          amount: Number(inv.paid),
+          method: inv.payment_method,
+          remainingBalance: remaining,
+          invoiceNumber: inv.invoice_number,
+        },
+        language: isRtl ? "ar" : "en",
+      }),
+    );
+  };
+
   const shareInvoiceWhatsApp = (inv: Invoice) => {
-    const phone = inv.suppliers?.phone;
-    if (!phone || !phone.trim()) {
-      toast.warning(
-        isRtl
-          ? "هذا المورد لا يوجد لديه رقم هاتف مسجل في النظام"
-          : "This supplier has no phone number registered",
-      );
+    const rendered = renderPurchaseInvoiceMessage(inv);
+    if (rendered.canSendWhatsApp && rendered.whatsAppUrl) {
+      window.open(rendered.whatsAppUrl, "_blank", "noopener,noreferrer");
       return;
     }
-    const remaining = Math.max(0, Number(inv.total) - Number(inv.paid));
-    const dateStr = new Date(inv.created_at).toLocaleDateString(isRtl ? "ar" : "en-GB");
-    const text = isRtl
-      ? `فاتورة مشتريات رقم ${inv.invoice_number}\nالمورد: ${inv.suppliers?.name || ""}\nالتاريخ: ${dateStr}\nالإجمالي: ${money(Number(inv.total))}\nالمدفوع: ${money(Number(inv.paid))}${remaining > 0 ? `\nالمتبقي: ${money(remaining)}` : ""}`
-      : `Purchase Invoice ${inv.invoice_number}\nSupplier: ${inv.suppliers?.name || ""}\nTotal: ${money(Number(inv.total))}\nPaid: ${money(Number(inv.paid))}${remaining > 0 ? `\nRemaining: ${money(remaining)}` : ""}`;
-    const clean = phone.replace(/[^\d+]/g, "");
-    const target = clean.startsWith("+") ? clean.slice(1) : clean;
-    window.open(`https://wa.me/${target}?text=${encodeURIComponent(text)}`, "_blank");
+    toast.warning(
+      isRtl
+        ? "تعذر الإرسال؛ تحقق من رقم المورد وتفعيل واتساب لهذا النوع من الرسائل."
+        : "Unable to send. Check the supplier phone number and WhatsApp settings for this message type.",
+    );
   };
 
   const shareInvoiceSms = (inv: Invoice) => {
-    const phone = inv.suppliers?.phone;
-    if (!phone || !phone.trim()) {
-      toast.warning(
-        isRtl
-          ? "هذا المورد لا يوجد لديه رقم هاتف مسجل في النظام"
-          : "This supplier has no phone number registered",
-      );
+    const rendered = renderPurchaseInvoiceMessage(inv);
+    if (rendered.canSendSms && rendered.smsUrl) {
+      window.open(rendered.smsUrl, "_blank", "noopener,noreferrer");
       return;
     }
-    const remaining = Math.max(0, Number(inv.total) - Number(inv.paid));
-    const text = isRtl
-      ? `فاتورة مشتريات ${inv.invoice_number} - المورد: ${inv.suppliers?.name || ""} - الإجمالي: ${money(Number(inv.total))} - المتبقي: ${money(remaining)}`
-      : `Purchase ${inv.invoice_number} - Total: ${money(Number(inv.total))} - Due: ${money(remaining)}`;
-    const clean = phone.replace(/[^\d+]/g, "");
-    window.open(`sms:${clean}?body=${encodeURIComponent(text)}`, "_blank");
+    toast.warning(
+      isRtl
+        ? "تعذر الإرسال؛ تحقق من رقم المورد وتفعيل الرسائل النصية لهذا النوع من الرسائل."
+        : "Unable to send. Check the supplier phone number and SMS settings for this message type.",
+    );
   };
 
   async function load() {
