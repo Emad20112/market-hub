@@ -1756,14 +1756,17 @@ function PurchasePOSPage() {
           </div>
 
           {/* Warehouse Selector */}
-          <div className="relative flex h-8 min-w-0 shrink-0 items-center gap-1.5 rounded-full border border-amber-500/30 bg-amber-500/10 px-2 text-amber-700 transition hover:bg-amber-500/15 dark:text-amber-300 sm:h-9 xl:px-3">
-            <Building2 className="size-3.5 shrink-0" />
+          <div
+            className="relative flex size-9 shrink-0 items-center justify-center rounded-full border border-amber-500/30 bg-amber-500/10 text-amber-700 transition hover:bg-amber-500/15 dark:text-amber-300 sm:h-9 sm:w-auto sm:justify-start sm:gap-1.5 sm:px-2 xl:px-3"
+            title={`${lang === "ar" ? "المستودع" : "Warehouse"}: ${warehouses.find((w) => w.id === warehouseId)?.[lang === "ar" ? "name_ar" : "name"] || warehouses.find((w) => w.id === warehouseId)?.name || ""}`}
+          >
+            <Building2 className="size-4 shrink-0 sm:size-3.5" aria-hidden="true" />
             <select
               dir={lang === "ar" ? "rtl" : "ltr"}
               aria-label={lang === "ar" ? "المستودع" : "Warehouse"}
               value={warehouseId}
               onChange={(e) => setWarehouseId(e.target.value)}
-              className="h-full min-w-0 max-w-[5.5rem] cursor-pointer appearance-none bg-transparent pe-4 text-[10px] font-semibold outline-none sm:max-w-24 sm:text-[11px] xl:max-w-40 xl:pe-0 xl:text-xs"
+              className="absolute inset-0 z-10 h-full w-full cursor-pointer appearance-none opacity-0 outline-none focus-visible:rounded-full focus-visible:ring-2 focus-visible:ring-amber-500 sm:static sm:z-auto sm:h-full sm:w-auto sm:min-w-0 sm:max-w-24 sm:appearance-none sm:bg-transparent sm:pe-4 sm:text-[11px] sm:font-semibold sm:opacity-100 sm:outline-none xl:max-w-40 xl:pe-0 xl:text-xs"
             >
               {warehouses.map((w) => (
                 <option key={w.id} value={w.id}>

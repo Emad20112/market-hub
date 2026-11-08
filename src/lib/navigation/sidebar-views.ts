@@ -148,9 +148,9 @@ const ACTIVITY_GROUPS: GroupDefinition[] = [
     styleCategory: "statements",
     matches: (entry) => entry.category === "statements",
   },
-  DAILY_GROUPS[6],
-  DAILY_GROUPS[8],
+  DAILY_GROUPS[7],
   DAILY_GROUPS[9],
+  DAILY_GROUPS[10],
 ];
 
 const GROUPS_BY_MODE: Record<"daily" | "activity", GroupDefinition[]> = {
@@ -174,9 +174,7 @@ export function buildSidebarView(
   const availableFocusGroups = materializeGroups(entries, definitions);
   const groups =
     mode === "explorer"
-      ? // Explorer is a drill-down view: the module picker is shown by the
-        // sidebar, and this list contains routes only after a module is selected.
-        availableFocusGroups.filter((group) => group.key === focusGroup)
+      ? availableFocusGroups
       : mode === "focus"
         ? [
             ...availableFocusGroups.filter((group) => group.key === "command_center"),

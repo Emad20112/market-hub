@@ -5,21 +5,18 @@ umask 077
 readonly SUPABASE_REF="self-hosted/v0.8.3"
 readonly REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 readonly STACK_DIR="$REPO_ROOT/deploy/supabase-stack"
-MODE="public"
-if [[ "${1:-}" == "--local" ]]; then
-  MODE="local"
-  shift
+if [[ "${1:-}" != "--local" ]]; then
+  echo "This repository only bootstraps local production." >&2
+  echo "Use npm run db:selfhosted:bootstrap:local from PowerShell." >&2
+  exit 2
 fi
+shift
 
-if [[ "$MODE" == "local" ]]; then
-  readonly APP_ENV_FILE="$REPO_ROOT/deploy/.env.local-production"
-else
-  readonly APP_ENV_FILE="$REPO_ROOT/deploy/.env.production"
-fi
+readonly APP_ENV_FILE="$REPO_ROOT/deploy/.env.local-production"
 
 usage() {
-  echo "Usage: bash deploy/bootstrap-self-hosted-supabase.sh <app-domain> <supabase-api-domain>" >&2
-  echo "Example: bash deploy/bootstrap-self-hosted-supabase.sh erp.example.com api.example.com" >&2
+  echo "Usage: bash deploy/bootstrap-self-hosted-supabase.sh --local" >&2
+  echo "" >&2
   echo "Local Windows Docker Desktop host: npm run db:selfhosted:bootstrap:local" >&2
 }
 
@@ -27,43 +24,17 @@ HOST_OS="$(uname -s)"
 WINDOWS_GIT_BASH=false
 if [[ "$HOST_OS" == MINGW* || "$HOST_OS" == MSYS* || "$HOST_OS" == CYGWIN* ]]; then
   WINDOWS_GIT_BASH=true
-  if [[ "$MODE" != "local" ]]; then
-    echo "Public production bootstrap must run on the Linux server." >&2
-    exit 1
-  fi
 elif [[ "$HOST_OS" != "Linux" ]]; then
   echo "For local Windows setup, use scripts/bootstrap-local-production.ps1 from PowerShell." >&2
   exit 1
 fi
 
-if [[ "$MODE" == "local" ]]; then
-  if [[ $# -ne 0 ]]; then
-    usage
-    exit 2
-  fi
-  APP_DOMAIN="app.localhost"
-  SUPABASE_DOMAIN="api.localhost"
-  APP_URL="http://localhost:3001"
-  API_URL="http://localhost:8000"
-else
-  if [[ $# -ne 2 ]]; then
-    usage
-    exit 2
-  fi
-  APP_DOMAIN="$1"
-  SUPABASE_DOMAIN="$2"
-  domain_pattern='^([A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?\.)+[A-Za-z]{2,63}$'
-  if [[ ! "$APP_DOMAIN" =~ $domain_pattern || ! "$SUPABASE_DOMAIN" =~ $domain_pattern ]]; then
-    echo "Both arguments must be real DNS hostnames, without scheme, path, or port." >&2
-    exit 2
-  fi
-  if [[ "$APP_DOMAIN" == "$SUPABASE_DOMAIN" ]]; then
-    echo "Use separate hostnames for the application and Supabase API." >&2
-    exit 2
-  fi
-  APP_URL="https://$APP_DOMAIN"
-  API_URL="https://$SUPABASE_DOMAIN"
+if [[ $# -ne 0 ]]; then
+  usage
+  exit 2
 fi
+APP_URL="http://localhost:3001"
+API_URL="http://localhost:8000"
 
 if [[ "$WINDOWS_GIT_BASH" == true ]]; then
   PYTHON_BIN="$(command -v python || command -v python3 || true)"
@@ -127,13 +98,8 @@ cp -a "$upstream_docker/." "$STACK_DIR/"
 # project functions beside the official router before the stack is started.
 mkdir -p "$STACK_DIR/volumes/functions"
 cp -a "$REPO_ROOT/supabase/functions/." "$STACK_DIR/volumes/functions/"
-if [[ "$MODE" == "local" ]]; then
-  cp "$REPO_ROOT/deploy/supabase-local-production.override.yaml" \
-    "$STACK_DIR/docker-compose.local-production.override.yaml"
-else
-  cp "$REPO_ROOT/deploy/supabase-production.override.yaml" \
-    "$STACK_DIR/docker-compose.production.override.yaml"
-fi
+cp "$REPO_ROOT/deploy/supabase-local-production.override.yaml" \
+  "$STACK_DIR/docker-compose.local-production.override.yaml"
 cp "$STACK_DIR/.env.example" "$STACK_DIR/.env"
 printf 'ref=%s\n' "$SUPABASE_REF" > "$STACK_DIR/.supabase-version"
 
@@ -145,18 +111,15 @@ printf 'ref=%s\n' "$SUPABASE_REF" > "$STACK_DIR/.supabase-version"
   sh utils/add-new-auth-keys.sh --update-env >/dev/null
 )
 
-"$PYTHON_BIN" - "$STACK_DIR/.env" "$APP_DOMAIN" "$SUPABASE_DOMAIN" "$APP_URL" "$API_URL" "$MODE" <<'PY'
+"$PYTHON_BIN" - "$STACK_DIR/.env" "$APP_URL" "$API_URL" <<'PY'
 from pathlib import Path
 import sys
 import subprocess
 
 env_path = Path(sys.argv[1])
-app_domain = sys.argv[2]
-supabase_domain = sys.argv[3]
-app_url = sys.argv[4]
-api_url = sys.argv[5]
-mode = sys.argv[6]
-api_external_url = f"{api_url}/auth/v1" if mode == "local" else api_url
+app_url = sys.argv[2]
+api_url = sys.argv[3]
+api_external_url = f"{api_url}/auth/v1"
 dashboard_password = "Vx" + subprocess.run(
     ["openssl", "rand", "-hex", "24"], check=True, capture_output=True, text=True
 ).stdout.strip()
@@ -165,7 +128,6 @@ values = {
     "API_EXTERNAL_URL": api_external_url,
     "SITE_URL": app_url,
     "ADDITIONAL_REDIRECT_URLS": f"{app_url}/**",
-    "PROXY_DOMAIN": supabase_domain,
     "DISABLE_SIGNUP": "true",
     "ENABLE_PHONE_SIGNUP": "false",
     "ENABLE_EMAIL_AUTOCONFIRM": "false",
@@ -185,17 +147,15 @@ for key, value in values.items():
 env_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 PY
 
-"$PYTHON_BIN" - "$STACK_DIR/.env" "$APP_ENV_FILE" "$APP_DOMAIN" "$SUPABASE_DOMAIN" "$APP_URL" "$API_URL" <<'PY'
+"$PYTHON_BIN" - "$STACK_DIR/.env" "$APP_ENV_FILE" "$APP_URL" "$API_URL" <<'PY'
 from pathlib import Path
 import os
 import sys
 
 stack_env = Path(sys.argv[1])
 app_env = Path(sys.argv[2])
-app_domain = sys.argv[3]
-supabase_domain = sys.argv[4]
-app_url = sys.argv[5]
-api_url = sys.argv[6]
+app_url = sys.argv[3]
+api_url = sys.argv[4]
 stack_values = {}
 for line in stack_env.read_text(encoding="utf-8").splitlines():
     if not line or line.lstrip().startswith("#") or "=" not in line:
@@ -216,8 +176,6 @@ content = "\n".join((
     "SUPABASE_URL=http://api-gw:8000",
     f"SUPABASE_PUBLISHABLE_KEY={stack_values['SUPABASE_PUBLISHABLE_KEY']}",
     f"SUPABASE_SECRET_KEY={stack_values['SUPABASE_SECRET_KEY']}",
-    f"APP_DOMAIN={app_domain}",
-    f"SUPABASE_DOMAIN={supabase_domain}",
     "",
 ))
 fd = os.open(app_env, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)

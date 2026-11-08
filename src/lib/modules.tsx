@@ -221,6 +221,7 @@ export const SYSTEM_MODULES: PlatformModule[] = [
      */
     navItems: [
       "/milling/intake",
+      "/milling/records",
       "/milling/milling",
       "/milling/delivery",
       "/milling/manufacture",
@@ -233,6 +234,7 @@ export const SYSTEM_MODULES: PlatformModule[] = [
     routes: [
       "/_app/milling",
       "/_app/milling/intake",
+      "/_app/milling/records",
       "/_app/milling/milling",
       "/_app/milling/delivery",
       "/_app/milling/manufacture",

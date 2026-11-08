@@ -4,13 +4,9 @@ import { Link, useRouterState, useNavigate, useRouter } from "@tanstack/react-ro
 import { useQueryClient } from "@tanstack/react-query";
 import { memo, useEffect, useMemo, useRef, useState } from "react";
 import {
-  ArrowLeft,
-  ArrowRight,
   Bell,
   Check,
   ChevronDown,
-  ChevronLeft,
-  ChevronRight,
   Layers3,
   LogOut,
   Menu,
@@ -190,7 +186,15 @@ function getSidebarStyle(category: string, groupKey: string, preferences: Sideba
       : preferences.iconColorMode === "custom"
         ? (customStyle ?? category)
         : category;
-  return CATEGORY_STYLES[styleCategory] ?? CATEGORY_STYLES.command_center;
+  const style = CATEGORY_STYLES[styleCategory] ?? CATEGORY_STYLES.command_center;
+  // Keep section rows neutral; category color belongs to the icon only.
+  return {
+    ...style,
+    iconBoxActive: "bg-sidebar-accent text-foreground",
+    iconBoxInactive: "bg-transparent text-muted-foreground group-hover:bg-sidebar-accent",
+    accentPill: "bg-primary",
+    activeBg: "bg-sidebar-accent/70 border-sidebar-border/70",
+  };
 }
 
 const SidebarContents = memo(function SidebarContents({
@@ -260,21 +264,6 @@ const SidebarContents = memo(function SidebarContents({
       ),
     [filteredSections, preferences.mode, preferences.focusGroup, preferences.explorerGroup],
   );
-  const explorerModules = useMemo(
-    () => availableFocusGroups.filter((group) => group.key !== "command_center"),
-    [availableFocusGroups],
-  );
-  const selectedExplorerModule =
-    preferences.mode === "explorer"
-      ? (explorerModules.find((group) => group.key === preferences.explorerGroup) ?? null)
-      : null;
-  const SelectedExplorerModuleIcon = selectedExplorerModule
-    ? routeIcon(selectedExplorerModule.entries[0]?.id ?? selectedExplorerModule.key)
-    : null;
-  const selectedExplorerModuleStyle = selectedExplorerModule
-    ? getSidebarStyle(selectedExplorerModule.styleCategory, selectedExplorerModule.key, preferences)
-    : null;
-
   useEffect(() => {
     if (preferences.mode === "explorer") {
       navigationRef.current?.scrollTo({ top: 0 });
@@ -287,14 +276,6 @@ const SidebarContents = memo(function SidebarContents({
   }, []);
 
   useEffect(() => {
-    if (
-      preferences.mode === "explorer" &&
-      preferences.explorerGroup &&
-      !explorerModules.some((group) => group.key === preferences.explorerGroup)
-    ) {
-      update({ explorerGroup: null });
-      return;
-    }
     if (
       preferences.mode === "focus" &&
       preferences.focusGroup &&
@@ -309,7 +290,6 @@ const SidebarContents = memo(function SidebarContents({
     }
   }, [
     availableFocusGroups,
-    explorerModules,
     preferences.explorerGroup,
     preferences.focusGroup,
     preferences.mode,
@@ -561,146 +541,21 @@ const SidebarContents = memo(function SidebarContents({
             </div>
           )}
         </div>
-        {preferences.mode === "explorer" && !selectedExplorerModule && (
-          <div className={cn("space-y-2", collapsed && "flex flex-col items-center")}>
-            {!collapsed && (
-              <div className="px-1 pb-1">
-                <p className="text-sm font-bold text-foreground">{t("nav.view.modules_title")}</p>
-                <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                  {t("nav.view.modules_description")}
-                </p>
-              </div>
-            )}
-            {explorerModules.map((group) => {
-              const title = t(`nav.view.group.${group.key}`);
-              const ModuleIcon = routeIcon(group.entries[0]?.id ?? group.key);
-              const ForwardIcon = dir === "rtl" ? ChevronLeft : ChevronRight;
-              const style = getSidebarStyle(group.styleCategory, group.key, preferences);
-              const isCurrentModule = activeGroupKey === group.key;
-
-              return (
-                <Hint
-                  key={group.key}
-                  label={collapsed ? title : undefined}
-                  side={dir === "rtl" ? "left" : "right"}
-                >
-                  <button
-                    type="button"
-                    onClick={() => update({ explorerGroup: group.key })}
-                    aria-label={title}
-                    className={cn(
-                      "group flex min-h-[58px] w-full items-center gap-3 rounded-xl border px-3 py-2.5 text-start transition-colors",
-                      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50",
-                      collapsed && "min-h-11 w-11 justify-center rounded-xl p-1.5",
-                      isCurrentModule
-                        ? cn("border-transparent", style.activeBg)
-                        : "border-sidebar-border/60 bg-sidebar-accent/20 hover:border-sidebar-border hover:bg-sidebar-accent/60",
-                    )}
-                  >
-                    <span
-                      className={cn(
-                        "grid size-10 shrink-0 place-items-center rounded-xl transition-colors",
-                        collapsed && "size-9",
-                        isCurrentModule ? style.iconBoxActive : style.iconBoxInactive,
-                      )}
-                    >
-                      <ModuleIcon
-                        className={cn(
-                          "size-5 transition-transform duration-200",
-                          isCurrentModule ? style.iconActive : style.iconInactive,
-                        )}
-                      />
-                    </span>
-                    {!collapsed && (
-                      <>
-                        <span className="min-w-0 flex-1">
-                          <span className="block truncate text-sm font-semibold text-foreground">
-                            {title}
-                          </span>
-                          <span className="mt-0.5 block text-xs text-muted-foreground">
-                            {t("nav.view.pages_count")}: {group.entries.length}
-                          </span>
-                        </span>
-                        <ForwardIcon
-                          className={cn(
-                            "size-4 shrink-0 text-muted-foreground transition-transform",
-                            dir === "rtl"
-                              ? "group-hover:-translate-x-0.5"
-                              : "group-hover:translate-x-0.5",
-                          )}
-                        />
-                      </>
-                    )}
-                  </button>
-                </Hint>
-              );
-            })}
-          </div>
-        )}
-        {preferences.mode === "explorer" && selectedExplorerModule && (
-          <div className="mb-3 space-y-3">
-            <Hint
-              label={collapsed ? t("nav.view.back_to_units") : undefined}
-              side={dir === "rtl" ? "left" : "right"}
-            >
-              <button
-                type="button"
-                onClick={() => update({ explorerGroup: null })}
-                aria-label={t("nav.view.back_to_units")}
-                className={cn(
-                  "flex min-h-11 items-center rounded-lg text-xs font-semibold text-muted-foreground transition-colors",
-                  "hover:bg-sidebar-accent/60 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50",
-                  collapsed ? "mx-auto w-11 justify-center" : "w-full gap-2 px-3",
-                )}
-              >
-                {dir === "rtl" ? (
-                  <ArrowRight className="size-4 shrink-0" />
-                ) : (
-                  <ArrowLeft className="size-4 shrink-0" />
-                )}
-                {!collapsed && <span>{t("nav.view.back_to_units")}</span>}
-              </button>
-            </Hint>
-            {!collapsed && SelectedExplorerModuleIcon && selectedExplorerModuleStyle && (
-              <div className="flex items-center gap-3 rounded-xl border border-sidebar-border/60 bg-sidebar-accent/30 px-3 py-3">
-                <span
-                  className={cn(
-                    "grid size-10 shrink-0 place-items-center rounded-xl",
-                    selectedExplorerModuleStyle.iconBoxActive,
-                  )}
-                >
-                  <SelectedExplorerModuleIcon
-                    className={cn("size-5", selectedExplorerModuleStyle.iconActive)}
-                  />
-                </span>
-                <span className="min-w-0">
-                  <span className="block truncate text-sm font-bold text-foreground">
-                    {t(`nav.view.group.${selectedExplorerModule.key}`)}
-                  </span>
-                  <span className="mt-0.5 block text-xs text-muted-foreground">
-                    {t("nav.view.pages_count")}: {selectedExplorerModule.entries.length}
-                  </span>
-                </span>
-              </div>
-            )}
-          </div>
-        )}
         {displayGroups.map((sec, secIdx) => {
           const sectionKey = sec.key;
-          const sectionOpen =
-            preferences.mode === "explorer" || collapsed ? true : isSectionOpen(sectionKey);
+          const sectionOpen = collapsed ? true : isSectionOpen(sectionKey);
           const activeInSection = activeGroupKey === sectionKey;
 
           return (
             <div key={sectionKey}>
-              {preferences.mode === "explorer" ? null : !collapsed ? (
+              {!collapsed ? (
                 <button
                   type="button"
                   onClick={() => toggleSection(sectionKey)}
                   aria-expanded={sectionOpen}
                   aria-controls={`sidebar-section-${sectionKey}`}
                   className={cn(
-                    "flex min-h-10 w-full items-center gap-2 rounded-lg px-3 py-2 text-xs font-bold",
+                    "flex min-h-9 w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-xs font-semibold",
                     "transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50",
                     activeInSection
                       ? "bg-sidebar-accent/45 text-foreground"
@@ -803,24 +658,30 @@ const SidebarContents = memo(function SidebarContents({
                                     ? "rounded-full"
                                     : "rounded-xl",
                                 )
-                              : "gap-3 ps-3 pe-10 py-2.5 rounded-xl text-[13.5px] sm:text-sm font-medium",
+                              : preferences.mode === "explorer"
+                                ? "gap-2.5 ps-2.5 pe-9 py-2 rounded-lg text-[13px] font-medium"
+                                : "gap-3 ps-3 pe-10 py-2.5 rounded-xl text-[13.5px] sm:text-sm font-medium",
                             active
                               ? collapsed
                                 ? cn("shadow-md ring-2 ring-white/10", catStyle.iconBoxActive)
+                                : preferences.mode === "explorer"
+                                  ? "border border-sidebar-border/70 bg-sidebar-accent/70 text-foreground"
                                 : cn(
-                                    "text-foreground font-semibold shadow-sm border",
+                                    "text-foreground font-semibold border",
                                     catStyle.activeBg,
                                   )
                               : collapsed
                                 ? "text-muted-foreground hover:bg-surface-2 hover:text-foreground hover:scale-105"
-                                : "text-muted-foreground hover:bg-sidebar-accent/70 hover:text-foreground",
+                                : preferences.mode === "explorer"
+                                  ? "text-muted-foreground hover:bg-sidebar-accent/50 hover:text-foreground"
+                                  : "text-muted-foreground hover:bg-sidebar-accent/70 hover:text-foreground",
                           )}
                         >
                           {active && !collapsed && (
                             <span
                               className={cn(
                                 "absolute inset-y-2 w-[3.5px] rounded-full",
-                                catStyle.accentPill,
+                                preferences.mode === "explorer" ? "bg-primary" : catStyle.accentPill,
                                 dir === "rtl" ? "right-0" : "left-0",
                               )}
                             />
@@ -832,8 +693,14 @@ const SidebarContents = memo(function SidebarContents({
                               collapsed
                                 ? "h-full w-full"
                                 : cn(
-                                    cn("h-7 w-7", iconShapeClass),
-                                    active ? catStyle.iconBoxActive : catStyle.iconBoxInactive,
+                                    preferences.mode === "explorer"
+                                      ? "h-6 w-6"
+                                      : cn("h-7 w-7", iconShapeClass),
+                                    preferences.mode === "explorer"
+                                      ? "bg-transparent"
+                                      : active
+                                        ? catStyle.iconBoxActive
+                                        : catStyle.iconBoxInactive,
                                   ),
                             )}
                           >

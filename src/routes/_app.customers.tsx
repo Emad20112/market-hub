@@ -42,7 +42,7 @@ import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { useI18n } from "@/lib/i18n";
 import { money } from "@/lib/format";
-import { toSystemDigits } from "@/lib/format-preferences";
+import { toSystemDigits, formatSystemNumber } from "@/lib/format-preferences";
 import { useDebtIndex } from "@/hooks/use-debts-overview";
 import { StatementIntegrityBadge } from "@/components/statements/statement-integrity-badge";
 import { VortexCollectionSheet, VortexMetricCard } from "@/components/vortex-ui";
@@ -132,6 +132,7 @@ function handleCustomerSMS(customer: Customer, lang: "ar" | "en") {
 
 function CustomersPage() {
   const { t, lang } = useI18n();
+  const [, setDigitPreferenceVersion] = useState(0);
   const { isModuleEnabled } = useModules();
   const navigate = useNavigate();
   const qc = useQueryClient();
@@ -163,6 +164,16 @@ function CustomersPage() {
   const [detailTab, setDetailTab] = useState<"all" | "invoices" | "payments">("all");
   const [custodyBalances, setCustodyBalances] = useState<CustodyBalance[]>([]);
   const [custodyMoney, setCustodyMoney] = useState<CustodyMoneyRow[]>([]);
+
+  useEffect(() => {
+    const sync = () => setDigitPreferenceVersion((version) => version + 1);
+    window.addEventListener("vortex_digit_preference_changed", sync);
+    window.addEventListener("storage", sync);
+    return () => {
+      window.removeEventListener("vortex_digit_preference_changed", sync);
+      window.removeEventListener("storage", sync);
+    };
+  }, []);
   const menuRef = useRef<HTMLDivElement>(null);
 
   // أرصدة مؤكَّدة من الدفتر
@@ -1392,7 +1403,7 @@ function CustomersPage() {
           onClick={() => setSelected(null)}
         >
           <div
-            className="h-full w-full max-w-lg border-s border-border/80 bg-background/95 backdrop-blur-md p-6 shadow-2xl overflow-y-auto animate-in slide-in-from-left duration-200"
+            className="relative h-full w-full max-w-2xl border-s border-border/80 bg-background/95 backdrop-blur-md p-5 sm:p-6 shadow-2xl overflow-y-auto animate-in slide-in-from-left duration-200"
             onClick={(e) => e.stopPropagation()}
             dir={lang === "ar" ? "rtl" : "ltr"}
           >
@@ -1429,7 +1440,7 @@ function CustomersPage() {
             </div>
 
             {/* Financial Overview Cards */}
-            <div className="mt-5 grid grid-cols-2 gap-3">
+            <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
               <MiniStat
                 label={lang === "ar" ? "الرصيد الدفتري" : "Ledger Balance"}
                 value={money(selectedBalance)}
@@ -1462,7 +1473,7 @@ function CustomersPage() {
             </div>
 
             {/* Quick Actions Strip */}
-            <div className="mt-5 flex items-center gap-2 flex-wrap">
+            <div className="mt-5 rounded-2xl border border-border/70 bg-card/70 p-3 flex items-center gap-2 flex-wrap">
               <CustomerCommunicationMenu
                 customer={{
                   id: selected.id,
@@ -1549,12 +1560,12 @@ function CustomersPage() {
                           <span className="flex items-center gap-2 font-mono text-[11px]">
                             {b.bags_balance > 0 && (
                               <span className="text-foreground">
-                                {b.bags_balance.toLocaleString("ar-EG")} كيس
+                                {toSystemDigits(formatSystemNumber(b.bags_balance, { decimals: 0 }))} كيس
                               </span>
                             )}
                             {b.kg_balance > 0 && (
                               <span className="text-muted-foreground">
-                                {b.kg_balance.toLocaleString("ar-EG")} كجم
+                                {toSystemDigits(formatSystemNumber(b.kg_balance, { decimals: 2 }))} كجم
                               </span>
                             )}
                           </span>
@@ -1579,10 +1590,10 @@ function CustomersPage() {
                             </span>
                           </span>
                           <span className="font-mono text-[11px] text-foreground">
-                            {Number(m.total).toLocaleString("ar-EG")}
+                            {toSystemDigits(formatSystemNumber(Number(m.total), { decimals: 2 }))}
                             {m.outstanding > 0 && (
                               <span className="ms-2 text-amber-600 dark:text-amber-300">
-                                ({Number(m.outstanding).toLocaleString("ar-EG")} متبقٍ)
+                                ({toSystemDigits(formatSystemNumber(Number(m.outstanding), { decimals: 2 }))} متبقٍ)
                               </span>
                             )}
                           </span>
@@ -1594,7 +1605,7 @@ function CustomersPage() {
               )}
 
             {/* Activity Tabs */}
-            <div className="mt-6 flex items-center gap-1 border-b border-border/80 pb-2">
+            <div className="mt-6 flex items-center gap-1 rounded-xl border border-border/70 bg-card/60 p-1">
               {(["all", "invoices", "payments"] as const).map((tab) => (
                 <button
                   key={tab}
@@ -1693,9 +1704,9 @@ function CustomersPage() {
 
 function MiniStat({ label, value, color }: { label: string; value: string; color?: string }) {
   return (
-    <div className="rounded-2xl border border-border/60 bg-surface/60 p-3 text-center">
-      <div className="text-[10px] font-medium text-muted-foreground">{label}</div>
-      <div className={`font-mono text-sm font-bold mt-1 ${color ?? "text-foreground"}`}>
+    <div className="rounded-2xl border border-border/70 bg-card/80 p-3 text-center shadow-xs">
+      <div className="text-[10px] font-semibold text-muted-foreground">{label}</div>
+      <div className={`font-mono text-base tabular-nums font-black mt-1 ${color ?? "text-foreground"}`}>
         <Ltr>{value}</Ltr>
       </div>
     </div>

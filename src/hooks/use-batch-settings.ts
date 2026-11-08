@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { saveBatchSettingsFn } from "@/server/api/inventory/save-batch-settings";
 import { toast } from "sonner";
 
 export type BatchDispatchStrategy = "FEFO" | "FIFO" | "MANUAL";
@@ -93,14 +94,12 @@ export function useBatchSettings() {
       // Save to localStorage immediately
       setLocalBatchSettings(merged);
 
-      // Try RPC first, fallback to table update
+      // Backend (Use Case) أولاً — والرجوع للتحديث المباشر عند فشل البنية
       try {
-        const { error: rpcErr } = await supabase.rpc("save_batch_settings" as any, {
-          p_settings: merged,
-        });
-        if (!rpcErr) return merged;
+        const res = await saveBatchSettingsFn({ data: { settings: merged } });
+        if (res?.ok) return merged;
       } catch {
-        // RPC might not exist or failed, fallback to direct update
+        // fallback below preserves the previous behavior
       }
 
       const { data: existing } = await supabase

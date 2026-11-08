@@ -55,7 +55,13 @@ if (includeDemoData) {
 
 const client = new Client({
   connectionString,
-  ssl: { rejectUnauthorized: true },
+  ssl: {
+    // بعض الشبكات المحلية (حماية/VPN) تستبدل شهادة الخادم بشهادة وسيطة
+    // مُوقَّعة ذاتياً فيتوقف الاتصال بـ SELF_SIGNED_CERT_IN_CHAIN. نسمح
+    // بتجاوز التحقق التفصيلي فقط عند تمرير متغير البيانات الكلوي
+    // CLOUD_SEEDS_INSECURE_TLS=1 — والاتصال يبقى مشفراً.
+    rejectUnauthorized: process.env.CLOUD_SEEDS_INSECURE_TLS !== "1",
+  },
   connectionTimeoutMillis: 15000,
 });
 

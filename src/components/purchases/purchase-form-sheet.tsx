@@ -26,6 +26,7 @@ import {
 } from "lucide-react";
 
 import { supabase } from "@/integrations/supabase/client";
+import { createPurchaseFn } from "@/server/api/purchasing/create-purchase";
 import { VortexDrawerDialog } from "@/components/vortex-ui";
 import { FormField } from "@/components/ui/form-field";
 import { FieldInput, NumberInput } from "@/components/ui/input";
@@ -356,24 +357,26 @@ export function PurchaseFormSheet({
 
     setSaving(true);
     try {
-      const { error } = await supabase.rpc("create_purchase", {
-        _warehouse_id: warehouseId,
-        _supplier_id: supplierId,
-        // Catalogue id -> the value the ENUM stores, at the RPC boundary only.
-        _payment_method: toLegacyPaymentValue(paymentMethod),
-        _paid: paymentMethod === "credit" ? 0 : (paid ?? total),
-        _discount: Number(discount ?? 0),
-        _note: (note || null) as never,
-        _items: cart.map((l) => ({
-          product_id: l.product_id,
-          quantity: Number(l.quantity),
-          unit_cost: Number(l.unit_cost),
-          tax_rate: Number(l.tax_rate),
-          batch_number: l.batch_number.trim() || null,
-          expiry_date: l.expiry_date || null,
-        })),
+      // المرحلة 8: نفس الذرّية عبر server function بدل RPC (create_purchase سابقًا).
+      await createPurchaseFn({
+        data: {
+          warehouseId: warehouseId,
+          supplierId: supplierId,
+          // Catalogue id -> the value the ENUM stores, at the RPC boundary only.
+          paymentMethod: toLegacyPaymentValue(paymentMethod),
+          paid: paymentMethod === "credit" ? 0 : (paid ?? total),
+          discount: Number(discount ?? 0),
+          note: (note || null) as never,
+          items: cart.map((l) => ({
+            productId: l.product_id,
+            quantity: Number(l.quantity),
+            unitCost: Number(l.unit_cost),
+            taxRate: Number(l.tax_rate),
+            batchNumber: l.batch_number.trim() || null,
+            expiryDate: l.expiry_date || null,
+          })),
+        },
       });
-      if (error) throw error;
       toast.success(t("purchases.recorded"));
       resetForm();
       onOpenChange(false);

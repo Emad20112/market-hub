@@ -48,6 +48,7 @@ import { LuxuryPrintPreviewModal } from "@/components/luxury-print-preview-modal
 import { type MillingTicketStage } from "@/components/milling/unified-print-modal";
 import { DocumentShareDialog } from "@/components/communication/document-share-dialog";
 import type { PrintRequest } from "@/lib/printing";
+import { useNegativeCustodySetting } from "@/hooks/use-negative-custody-setting";
 
 export function MillingDocumentWorkflow({
   document,
@@ -57,6 +58,8 @@ export function MillingDocumentWorkflow({
   onClose?: () => void;
 }) {
   const qc = useQueryClient();
+  const negativeCustody = useNegativeCustodySetting();
+  const allowNegativeCustodyDelivery = negativeCustody.data === true;
   const [grainItemId, setGrainItemId] = useState("");
   const [bagsOut, setBagsOut] = useState("");
   const [kgOut, setKgOut] = useState("");
@@ -146,7 +149,7 @@ export function MillingDocumentWorkflow({
   );
 
   const availableOutputsForDelivery = (details?.outputsSummary ?? []).filter(
-    (o) => o.bagsRemaining > 0 || o.kgRemaining > 0,
+    (o) => allowNegativeCustodyDelivery || o.bagsRemaining > 0 || o.kgRemaining > 0,
   );
 
   const canDeliver =
@@ -311,6 +314,11 @@ export function MillingDocumentWorkflow({
             title="2. عملية الطحن"
             subtitle="تسجيل الحبوب المطحونة ونواتجها تحت نفس المستند والفاتورة."
           />
+          {allowNegativeCustodyDelivery && (
+            <div className="mx-4 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-[11px] leading-5 text-amber-800 dark:text-amber-200">
+              تسليم الأمانات بالسالب مفعّل. تجاوز النواتج المسجلة سيُظهر عجزاً على رصيد العميل.
+            </div>
+          )}
           <div className="space-y-3 p-4">
             {!hasGrainToProcess ? (
               <div className="flex items-center gap-2 rounded-xl bg-emerald-500/10 p-3 text-xs font-semibold text-emerald-700 dark:text-emerald-300">

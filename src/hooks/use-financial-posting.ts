@@ -1,6 +1,9 @@
 import { useState, useCallback } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { recordCustomerPaymentFn } from "@/server/api/treasury/record-customer-payment";
+import { recordCustomerAdvancePaymentFn as recordAdvanceFn } from "@/server/api/treasury/record-customer-advance-payment";
+import { recordSupplierPaymentFn } from "@/server/api/treasury/record-supplier-payment";
 import { toast } from "sonner";
 import { useI18n } from "@/lib/i18n";
 import { toLegacyPaymentValue } from "@/lib/payments/payment-methods";
@@ -101,51 +104,51 @@ export function useFinancialPosting() {
         let voucherNumber: string | undefined;
 
         if (type === "customer_collection" || params.partyType === "customer") {
-          const rpcName =
-            collectionMode === "advance"
-              ? "record_customer_advance_payment"
-              : "record_customer_payment";
-
+          // المرحلة 7: نفس الذرّية عبر server functions بدل RPC.
           let data: any = null;
           let error: any = null;
 
           if (collectionMode === "advance") {
-            const res = await (supabase as any).rpc(rpcName, {
-              _customer_id: partyId,
-              _amount: amount,
-              _method: method,
-              _payment_date: paymentDate,
-              _note: fullNote || null,
+            const res = await recordAdvanceFn({
+              data: {
+                customerId: partyId,
+                amount: amount,
+                method: method,
+                paymentDate: paymentDate,
+                note: fullNote || null,
+              },
             });
-            data = res.data;
-            error = res.error;
+            data = res;
+            error = null;
           } else {
             // Use the full signature so treasury routing and cheque details are
             // posted atomically with the customer receipt.
-            const res = await (supabase as any).rpc("record_customer_payment", {
-              _customer_id: partyId,
-              _invoice_id: invoiceId || null,
-              _amount: amount,
-              _method: params.paymentMethodId || method,
-              _payment_date: paymentDate,
-              _note: fullNote || null,
-              _cashbox_id: params.cashboxId || null,
-              _bank_account_id: params.bankAccountId || null,
-              _payment_method_id: params.paymentMethodId || method || null,
-              _cheque_number: params.chequeNumber || null,
-              _cheque_bank: params.chequeBank || null,
-              _cheque_due_date: params.chequeDueDate || null,
-              _cheque_drawer: params.chequeDrawer || null,
+            const res = await recordCustomerPaymentFn({
+              data: {
+                customerId: partyId,
+                invoiceId: invoiceId || null,
+                amount: amount,
+                method: params.paymentMethodId || method,
+                paymentDate: paymentDate,
+                note: fullNote || null,
+                cashboxId: params.cashboxId || null,
+                bankAccountId: params.bankAccountId || null,
+                paymentMethodId: params.paymentMethodId || method || null,
+                chequeNumber: params.chequeNumber || null,
+                chequeBank: params.chequeBank || null,
+                chequeDueDate: params.chequeDueDate || null,
+                chequeDrawer: params.chequeDrawer || null,
+              },
             });
-            data = res.data;
-            error = res.error;
+            data = res;
+            error = null;
           }
 
           if (error) {
             console.error("RPC record_customer_payment failed:", error);
             throw error;
           }
-          paymentId = typeof data === "string" ? data : data?.id || undefined;
+          paymentId = typeof data === "string" ? data : data?.paymentId || data?.id || undefined;
           if (!paymentId) {
             throw new Error(
               lang === "ar"
@@ -182,23 +185,24 @@ export function useFinancialPosting() {
             );
           }
 
-          // Use atomic record_supplier_payment RPC first (Dr 2111 / Cr cashbox/bank)
+          // المرحلة 7: سند صرف المورد عبر server function ذرّية (Dr 2111 / Cr الصندوق/البنك).
           try {
-            const res = await (supabase as any).rpc("record_supplier_payment", {
-              p_supplier_id: partyId,
-              p_amount: amount,
-              p_payment_method: toLegacyPaymentValue(method).toUpperCase(),
-              p_account_code: params.accountId || null,
-              p_payment_date: paymentDate,
-              p_notes: fullNote || null,
-              p_cashbox_id: params.cashboxId || null,
-              p_bank_account_id: params.bankAccountId || null,
+            const res = await recordSupplierPaymentFn({
+              data: {
+                supplierId: partyId,
+                amount: amount,
+                paymentMethod: toLegacyPaymentValue(method).toUpperCase(),
+                accountCode: params.accountId || null,
+                paymentDate: paymentDate,
+                notes: fullNote || null,
+                cashboxId: params.cashboxId || null,
+                bankAccountId: params.bankAccountId || null,
+              },
             });
-            if (res.error) throw res.error;
-            paymentId = res.data?.payment_id || res.data?.id;
-            voucherNumber = res.data?.voucher_number;
+            paymentId = res.paymentId;
+            voucherNumber = res.voucherNumber;
           } catch (rpcErr) {
-            console.warn("RPC record_supplier_payment fallback to direct insert:", rpcErr);
+            console.warn("record_supplier_payment fallback to direct insert:", rpcErr);
             const dbMethod = toLegacyPaymentValue(method);
             const { data, error } = await (supabase as any)
               .from("supplier_payments")

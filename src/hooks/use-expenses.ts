@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Expense module — data access hooks.
  *
  * Every read goes through a server-side function from
@@ -18,6 +18,18 @@ import {
   type QueryClient,
 } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { createExpenseFn } from "@/server/api/expenses/create-expense";
+import {
+  cancelExpenseFn,
+  closeExpenseFn,
+  decideExpenseFn,
+  postExpenseFn,
+  recordExpensePaymentFn,
+  reverseExpenseFn,
+  reverseExpensePaymentFn,
+  submitExpenseFn,
+  updateExpenseFn,
+} from "@/server/api/expenses/expense-transitions";
 import { useI18n } from "@/lib/i18n";
 import { toLegacyPaymentValue } from "@/lib/payments/payment-methods";
 import { toast } from "sonner";
@@ -347,29 +359,30 @@ export function useExpenseMutations() {
 
   const create = useMutation({
     mutationFn: async (input: CreateExpenseInput): Promise<ExpenseEntry> => {
-      const { data, error } = await (supabase as any).rpc("create_expense_v2", {
-        p_lines: input.lines,
-        p_expense_date: input.expense_date,
-        p_due_date: input.due_date || null,
-        p_entry_type: input.entry_type ?? "DIRECT",
-        p_payee_type: input.payee_type ?? "NONE",
-        p_payee_name: input.payee_name || null,
-        p_supplier_id: input.supplier_id || null,
-        p_employee_id: input.employee_id || null,
-        p_warehouse_id: input.warehouse_id || null,
-        p_cost_center_id: input.cost_center_id || null,
-        p_project_id: input.project_id || null,
-        p_description: input.description || null,
-        p_note: input.note || null,
-        p_tax_mode: input.tax_mode ?? "NONE",
-        p_tax_recoverable: input.tax_recoverable ?? false,
-        p_supplier_invoice_number: input.supplier_invoice_number || null,
-        p_idempotency_key: input.idempotency_key || null,
-        p_reference: input.reference || null,
-        p_submit: input.submit ?? false,
+      const res = await createExpenseFn({
+        data: {
+          lines: input.lines,
+          expenseDate: input.expense_date,
+          dueDate: input.due_date || null,
+          entryType: input.entry_type ?? "DIRECT",
+          payeeType: input.payee_type ?? "NONE",
+          payeeName: input.payee_name || null,
+          supplierId: input.supplier_id || null,
+          employeeId: input.employee_id || null,
+          warehouseId: input.warehouse_id || null,
+          costCenterId: input.cost_center_id || null,
+          projectId: input.project_id || null,
+          description: input.description || null,
+          note: input.note || null,
+          taxMode: input.tax_mode ?? "NONE",
+          taxRecoverable: input.tax_recoverable ?? false,
+          supplierInvoiceNumber: input.supplier_invoice_number || null,
+          idempotencyKey: input.idempotency_key || null,
+          reference: input.reference || null,
+          submit: input.submit ?? false,
+        },
       });
-      if (error) throw error;
-      return data as ExpenseEntry;
+      return (res as unknown as { entry: ExpenseEntry }).entry;
     },
     onSuccess: (entry) => {
       invalidateExpenses(client, entry?.id);
@@ -394,28 +407,29 @@ export function useExpenseMutations() {
       header: Partial<CreateExpenseInput>;
     }): Promise<ExpenseEntry> => {
       const h = input.header;
-      const { data, error } = await (supabase as any).rpc("update_expense_v2", {
-        p_entry_id: input.id,
-        p_expected_version: input.version,
-        p_lines: input.lines,
-        p_expense_date: h.expense_date ?? null,
-        p_due_date: h.due_date || null,
-        p_entry_type: h.entry_type ?? null,
-        p_payee_type: h.payee_type ?? null,
-        p_payee_name: h.payee_name || null,
-        p_supplier_id: h.supplier_id || null,
-        p_employee_id: h.employee_id || null,
-        p_warehouse_id: h.warehouse_id || null,
-        p_cost_center_id: h.cost_center_id || null,
-        p_project_id: h.project_id || null,
-        p_description: h.description || null,
-        p_note: h.note || null,
-        p_tax_mode: h.tax_mode ?? null,
-        p_tax_recoverable: h.tax_recoverable ?? false,
-        p_supplier_invoice_number: h.supplier_invoice_number || null,
+      const res = await updateExpenseFn({
+        data: {
+          entryId: input.id,
+          expectedVersion: input.version,
+          lines: input.lines,
+          expenseDate: h.expense_date ?? null,
+          dueDate: h.due_date || null,
+          entryType: h.entry_type ?? null,
+          payeeType: h.payee_type ?? null,
+          payeeName: h.payee_name || null,
+          supplierId: h.supplier_id || null,
+          employeeId: h.employee_id || null,
+          warehouseId: h.warehouse_id || null,
+          costCenterId: h.cost_center_id || null,
+          projectId: h.project_id || null,
+          description: h.description || null,
+          note: h.note || null,
+          taxMode: h.tax_mode ?? null,
+          taxRecoverable: h.tax_recoverable ?? false,
+          supplierInvoiceNumber: h.supplier_invoice_number || null,
+        },
       });
-      if (error) throw error;
-      return data as ExpenseEntry;
+      return (res as unknown as { entry: ExpenseEntry }).entry;
     },
     onSuccess: (entry) => {
       invalidateExpenses(client, entry?.id);
@@ -426,12 +440,10 @@ export function useExpenseMutations() {
 
   const submit = useMutation({
     mutationFn: async (input: { id: string; version: number }): Promise<ExpenseEntry> => {
-      const { data, error } = await (supabase as any).rpc("submit_expense", {
-        p_entry_id: input.id,
-        p_expected_version: input.version,
+      const res = await submitExpenseFn({
+        data: { entryId: input.id, expectedVersion: input.version },
       });
-      if (error) throw error;
-      return data as ExpenseEntry;
+      return (res as unknown as { entry: ExpenseEntry }).entry;
     },
     onSuccess: (entry) => {
       invalidateExpenses(client, entry?.id);
@@ -447,14 +459,15 @@ export function useExpenseMutations() {
       reason?: string;
       version: number;
     }): Promise<ExpenseEntry> => {
-      const { data, error } = await (supabase as any).rpc("decide_expense", {
-        p_entry_id: input.id,
-        p_approve: input.approve,
-        p_reason: input.reason || null,
-        p_expected_version: input.version,
+      const res = await decideExpenseFn({
+        data: {
+          entryId: input.id,
+          approve: input.approve,
+          reason: input.reason || null,
+          expectedVersion: input.version,
+        },
       });
-      if (error) throw error;
-      return data as ExpenseEntry;
+      return (res as unknown as { entry: ExpenseEntry }).entry;
     },
     onSuccess: (entry, variables) => {
       invalidateExpenses(client, entry?.id);
@@ -492,22 +505,22 @@ export function useExpenseMutations() {
       paymentDate?: string | null;
       referenceNo?: string | null;
     }): Promise<ExpenseEntry> => {
-      const { data, error } = await (supabase as any).rpc("post_expense", {
-        p_entry_id: input.id,
-        p_expected_version: input.version,
-        p_pay_now: input.payNow,
-        p_payment_method: toLegacyPaymentValue(input.paymentMethod ?? "cash"),
-        p_account_label: input.accountLabel || null,
-        p_payment_date: input.paymentDate || null,
-        p_idempotency_key: input.payNow ? `post:${input.id}` : null,
-        p_account_id: input.accountId || null,
-        p_cashbox_id: input.cashboxId || null,
-        p_bank_account_id: input.bankAccountId || null,
-        p_payment_method_id: input.paymentMethodId || null,
+      const res = await postExpenseFn({
+        data: {
+          entryId: input.id,
+          expectedVersion: input.version,
+          payNow: input.payNow,
+          paymentMethod: toLegacyPaymentValue(input.paymentMethod ?? "cash"),
+          accountLabel: input.accountLabel || null,
+          paymentDate: input.paymentDate || null,
+          idempotencyKey: input.payNow ? `post:${input.id}` : null,
+          accountId: input.accountId || null,
+          cashboxId: input.cashboxId || null,
+          bankAccountId: input.bankAccountId || null,
+          paymentMethodId: input.paymentMethodId || null,
+        },
       });
-      if (error) throw error;
-
-      return data as ExpenseEntry;
+      return (res as unknown as { entry: ExpenseEntry }).entry;
     },
     onSuccess: (entry, variables) => {
       invalidateExpenses(client, entry?.id);
@@ -543,23 +556,23 @@ export function useExpenseMutations() {
        */
       idempotencyKey?: string;
     }): Promise<ExpenseEntry> => {
-      const { data, error } = await (supabase as any).rpc("record_expense_payment", {
-        p_entry_id: input.id,
-        p_amount: input.amount,
-        p_payment_date: input.paymentDate || null,
-        p_payment_method: toLegacyPaymentValue(input.paymentMethod ?? "cash"),
-        p_account_label: input.accountLabel || null,
-        p_reference_no: input.referenceNo || null,
-        p_note: input.note || null,
-        p_idempotency_key: input.idempotencyKey || makeIdempotencyKey(`pay:${input.id}`),
-        p_account_id: input.accountId || null,
-        p_cashbox_id: input.cashboxId || null,
-        p_bank_account_id: input.bankAccountId || null,
-        p_payment_method_id: input.paymentMethodId || null,
+      const res = await recordExpensePaymentFn({
+        data: {
+          entryId: input.id,
+          amount: input.amount,
+          paymentDate: input.paymentDate || null,
+          paymentMethod: toLegacyPaymentValue(input.paymentMethod ?? "cash"),
+          accountLabel: input.accountLabel || null,
+          referenceNo: input.referenceNo || null,
+          note: input.note || null,
+          idempotencyKey: input.idempotencyKey || makeIdempotencyKey(`pay:${input.id}`),
+          accountId: input.accountId || null,
+          cashboxId: input.cashboxId || null,
+          bankAccountId: input.bankAccountId || null,
+          paymentMethodId: input.paymentMethodId || null,
+        },
       });
-      if (error) throw error;
-
-      return data as ExpenseEntry;
+      return (res as unknown as { entry: ExpenseEntry }).entry;
     },
     onSuccess: (entry) => {
       invalidateExpenses(client, entry?.id);
@@ -578,13 +591,10 @@ export function useExpenseMutations() {
 
   const cancel = useMutation({
     mutationFn: async (input: { id: string; reason: string; version: number }) => {
-      const { data, error } = await (supabase as any).rpc("cancel_expense", {
-        p_entry_id: input.id,
-        p_reason: input.reason,
-        p_expected_version: input.version,
+      const res = await cancelExpenseFn({
+        data: { entryId: input.id, reason: input.reason, expectedVersion: input.version },
       });
-      if (error) throw error;
-      return data as ExpenseEntry;
+      return (res as unknown as { entry: ExpenseEntry }).entry;
     },
     onSuccess: (entry) => {
       invalidateExpenses(client, entry?.id);
@@ -595,12 +605,10 @@ export function useExpenseMutations() {
 
   const reverse = useMutation({
     mutationFn: async (input: { id: string; reason?: string }) => {
-      const { data, error } = await (supabase as any).rpc("reverse_expense", {
-        p_entry_id: input.id,
-        p_reason: input.reason || null,
+      const res = await reverseExpenseFn({
+        data: { entryId: input.id, reason: input.reason || null },
       });
-      if (error) throw error;
-      return data as ExpenseEntry;
+      return (res as unknown as { entry: ExpenseEntry }).entry;
     },
     onSuccess: (entry) => {
       invalidateExpenses(client, entry?.id);
@@ -611,12 +619,10 @@ export function useExpenseMutations() {
 
   const reversePayment = useMutation({
     mutationFn: async (input: { paymentId: string; entryId: string; reason?: string }) => {
-      const { data, error } = await (supabase as any).rpc("reverse_expense_payment", {
-        p_payment_id: input.paymentId,
-        p_reason: input.reason || null,
+      const res = await reverseExpensePaymentFn({
+        data: { paymentId: input.paymentId, reason: input.reason || null },
       });
-      if (error) throw error;
-      return data as ExpenseEntry;
+      return (res as unknown as { entry: ExpenseEntry }).entry;
     },
     onSuccess: (entry) => {
       invalidateExpenses(client, entry?.id);
@@ -627,11 +633,8 @@ export function useExpenseMutations() {
 
   const close = useMutation({
     mutationFn: async (input: { id: string }) => {
-      const { data, error } = await (supabase as any).rpc("close_expense", {
-        p_entry_id: input.id,
-      });
-      if (error) throw error;
-      return data as ExpenseEntry;
+      const res = await closeExpenseFn({ data: { entryId: input.id } });
+      return (res as unknown as { entry: ExpenseEntry }).entry;
     },
     onSuccess: (entry) => {
       invalidateExpenses(client, entry?.id);

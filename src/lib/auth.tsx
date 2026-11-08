@@ -120,6 +120,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const userId = nextSession.user.id;
       const isNewPermissionIdentity = permissionUserIdRef.current !== userId;
 
+      // Keep the in-memory permissions for this identity for the whole auth
+      // session. Token refreshes and tab focus must not re-fetch roles or block
+      // an in-progress transaction.
+      if (!isNewPermissionIdentity) {
+        setSession(nextSession);
+        setLoading(false);
+        return;
+      }
+
       // لا نحمّل صلاحيات قديمة من localStorage؛ يبقى المستخدم محجوبًا عن الصفحات
       // المحمية حتى تُقرأ الأدوار والحالة الحالية من قاعدة البيانات.
       setSession(nextSession);
@@ -204,20 +213,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
 
     const refreshPermissions = () => {
-      const requestSeq = loadSeq.current;
       void getSessionWithTimeout()
         .then(({ data, error }) => {
           if (error) throw error;
-          if (data.session) void applySession(data.session);
-          else void applySession(null);
+          const nextUserId = data.session?.user.id ?? null;
+          if (nextUserId !== permissionUserIdRef.current) void applySession(data.session);
+          else setSession(data.session);
         })
-        .catch((error) => {
-          if (requestSeq === loadSeq.current) failSessionCheck(error);
-        });
+        .catch(failSessionCheck);
     };
     retryPermissionLoadRef.current = refreshPermissions;
-    window.addEventListener("focus", refreshPermissions);
-    const permissionRefreshTimer = window.setInterval(refreshPermissions, 5 * 60 * 1000);
 
     getSessionWithTimeout()
       .then(({ data, error }) => {
@@ -228,8 +233,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     return () => {
       alive = false;
-      window.removeEventListener("focus", refreshPermissions);
-      window.clearInterval(permissionRefreshTimer);
       sub.subscription.unsubscribe();
     };
     // `queryClient` is a stable reference for the app's lifetime (created once in

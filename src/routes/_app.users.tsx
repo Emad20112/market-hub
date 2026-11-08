@@ -1,6 +1,7 @@
 import { useModules } from "@/lib/modules";
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
+import { activateProfile } from "@/server/api/identity/set-profile-active";
 import { PageHeader } from "@/components/page-header";
 import { useI18n } from "@/lib/i18n";
 import { useAuth } from "@/lib/auth";
@@ -376,12 +377,11 @@ function UsersPage() {
     )
       return;
 
-    const { error } = await (supabase as any).rpc("set_profile_active", {
-      p_user_id: userId,
-      p_is_active: active,
-    });
-
-    if (error) return toast.error(error.message);
+    try {
+      await activateProfile({ data: { userId, isActive: active } });
+    } catch (err) {
+      return toast.error((err as Error).message);
+    }
     toast.success(
       active
         ? isAr

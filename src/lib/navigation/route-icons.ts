@@ -103,6 +103,7 @@ const ICONS: Record<string, LucideIcon> = {
   "chart-of-accounts": FolderTree,
   milling: Scale,
   "milling-intake": PackagePlus,
+  "milling-records": FileText,
   "milling-milling": Cog,
   "milling-manufacture": Factory,
   "milling-performance": BarChart3,

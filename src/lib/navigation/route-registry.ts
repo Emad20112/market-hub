@@ -909,6 +909,24 @@ export const ROUTE_REGISTRY: RouteSearchEntry[] = [
     i18nKey: "nav.milling_intake",
   },
   {
+    id: "milling-records",
+    path: "/milling/records",
+    titleAr: "سجلات الاستلام والتسليم",
+    titleEn: "Custody Records",
+    descriptionAr:
+      "سجل مستندات الاستلام والتسليم وفواتير الأجور مع إعادة الطباعة والتحصيل ومشاركة واتساب",
+    descriptionEn:
+      "Custody intake & delivery documents, fee invoices, reprinting, collection and WhatsApp share",
+    keywords: withSynonyms(
+      ["سجلات", "مستندات", "استلام", "تسليم", "فواتير", "أجور", "طباعة", "records", "documents"],
+      SEARCH_SYNONYMS.milling,
+    ),
+    category: "milling",
+    moduleId: "milling_operations",
+    requiredRoles: ["owner", "manager", "accountant", "warehouse", "cashier"],
+    i18nKey: "nav.milling_records",
+  },
+  {
     id: "milling-milling",
     path: "/milling/milling",
     titleAr: "طحن الأمانات",
@@ -925,7 +943,7 @@ export const ROUTE_REGISTRY: RouteSearchEntry[] = [
     path: "/milling/delivery",
     titleAr: "تسليم الحبوب والنواتج",
     titleEn: "Custody Delivery",
-    descriptionAr: "تسليم النواتج والحبوب لصاحب الأمانة بسند تسليم رسمي",
+    descriptionAr: "تسليم النواتج والحبوب للعميل بسند تسليم رسمي",
     descriptionEn: "Deliver custody outputs with an official delivery voucher",
     keywords: withSynonyms(["تسليم", "سند تسليم", "نواتج", "delivery"], SEARCH_SYNONYMS.milling),
     category: "milling",

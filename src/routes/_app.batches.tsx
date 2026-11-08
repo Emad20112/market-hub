@@ -1,4 +1,4 @@
-import { ModuleGuard, useModules } from "@/lib/modules";
+﻿import { ModuleGuard, useModules } from "@/lib/modules";
 import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -15,6 +15,8 @@ import {
   Settings2,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { getBatchKpisFn } from "@/server/api/inventory/get-batch-kpis";
+import { deleteProductBatchFn } from "@/server/api/inventory/delete-product-batch";
 import { PageHeader } from "@/components/page-header";
 import { useI18n } from "@/lib/i18n";
 import { toast } from "sonner";
@@ -273,19 +275,10 @@ function BatchesPage() {
     queryKey: ["batch-kpis", settings.warning_days],
     queryFn: async () => {
       try {
-        const { data, error } = await supabase.rpc("get_batch_kpis" as any, {
-          p_warning_days: settings.warning_days || 30,
+        const res = await getBatchKpisFn({
+          data: { warningDays: settings.warning_days || 30 },
         });
-        if (!error && data) {
-          return data as {
-            total: number;
-            expired: number;
-            soon: number;
-            valid: number;
-            none: number;
-            at_risk: number;
-          };
-        }
+        if (res?.kpis) return res.kpis;
       } catch {
         // fallback
       }
@@ -385,11 +378,11 @@ function BatchesPage() {
   const remove = useMutation({
     mutationFn: async (id: string) => {
       try {
-        const { error } = await supabase.rpc("delete_product_batch" as any, {
-          p_batch_id: id,
-          p_sync_inventory: settings.auto_sync_inventory,
+        const res = await deleteProductBatchFn({
+          data: { batchId: id, syncInventory: settings.auto_sync_inventory },
         });
-        if (!error) return;
+        if (res?.deleted) return;
+        if (res && res.deleted === false) return; // الدفعة غير موجودة — لا خطأ
       } catch {
         // Fallback
       }

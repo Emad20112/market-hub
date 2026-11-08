@@ -4,19 +4,19 @@ services:
       context: ..
       dockerfile: Dockerfile
       args:
-        VITE_SUPABASE_URL: ${VITE_SUPABASE_URL:?Set VITE_SUPABASE_URL in deploy/.env.production}
+        VITE_SUPABASE_URL: ${VITE_SUPABASE_URL:?Set VITE_SUPABASE_URL in deploy/.env.local-production}
         VITE_SUPABASE_TARGET: ${VITE_SUPABASE_TARGET:?Set VITE_SUPABASE_TARGET to docker or cloud}
-        VITE_SUPABASE_PUBLISHABLE_KEY: ${VITE_SUPABASE_PUBLISHABLE_KEY:?Set VITE_SUPABASE_PUBLISHABLE_KEY in deploy/.env.production}
+        VITE_SUPABASE_PUBLISHABLE_KEY: ${VITE_SUPABASE_PUBLISHABLE_KEY:?Set VITE_SUPABASE_PUBLISHABLE_KEY in deploy/.env.local-production}
     restart: unless-stopped
     env_file:
-      - .env.production
+      - .env.local-production
     environment:
       NODE_ENV: production
       HOST: 0.0.0.0
       PORT: 3000
       VITE_SUPABASE_TARGET: ${VITE_SUPABASE_TARGET:?Set VITE_SUPABASE_TARGET to docker or cloud}
       SUPABASE_TARGET: ${SUPABASE_TARGET:?Set SUPABASE_TARGET to docker or cloud}
-      SUPABASE_URL: ${SUPABASE_URL:?Set SUPABASE_URL in deploy/.env.production}
+      SUPABASE_URL: ${SUPABASE_URL:?Set SUPABASE_URL in deploy/.env.local-production}
       SUPABASE_PUBLISHABLE_KEY: ${SUPABASE_PUBLISHABLE_KEY:-${VITE_SUPABASE_PUBLISHABLE_KEY:?Set a Supabase publishable key}}
       SUPABASE_SECRET_KEY: ${SUPABASE_SECRET_KEY:-${SUPABASE_SERVICE_ROLE_KEY:?Set the server-only Supabase secret key}}
     expose:
@@ -43,29 +43,6 @@ services:
       retries: 3
       start_period: 30s
 
-  proxy:
-    image: caddy:2-alpine
-    restart: unless-stopped
-    depends_on:
-      app:
-        condition: service_healthy
-    environment:
-      APP_DOMAIN: ${APP_DOMAIN:?Set APP_DOMAIN in deploy/.env.production}
-      SUPABASE_DOMAIN: ${SUPABASE_DOMAIN:?Set SUPABASE_DOMAIN in deploy/.env.production}
-    ports:
-      - "80:80"
-      - "443:443"
-      - "443:443/udp"
-    volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile:ro
-      - caddy_data:/data
-      - caddy_config:/config
-    networks:
-      - app_private
-      - supabase_backend
-    security_opt:
-      - no-new-privileges:true
-
 networks:
   app_private:
   # The official self-hosted Supabase Compose project creates this network
@@ -73,7 +50,3 @@ networks:
   supabase_backend:
     external: true
     name: supabase_default
-
-volumes:
-  caddy_data:
-  caddy_config:

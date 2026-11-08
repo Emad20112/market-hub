@@ -122,7 +122,7 @@ export const DEFAULT_UNIFIED_PRINT_SETTINGS: UnifiedPrintSettings = {
   showPaymentInfo: true,
   showNotes: true,
   showFooter: false,
-  showQuickReceipt: true,
+  showQuickReceipt: false,
   standardAccentColor: undefined, // يستخدم اللون الافتراضي الأزرق الملكي
   luxuryAccentColor: undefined, // يستخدم اللون الافتراضي الذهبي الفاخر
   overrides: DEFAULT_DOCUMENT_OVERRIDES,

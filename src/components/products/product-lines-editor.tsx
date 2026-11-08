@@ -194,6 +194,7 @@ export function ProductLinesEditor<T extends ProductPickerItem>({
             <div className="flex min-w-0 shrink-0 items-stretch overflow-x-auto scrollbar-x-none">
               <NumberCell label={bagsLabel} accent="primary" className="w-[62px] sm:w-[76px]">
                 <QuantityInput
+                  data-form-nav
                   decimals={0}
                   min={0}
                   emptyAsZero
@@ -207,6 +208,7 @@ export function ProductLinesEditor<T extends ProductPickerItem>({
 
               <NumberCell label={kgLabel} className="w-[74px] sm:w-[92px]">
                 <QuantityInput
+                  data-form-nav
                   decimals={2}
                   min={0}
                   emptyAsZero

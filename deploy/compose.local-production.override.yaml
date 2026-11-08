@@ -1,10 +1,9 @@
 services:
   app:
+    image: vortex-erp:local-production
+    container_name: vortex-erp-local-production
     env_file: !override
       - .env.local-production
     ports: !override
+      # The app listens on 3000 inside Docker; clients on this PC use 3001.
       - "127.0.0.1:3001:3000"
-
-  # This local-only deployment has no public reverse proxy or public ports.
-  proxy:
-    ports: !override []

@@ -60,7 +60,7 @@ function SettingsPage() {
     invoice_number_period: "year_month",
     invoice_number_digits: 4,
     logo_url: null,
-    barcode_enabled: false,
+    barcode_enabled: true,
   });
   const [hasLoadedSettings, setHasLoadedSettings] = useState(false);
   const [saveState, setSaveState] = useState<"idle" | "saving" | "error">("idle");

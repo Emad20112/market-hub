@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { PageHeader } from "@/components/page-header";
 import { useI18n } from "@/lib/i18n";
 import { supabase } from "@/integrations/supabase/client";
+import { recordSupplierPaymentFn } from "@/server/api/treasury/record-supplier-payment";
 import { money } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -336,34 +337,39 @@ function SupplierLedgerPage() {
       const resolvedAccount = settlement.chartAccountId || payAccount || "1101";
 
       try {
-        const res = await (supabase as any).rpc("record_supplier_payment", {
-          p_supplier_id: selectedSupplierId,
-          p_amount: amt,
-          p_payment_method: resolvedMethod,
-          p_account_code: resolvedAccount,
-          p_payment_date: payDate || new Date().toISOString().slice(0, 10),
-          p_notes: payNotes || null,
-          p_cashbox_id: resolvedMethod === "CASH" ? resolvedCashbox : null,
-          p_bank_account_id: resolvedMethod !== "CASH" ? resolvedBank : null,
+        const res = await recordSupplierPaymentFn({
+          data: {
+            supplierId: selectedSupplierId,
+            amount: amt,
+            paymentMethod: resolvedMethod,
+            accountCode: resolvedAccount,
+            paymentDate: payDate || new Date().toISOString().slice(0, 10),
+            notes: payNotes || null,
+            cashboxId: resolvedMethod === "CASH" ? resolvedCashbox : null,
+            bankAccountId: resolvedMethod !== "CASH" ? resolvedBank : null,
+          },
         });
-        data = res.data;
-        error = res.error;
-      } catch {
-        const res = await (supabase as any).rpc("record_supplier_payment", {
-          p_supplier_id: selectedSupplierId,
-          p_amount: amt,
-          p_payment_method: resolvedMethod,
-          p_account_code: resolvedAccount,
-          p_payment_date: payDate || new Date().toISOString().slice(0, 10),
-          p_notes: payNotes || null,
+        data = res;
+        error = null;
+      } catch (primaryError) {
+        console.warn("record_supplier_payment primary path failed:", primaryError);
+        const res = await recordSupplierPaymentFn({
+          data: {
+            supplierId: selectedSupplierId,
+            amount: amt,
+            paymentMethod: resolvedMethod,
+            accountCode: resolvedAccount,
+            paymentDate: payDate || new Date().toISOString().slice(0, 10),
+            notes: payNotes || null,
+          },
         });
-        data = res.data;
-        error = res.error;
+        data = res;
+        error = null;
       }
 
       if (error) throw error;
 
-      if (data?.payment_id) {
+      if (data?.paymentId) {
         try {
           await (supabase as any)
             .from("supplier_payments")
@@ -372,13 +378,13 @@ function SupplierLedgerPage() {
               bank_account_id: resolvedMethod !== "CASH" ? resolvedBank : null,
               payment_method_id: settlement.paymentMethodId || settlement.method || null,
             })
-            .eq("id", data.payment_id);
+            .eq("id", data.paymentId);
         } catch {
           // ignore if columns not in remote schema yet
         }
       }
 
-      const voucherNo = data?.voucher_number || "";
+      const voucherNo = data?.voucherNumber || "";
       setActionMessage({
         type: "success",
         text: `تم تسجيل وترحيل سند الصرف بنجاح (رقم السند: ${voucherNo})، وقيد المحاسبة Dr 2111 / Cr ${resolvedAccount}.`,

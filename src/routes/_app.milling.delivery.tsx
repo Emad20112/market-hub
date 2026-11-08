@@ -37,7 +37,7 @@ import {
 } from "@/lib/milling";
 import { LuxuryPrintPreviewModal } from "@/components/luxury-print-preview-modal";
 import { getUnifiedPrintSettings, printUnifiedDocument, type PrintRequest } from "@/lib/printing";
-import { MillingDocumentsBoard } from "@/components/milling/milling-documents-board";
+import { OperationSuccessModal } from "@/components/communication/operation-success-modal";
 import type { UnifiedDocumentData } from "@/lib/templates/types";
 import {
   MillingPanel,
@@ -58,10 +58,13 @@ import { QuickProductDialog } from "@/components/milling/quick-product-dialog";
 import { PartyPicker } from "@/components/commerce/party-picker";
 import { CustomerFormDialog } from "@/components/contacts/customer-form-dialog";
 import { useI18n } from "@/lib/i18n";
-import { WarehouseBadge } from "@/components/ui/warehouse-badge";
+import { useNegativeCustodySetting } from "@/hooks/use-negative-custody-setting";
+import { WarehousePicker } from "@/components/warehouse/warehouse-picker";
+import { WarehouseFormDialog } from "@/components/warehouse/warehouse-form-dialog";
+import { Plus } from "lucide-react";
 
 export const Route = createFileRoute("/_app/milling/delivery")({
-  head: () => ({ meta: [{ title: "تسليم منتجات الطحن — فورتكس ERP" }] }),
+  head: () => ({ meta: [{ title: "تسليم الحبوب والنواتج — فورتكس ERP" }] }),
   component: MillingDeliveryPage,
 });
 
@@ -83,8 +86,11 @@ interface WarehouseOption {
 function MillingDeliveryPage() {
   const qc = useQueryClient();
   const { lang } = useI18n();
+  const negativeCustody = useNegativeCustodySetting();
+  const allowNegativeCustodyDelivery = negativeCustody.data === true;
   const [customerId, setCustomerId] = useState("");
   const [newCustomerOpen, setNewCustomerOpen] = useState(false);
+  const [quickWarehouseOpen, setQuickWarehouseOpen] = useState(false);
   const [warehouseId, setWarehouseId] = useState("");
   const [lines, setLines] = useState<CustodyLine[]>([{ itemId: "", bags: 0, kg: 0 }]);
   /** نافذة إضافة صنف جديد — منبثقة فوق الشاشة، لا تُقصّ داخل اللوحة. */
@@ -94,6 +100,10 @@ function MillingDeliveryPage() {
   // حالة معاينة وطباعة الفاتورة الفاخرة
   const [deliveryPrintDoc, setDeliveryPrintDoc] = useState<UnifiedDocumentData | null>(null);
   const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
+  const [deliverySuccess, setDeliverySuccess] = useState<{
+    number: string;
+    customer: CustomerOption | undefined;
+  } | null>(null);
 
   // جلب العملاء
   const customers = useQuery({
@@ -140,7 +150,7 @@ function MillingDeliveryPage() {
 
   // النواتج والحبوب المتاحة للتسليم (أي صنف رصيده أكبر من صفر)
   const available = (balances.data ?? []).filter(
-    (b) => Number(b.bags_balance) > 0 || Number(b.kg_balance) > 0,
+    (b) => allowNegativeCustodyDelivery || Number(b.bags_balance) > 0 || Number(b.kg_balance) > 0,
   );
 
   // V2: لا خريطة سعات ولا اشتقاق كجم — الأكياس والوزن إدخال يدوي مستقل (كما في شاشة الطحن).
@@ -208,8 +218,11 @@ function MillingDeliveryPage() {
 
   // تسليم كل الأرصدة المتاحة للعميل بنقرة واحدة
   function handleDeliverAllAvailable() {
-    if (available.length === 0) return;
-    const newLines = available.map((b) => ({
+    const positiveBalances = available.filter(
+      (b) => Number(b.bags_balance) > 0 || Number(b.kg_balance) > 0,
+    );
+    if (positiveBalances.length === 0) return;
+    const newLines = positiveBalances.map((b) => ({
       itemId: b.item_id,
       bags: Number(b.bags_balance),
       kg: Number(b.kg_balance),
@@ -222,12 +235,13 @@ function MillingDeliveryPage() {
     if (!l.itemId) return false;
     const b = balanceFor(l.itemId);
     if (!b) return false;
-    return l.bags > b.bags_balance || l.kg > b.kg_balance;
+    return !allowNegativeCustodyDelivery && (l.bags > b.bags_balance || l.kg > b.kg_balance);
   });
 
   const canSubmit = Boolean(
     customerId &&
     warehouseId &&
+    !negativeCustody.isLoading &&
     !hasOverdeliver &&
     lines.some((l) => l.itemId && (l.bags > 0 || l.kg > 0)),
   );
@@ -250,6 +264,7 @@ function MillingDeliveryPage() {
 
       const docNumber = (res.data as string) || `DEL-${Date.now().toString().slice(-6)}`;
       toast.success(`تم تسجيل التسليم بنجاح — سند رقم ${docNumber}`);
+      setDeliverySuccess({ number: docNumber, customer: selectedCustomer });
 
       // تجهيز بيانات سند التسليم الفاخر مع توضيح الكميات السابقة، المسلمة، والمتبقية
       const deliveryLinesPayload = lines
@@ -319,15 +334,21 @@ function MillingDeliveryPage() {
       <div className="mx-auto max-w-7xl space-y-4 p-4">
         {/* شريط رأس الصفحة */}
         <PageHeader
-          title="تسليم منتجات الطحن"
+          title="تسليم الحبوب والنواتج"
           subtitle="صرف نواتج الطحن للعميل مع احتساب الرصيد المتبقي وإصدار سند تسليم رسمي."
           actions={
             <div className="flex items-center gap-2">
               <Link
+                to="/milling/records"
+                className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-card px-3.5 py-2 text-xs font-bold text-foreground shadow-xs transition hover:bg-muted"
+              >
+                سجلات الاستلام والتسليم
+              </Link>
+              <Link
                 to="/milling/customer-statement"
                 className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-card px-3.5 py-2 text-xs font-bold text-foreground shadow-xs transition hover:bg-muted"
               >
-                كشف حساب الأمانات
+                كشف حساب الحبوب
               </Link>
               <Link
                 to="/milling/intake"
@@ -362,8 +383,8 @@ function MillingDeliveryPage() {
             />
 
             <div className="space-y-4 p-4">
-              {/* العميل والمستودع */}
-              <div className="grid gap-3 sm:grid-cols-2">
+              {/* العميل والمستودع جنباً إلى جنب بتصميم متناسق وأنيق */}
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <MillingField label="العميل صاحب الحبوب والمنتجات *">
                   <div className="flex min-w-0 flex-1 items-center gap-1.5">
                     <PartyPicker
@@ -382,7 +403,7 @@ function MillingDeliveryPage() {
                     <button
                       type="button"
                       onClick={() => setNewCustomerOpen(true)}
-                      className="grid size-9 shrink-0 place-items-center rounded-full border border-primary/25 bg-primary/10 text-primary shadow-sm transition hover:border-primary/40 hover:bg-primary/15 active:scale-95 cursor-pointer"
+                      className="grid size-9 shrink-0 place-items-center rounded-full border border-primary/25 bg-primary/10 text-primary shadow-xs transition hover:border-primary/40 hover:bg-primary/15 active:scale-95 cursor-pointer"
                       title={lang === "ar" ? "إضافة عميل جديد" : "Add customer"}
                       aria-label={lang === "ar" ? "إضافة عميل جديد" : "Add customer"}
                     >
@@ -391,16 +412,32 @@ function MillingDeliveryPage() {
                   </div>
                 </MillingField>
 
-                <WarehouseBadge
-                  value={warehouseId}
-                  onChange={setWarehouseId}
-                  required
-                  warehouses={(warehouses.data ?? []).map((w) => ({
-                    id: w.id,
-                    nameAr: w.name_ar || w.name,
-                    isDefault: Boolean(w.is_default),
-                  }))}
-                />
+                <MillingField label="المستودع / المخزن *">
+                  <div className="flex min-w-0 flex-1 items-center gap-1.5">
+                    <WarehousePicker
+                      options={(warehouses.data ?? []).map((w) => ({
+                        id: w.id,
+                        name: w.name,
+                        name_ar: w.name_ar,
+                        is_default: Boolean(w.is_default),
+                      }))}
+                      value={warehouseId}
+                      onChange={setWarehouseId}
+                      lang={lang}
+                      onAddNew={() => setQuickWarehouseOpen(true)}
+                      className="h-10 min-w-0 flex-1 rounded-2xl border-amber-500/20 bg-amber-500/[0.035] text-xs hover:border-amber-500/50 hover:bg-amber-500/[0.07]"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setQuickWarehouseOpen(true)}
+                      className="grid size-9 shrink-0 place-items-center rounded-full border border-amber-500/25 bg-amber-500/10 text-amber-600 dark:text-amber-400 shadow-xs transition hover:border-amber-500/40 hover:bg-amber-500/15 active:scale-95 cursor-pointer"
+                      title={lang === "ar" ? "إضافة مستودع جديد" : "Add warehouse"}
+                      aria-label={lang === "ar" ? "إضافة مستودع جديد" : "Add warehouse"}
+                    >
+                      <Plus className="h-4 w-4" />
+                    </button>
+                  </div>
+                </MillingField>
               </div>
 
               {/* جدول أسطر التسليم — نفس المحرّر الموحّد المستخدم في الاستلام والطحن */}
@@ -415,7 +452,7 @@ function MillingDeliveryPage() {
                     </p>
                   </div>
                   <QuickAddButton
-                    label="إضافة صنف جديد إلى دليل الأمانات"
+                    label="إضافة صنف جديد"
                     icon={Plus}
                     tone="emerald"
                     size="sm"
@@ -445,7 +482,7 @@ function MillingDeliveryPage() {
                     balanceBags: item.bags_balance,
                   }))}
                   classes={["RAW_MATERIAL", "FINISHED_GOOD", "BY_PRODUCT"]}
-                  placeholder="اختر ناتج الطحن أو الأمانة…"
+                  placeholder="اختر ناتج الطحن أو الحبوب…"
                   bagsLabel="أكياس مسلّمة"
                   kgLabel="الوزن المسلّم (كجم)"
                   onFillAll={handleDeliverAllForLine}
@@ -514,7 +551,7 @@ function MillingDeliveryPage() {
             <div>
               <MillingSectionTitle
                 icon={<PackageCheck className="h-4 w-4" />}
-                title="أرصدة الأمانات المتاحة"
+                title="أرصدة الحبوب والنواتج المتاحة"
                 subtitle="ما هو مودع باسم العميل في المستودع المختار"
                 action={
                   selectedCustomer ? (
@@ -525,22 +562,30 @@ function MillingDeliveryPage() {
                 }
               />
 
+              {allowNegativeCustodyDelivery && (
+                <div className="mx-4 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-[11px] leading-5 text-amber-800 dark:text-amber-200">
+                  تسليم الحبوب بالسالب مفعّل. أي كمية تتجاوز الرصيد ستظهر كعجز على حساب العميل.
+                </div>
+              )}
+
               <div className="space-y-3 p-4">
                 {!customerId || !warehouseId ? (
                   <MillingEmpty
                     title="حدد العميل والمستودع"
-                    hint="اختر العميل والمستودع لعرض الأمانات ونواتج الطحن الجاهزة للتسليم."
+                    hint="اختر العميل والمستودع لعرض الحبوب ونواتج الطحن الجاهزة للتسليم."
                   />
                 ) : balances.isLoading ? (
                   <div className="flex items-center justify-center py-10 text-xs text-muted-foreground">
-                    <RefreshCw className="h-4 w-4 animate-spin me-2" /> جارٍ جلب أرصدة الأمانات…
+                    <RefreshCw className="h-4 w-4 animate-spin me-2" /> جارٍ جلب الأرصدة المتاحة…
                   </div>
                 ) : available.length === 0 ? (
                   <div className="rounded-2xl border border-dashed border-border p-6 text-center space-y-2">
                     <div className="grid h-10 w-10 mx-auto place-items-center rounded-full bg-muted text-muted-foreground">
                       <PackageCheck className="h-5 w-5" />
                     </div>
-                    <h5 className="font-bold text-sm text-foreground">لا توجد أمانات متبقية</h5>
+                    <h5 className="font-bold text-sm text-foreground">
+                      لا توجد كميات متبقية للتسليم
+                    </h5>
                     <p className="text-xs text-muted-foreground">
                       تم تسليم كامل النواتج والحبوب لهذا العميل، أو لم يتم تسجيل طحن بعد.
                     </p>
@@ -591,8 +636,42 @@ function MillingDeliveryPage() {
           </MillingPanel>
         </div>
 
-        {/* سجل التسليم والصرف: المستندات الموحدة بزاوية المُسلَّم والمتبقي في الأمانة */}
-        <MillingDocumentsBoard focus="delivery" title="سجل التسليم والصرف" />
+        {deliverySuccess && (
+          <OperationSuccessModal
+            open={Boolean(deliverySuccess)}
+            onClose={() => setDeliverySuccess(null)}
+            title="تم تسجيل التسليم بنجاح"
+            subtitle="يمكنك إرسال تفاصيل السند للعميل عبر واتساب أو الرسائل النصية."
+            referenceNumber={deliverySuccess.number}
+            customer={
+              deliverySuccess.customer
+                ? {
+                    id: deliverySuccess.customer.id,
+                    name: deliverySuccess.customer.name,
+                    phone: deliverySuccess.customer.phone,
+                    balance: Number(deliverySuccess.customer.balance ?? 0),
+                  }
+                : null
+            }
+            eventType="milling_document_share"
+            millingContext={{
+              stage: "delivery",
+              ticketNumber: deliverySuccess.number,
+              status: "مسلّم",
+              items: lines
+                .filter((line) => line.itemId && (line.bags > 0 || line.kg > 0))
+                .map((line) => {
+                  const balance = balanceFor(line.itemId);
+                  return {
+                    name: balance?.name_ar || "صنف ناتج",
+                    bags: line.bags,
+                    weightKg: line.kg,
+                    remainingBags: Math.max(0, Number(balance?.bags_balance ?? 0) - line.bags),
+                  };
+                }),
+            }}
+          />
+        )}
 
         {/* نافذة المعاينة والطباعة الفاخرة المعتمدة لسند التسليم الموحد */}
         {deliveryPrintDoc && (
@@ -604,7 +683,7 @@ function MillingDeliveryPage() {
             }}
             doc={deliveryPrintDoc}
             documentType="delivery_note"
-            title="معاينة وطباعة سند تسليم منتجات الطحن"
+            title="معاينة وطباعة سند تسليم الحبوب والنواتج"
             customerName={selectedCustomer?.name || undefined}
             customerPhone={selectedCustomer?.phone || undefined}
           />
@@ -628,13 +707,26 @@ function MillingDeliveryPage() {
             }
           }}
         />
+        {/* نافذة إضافة مستودع جديد */}
+        <WarehouseFormDialog
+          open={quickWarehouseOpen}
+          onClose={() => setQuickWarehouseOpen(false)}
+          hint="سيتم اختيار المستودع الجديد تلقائياً لتسليم الحبوب فوراً."
+          onSaved={(newWh) => {
+            void qc.invalidateQueries({ queryKey: ["milling", "warehouses"] });
+            setWarehouseId(newWh.id);
+            setQuickWarehouseOpen(false);
+            toast.success(`تمت إضافة واختيار المستودع: ${newWh.name_ar || newWh.name}`);
+          }}
+        />
+
         {/* نافذة إضافة عميل جديد سريعاً دون مغادرة شاشة التسليم */}
         <CustomerFormDialog
           open={newCustomerOpen}
           onClose={() => setNewCustomerOpen(false)}
           hint={
             lang === "ar"
-              ? "سيتم اختيار العميل تلقائياً فور حفظه لتسليم أمانته فوراً."
+              ? "سيتم اختيار العميل تلقائياً فور حفظه لتسليم حبوبه فوراً."
               : "Customer will be selected automatically."
           }
           onSaved={(newCust) => {

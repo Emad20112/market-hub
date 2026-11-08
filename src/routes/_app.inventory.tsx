@@ -389,7 +389,7 @@ function InventoryPage() {
 
   const stateLabel = (s: StockState) =>
     s === "out"
-      ? t("inventory.status.out")
+      ? lang === "ar" ? "نفد" : t("inventory.status.out")
       : s === "low"
         ? t("inventory.status.low")
         : s === "near"

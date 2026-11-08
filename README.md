@@ -530,11 +530,11 @@ erDiagram
 
 🇺🇸 **English**
 
-The live project preview is available on [Vercel](https://market-hub-two-theta.vercel.app/). To produce the deployable application bundle, configure the Supabase environment values described in [Installation & Configuration](#installation--configuration--التثبيت-والإعداد), then run `npm run build`. The package also provides `npm run preview` for a local production-build check. A Docker deployment starter for the application, with Caddy HTTPS termination, is documented in [`deploy/README.md`](deploy/README.md). It does not deploy Supabase; use the official Supabase self-hosting stack separately when managing your own database infrastructure.
+The live project preview is available on [Vercel](https://market-hub-two-theta.vercel.app/). To produce the deployable application bundle, configure the Supabase environment values described in [Installation & Configuration](#installation--configuration--التثبيت-والإعداد), then run `npm run build`. The package also provides `npm run preview` for a local production-build check. The official local production environment runs the app and its Supabase stack together through Docker Desktop; see [`deploy/README.md`](deploy/README.md).
 
 🇸🇦 **العربية**
 
-تتوفر معاينة المشروع المباشرة على [Vercel](https://market-hub-two-theta.vercel.app/). لإنتاج حزمة التطبيق القابلة للنشر، اضبط قيم بيئة Supabase الموضحة في [التثبيت والإعداد](#installation--configuration--التثبيت-والإعداد)، ثم شغّل `npm run build`. كما يوفر المشروع `npm run preview` لفحص حزمة الإنتاج محلياً. أُضيف إعداد Docker مبدئي للتطبيق مع Caddy وHTTPS، وتوجد خطواته في [`deploy/README.md`](deploy/README.md). لا يشغّل هذا الإعداد Supabase؛ عند استضافة قاعدة البيانات ذاتياً استخدم حزمة Supabase الرسمية بشكل مستقل.
+تتوفر معاينة المشروع المباشرة على [Vercel](https://market-hub-two-theta.vercel.app/). لإنتاج حزمة التطبيق القابلة للنشر، اضبط قيم بيئة Supabase الموضحة في [التثبيت والإعداد](#installation--configuration--التثبيت-والإعداد)، ثم شغّل `npm run build`. كما يوفر المشروع `npm run preview` لفحص حزمة الإنتاج محلياً. بيئة الإنتاج المعتمدة محلية وتعمل عبر Docker Desktop مع مكدس Supabase الخاص بها؛ راجع [`deploy/README.md`](deploy/README.md).
 
 **Live URL:** https://market-hub-two-theta.vercel.app/
 

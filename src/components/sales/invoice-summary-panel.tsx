@@ -7,6 +7,7 @@ import {
   Loader2,
   ShoppingBag,
   User,
+  UserPlus,
   Warehouse as WarehouseIcon,
 } from "lucide-react";
 
@@ -16,6 +17,7 @@ import { toSystemDigits } from "@/lib/format-preferences";
 import { AmountInput } from "@/components/ui/amount-input";
 import { DynamicPaymentSelector } from "@/components/ui/payment-method/dynamic-payment-selector";
 import type { PaymentSettlementSelection } from "@/lib/payments/treasury-types";
+import { PartyPicker } from "@/components/commerce/party-picker";
 
 /**
  * InvoiceSummaryPanel — لوحة القرار في المستند، مضغوطة لتسع الشاشة كاملةً.
@@ -69,6 +71,8 @@ export interface InvoiceSummaryPanelProps {
   currencySymbol: string;
   remainingError: string | null;
   lineCount: number;
+  totalQuantity?: number;
+  onNewCustomer?: () => void;
   submitting: boolean;
   canSubmit: boolean;
   onSubmit: () => void;
@@ -109,6 +113,8 @@ export function InvoiceSummaryPanel({
   change,
   remainingError,
   lineCount,
+  totalQuantity,
+  onNewCustomer,
   submitting,
   canSubmit,
   onSubmit,
@@ -166,62 +172,45 @@ export function InvoiceSummaryPanel({
         </span>
       </div>
 
-      {/* ═══ ① الجهة ═══ */}
+      {/* ═══ ① الجهة (العميل) ═══ */}
       <div className="space-y-1.5 px-3 py-2.5">
         <div className="flex items-center justify-between">
           <span className={stepLabel}>
             <span className="grid size-4 place-items-center rounded-full bg-primary/10 font-mono text-[9px] text-primary">
               ١
             </span>
-            {isRtl ? "الجهة" : "Party"}
+            {isRtl ? "العميل" : "Customer"}
           </span>
           {isCash && (
-            <span className="rounded-full border border-primary/25 bg-primary/10 px-1.5 py-0.5 text-[9px] font-bold text-primary">
-              {isRtl ? "بيع نقدي" : "Cash"}
+            <span className="rounded-md border border-primary/25 bg-primary/10 px-1.5 py-0.5 text-[9px] font-bold text-primary">
+              {isRtl ? "عميل نقدي" : "Cash sale"}
             </span>
           )}
         </div>
 
-        <div className="relative">
-          <span
-            className={cn(
-              "pointer-events-none absolute start-2 top-1/2 grid size-6 -translate-y-1/2 place-items-center rounded-lg",
-              isCash ? "bg-primary/15 text-primary" : "bg-surface-2 text-muted-foreground",
-            )}
-          >
-            {isCash ? <ShoppingBag className="size-3.5" /> : <User className="size-3.5" />}
-          </span>
-          <select
+        <div className="flex items-center gap-1.5">
+          <PartyPicker
+            options={customers}
             value={customerId}
-            data-form-nav
-            onChange={(e) => onCustomerChange(e.target.value)}
-            aria-label={isRtl ? "اختيار العميل" : "Select customer"}
-            className="h-9 w-full appearance-none rounded-lg border border-border/80 bg-surface ps-9 pe-7 text-xs font-semibold text-foreground outline-none transition focus:border-primary/60 focus:ring-2 focus:ring-primary/15"
-          >
-            {cashCustomerId && (
-              <option value={cashCustomerId}>
-                {(customers.find((c) => c.id === cashCustomerId)?.name ??
-                  (isRtl ? "عميل نقدي" : "Walk-in")) + (isRtl ? " — افتراضي" : " — default")}
-              </option>
-            )}
-            {others.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-                {c.phone ? ` — ${c.phone}` : ""}
-              </option>
-            ))}
-          </select>
-          <ChevronDown className="pointer-events-none absolute end-2 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+            onChange={onCustomerChange}
+            lang={isRtl ? "ar" : "en"}
+            label={isRtl ? "العميل" : "Customer"}
+            emptyLabel={isRtl ? "اختر العميل…" : "Select customer…"}
+            kind="customer"
+            className="flex-1"
+          />
+          {onNewCustomer && (
+            <button
+              type="button"
+              onClick={onNewCustomer}
+              className="grid size-9 shrink-0 place-items-center rounded-xl border border-primary/25 bg-primary/10 text-primary shadow-xs transition hover:border-primary/40 hover:bg-primary/15 active:scale-95 cursor-pointer"
+              title={isRtl ? "إضافة عميل جديد" : "Add customer"}
+              aria-label={isRtl ? "إضافة عميل جديد" : "Add customer"}
+            >
+              <UserPlus className="size-4" />
+            </button>
+          )}
         </div>
-
-        {selected && !isCash && Number(selected.balance ?? 0) !== 0 && (
-          <p className="flex items-center justify-between text-[10px] text-muted-foreground">
-            <span>{isRtl ? "الرصيد الحالي" : "Current balance"}</span>
-            <span className="font-mono font-bold text-amber-700 dark:text-amber-300">
-              {toSystemDigits(money(Number(selected.balance ?? 0)))}
-            </span>
-          </p>
-        )}
       </div>
 
       <Divider />
@@ -366,6 +355,58 @@ export function InvoiceSummaryPanel({
           className="mt-1.5 w-full resize-none rounded-lg border border-border/70 bg-surface px-2 py-1 text-[11px] text-foreground outline-none transition focus:border-primary/60 focus:ring-2 focus:ring-primary/15"
         />
       </details>
+
+      {/* ═══ تفصيل الحساب المالي بنمط سلة المبيعات (POS) ═══ */}
+      <div className="space-y-1.5 border-t border-border/60 bg-muted/20 px-3 py-2 text-xs">
+        <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+          <span>{isRtl ? "البنود والكميات" : "Items & Qty"}</span>
+          <span className="font-mono font-bold text-foreground">
+            {toSystemDigits(lineCount)} {isRtl ? "صنف" : "items"}
+            {totalQuantity != null && totalQuantity > 0 && ` (${toSystemDigits(Math.round(totalQuantity * 1000) / 1000)})`}
+          </span>
+        </div>
+
+        <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+          <span>{isRtl ? "المجموع الفرعي" : "Subtotal"}</span>
+          <span className="font-mono font-bold text-foreground">
+            {toSystemDigits(money(subtotal))}
+          </span>
+        </div>
+
+        {Number(discount) > 0 && (
+          <div className="flex items-center justify-between text-[11px] text-rose-600 dark:text-rose-400">
+            <span>{isRtl ? "الخصم الممنوح" : "Discount"}</span>
+            <span className="font-mono font-bold">
+              −{toSystemDigits(money(Number(discount)))}
+            </span>
+          </div>
+        )}
+
+        <div className="flex items-center justify-between text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold">
+          <span>{isRtl ? "المبلغ المدفوع" : "Amount paid"}</span>
+          <span className="font-mono font-bold">
+            {toSystemDigits(money(effectivePaid))}
+          </span>
+        </div>
+
+        {remaining > 0 && (
+          <div className="flex items-center justify-between text-[11px] text-amber-700 dark:text-amber-300 font-bold">
+            <span>{isRtl ? "المتبقي (آجل)" : "Remaining debt"}</span>
+            <span className="font-mono">
+              {toSystemDigits(money(remaining))}
+            </span>
+          </div>
+        )}
+
+        {change > 0 && (
+          <div className="flex items-center justify-between text-[11px] text-sky-600 dark:text-sky-400 font-bold">
+            <span>{isRtl ? "الباقي للعميل" : "Change due"}</span>
+            <span className="font-mono">
+              {toSystemDigits(money(change))}
+            </span>
+          </div>
+        )}
+      </div>
 
       {/*
        * ═══ بطاقة الإجمالي + الإصدار — مثبّتة أسفل العمود ═══

@@ -12,6 +12,7 @@ import {
   X,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { setDocumentNumberingFn } from "@/server/api/catalog/set-document-numbering";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { QuantityInput } from "@/components/ui/quantity-input";
@@ -100,20 +101,22 @@ export function DocumentNumberingCard({ isAr, canEdit }: DocumentNumberingCardPr
   const persist = useCallback(
     async (row: DocumentNumberingRow, nextValue?: number) => {
       setSavingType(row.document_type);
-      const { error } = await supabase.rpc("fn_set_document_numbering", {
-        p_document_type: row.document_type,
-        p_prefix: row.prefix,
-        p_format_tokens: row.format_tokens,
-        p_padding: row.padding,
-        p_date_part: row.date_part,
-        p_separator: row.separator,
-        p_reset_policy: row.reset_policy,
-        p_next_value: nextValue ?? undefined,
-      });
-      setSavingType(null);
-
-      if (error) {
-        console.error("Could not save document numbering settings", error);
+      try {
+        await setDocumentNumberingFn({
+          data: {
+            documentType: row.document_type,
+            prefix: row.prefix,
+            formatTokens: row.format_tokens,
+            padding: row.padding,
+            datePart: row.date_part,
+            separator: row.separator,
+            resetPolicy: row.reset_policy,
+            nextValue: nextValue ?? undefined,
+          },
+        });
+      } catch (err) {
+        setSavingType(null);
+        console.error("Could not save document numbering settings", err);
         toast.error(
           isAr
             ? "تعذر حفظ ترتيب أرقام المستندات. تأكد من اتصال الإنترنت ثم حاول مرة أخرى."
@@ -121,6 +124,7 @@ export function DocumentNumberingCard({ isAr, canEdit }: DocumentNumberingCardPr
         );
         return false;
       }
+      setSavingType(null);
       toast.success(isAr ? "تم حفظ إعداد الترقيم" : "Numbering settings saved");
       return true;
     },

@@ -1,4 +1,4 @@
-param(
+﻿param(
   [string]$ProjectRef,
   [switch]$IncludeDemoData
 )
@@ -23,7 +23,11 @@ function Invoke-Supabase {
 
   $previousPreference = $ErrorActionPreference
   $ErrorActionPreference = "Continue"
-  $output = & supabase @Arguments 2>&1
+  if ($global:SupabaseCli -eq "npx.cmd") {
+    $output = & npx.cmd supabase @Arguments 2>&1
+  } else {
+    $output = & supabase @Arguments 2>&1
+  }
   $exitCode = $LASTEXITCODE
   $ErrorActionPreference = $previousPreference
 
@@ -130,7 +134,7 @@ FROM migration_state CROSS JOIN public_state;
   $baselineSafetySql = ($baselineSafetySql -replace '\s+', ' ').Trim()
   $previousPreference = $ErrorActionPreference
   $ErrorActionPreference = "Continue"
-  $safetyOutput = & supabase db query --db-url $env:SUPABASE_DB_URL $baselineSafetySql 2>&1
+  $safetyOutput = & $global:SupabaseCli $(if ($global:SupabaseCli -eq 'npx.cmd') { 'supabase' }) db query --db-url $env:SUPABASE_DB_URL $baselineSafetySql 2>&1
   $safetyExitCode = $LASTEXITCODE
   $ErrorActionPreference = $previousPreference
   if ($safetyExitCode -ne 0) {
@@ -143,7 +147,13 @@ FROM migration_state CROSS JOIN public_state;
 
   Write-Host "Target cloud project: $linkedRef" -ForegroundColor Yellow
   Write-Host "This command applies pending migrations and safe system reference seeds only. It never resets the cloud database." -ForegroundColor Yellow
-  $confirmation = Read-Host "Type CLOUD $linkedRef to continue"
+  # في التشغيل الآلي عبر cloud-migrate.ps1 نُمرر التأكيد تلقائياً لأن هدف
+  # الترحيل محدد ومُتحقّق منه في الأعلى (BASELINE_READY) ولا يوجد أي reset.
+  if ($env:CLOUD_PUSH_AUTO_CONFIRM -eq "1") {
+    $confirmation = "CLOUD $linkedRef"
+  } else {
+    $confirmation = Read-Host "Type CLOUD $linkedRef to continue"
+  }
   if ($confirmation -cne "CLOUD $linkedRef") {
     throw "Cloud deployment cancelled. No database changes were made."
   }
@@ -172,3 +182,4 @@ FROM migration_state CROSS JOIN public_state;
 finally {
   Pop-Location
 }
+

@@ -5,6 +5,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { PageHeader } from "@/components/page-header";
 import { useI18n } from "@/lib/i18n";
 import { supabase } from "@/integrations/supabase/client";
+import { createSalesReturnFn } from "@/server/api/sales/create-sales-return";
 import { money } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -929,73 +930,75 @@ function NewSalesReturn({
 
   async function save() {
     if (saving) return;
-    if (
-      lines.some(
-        (line) =>
-          Math.abs(
-            line.quantity / line.quantity_step - Math.round(line.quantity / line.quantity_step),
-          ) > 1e-7,
-      )
-    ) {
-      toast.error(
-        isAr
-          ? "الكمية يجب أن تطابق خطوة الوحدة المسجلة في الفاتورة الأصلية"
-          : "Quantity must follow the unit increment saved on the original invoice",
-      );
-      return;
-    }
-    if (!warehouseId || lines.length === 0) {
-      toast.error(t("common.fill_form"));
-      return;
-    }
-    const { data: retData, error } = await supabase.rpc("create_sales_return" as any, {
-      _invoice_id: customerInvoiceId || null,
-      _warehouse_id: warehouseId,
-      _customer_id: customerId || null,
-      _refund_method: refundMethod,
-      _note: note || null,
-      _items: lines as any,
-    });
-    if (error) {
-      // P1-4: رسالة واحدة مترجمة بدل نص PostgreSQL الإنجليزي.
-      toast.error(translateRpcError(error, lang === "ar" ? "ar" : "en"));
-      return;
-    }
-    const returnId = typeof retData === "string" ? retData : (retData as any)?.id;
-    if (
-      returnId &&
-      (settlement.cashboxId ||
-        settlement.bankAccountId ||
-        settlement.paymentMethodId ||
-        settlement.reference)
-    ) {
-      // PostgREST لا يرمي استثناءً: يعيد `error` في نتيجة الاستعلام. كان
-      // try/catch هنا يعني أن فشل توجيه الخزينة يُبتلع بصمت، فيسجّل المرتجع
-      // على الحساب العام 1101 بينما الكاشير اختار بنكًا أو محفظة بعينها.
-      const { error: settlementError } = await (supabase as any)
-        .from("sales_returns")
-        .update({
-          cashbox_id: settlement.cashboxId || null,
-          bank_account_id: settlement.bankAccountId || null,
-          payment_method_id: settlement.paymentMethodId || refundMethod || null,
-          payment_reference: settlement.reference || null,
-        })
-        .eq("id", returnId);
-      if (settlementError) {
-        toast.warning(
-          lang === "ar"
-            ? `سُجّل المرتجع، لكن تعذّر توجيه الخزينة: ${settlementError.message}`
-            : `Return recorded, but settlement routing failed: ${settlementError.message}`,
+    try {
+      if (
+        lines.some(
+          (line) =>
+            Math.abs(
+              line.quantity / line.quantity_step - Math.round(line.quantity / line.quantity_step),
+            ) > 1e-7,
+        )
+      ) {
+        toast.error(
+          isAr
+            ? "الكمية يجب أن تطابق خطوة الوحدة المسجلة في الفاتورة الأصلية"
+            : "Quantity must follow the unit increment saved on the original invoice",
         );
+        return;
       }
+      if (!warehouseId || lines.length === 0) {
+        toast.error(t("common.fill_form"));
+        return;
+      }
+      const res = await createSalesReturnFn({
+        data: {
+          invoiceId: customerInvoiceId || null,
+          warehouseId: warehouseId,
+          customerId: customerId || null,
+          refundMethod: refundMethod,
+          note: note || null,
+          items: lines as any,
+        },
+      });
+      const retData: any = res;
+      const returnId = retData?.returnId ?? retData?.id;
+      if (
+        returnId &&
+        (settlement.cashboxId ||
+          settlement.bankAccountId ||
+          settlement.paymentMethodId ||
+          settlement.reference)
+      ) {
+        // توجيه الخزينة يُحدَّث بعد المرتجع مباشرة — فشله يُعرض تحذيرًا صريحًا
+        // بدل ابتلاعه بصمت (كما كان قبل المرحلة 5).
+        const { error: settlementError } = await (supabase as any)
+          .from("sales_returns")
+          .update({
+            cashbox_id: settlement.cashboxId || null,
+            bank_account_id: settlement.bankAccountId || null,
+            payment_method_id: settlement.paymentMethodId || refundMethod || null,
+            payment_reference: settlement.reference || null,
+          })
+          .eq("id", returnId);
+        if (settlementError) {
+          toast.warning(
+            lang === "ar"
+              ? `سُجّل المرتجع، لكن تعذّر توجيه الخزينة: ${settlementError.message}`
+              : `Return recorded, but settlement routing failed: ${settlementError.message}`,
+          );
+        }
+      }
+      toast.success(
+        lang === "ar" ? "تم تسجيل مرتجع المبيعات بنجاح" : "Sales return recorded successfully",
+      );
+      onOpenChange(false);
+      setLines([]);
+      setNote("");
+      onSaved();
+    } catch (err) {
+      // P1-4: رسالة واحدة مترجمة بدل نص PostgreSQL الإنجليزي.
+      toast.error(translateRpcError(err as Error, lang === "ar" ? "ar" : "en"));
     }
-    toast.success(
-      lang === "ar" ? "تم تسجيل مرتجع المبيعات بنجاح" : "Sales return recorded successfully",
-    );
-    onOpenChange(false);
-    setLines([]);
-    setNote("");
-    onSaved();
   }
 
   return (

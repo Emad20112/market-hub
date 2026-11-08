@@ -260,4 +260,24 @@ describe("Communication Engine — Template Engine", () => {
     assert.ok(rendered.text.includes("إشعار استلام دفعة"));
     assert.ok(rendered.text.includes("مؤسسة النور"));
   });
+
+  it("renders custody delivery as a polished message with delivered and remaining quantities", () => {
+    const ctx = buildUnifiedContext({
+      event: "milling_document_share",
+      language: "ar",
+      customer: { id: "c-delivery", name: "أحمد علي", phone: "771234567", balance: 0 },
+      milling: {
+        stage: "delivery",
+        ticketNumber: "DEL-104",
+        status: "مسلّم",
+        items: [{ name: "دقيق بر", bags: 4, weightKg: 200, remainingBags: 2 }],
+      },
+    });
+    const rendered = renderMessage(ctx);
+    assert.ok(rendered.text.includes("سند تسليم نواتج الأمانة"));
+    assert.ok(rendered.text.includes("DEL-104"));
+    assert.ok(rendered.text.includes("دقيق بر"));
+    assert.ok(rendered.text.includes("المتبقي طرفنا"));
+    assert.ok(rendered.canSendWhatsApp);
+  });
 });

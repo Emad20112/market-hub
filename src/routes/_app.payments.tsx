@@ -18,6 +18,8 @@ import {
 } from "lucide-react";
 import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
+import { recordCustomerPaymentFn } from "@/server/api/treasury/record-customer-payment";
+import { recordCustomerPaymentSplitsFn } from "@/server/api/treasury/record-customer-payment-splits";
 import { PageHeader } from "@/components/page-header";
 import { todayKey, dateOnlyIso } from "@/lib/time/business-date";
 import { useI18n } from "@/lib/i18n";
@@ -330,36 +332,40 @@ function PaymentsPage() {
               : "Enter amounts for at least two tenders; use single payment for one tender",
           );
         }
-        const res = await (supabase.rpc as any)("record_customer_payment_splits", {
-          _customer_id: selected.id,
-          _invoice_id: invoiceId || null,
-          _amount: amt,
-          _payment_date: date,
-          _note: paymentNote || null,
-          _splits: splitRows,
+        const res = await recordCustomerPaymentSplitsFn({
+          data: {
+            customerId: selected.id,
+            invoiceId: invoiceId || null,
+            amount: amt,
+            paymentDate: date,
+            note: paymentNote || null,
+            splits: splitRows,
+          },
         });
-        error = res.error;
-        resultPaymentId = typeof res.data === "string" ? res.data : null;
+        error = null;
+        resultPaymentId = res.paymentId;
       } else {
-        const res = await supabase.rpc("record_customer_payment" as any, {
-          _customer_id: selected.id,
-          _invoice_id: invoiceId || null,
-          _amount: amt,
-          // The RPC validates this exact catalogue id (including its enabled
-          // state and allowed context), then stores its legacy ENUM value.
-          _method: settlement.paymentMethodId || method,
-          _payment_date: date,
-          _note: paymentNote || null,
-          _cashbox_id: settlement.cashboxId || null,
-          _bank_account_id: settlement.bankAccountId || null,
-          _payment_method_id: settlement.paymentMethodId || null,
-          _cheque_number: settlement.chequeNumber || settlement.cheque?.chequeNumber || null,
-          _cheque_bank: settlement.chequeBank || settlement.cheque?.bankName || null,
-          _cheque_due_date: settlement.chequeDueDate || settlement.cheque?.dueDate || null,
-          _cheque_drawer: settlement.chequeDrawer || settlement.cheque?.drawerName || null,
+        const res = await recordCustomerPaymentFn({
+          data: {
+            customerId: selected.id,
+            invoiceId: invoiceId || null,
+            amount: amt,
+            // The server function validates this exact catalogue id (including its
+            // enabled state and allowed context), then stores its legacy ENUM value.
+            method: settlement.paymentMethodId || method,
+            paymentDate: date,
+            note: paymentNote || null,
+            cashboxId: settlement.cashboxId || null,
+            bankAccountId: settlement.bankAccountId || null,
+            paymentMethodId: settlement.paymentMethodId || null,
+            chequeNumber: settlement.chequeNumber || settlement.cheque?.chequeNumber || null,
+            chequeBank: settlement.chequeBank || settlement.cheque?.bankName || null,
+            chequeDueDate: settlement.chequeDueDate || settlement.cheque?.dueDate || null,
+            chequeDrawer: settlement.chequeDrawer || settlement.cheque?.drawerName || null,
+          },
         });
-        error = res.error;
-        resultPaymentId = typeof res.data === "string" ? res.data : null;
+        error = null;
+        resultPaymentId = res.paymentId;
       }
 
       if (error) throw error;

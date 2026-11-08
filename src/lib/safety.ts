@@ -22,6 +22,8 @@
  * This module reads and writes no business data itself except through the guard.
  */
 
+import { productReferenceCountsFn } from "@/server/api/inventory/product-reference-counts";
+import { productDeleteGuardFn } from "@/server/api/inventory/product-delete-guard";
 import { supabase } from "@/integrations/supabase/client";
 
 /**
@@ -73,14 +75,14 @@ export type DeleteOutcome =
 export async function getProductReferenceCounts(
   productId: string,
 ): Promise<ReferenceCounts | null> {
-  // Prefer the server-side guard (single round trip, authoritative).
-  const rpc = await db.rpc("product_reference_counts", { p_product_id: productId } as never);
-
-  if (!rpc.error && rpc.data) {
-    return normalizeCounts(rpc.data as Record<string, unknown>);
+  // Backend (Use Case) — نقطة الدخول الوحيدة (ADR-001).
+  try {
+    const res = await productReferenceCountsFn({ data: { productId } });
+    if (res?.counts) return normalizeCounts(res.counts as unknown as Record<string, unknown>);
+  } catch {
+    // fallback below
   }
-
-  // Fallback: count client-side with plain SELECTs. Works without the migration.
+  // Fallback: count client-side with plain SELECTs. Works without the backend.
   return countReferencesOnClient(productId);
 }
 
@@ -225,10 +227,9 @@ function normalizeCounts(raw: Record<string, unknown>): ReferenceCounts {
  * Never throws — always returns an outcome the UI can act on.
  */
 export async function deleteProductSafely(productId: string): Promise<DeleteOutcome> {
-  const rpc = await db.rpc("product_delete_guard", { p_product_id: productId } as never);
-
-  if (!rpc.error && rpc.data) {
-    const data = rpc.data as Record<string, unknown>;
+  try {
+    const res = await productDeleteGuardFn({ data: { productId } });
+    const data = res as Record<string, unknown>;
     if (data.deleted === true) return { status: "deleted" };
     const reason = String(data.reason ?? "");
     if (reason === "forbidden") return { status: "forbidden" };
@@ -241,14 +242,17 @@ export async function deleteProductSafely(productId: string): Promise<DeleteOutc
       return { status: "error", message: "referenced" };
     }
     return { status: "error", message: reason || "unknown" };
-  }
-
-  // ---- Fallback path (RPC not deployed) ----
-  // Count first; if we cannot prove it is unreferenced, refuse.
-  const counts = await countReferencesOnClient(productId);
-  if (!counts) {
+  } catch {
     return { status: "error", message: "unavailable" };
   }
+
+  // ---- Fallback path (backend unavailable) ----
+  // Count first; if we cannot prove it is unreferenced, refuse.
+  const fallback = await countReferencesOnClient(productId);
+  if (!fallback) {
+    return { status: "error", message: "unavailable" };
+  }
+  const counts = fallback as ReferenceCounts;
   if (!counts.canDelete) {
     return { status: "blocked", counts };
   }
@@ -263,7 +267,7 @@ export async function deleteProductSafely(productId: string): Promise<DeleteOutc
     // A FK violation here means the schema changed under us — surface it as blocked.
     if (error.code === "23503") {
       const fresh = await countReferencesOnClient(productId);
-      if (fresh) return { status: "blocked", counts: fresh };
+      if (fresh) return { status: "blocked", counts: fresh as ReferenceCounts };
     }
     return { status: "error", message: error.message };
   }

@@ -5,6 +5,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { PageHeader } from "@/components/page-header";
 import { useI18n } from "@/lib/i18n";
 import { supabase } from "@/integrations/supabase/client";
+import { createPurchaseReturnFn } from "@/server/api/purchasing/create-purchase-return";
 import { money } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -840,57 +841,59 @@ function NewPurchaseReturn({
       toast.error(t("common.fill_form"));
       return;
     }
-    const { data: retData, error } = await supabase.rpc("create_purchase_return" as any, {
-      _invoice_id: supplierInvoiceId || null,
-      _warehouse_id: warehouseId,
-      _supplier_id: supplierId,
-      _refund_method: refundMethod,
-      _note: note || null,
-      _items: lines as any,
-    });
-    if (error) {
+    try {
+      const res = await createPurchaseReturnFn({
+        data: {
+          invoiceId: supplierInvoiceId || null,
+          warehouseId: warehouseId,
+          supplierId: supplierId,
+          refundMethod: refundMethod,
+          note: note || null,
+          items: lines as any,
+        },
+      });
+      const returnId = res.returnId;
+      if (
+        returnId &&
+        (settlement.cashboxId ||
+          settlement.bankAccountId ||
+          settlement.paymentMethodId ||
+          settlement.reference)
+      ) {
+        // لا `try` حول استعلام شبكي: PostgREST يعيد الخطأ في الحقل ولا يرميه،
+        // فالاكتفاء بـ try/catch كان يعني فقدان توجيه الخزينة بصمت. الدالة
+        // المصدرة `create_purchase_return` ترحّل القيد من `refund_method` وحده،
+        // فإذا فشل هذا التحديث تُرحَّل النقود إلى الحساب العام بدل صندوق بعينه —
+        // وهذا يستحق تنبيهًا لا سطرًا في console.
+        const { error: settlementError } = await (supabase as any)
+          .from("purchase_returns")
+          .update({
+            cashbox_id: settlement.cashboxId || null,
+            bank_account_id: settlement.bankAccountId || null,
+            payment_method_id: settlement.paymentMethodId || refundMethod || null,
+            payment_reference: settlement.reference || null,
+          })
+          .eq("id", returnId);
+        if (settlementError) {
+          toast.warning(
+            isRtl
+              ? `سُجّل المرتجع، لكن تعذّر توجيه الخزينة: ${settlementError.message}`
+              : `Return recorded, but settlement routing failed: ${settlementError.message}`,
+          );
+        }
+      }
+      toast.success(
+        lang === "ar" ? "تم تسجيل مرتجع المشتريات بنجاح" : "Purchase return recorded successfully",
+      );
+      setOpen(false);
+      setLines([]);
+      setNote("");
+      onSaved();
+    } catch (err) {
       // رسالة مترجمة، كما في شاشة مرتجع المبيعات — نص PostgreSQL الإنجليزي
       // الخام لا يعني شيئًا للكاشير ولا يخبره بما يصلحه.
-      toast.error(translateRpcError(error, isRtl ? "ar" : "en"));
-      return;
+      toast.error(translateRpcError(err as Error, isRtl ? "ar" : "en"));
     }
-    const returnId = typeof retData === "string" ? retData : (retData as any)?.id;
-    if (
-      returnId &&
-      (settlement.cashboxId ||
-        settlement.bankAccountId ||
-        settlement.paymentMethodId ||
-        settlement.reference)
-    ) {
-      // لا `try` حول استعلام شبكي: PostgREST يعيد الخطأ في الحقل ولا يرميه،
-      // فالاكتفاء بـ try/catch كان يعني فقدان توجيه الخزينة بصمت. الدالة
-      // المصدرة `create_purchase_return` ترحّل القيد من `refund_method` وحده،
-      // فإذا فشل هذا التحديث تُرحَّل النقود إلى الحساب العام بدل صندوق بعينه —
-      // وهذا يستحق تنبيهًا لا سطرًا في console.
-      const { error: settlementError } = await (supabase as any)
-        .from("purchase_returns")
-        .update({
-          cashbox_id: settlement.cashboxId || null,
-          bank_account_id: settlement.bankAccountId || null,
-          payment_method_id: settlement.paymentMethodId || refundMethod || null,
-          payment_reference: settlement.reference || null,
-        })
-        .eq("id", returnId);
-      if (settlementError) {
-        toast.warning(
-          isRtl
-            ? `سُجّل المرتجع، لكن تعذّر توجيه الخزينة: ${settlementError.message}`
-            : `Return recorded, but settlement routing failed: ${settlementError.message}`,
-        );
-      }
-    }
-    toast.success(
-      lang === "ar" ? "تم تسجيل مرتجع المشتريات بنجاح" : "Purchase return recorded successfully",
-    );
-    setOpen(false);
-    setLines([]);
-    setNote("");
-    onSaved();
   }
 
   return (

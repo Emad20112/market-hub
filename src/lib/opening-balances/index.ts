@@ -2,9 +2,10 @@
  * Market-Hub ERP — Opening balances: data access layer.
  *
  * الأرصدة الافتتاحية: قيد موازنة محاسبي للأصول والالتزامات وحقوق الملكية.
- * يدعم إدخال الأكياس والسعة للمخزون، وتوجيه الحسابات المحاسبية بدقة لدفتر الأستاذ العام.
+ * يستخدم وحدة الصنف المعرفة في دليل الأصناف، مع توجيه الحسابات إلى دفتر الأستاذ العام.
  */
 import { supabase } from "@/integrations/supabase/client";
+import { openingBalanceFn } from "@/server/api/stock/opening-balance";
 
 const db = supabase as any;
 
@@ -170,7 +171,6 @@ export interface StockableItem {
   sku: string;
   name: string;
   name_ar: string | null;
-  package_weight_kg?: number | null;
   cost_price?: number | null;
   item_class?: string | null;
   item_nature?: string | null;
@@ -182,7 +182,7 @@ export async function fetchStockableItems(): Promise<StockableItem[]> {
     await db
       .from("products")
       .select(
-        "id, sku, name, name_ar, package_weight_kg, cost_price, item_class, item_nature, unit:units!products_unit_id_fkey(name, name_ar, short_name)",
+        "id, sku, name, name_ar, cost_price, item_class, item_nature, unit:units!products_unit_id_fkey(name, name_ar, short_name)",
       )
       .eq("inventory_policy", "TRACKED")
       .eq("is_active", true)
@@ -236,13 +236,15 @@ export async function createOpeningDocument(input: {
   lines: OpeningLineDraft[];
   notes?: string;
 }): Promise<string> {
-  const { data, error } = await db.rpc("create_opening_balance", {
-    _effective_date: input.effectiveDate,
-    _lines: input.lines,
-    _notes: input.notes ?? null,
+  const res = await openingBalanceFn({
+    data: {
+      op: "create",
+      effectiveDate: input.effectiveDate,
+      lines: input.lines as unknown as Array<Record<string, unknown>>,
+      notes: input.notes ?? null,
+    },
   });
-  if (error) throw new Error(error.message);
-  return data as string;
+  return res.documentId;
 }
 
 export async function updateOpeningDocument(input: {
@@ -251,14 +253,16 @@ export async function updateOpeningDocument(input: {
   lines: OpeningLineDraft[];
   notes?: string;
 }): Promise<string> {
-  const { data, error } = await db.rpc("update_opening_balance", {
-    _document_id: input.documentId,
-    _effective_date: input.effectiveDate,
-    _lines: input.lines,
-    _notes: input.notes ?? null,
+  const res = await openingBalanceFn({
+    data: {
+      op: "update",
+      documentId: input.documentId,
+      effectiveDate: input.effectiveDate,
+      lines: input.lines as unknown as Array<Record<string, unknown>>,
+      notes: input.notes ?? null,
+    },
   });
-  if (error) throw new Error(error.message);
-  return data as string;
+  return res.documentId;
 }
 
 export async function postOpeningDocument(documentId: string): Promise<void> {

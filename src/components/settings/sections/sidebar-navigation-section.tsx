@@ -154,8 +154,8 @@ export function SidebarNavigationSection({ canEdit = true, lang }: SidebarNaviga
               </h3>
               <p className="text-xs text-muted-foreground">
                 {isAr
-                  ? "اختر كيف تظهر وحدات النظام وروابطها في القائمة."
-                  : "Choose how system units and their links appear in the sidebar."}
+                  ? "اختر طريقة عرض أقسام النظام وروابطها في القائمة الجانبية."
+                  : "Choose how system sections and links appear in the sidebar."}
               </p>
             </div>
             <div className="grid gap-2 sm:grid-cols-2">

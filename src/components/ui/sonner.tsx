@@ -176,19 +176,30 @@ const Toaster = ({ ...props }: ToasterProps) => {
     };
   }, []);
 
+  const [isMobile, setIsMobile] = useState(() =>
+    typeof window !== "undefined" && window.matchMedia("(max-width: 640px)").matches,
+  );
+
+  useEffect(() => {
+    const media = window.matchMedia("(max-width: 640px)");
+    const update = () => setIsMobile(media.matches);
+    media.addEventListener("change", update);
+    return () => media.removeEventListener("change", update);
+  }, []);
+
   return (
     <Sonner
       className="vortex-toaster-container group"
-      position={position}
-      /* النمط الأيفوني: الإشعارات مكدسة فوق بعضها، وتتوسع فقط عند التمرير أو اللمس */
-      expand={false}
+      position={isMobile ? "top-center" : position}
+      /* اترك البطاقات الثلاث ظاهرة بنصوصها، ولا تغيّر ترتيبها عند مرور المؤشر */
+      expand={true}
       richColors={false}
       /* بدون زر X مزعج — الإغلاق يكون بالسحب (Swipe) أو النقر أو تلقائياً */
       closeButton={false}
       visibleToasts={3}
       gap={10}
       offset={18}
-      /* على الجوال: إزاحة متماثلة يمين/يسار = توسيط مثالي في منتصف الشاشة */
+      /* على الجوال: هوامش متماثلة حول مكدس الإشعارات المتمركز */
       mobileOffset={{ top: 14, bottom: 14, left: 14, right: 14 }}
       icons={{
         success: (

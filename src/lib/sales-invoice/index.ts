@@ -29,6 +29,7 @@
  * one thing the whole custody design exists to prevent.
  */
 import { supabase } from "@/integrations/supabase/client";
+import { createSaleFn } from "@/server/api/sales/create-sale";
 
 const db = supabase as any;
 
@@ -364,29 +365,24 @@ export async function createSalesInvoice(
         : Math.max(0, Math.min(Number(input.paid) || 0, Number.MAX_SAFE_INTEGER));
 
     const saleArgs = {
-      _warehouse_id: input.warehouseId,
-      _customer_id: input.customerId || null,
-      _payment_method: paymentSplits.length > 1 ? "split" : input.paymentMethod,
-      _paid: paid,
-      _discount: Number(input.discount ?? 0),
-      _note: input.note ?? null,
-      _items: items,
-    };
-    // Always call the current 9-argument atomic function. The older shorter
-    // overloads do not accept UOM snapshots and would silently post base units.
-    const { data, error } = await db.rpc("create_sale", {
-      ...saleArgs,
-      _sale_date: input.saleDate ?? new Date().toISOString().slice(0, 10),
-      _payment_splits: paymentSplits.map((line) => ({
+      warehouseId: input.warehouseId,
+      customerId: input.customerId || null,
+      paymentMethod: paymentSplits.length > 1 ? "split" : input.paymentMethod,
+      paid,
+      discount: Number(input.discount ?? 0),
+      note: input.note ?? null,
+      saleDate: input.saleDate ?? new Date().toISOString().slice(0, 10),
+      paymentSplits: paymentSplits.map((line) => ({
         method: line.method,
         amount: Number(line.amount),
-        payment_method_id: line.payment_method_id || line.method,
+        paymentMethodId: line.payment_method_id || line.method,
         reference: line.reference || null,
       })),
-    });
-    if (error) throw new Error(error.message);
-
-    const invoiceId = data as string;
+      items,
+    };
+    // المرحلة 5: نفس الذرّية عبر server function بدل RPC (create_sale سابقًا).
+    const res = await createSaleFn({ data: saleArgs });
+    const invoiceId = res.invoiceId;
 
     // Update invoice with specific treasury & settlement routing metadata
     if (

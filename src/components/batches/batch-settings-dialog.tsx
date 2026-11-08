@@ -36,6 +36,7 @@ import {
 } from "@/hooks/use-batch-settings";
 import { useI18n } from "@/lib/i18n";
 import { supabase } from "@/integrations/supabase/client";
+import { reconcileBatchesFn } from "@/server/api/inventory/reconcile-batches";
 import { toast } from "sonner";
 
 interface BatchSettingsDialogProps {
@@ -83,10 +84,8 @@ export function BatchSettingsDialog({ open, onOpenChange }: BatchSettingsDialogP
     setReconciling(true);
     setReconcileResults(null);
     try {
-      const { data, error } = await supabase.rpc("reconcile_batches_with_inventory" as any, {});
-      if (error) throw error;
-
-      const items = (data as ReconcileItem[]) || [];
+      const res = await reconcileBatchesFn({ data: {} });
+      const items = (res?.diffs as unknown as ReconcileItem[]) || [];
 
       // If items exist, optionally fetch names
       if (items.length > 0) {

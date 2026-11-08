@@ -12,6 +12,7 @@
  */
 
 import { supabase } from "@/integrations/supabase/client";
+import { saveItemPolicyFn } from "@/server/api/inventory/save-item-policy";
 import type {
   CostingMethod,
   InventoryPolicy,
@@ -114,22 +115,26 @@ export interface SaveItemPolicyResult {
  * enforces and writes the audit entry.
  */
 export async function saveItemPolicy(input: SaveItemPolicyInput): Promise<SaveItemPolicyResult> {
-  const { error } = await db.rpc("save_item_policy", {
-    _item_id: input.itemId,
-    _item_nature: input.nature,
-    _inventory_policy: input.inventoryPolicy,
-    _costing_method: input.costingMethod,
-    _tracking: input.tracking,
-    _is_sellable: input.isSellable,
-    _is_purchasable: input.isPurchasable,
-    _base_uom_id: input.baseUomId ?? null,
-    _sales_uom_id: input.salesUomId ?? null,
-    _purchase_uom_id: input.purchaseUomId ?? null,
-    _uom_conversions: input.uomConversions ?? null,
-  });
-
-  if (error) return { ok: false, message: error.message };
-  return { ok: true };
+  try {
+    await saveItemPolicyFn({
+      data: {
+        itemId: input.itemId,
+        itemNature: input.nature,
+        inventoryPolicy: input.inventoryPolicy,
+        costingMethod: input.costingMethod,
+        tracking: input.tracking,
+        isSellable: input.isSellable,
+        isPurchasable: input.isPurchasable,
+        baseUomId: input.baseUomId ?? null,
+        salesUomId: input.salesUomId ?? null,
+        purchaseUomId: input.purchaseUomId ?? null,
+        uomConversions: input.uomConversions ?? null,
+      },
+    });
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, message: (err as Error).message };
+  }
 }
 
 /**

@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Check, Printer, FileText, X, AlertCircle } from "lucide-react";
+import { Check, Printer, FileText, X, AlertCircle, MessageSquareText } from "lucide-react";
 import { Modal } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
 import { WhatsAppIcon } from "@/components/whatsapp-icon";
@@ -11,6 +11,7 @@ import {
   type CustomerContext,
   type InvoiceContext,
   type PaymentContext,
+  type MillingCommunicationContext,
 } from "@/lib/communication";
 import { useI18n } from "@/lib/i18n";
 import { money } from "@/lib/format";
@@ -28,6 +29,7 @@ export interface OperationSuccessModalProps {
   invoice?: InvoiceContext | null;
   payment?: PaymentContext | null;
   eventType?: CommunicationEventType;
+  millingContext?: Partial<MillingCommunicationContext> | null;
   onPrint?: () => void;
   onViewDocument?: () => void;
   soundEnabled?: boolean;
@@ -46,6 +48,7 @@ export function OperationSuccessModal({
   invoice,
   payment,
   eventType,
+  millingContext,
   onPrint,
   onViewDocument,
   soundEnabled = true,
@@ -88,19 +91,22 @@ export function OperationSuccessModal({
       customer,
       invoice,
       payment,
+      milling: millingContext,
       language: lang === "ar" ? "ar" : "en",
     });
     return renderMessage(ctx);
-  }, [open, resolvedEvent, customer, invoice, payment, lang]);
+  }, [open, resolvedEvent, customer, invoice, payment, millingContext, lang]);
 
   const handleWhatsAppClick = () => {
     if (!renderedMessage?.canSendWhatsApp || !renderedMessage.whatsAppUrl) return;
     window.open(renderedMessage.whatsAppUrl, "_blank", "noopener,noreferrer");
   };
 
+  const handleSmsClick = () => {
+    if (!renderedMessage?.canSendSms || !renderedMessage.smsUrl) return;
+    window.open(renderedMessage.smsUrl, "_blank", "noopener,noreferrer");
+  };
   const hasPhone = Boolean(customer?.phone && customer.phone.trim().length > 0);
-  const canSendWhatsApp = Boolean(renderedMessage?.canSendWhatsApp);
-
   return (
     <Modal
       open={open}
@@ -171,42 +177,22 @@ export function OperationSuccessModal({
 
         {/* Actions Section */}
         <div className="w-full space-y-2 pt-2">
-          {/* Primary Recommended WhatsApp Action */}
+          {/* Configured message channels */}
           {customer && (
-            <button
-              type="button"
-              disabled={!canSendWhatsApp}
-              onClick={handleWhatsAppClick}
-              title={
-                !canSendWhatsApp
-                  ? isAr
-                    ? "لا يمكن الإرسال لعدم وجود رقم هاتف صالح"
-                    : "Cannot send: No valid phone number"
-                  : isAr
-                    ? "إرسال عبر واتساب"
-                    : "Send via WhatsApp"
-              }
-              className={`flex w-full items-center justify-center gap-2 rounded-xl py-3 text-xs font-bold transition shadow-sm active:scale-[0.98] ${
-                canSendWhatsApp
-                  ? "bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-500/20"
-                  : "bg-muted text-muted-foreground border border-border/80 cursor-not-allowed opacity-60"
-              }`}
-            >
-              <WhatsAppIcon className="size-4 shrink-0" />
-              <span>
-                {resolvedEvent === "payment_received"
-                  ? isAr
-                    ? "إرسال إيصال السداد للعميل عبر واتساب"
-                    : "Send Payment Receipt via WhatsApp"
-                  : resolvedEvent === "invoice_created"
-                    ? isAr
-                      ? "إرسال الفاتورة للعميل عبر واتساب"
-                      : "Send Invoice via WhatsApp"
-                    : isAr
-                      ? "مراسلة العميل عبر واتساب"
-                      : "Message Customer via WhatsApp"}
-              </span>
-            </button>
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+              {renderedMessage?.canSendWhatsApp && (
+                <button type="button" onClick={handleWhatsAppClick} className="flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 py-3 text-xs font-bold text-white shadow-sm transition hover:bg-emerald-700 active:scale-[0.98]">
+                  <WhatsAppIcon className="size-4 shrink-0" />
+                  <span>{isAr ? "إرسال عبر واتساب" : "Send via WhatsApp"}</span>
+                </button>
+              )}
+              {renderedMessage?.canSendSms && (
+                <button type="button" onClick={handleSmsClick} className="flex w-full items-center justify-center gap-2 rounded-xl border border-border bg-background py-3 text-xs font-bold text-foreground shadow-sm transition hover:bg-muted active:scale-[0.98]">
+                  <MessageSquareText className="size-4 shrink-0" />
+                  <span>{isAr ? "إرسال رسالة نصية" : "Send SMS"}</span>
+                </button>
+              )}
+            </div>
           )}
 
           {/* Secondary Actions (Print / Document / Close) */}

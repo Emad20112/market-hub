@@ -1,0 +1,339 @@
+# تصنيف دوال SQL وفق Architecture v2 (Backend = مركز المنطق)
+
+> مولّد آليًا من scripts/arch-classify.mjs على ترحيلات 17 ملف و 296 تعريف دالة.
+> استدعاءات الواجهة: 106 دالة RPC من 42 ملف.
+
+- **تبقى في القاعدة:** 66
+- **تنتقل إلى Backend:** 132
+- **تنتقل مع إعادة تصميم (workflow متعدد الجداول):** 40
+- **مرشحة للحذف (ميتة ظاهريًا):** 40
+
+## استدعاءات RPC الديناميكية في الواجهة (تحتاج معالجة يدوية)
+- hooks\use-batch-settings.ts
+- hooks\use-cheques.ts
+- hooks\use-expenses.ts
+- hooks\use-financial-posting.ts
+- hooks\use-payment-methods.ts
+- lib\safety.ts
+- routes\_app.batches.tsx
+- routes\_app.chart-of-accounts.tsx
+- routes\_app.finance.tsx
+- routes\_app.fiscal-periods.tsx
+- routes\_app.fiscal-year-close.tsx
+- routes\_app.fixed-assets.tsx
+- routes\_app.loyalty.tsx
+- routes\_app.payments.tsx
+- routes\_app.pos.tsx
+- routes\_app.prepayments.tsx
+- routes\_app.products.tsx
+- routes\_app.purchase-returns.tsx
+- routes\_app.sales-returns.tsx
+- routes\_app.supplier-ledger.tsx
+- routes\_app.tax-declarations.tsx
+- routes\_app.transfers.tsx
+- routes\_app.users.tsx
+- components\batches\add-batch-dialog.tsx
+- components\batches\batch-settings-dialog.tsx
+- components\purchases\purchase-form-sheet.tsx
+- components\statements\profit-sales-report.tsx
+- lib\backup\engine.ts
+- lib\expenses\financial-bridge.ts
+- lib\items\safety.ts
+- lib\items\stock-operations.ts
+- lib\milling\custody.ts
+- lib\offline\sync-engine.ts
+- lib\opening-balances\index.ts
+- lib\production\production-orders.ts
+- lib\sales-invoice\index.ts
+- components\settings\sections\document-numbering-card.tsx
+- components\settings\sections\expense-approval-rules-section.tsx
+- components\settings\sections\expense-categories-section.tsx
+- components\settings\sections\expense-cost-centers-section.tsx
+- components\settings\sections\expense-ledger-accounts-section.tsx
+- components\settings\sections\stock-settings-section.tsx
+
+## تبقى في قاعدة البيانات (66)
+- `allocate_sales_invoice_item_batches` — 007_sales_and_collections.sql — السبب: trigger في 007_sales_and_collections.sql
+- `approve_item_policy_change` — 005_products_and_inventory.sql — **تستدعيها الواجهة** — السبب: يستدعيه من تبقى داخل القاعدة
+- `assert_payment_splits_balance` — 012_milling_and_custody.sql — السبب: trigger في 012_milling_and_custody.sql
+- `assert_split_payment_document_balance` — 011_treasury_and_payment_methods.sql — السبب: trigger في 011_treasury_and_payment_methods.sql
+- `audit_item_policy_snapshot` — 005_products_and_inventory.sql — السبب: يستدعيه من تبقى داخل القاعدة
+- `can_read_expense_entry` — 010_expenses.sql — السبب: تعبير سياسة RLS في 010_expenses.sql
+- `can_read_finance` — 002_identity_settings_platform_audit.sql — السبب: تعبير سياسة RLS في 004_partners_and_ledgers.sql
+- `can_view_milling` — 012_milling_and_custody.sql — السبب: تعبير سياسة RLS في 012_milling_and_custody.sql
+- `capture_milling_service_estimate_from_intake` — 012_milling_and_custody.sql — السبب: trigger في 012_milling_and_custody.sql
+- `consume_purchase_return_item_batches` — 008_purchasing_and_returns.sql — السبب: trigger في 008_purchasing_and_returns.sql
+- `enforce_invoice_product_flags` — 005_products_and_inventory.sql — السبب: trigger في 008_purchasing_and_returns.sql
+- `expense_required_approval_rank` — 010_expenses.sql — السبب: يستدعيه من تبقى داخل القاعدة
+- `expense_role_rank` — 002_identity_settings_platform_audit.sql — السبب: تعبير سياسة RLS في 010_expenses.sql
+- `expense_settlement_status` — 010_expenses.sql — السبب: يستدعيه من تبقى داخل القاعدة
+- `guard_allocated_expense_reversal` — 013_production.sql — السبب: trigger في 013_production.sql
+- `guard_company_production_material_scope` — 005_products_and_inventory.sql — السبب: trigger في 013_production.sql
+- `guard_company_stock_movement_scope` — 006_stock_movements_and_costing.sql — السبب: trigger في 006_stock_movements_and_costing.sql
+- `guard_expense_draft_post_reason` — 010_expenses.sql — السبب: trigger في 010_expenses.sql
+- `guard_four_payment_method_catalogue` — 011_treasury_and_payment_methods.sql — السبب: trigger في 011_treasury_and_payment_methods.sql
+- `guard_four_payment_method_write` — 011_treasury_and_payment_methods.sql — السبب: trigger في 011_treasury_and_payment_methods.sql
+- `guard_production_company_stock_scope` — 005_products_and_inventory.sql — السبب: trigger في 006_stock_movements_and_costing.sql
+- `guard_purchase_return_item_origin` — 008_purchasing_and_returns.sql — السبب: trigger في 008_purchasing_and_returns.sql
+- `guard_split_tender_approved` — 011_treasury_and_payment_methods.sql — السبب: trigger في 011_treasury_and_payment_methods.sql
+- `has_role` — 002_identity_settings_platform_audit.sql — السبب: تعبير سياسة RLS في 002_identity_settings_platform_audit.sql
+- `is_platform_admin` — 002_identity_settings_platform_audit.sql — **تستدعيها الواجهة** — السبب: تعبير سياسة RLS في 002_identity_settings_platform_audit.sql
+- `is_platform_superadmin` — 002_identity_settings_platform_audit.sql — السبب: تعبير سياسة RLS في 002_identity_settings_platform_audit.sql
+- `is_staff` — 002_identity_settings_platform_audit.sql — السبب: تعبير سياسة RLS في 002_identity_settings_platform_audit.sql
+- `is_system_customer` — 004_partners_and_ledgers.sql — السبب: يستدعيه من تبقى داخل القاعدة
+- `item_effective_policy` — 005_products_and_inventory.sql — **تستدعيها الواجهة** — السبب: يستدعيه من تبقى داخل القاعدة
+- `item_has_stock_history` — 006_stock_movements_and_costing.sql — السبب: يستدعيه من تبقى داخل القاعدة
+- `payment_method_catalog_id` — 011_treasury_and_payment_methods.sql — السبب: يستدعيه من تبقى داخل القاعدة
+- `payment_method_is_allowed` — 011_treasury_and_payment_methods.sql — السبب: يستدعيه من تبقى داخل القاعدة
+- `payment_method_legacy_id` — 011_treasury_and_payment_methods.sql — السبب: يستدعيه من تبقى داخل القاعدة
+- `payment_method_resolve_id` — 011_treasury_and_payment_methods.sql — السبب: يستدعيه من تبقى داخل القاعدة
+- `payment_method_settings_guard` — 011_treasury_and_payment_methods.sql — السبب: trigger في 011_treasury_and_payment_methods.sql
+- `payment_methods_authoring_guard` — 011_treasury_and_payment_methods.sql — السبب: trigger في 011_treasury_and_payment_methods.sql
+- `payment_methods_delete_guard` — 011_treasury_and_payment_methods.sql — السبب: trigger في 011_treasury_and_payment_methods.sql
+- `prevent_last_active_store_owner_removal` — 002_identity_settings_platform_audit.sql — السبب: trigger في 002_identity_settings_platform_audit.sql
+- `production_guard_cost_allocation_write` — 005_products_and_inventory.sql — السبب: trigger في 013_production.sql
+- `production_guard_posted_void_output` — 013_production.sql — السبب: trigger في 013_production.sql
+- `production_link_movement_to_order` — 013_production.sql — السبب: trigger في 013_production.sql
+- `recalculate_customer_balance` — 007_sales_and_collections.sql — السبب: يستدعيه من تبقى داخل القاعدة
+- `reject_custody_items_in_commercial_documents` — 012_milling_and_custody.sql — السبب: trigger في 012_milling_and_custody.sql
+- `reject_paid_credit_sale_creation` — 007_sales_and_collections.sql — السبب: trigger في 007_sales_and_collections.sql
+- `require_purchase_batch_for_batch_items` — 008_purchasing_and_returns.sql — السبب: trigger في 008_purchasing_and_returns.sql
+- `resolve_writable_payment_method` — 011_treasury_and_payment_methods.sql — السبب: يستدعيه من تبقى داخل القاعدة
+- `restore_sales_return_item_batches` — 007_sales_and_collections.sql — السبب: trigger في 007_sales_and_collections.sql
+- `sync_item_class_from_policy` — 002_identity_settings_platform_audit.sql — السبب: trigger في 005_products_and_inventory.sql
+- `sync_product_base_uom` — 006_stock_movements_and_costing.sql — السبب: trigger في 006_stock_movements_and_costing.sql
+- `sync_purchase_invoice_item_batch` — 008_purchasing_and_returns.sql — السبب: trigger في 008_purchasing_and_returns.sql
+- `tg_customer_ledger_sync_balance` — 007_sales_and_collections.sql — السبب: trigger في 007_sales_and_collections.sql
+- `tg_customer_ledger_system_guard` — 007_sales_and_collections.sql — السبب: trigger في 007_sales_and_collections.sql
+- `tg_customers_system_guard` — 002_identity_settings_platform_audit.sql — السبب: trigger في 004_partners_and_ledgers.sql
+- `tg_expense_capture_approval_rank` — 010_expenses.sql — السبب: trigger في 010_expenses.sql
+- `tg_expense_entries_guard` — 010_expenses.sql — السبب: trigger في 010_expenses.sql
+- `tg_expense_lines_sync_total` — 010_expenses.sql — السبب: trigger في 010_expenses.sql
+- `tg_expense_payments_sync_entry` — 010_expenses.sql — السبب: trigger في 010_expenses.sql
+- `tg_guard_item_policy_change` — 006_stock_movements_and_costing.sql — السبب: trigger في 006_stock_movements_and_costing.sql
+- `tg_journal_entries_no_delete` — 009_accounting_ledger.sql — السبب: trigger في 009_accounting_ledger.sql
+- `tg_platform_admins_keep_superadmin` — 002_identity_settings_platform_audit.sql — السبب: trigger في 002_identity_settings_platform_audit.sql
+- `tg_set_updated_at` — 002_identity_settings_platform_audit.sql — السبب: trigger في 011_treasury_and_payment_methods.sql
+- `tg_stock_movements_engine_only` — 006_stock_movements_and_costing.sql — السبب: trigger في 006_stock_movements_and_costing.sql
+- `tg_suppliers_system_guard` — 004_partners_and_ledgers.sql — السبب: trigger في 004_partners_and_ledgers.sql
+- `touch_grain_type_updated_at` — 003_catalog_reference.sql — السبب: trigger في 003_catalog_reference.sql
+- `trg_purchase_invoice_to_supplier_ledger` — 008_purchasing_and_returns.sql — السبب: trigger في 008_purchasing_and_returns.sql
+- `trg_purchase_return_to_supplier_ledger` — 008_purchasing_and_returns.sql — السبب: trigger في 008_purchasing_and_returns.sql
+
+## تنتقل مع إعادة تصميم (40)
+- `apply_cost_movement` — 006_stock_movements_and_costing.sql — 3 مستدعي SQL
+- `complete_production_order` — 013_production.sql — 1 مستدعي SQL
+- `create_journal_entry` — 009_accounting_ledger.sql — 22 مستدعي SQL
+- `create_milling_service_document` — 012_milling_and_custody.sql — **تستدعيها الواجهة**
+- `create_opening_balance` — 006_stock_movements_and_costing.sql — **تستدعيها الواجهة**
+- `create_purchase` — 012_milling_and_custody.sql — **تستدعيها الواجهة**
+- `create_purchase_return` — 012_milling_and_custody.sql — **تستدعيها الواجهة**
+- `create_sales_return` — 012_milling_and_custody.sql — **تستدعيها الواجهة**
+- `create_stock_transfer` — 012_milling_and_custody.sql — **تستدعيها الواجهة**
+- `create_tenant_payment_method` — 011_treasury_and_payment_methods.sql — **تستدعيها الواجهة**
+- `custody_adjustment` — 012_milling_and_custody.sql — **تستدعيها الواجهة**
+- `custody_delivery` — 012_milling_and_custody.sql — **تستدعيها الواجهة** — 1 مستدعي SQL
+- `custody_intake` — 012_milling_and_custody.sql — **تستدعيها الواجهة**
+- `custody_intake_multi` — 012_milling_and_custody.sql — **تستدعيها الواجهة**
+- `custody_milling` — 012_milling_and_custody.sql — **تستدعيها الواجهة** — 1 مستدعي SQL
+- `custody_milling_multi` — 012_milling_and_custody.sql — **تستدعيها الواجهة**
+- `delete_expense_category` — 010_expenses.sql — **تستدعيها الواجهة**
+- `expense_log_action` — 010_expenses.sql — 11 مستدعي SQL
+- `expense_report` — 010_expenses.sql — **تستدعيها الواجهة**
+- `open_fiscal_year` — 009_accounting_ledger.sql — **تستدعيها الواجهة**
+- `post_opening_balance` — 009_accounting_ledger.sql — **تستدعيها الواجهة**
+- `post_opening_stock` — 006_stock_movements_and_costing.sql — **تستدعيها الواجهة**
+- `post_purchase_invoice` — 011_treasury_and_payment_methods.sql — 1 مستدعي SQL
+- `post_sales_invoice` — 011_treasury_and_payment_methods.sql — 3 مستدعي SQL
+- `post_stock_adjustment` — 009_accounting_ledger.sql — **تستدعيها الواجهة**
+- `post_stock_delta` — 006_stock_movements_and_costing.sql — 19 مستدعي SQL
+- `production_order_cost_detail` — 013_production.sql — **تستدعيها الواجهة**
+- `record_customer_payment` — 011_treasury_and_payment_methods.sql — **تستدعيها الواجهة**
+- `record_supplier_payment` — 011_treasury_and_payment_methods.sql — **تستدعيها الواجهة**
+- `reverse_expense` — 010_expenses.sql — **تستدعيها الواجهة**
+- `reverse_opening_balance` — 009_accounting_ledger.sql — **تستدعيها الواجهة**
+- `reverse_production_order` — 013_production.sql — **تستدعيها الواجهة**
+- `run_contract_amortization` — 009_accounting_ledger.sql — **تستدعيها الواجهة** — 1 مستدعي SQL
+- `run_depreciation` — 009_accounting_ledger.sql — **تستدعيها الواجهة** — 1 مستدعي SQL
+- `save_expense_approval_rule` — 010_expenses.sql — **تستدعيها الواجهة**
+- `save_expense_category` — 010_expenses.sql — **تستدعيها الواجهة**
+- `save_expense_dimension` — 010_expenses.sql — **تستدعيها الواجهة**
+- `save_product_uom_settings` — 008_purchasing_and_returns.sql — **تستدعيها الواجهة**
+- `set_expense_ledger_account` — 010_expenses.sql — **تستدعيها الواجهة**
+- `settle_tax_period` — 009_accounting_ledger.sql — **تستدعيها الواجهة**
+
+## تنتقل كما هي (منطق قابل للترجمة مباشرة) (132)
+- `activate_fixed_asset` — 009_accounting_ledger.sql — **تستدعيها الواجهة**
+- `activate_prepaid_contract` — 009_accounting_ledger.sql — **تستدعيها الواجهة**
+- `adjust_loyalty` — 007_sales_and_collections.sql — **تستدعيها الواجهة**
+- `assert_period_open` — 009_accounting_ledger.sql — 6 مستدعي SQL
+- `backup_export_all` — 002_identity_settings_platform_audit.sql — **تستدعيها الواجهة**
+- `backup_restore_all` — 002_identity_settings_platform_audit.sql — **تستدعيها الواجهة**
+- `backup_schema_fingerprint` — 002_identity_settings_platform_audit.sql — **تستدعيها الواجهة** — 2 مستدعي SQL
+- `balance_and_post_return` — 009_accounting_ledger.sql — 2 مستدعي SQL
+- `bounce_cheque` — 011_treasury_and_payment_methods.sql — **تستدعيها الواجهة**
+- `business_now` — 002_identity_settings_platform_audit.sql — 2 مستدعي SQL
+- `business_timestamp` — 002_identity_settings_platform_audit.sql — 2 مستدعي SQL
+- `business_timezone` — 002_identity_settings_platform_audit.sql — 3 مستدعي SQL
+- `business_today` — 002_identity_settings_platform_audit.sql — 3 مستدعي SQL
+- `can_author_payment_methods` — 011_treasury_and_payment_methods.sql — 4 مستدعي SQL
+- `can_operate_milling` — 012_milling_and_custody.sql — 12 مستدعي SQL
+- `cancel_expense` — 010_expenses.sql — **تستدعيها الواجهة**
+- `clear_cheque` — 011_treasury_and_payment_methods.sql — **تستدعيها الواجهة**
+- `close_expense` — 010_expenses.sql — **تستدعيها الواجهة**
+- `close_fiscal_year` — 009_accounting_ledger.sql — **تستدعيها الواجهة**
+- `company_costing_method` — 002_identity_settings_platform_audit.sql — 3 مستدعي SQL
+- `convert_stock` — 013_production.sql — **تستدعيها الواجهة**
+- `create_and_post_production_order` — 013_production.sql — **تستدعيها الواجهة**
+- `create_expense_v2` — 012_milling_and_custody.sql — **تستدعيها الواجهة**
+- `create_milling_service_document_multi` — 012_milling_and_custody.sql — 1 مستدعي SQL
+- `create_production_order` — 013_production.sql — 1 مستدعي SQL
+- `create_sale` — 012_milling_and_custody.sql — **تستدعيها الواجهة**
+- `custody_balance` — 012_milling_and_custody.sql — 4 مستدعي SQL
+- `custody_grain_items` — 012_milling_and_custody.sql — **تستدعيها الواجهة**
+- `custody_link_invoice` — 012_milling_and_custody.sql — **تستدعيها الواجهة**
+- `custody_output_items` — 012_milling_and_custody.sql — **تستدعيها الواجهة**
+- `customer_balance_lock` — 007_sales_and_collections.sql — 3 مستدعي SQL
+- `customer_credit_limit_allows` — 004_partners_and_ledgers.sql — 3 مستدعي SQL
+- `decide_expense` — 010_expenses.sql — **تستدعيها الواجهة**
+- `delete_expense_approval_rule` — 010_expenses.sql — **تستدعيها الواجهة**
+- `delete_product_batch` — 006_stock_movements_and_costing.sql — **تستدعيها الواجهة**
+- `derive_payment_status` — 011_treasury_and_payment_methods.sql — 7 مستدعي SQL
+- `dispose_fixed_asset` — 009_accounting_ledger.sql — **تستدعيها الواجهة**
+- `expense_actor` — 010_expenses.sql — 21 مستدعي SQL
+- `expense_approval_rule_management` — 010_expenses.sql — **تستدعيها الواجهة**
+- `expense_assert_capability` — 010_expenses.sql — 25 مستدعي SQL
+- `expense_can` — 010_expenses.sql — 2 مستدعي SQL
+- `expense_category_management` — 010_expenses.sql — **تستدعيها الواجهة**
+- `expense_category_postable_accounts` — 010_expenses.sql — **تستدعيها الواجهة**
+- `expense_detail` — 010_expenses.sql — **تستدعيها الواجهة**
+- `expense_ledger_account_management` — 010_expenses.sql — **تستدعيها الواجهة**
+- `expense_line_net` — 010_expenses.sql — 1 مستدعي SQL
+- `expense_line_production_base_amount` — 010_expenses.sql — 2 مستدعي SQL
+- `expense_lookups` — 010_expenses.sql — **تستدعيها الواجهة**
+- `expense_posting_account_code` — 010_expenses.sql — 2 مستدعي SQL
+- `expense_require_override_reason` — 010_expenses.sql — 1 مستدعي SQL
+- `expense_reverse_supplier_ledger` — 010_expenses.sql — 1 مستدعي SQL
+- `expense_round` — 010_expenses.sql — 9 مستدعي SQL
+- `expense_summary` — 010_expenses.sql — **تستدعيها الواجهة**
+- `expense_write_lines` — 010_expenses.sql — 3 مستدعي SQL
+- `expense_write_supplier_ledger` — 010_expenses.sql — 3 مستدعي SQL
+- `fn_document_numbering_sequence_name` — 012_milling_and_custody.sql — 2 مستدعي SQL
+- `fn_format_document_number` — 003_catalog_reference.sql — 1 مستدعي SQL
+- `fn_next_document_number` — 012_milling_and_custody.sql — 6 مستدعي SQL
+- `fn_resolve_document_numbering` — 003_catalog_reference.sql — 2 مستدعي SQL
+- `fn_set_document_numbering` — 012_milling_and_custody.sql — **تستدعيها الواجهة**
+- `generate_tax_declaration` — 009_accounting_ledger.sql — **تستدعيها الواجهة** — 1 مستدعي SQL
+- `get_batch_kpis` — 006_stock_movements_and_costing.sql — **تستدعيها الواجهة**
+- `get_chart_of_accounts_tree` — 009_accounting_ledger.sql — **تستدعيها الواجهة**
+- `get_supplier_statement` — 004_partners_and_ledgers.sql — **تستدعيها الواجهة**
+- `item_line_type` — 005_products_and_inventory.sql — 5 مستدعي SQL
+- `item_stock_effect` — 006_stock_movements_and_costing.sql — 5 مستدعي SQL
+- `ledger_account_code_for_payment_method` — 011_treasury_and_payment_methods.sql — 1 مستدعي SQL
+- `list_expenses` — 010_expenses.sql — **تستدعيها الواجهة**
+- `milling_document_delivery` — 012_milling_and_custody.sql — **تستدعيها الواجهة**
+- `milling_document_process` — 012_milling_and_custody.sql — **تستدعيها الواجهة**
+- `milling_service_cost_report` — 012_milling_and_custody.sql — **تستدعيها الواجهة**
+- `next_expense_reference` — 012_milling_and_custody.sql — 2 مستدعي SQL
+- `next_invoice_number` — 012_milling_and_custody.sql — 3 مستدعي SQL
+- `next_journal_number` — 009_accounting_ledger.sql — 1 مستدعي SQL
+- `next_purchase_number` — 012_milling_and_custody.sql — 1 مستدعي SQL
+- `next_purchase_return_number` — 012_milling_and_custody.sql — 1 مستدعي SQL
+- `next_sales_return_number` — 012_milling_and_custody.sql — 1 مستدعي SQL
+- `next_stock_adjustment_number` — 006_stock_movements_and_costing.sql — 2 مستدعي SQL
+- `next_stock_opening_number` — 006_stock_movements_and_costing.sql — 1 مستدعي SQL
+- `next_supplier_voucher_number` — 004_partners_and_ledgers.sql — 1 مستدعي SQL
+- `next_transfer_number` — 012_milling_and_custody.sql — 1 مستدعي SQL
+- `pay_tax_settlement` — 009_accounting_ledger.sql — **تستدعيها الواجهة**
+- `payment_method_account_linkage` — 011_treasury_and_payment_methods.sql — **تستدعيها الواجهة**
+- `payment_method_clean_label` — 011_treasury_and_payment_methods.sql — 2 مستدعي SQL
+- `payment_method_ledger_account` — 011_treasury_and_payment_methods.sql — 8 مستدعي SQL
+- `platform_admin_audit` — 002_identity_settings_platform_audit.sql — 1 مستدعي SQL
+- `post_expense` — 011_treasury_and_payment_methods.sql — **تستدعيها الواجهة**
+- `post_journal_entry` — 009_accounting_ledger.sql — 4 مستدعي SQL
+- `post_sales_invoice_cogs` — 009_accounting_ledger.sql — 2 مستدعي SQL
+- `product_delete_guard` — 012_milling_and_custody.sql — **تستدعيها الواجهة**
+- `product_quantity_in_base` — 005_products_and_inventory.sql — 2 مستدعي SQL
+- `product_reference_counts` — 012_milling_and_custody.sql — **تستدعيها الواجهة** — 1 مستدعي SQL
+- `product_uom_factor` — 005_products_and_inventory.sql — 4 مستدعي SQL
+- `product_uom_price` — 005_products_and_inventory.sql — 2 مستدعي SQL
+- `production_cost_sources` — 013_production.sql — **تستدعيها الواجهة**
+- `production_expense_line_available` — 013_production.sql — 1 مستدعي SQL
+- `production_inventory_account_code` — 009_accounting_ledger.sql — 1 مستدعي SQL
+- `production_mass_in_kg` — 005_products_and_inventory.sql — 2 مستدعي SQL
+- `production_order_history` — 013_production.sql — **تستدعيها الواجهة**
+- `production_output_has_downstream_use` — 013_production.sql — 1 مستدعي SQL
+- `production_product_is_company_stock` — 005_products_and_inventory.sql — 1 مستدعي SQL
+- `production_quantity_in_base` — 005_products_and_inventory.sql — 2 مستدعي SQL
+- `receive_customer_owned_stock` — 006_stock_movements_and_costing.sql — **تستدعيها الواجهة**
+- `reconcile_batches_with_inventory` — 006_stock_movements_and_costing.sql — **تستدعيها الواجهة**
+- `record_expense_payment` — 011_treasury_and_payment_methods.sql — **تستدعيها الواجهة** — 1 مستدعي SQL
+- `release_customer_owned_stock` — 006_stock_movements_and_costing.sql — **تستدعيها الواجهة**
+- `remove_tenant_payment_method` — 011_treasury_and_payment_methods.sql — **تستدعيها الواجهة**
+- `resolve_document_settlement_account` — 011_treasury_and_payment_methods.sql — 5 مستدعي SQL
+- `resolve_purchase_line` — 008_purchasing_and_returns.sql — 1 مستدعي SQL
+- `resolve_sale_line` — 007_sales_and_collections.sql — 1 مستدعي SQL
+- `resolve_unit_cost` — 006_stock_movements_and_costing.sql — 2 مستدعي SQL
+- `reverse_expense_payment` — 010_expenses.sql — **تستدعيها الواجهة**
+- `reverse_journal_entry` — 009_accounting_ledger.sql — 4 مستدعي SQL
+- `rpc_allowlist_before_company_production` — 005_products_and_inventory.sql — 1 مستدعي SQL
+- `run_batch_amortization` — 009_accounting_ledger.sql — **تستدعيها الواجهة**
+- `run_batch_depreciation` — 009_accounting_ledger.sql — **تستدعيها الواجهة**
+- `sales_line_cost` — 007_sales_and_collections.sql — **تستدعيها الواجهة**
+- `save_batch_settings` — 002_identity_settings_platform_audit.sql — **تستدعيها الواجهة**
+- `save_item_policy` — 006_stock_movements_and_costing.sql — **تستدعيها الواجهة**
+- `save_product_batch` — 006_stock_movements_and_costing.sql — **تستدعيها الواجهة**
+- `set_company_costing_method` — 006_stock_movements_and_costing.sql — **تستدعيها الواجهة**
+- `set_expense_category_account` — 010_expenses.sql — **تستدعيها الواجهة**
+- `set_payment_method_default_account` — 011_treasury_and_payment_methods.sql — **تستدعيها الواجهة**
+- `set_period_status` — 009_accounting_ledger.sql — **تستدعيها الواجهة**
+- `set_production_expense_category_eligibility` — 010_expenses.sql — **تستدعيها الواجهة**
+- `set_profile_active` — 002_identity_settings_platform_audit.sql — **تستدعيها الواجهة**
+- `smart_manufacture` — 013_production.sql — **تستدعيها الواجهة**
+- `submit_expense` — 010_expenses.sql — **تستدعيها الواجهة**
+- `update_expense` — 010_expenses.sql — 1 مستدعي SQL
+- `update_expense_v2` — 010_expenses.sql — **تستدعيها الواجهة**
+- `update_opening_balance` — 006_stock_movements_and_costing.sql — **تستدعيها الواجهة**
+- `update_payment_method_identity` — 011_treasury_and_payment_methods.sql — **تستدعيها الواجهة**
+
+## مرشحة للحذف (40)
+- `consume_internal_supplies` — 012_milling_and_custody.sql — السبب: لا مستدعين داخل SQL ولا من الواجهة
+- `create_expense` — 012_milling_and_custody.sql — السبب: لا مستدعين داخل SQL ولا من الواجهة
+- `create_milling_service_document_multi_priced` — 012_milling_and_custody.sql — السبب: لا مستدعين داخل SQL ولا من الواجهة
+- `customer_balance_reconciliation_report` — 007_sales_and_collections.sql — السبب: لا مستدعين داخل SQL ولا من الواجهة
+- `customer_balance_stamp_after_sale` — 007_sales_and_collections.sql — السبب: لا مستدعين داخل SQL ولا من الواجهة
+- `customer_ledger_balance` — 007_sales_and_collections.sql — السبب: لا مستدعين داخل SQL ولا من الواجهة
+- `customer_ledger_time_mismatches` — 007_sales_and_collections.sql — السبب: لا مستدعين داخل SQL ولا من الواجهة
+- `expense_can_write_document` — 010_expenses.sql — السبب: لا مستدعين داخل SQL ولا من الواجهة
+- `expense_ledger_summary` — 010_expenses.sql — السبب: لا مستدعين داخل SQL ولا من الواجهة
+- `expense_line_tax` — 010_expenses.sql — السبب: لا مستدعين داخل SQL ولا من الواجهة
+- `get_batch_settings` — 002_identity_settings_platform_audit.sql — السبب: لا مستدعين داخل SQL ولا من الواجهة
+- `grain_types_output_map_ratio_is_valid` — 003_catalog_reference.sql — السبب: لا مستدعين داخل SQL ولا من الواجهة
+- `guard_reverse_production_with_shared_expenses` — 013_production.sql — السبب: لا مستدعين داخل SQL ولا من الواجهة
+- `handle_new_user` — 002_identity_settings_platform_audit.sql — السبب: لا مستدعين داخل SQL ولا من الواجهة
+- `has_any_role` — 002_identity_settings_platform_audit.sql — السبب: لا مستدعين داخل SQL ولا من الواجهة
+- `is_system_supplier` — 004_partners_and_ledgers.sql — السبب: لا مستدعين داخل SQL ولا من الواجهة
+- `migrate_legacy_expenses` — 010_expenses.sql — السبب: لا مستدعين داخل SQL ولا من الواجهة
+- `normalize_auth_user_token_columns` — 002_identity_settings_platform_audit.sql — السبب: لا مستدعين داخل SQL ولا من الواجهة
+- `payment_method_catalog_view` — 011_treasury_and_payment_methods.sql — السبب: لا مستدعين داخل SQL ولا من الواجهة
+- `payment_methods_seed_is_identity_owned` — 011_treasury_and_payment_methods.sql — السبب: لا مستدعين داخل SQL ولا من الواجهة
+- `platform_admin_audit_self` — 002_identity_settings_platform_audit.sql — السبب: لا مستدعين داخل SQL ولا من الواجهة
+- `policy_runtime_functions` — 002_identity_settings_platform_audit.sql — السبب: لا مستدعين داخل SQL ولا من الواجهة
+- `post_stock_settlement` — 006_stock_movements_and_costing.sql — السبب: لا مستدعين داخل SQL ولا من الواجهة
+- `production_allocate_joint_cost` — 013_production.sql — السبب: لا مستدعين داخل SQL ولا من الواجهة
+- `production_lock_material_scope` — 005_products_and_inventory.sql — السبب: لا مستدعين داخل SQL ولا من الواجهة
+- `production_order_cost_check` — 013_production.sql — السبب: لا مستدعين داخل SQL ولا من الواجهة
+- `recalculate_all_customer_balances` — 007_sales_and_collections.sql — السبب: لا مستدعين داخل SQL ولا من الواجهة
+- `record_customer_advance_payment` — 011_treasury_and_payment_methods.sql — السبب: لا مستدعين داخل SQL ولا من الواجهة
+- `record_customer_payment_splits` — 011_treasury_and_payment_methods.sql — السبب: لا مستدعين داخل SQL ولا من الواجهة
+- `required_payment_ledger_accounts` — 009_accounting_ledger.sql — السبب: لا مستدعين داخل SQL ولا من الواجهة
+- `resolve_product_barcode` — 005_products_and_inventory.sql — السبب: لا مستدعين داخل SQL ولا من الواجهة
+- `rpc_allowlist` — 002_identity_settings_platform_audit.sql — السبب: لا مستدعين داخل SQL ولا من الواجهة
+- `rpc_allowlist_before_production_reversal` — 005_products_and_inventory.sql — السبب: لا مستدعين داخل SQL ولا من الواجهة
+- `sale_line_unit_cost` — 007_sales_and_collections.sql — السبب: لا مستدعين داخل SQL ولا من الواجهة
+- `sales_invoice_tender_breakdown` — 007_sales_and_collections.sql — السبب: لا مستدعين داخل SQL ولا من الواجهة
+- `search_products` — 005_products_and_inventory.sql — السبب: لا مستدعين داخل SQL ولا من الواجهة
+- `set_company_item_policy` — 005_products_and_inventory.sql — السبب: لا مستدعين داخل SQL ولا من الواجهة
+- `set_standard_costs` — 005_products_and_inventory.sql — السبب: لا مستدعين داخل SQL ولا من الواجهة
+- `sync_apply_operation` — 002_identity_settings_platform_audit.sql — السبب: لا مستدعين داخل SQL ولا من الواجهة
+- `warehouse_reference_counts` — 008_purchasing_and_returns.sql — السبب: لا مستدعين داخل SQL ولا من الواجهة

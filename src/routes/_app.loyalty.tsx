@@ -3,6 +3,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { Gift, Plus, Search, Award } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { adjustLoyaltyFn } from "@/server/api/sales/adjust-loyalty";
 import { PageHeader } from "@/components/page-header";
 import { useI18n } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
@@ -246,13 +247,18 @@ function AdjustDialog({ customers, onSaved }: { customers: Customer[]; onSaved: 
       toast.error(t("common.fill_form"));
       return;
     }
-    const { error } = await supabase.rpc("adjust_loyalty" as any, {
-      _customer: form.customer_id,
-      _points: form.points,
-      _kind: form.kind,
-      _note: form.note || null,
-    });
-    if (error) return toast.error(error.message);
+    try {
+      await adjustLoyaltyFn({
+        data: {
+          customerId: form.customer_id,
+          points: form.points,
+          kind: form.kind as "earn" | "redeem" | "adjust",
+          note: form.note || null,
+        },
+      });
+    } catch (err) {
+      return toast.error((err as Error).message);
+    }
     toast.success(t("common.updated"));
     setOpen(false);
     setForm({ customer_id: "", points: 10, kind: "earn", note: "" });

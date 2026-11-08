@@ -1081,7 +1081,10 @@ input::-ms-reveal {
   box-shadow:
     0 16px 40px -12px rgba(0, 0, 0, 0.5),
     0 2px 8px -2px rgba(0, 0, 0, 0.3) !important;
-  transition: all 0.26s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  transition:
+    background-color 0.2s ease,
+    border-color 0.2s ease,
+    box-shadow 0.2s ease !important;
   overflow: visible !important;
   min-height: 52px !important;
   max-width: 440px !important;
@@ -1168,10 +1171,6 @@ input::-ms-reveal {
   flex-shrink: 0;
   position: relative;
   transition: transform 0.2s ease;
-}
-
-.vortex-toast-card:hover .vortex-toast-icon-badge {
-  transform: scale(1.06);
 }
 
 /* زر الإغلاق الأنيق */
@@ -1365,7 +1364,7 @@ input::-ms-reveal {
   ol[data-sonner-toaster][data-x-position="right"] {
     left: 0 !important;
     right: 0 !important;
-    width: 100% !important;
+    width: min(100%, 440px) !important;
     padding-inline: 12px !important;
     align-items: center !important;
     display: flex !important;
@@ -1379,6 +1378,21 @@ input::-ms-reveal {
     width: 100% !important;
     max-width: calc(100vw - 24px) !important;
     margin-inline: auto !important;
+  }
+
+  .vortex-toaster-container ol[data-sonner-toaster] [data-sonner-toast][data-index="1"] {
+    transform: translateY(7px) scale(0.965) !important;
+    transform-origin: top center !important;
+  }
+
+  .vortex-toaster-container ol[data-sonner-toaster] [data-sonner-toast][data-index="2"] {
+    transform: translateY(14px) scale(0.93) !important;
+    transform-origin: top center !important;
+  }
+
+  .vortex-toaster-container ol[data-sonner-toaster][data-expanded="true"] [data-sonner-toast] {
+    transform: none !important;
+    opacity: 1 !important;
   }
 }
 

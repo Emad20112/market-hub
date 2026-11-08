@@ -1,10 +1,10 @@
 import * as React from "react";
-import { Loader2, RefreshCw, WifiOff } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
+import { RefreshCw, WifiOff } from "lucide-react";
 
-import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/feedback";
+import { cn } from "@/lib/utils";
 
 /**
  * Connection awareness.
@@ -38,16 +38,10 @@ export function useOnline(): boolean {
 export function ConnectionBanner() {
   const online = useOnline();
   const queryClient = useQueryClient();
-  const [reconnecting, setReconnecting] = React.useState(false);
   const wasOnline = React.useRef(online);
 
   const retry = React.useCallback(async () => {
-    setReconnecting(true);
-    try {
-      await queryClient.refetchQueries({ type: "active" });
-    } finally {
-      setReconnecting(false);
-    }
+    await queryClient.refetchQueries({ type: "active" });
   }, [queryClient]);
 
   /*
@@ -71,31 +65,9 @@ export function ConnectionBanner() {
     void retry();
   }, [online, retry]);
 
-  if (online) return null;
-
-  return (
-    <div
-      role="alert"
-      className="flex items-center justify-center gap-2 border-b border-warning-fg/25 bg-tone-warning px-4 py-2 text-xs text-tone-warning-fg"
-    >
-      <WifiOff className="size-3.5 shrink-0" aria-hidden />
-      <span className="font-medium">
-        لا يوجد اتصال بالإنترنت — سيتم تحديث البيانات عند عودة الاتصال
-      </span>
-      <button
-        type="button"
-        onClick={retry}
-        className="ms-1 inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-semibold underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-current"
-      >
-        {reconnecting ? (
-          <Loader2 className="size-3 animate-spin" />
-        ) : (
-          <RefreshCw className="size-3" />
-        )}
-        إعادة المحاولة
-      </button>
-    </div>
-  );
+  // Keep reconnect refresh behavior, but do not show browser internet status
+  // in the application header. A local installation can work without internet.
+  return null;
 }
 
 /* ------------------------------------------------------------------ */
@@ -156,7 +128,7 @@ export function describeQueryError(error: unknown): {
   if (offline || /failed to fetch|networkerror|load failed/i.test(message)) {
     return {
       title: "تعذّر الاتصال بالخادم",
-      description: "تحقّق من اتصال الإنترنت ثم أعد المحاولة. لم يتم فقدان أي بيانات.",
+      description: "تعذّر الوصول إلى الخادم المحلي. أعد المحاولة. لم يتم فقدان أي بيانات.",
       canRetry: true,
     };
   }

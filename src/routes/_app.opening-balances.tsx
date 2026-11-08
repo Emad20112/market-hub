@@ -2,7 +2,7 @@
  * /opening-balances — إدارة وترحيل الأرصدة الافتتاحية.
  *
  * مراجعة وإصلاح شامل طبقاً لخطة الماستر بلان (DOC-MILLING-ERP-MASTER-2026-V2-AUDITED):
- * 1. دعم إدخال أرصدة المخزون بالأكياس وسعة الكيس أو بالكيلو مع الحساب التلقائي للوزن والتكلفة.
+ * 1. إدخال أرصدة المخزون بوحدة الصنف وكمية وتكلفة مباشرة.
  * 2. الحساب التلقائي لمبلغ البند (الكمية × التكلفة) لمنع أخطاء الإدخال اليدوي.
  * 3. زر موازنة القيد التلقائي برأس المال (حـ/ 3111) بنقرة واحدة لتسوية الفرق فوراً وتسهيل الترحيل.
  * 4. إمكانية حذف أي سطر من المسودة بنقرة واحدة.
@@ -90,12 +90,6 @@ export function OpeningBalancesPage() {
   const [selectedAccountCode, setSelectedAccountCode] = useState("");
   const [effectiveDate, setEffectiveDate] = useState(new Date().toISOString().slice(0, 10));
 
-  // إدارة الأكياس للمخزون
-  const [stockInputMode, setStockInputMode] = useState<"bags" | "kg">("bags");
-  const [bagsCount, setBagsCount] = useState("");
-  const [bagCapacityKg, setBagCapacityKg] = useState("50");
-  const [bagCost, setBagCost] = useState("");
-
   const documents = useQuery({
     queryKey: ["opening", "documents"],
     queryFn: fetchOpeningDocuments,
@@ -127,37 +121,6 @@ export function OpeningBalancesPage() {
       setWarehouseId(warehouses.data[0].id);
     }
   }, [warehouses.data, warehouseId]);
-
-  // تحديث سعة العبوة والتكلفة عند اختيار الصنف
-  useEffect(() => {
-    if (selectedItem?.package_weight_kg) {
-      setBagCapacityKg(String(selectedItem.package_weight_kg));
-    } else {
-      setBagCapacityKg("1");
-    }
-    if (selectedItem?.cost_price && !unitCost) {
-      setUnitCost(String(selectedItem.cost_price));
-    }
-  }, [selectedItem]);
-
-  // احتساب كمية وتكلفة المخزون تلقائياً عند تغيير العبوات
-  useEffect(() => {
-    if (section !== "STOCK" || stockInputMode !== "bags") return;
-    const bags = Number(bagsCount) || 0;
-    const cap = Number(bagCapacityKg) || 1;
-    const bCost = Number(bagCost) || 0;
-
-    if (bags > 0 && cap > 0) {
-      const calculatedQty = bags * cap;
-      setQty(String(calculatedQty));
-
-      if (bCost > 0) {
-        const costPerUnit = bCost / cap;
-        setUnitCost(String(roundNum(costPerUnit)));
-        setAmount(String(roundNum(bags * bCost)));
-      }
-    }
-  }, [bagsCount, bagCapacityKg, bagCost, section, stockInputMode]);
 
   // احتساب المبلغ التلقائي عند تغيير الكمية والتكلفة المباشرة
   const handleQtyOrCostChange = (newQty: string, newCost: string) => {
@@ -219,8 +182,6 @@ export function OpeningBalancesPage() {
         setAmount("");
         setQty("");
         setUnitCost("");
-        setBagsCount("");
-        setBagCost("");
         setRefId("");
         setSelectedAccountCode("");
         setSelectedId(null);
@@ -303,11 +264,7 @@ export function OpeningBalancesPage() {
     let desc = meta.label;
     if (section === "STOCK" && selectedItem) {
       const itemTitle = selectedItem.name_ar || selectedItem.name || selectedItem.sku;
-      if (stockInputMode === "bags" && Number(bagsCount) > 0) {
-        desc = `مخزون افتتاحي: ${bagsCount} عبوة سعة ${bagCapacityKg} ${itemUnit} — ${itemTitle}`;
-      } else {
-        desc = `مخزون افتتاحي: ${q} ${itemUnit} — ${itemTitle}`;
-      }
+      desc = `مخزون افتتاحي: ${q} ${itemUnit} — ${itemTitle}`;
     } else if (section === "RECEIVABLE") {
       const c = customers.data?.find((x) => x.id === refId);
       desc = `رصيد افتتاحي عميل: ${c?.name ?? ""}`;
@@ -344,8 +301,6 @@ export function OpeningBalancesPage() {
     setAmount("");
     setQty("");
     setUnitCost("");
-    setBagsCount("");
-    setBagCost("");
     setRefId("");
     setSelectedAccountCode("");
   };
@@ -403,18 +358,18 @@ export function OpeningBalancesPage() {
         />
 
         {/* ─── البطاقة العلوية: إضافة بند جديد ─── */}
-        <MillingPanel>
+        <MillingPanel className="border-primary/20 shadow-md shadow-primary/5">
           <div className="border-b border-border/70 p-4 sm:p-5">
             <MillingSectionTitle
               icon={<BookOpen className="h-4 w-4 text-primary" />}
               title="إعداد القيد الافتتاحي وإضافة البنود"
-              subtitle="اختر القسم ثم أدخل الأرصدة (المخزون يدعم الأكياس والكيلو وحساب التكلفة تلقائياً)"
+              subtitle="اختر القسم ثم أدخل الرصيد الافتتاحي والتكلفة حسب وحدة الصنف"
             />
           </div>
 
-          <div className="space-y-4 p-4 sm:p-5">
+          <div className="space-y-5 bg-gradient-to-b from-primary/[0.025] to-transparent p-4 sm:p-6">
             {/* الصف الأول: التاريخ والقسم */}
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid gap-4 rounded-2xl border border-border/70 bg-card/70 p-4 sm:grid-cols-2 lg:grid-cols-3">
               <div>
                 <label className="mb-1.5 block text-xs font-bold text-foreground">
                   تاريخ سريان القيد الافتتاحي *
@@ -452,13 +407,13 @@ export function OpeningBalancesPage() {
                 </select>
               </div>
 
-              <div className="flex flex-col justify-end text-xs text-muted-foreground bg-muted/40 p-2.5 rounded-xl border border-border/60">
+              <div className="flex flex-col justify-end text-xs text-muted-foreground bg-primary/[0.06] p-3 rounded-xl border border-primary/15">
                 <span className="font-semibold text-foreground">التوجيه المحاسبي:</span>
                 <span className="text-[11px] leading-relaxed mt-0.5">{meta.hint}</span>
               </div>
             </div>
 
-            {/* تفاصيل بند المخزون (أكياس وسعة وكيلو) */}
+            {/* تفاصيل بند المخزون */}
             {section === "STOCK" && (
               <div className="rounded-2xl border border-primary/20 bg-primary/5 p-4 space-y-4">
                 <div className="flex flex-wrap items-center justify-between gap-2 border-b border-primary/15 pb-3">
@@ -467,34 +422,6 @@ export function OpeningBalancesPage() {
                     <span className="text-xs font-bold text-foreground">
                       بيانات مخزون الصنف والمستودع
                     </span>
-                  </div>
-
-                  {/* تبديل نمط الإدخال: عبوات أو كمية مباشرة */}
-                  <div className="flex items-center rounded-xl border border-border bg-surface p-1">
-                    <button
-                      type="button"
-                      onClick={() => setStockInputMode("bags")}
-                      className={cn(
-                        "rounded-lg px-2.5 py-1 text-xs font-bold transition",
-                        stockInputMode === "bags"
-                          ? "bg-primary text-primary-foreground shadow-xs"
-                          : "text-muted-foreground hover:text-foreground",
-                      )}
-                    >
-                      بالعبوات / الأكياس
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setStockInputMode("kg")}
-                      className={cn(
-                        "rounded-lg px-2.5 py-1 text-xs font-bold transition",
-                        stockInputMode === "kg"
-                          ? "bg-primary text-primary-foreground shadow-xs"
-                          : "text-muted-foreground hover:text-foreground",
-                      )}
-                    >
-                      بالكمية المباشرة ({itemUnit})
-                    </button>
                   </div>
                 </div>
 
@@ -536,85 +463,37 @@ export function OpeningBalancesPage() {
                   </div>
                 </div>
 
-                {stockInputMode === "bags" ? (
-                  <div className="grid grid-cols-3 gap-3">
-                    <div>
-                      <label className="mb-1 block text-xs font-bold text-foreground">
-                        عدد العبوات / الأكياس *
-                      </label>
-                      <QuantityInput
-                        min={0}
-                        decimals={0}
-                        placeholder="مثال: 100"
-                        aria-label="عدد العبوات"
-                        value={toNumberOrNull(bagsCount)}
-                        onValueChange={(v) => setBagsCount(v == null ? "" : String(v))}
-                      />
-                    </div>
-
-                    <div>
-                      <label className="mb-1 block text-xs font-bold text-foreground">
-                        سعة العبوة ({itemUnit}) *
-                      </label>
-                      <QuantityInput
-                        min={0}
-                        decimals={3}
-                        placeholder="1"
-                        aria-label={`سعة العبوة (${itemUnit})`}
-                        value={toNumberOrNull(bagCapacityKg)}
-                        onValueChange={(v) => setBagCapacityKg(v == null ? "" : String(v))}
-                      />
-                    </div>
-
-                    <div>
-                      <label className="mb-1 block text-xs font-bold text-foreground">
-                        تكلفة العبوة الواحدة *
-                      </label>
-                      <AmountInput
-                        min={0}
-                        placeholder="مثال: 22000"
-                        aria-label="تكلفة العبوة الواحدة"
-                        value={toNumberOrNull(bagCost)}
-                        onValueChange={(v) => setBagCost(v == null ? "" : String(v))}
-                        wordsClassName="text-[10px] leading-3"
-                      />
-                    </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="mb-1 block text-xs font-bold text-foreground">
+                      الكمية الإجمالية ({itemUnit}) *
+                    </label>
+                    <QuantityInput
+                      min={0}
+                      decimals={3}
+                      placeholder="مثال: 5000"
+                      aria-label={`الكمية الإجمالية (${itemUnit})`}
+                      value={toNumberOrNull(qty)}
+                      onValueChange={(v) =>
+                        handleQtyOrCostChange(v == null ? "" : String(v), unitCost)
+                      }
+                    />
                   </div>
-                ) : (
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="mb-1 block text-xs font-bold text-foreground">
-                        الكمية الإجمالية ({itemUnit}) *
-                      </label>
-                      <QuantityInput
-                        min={0}
-                        decimals={3}
-                        placeholder="مثال: 5000"
-                        aria-label={`الكمية الإجمالية (${itemUnit})`}
-                        value={toNumberOrNull(qty)}
-                        onValueChange={(v) =>
-                          handleQtyOrCostChange(v == null ? "" : String(v), unitCost)
-                        }
-                      />
-                    </div>
 
-                    <div>
-                      <label className="mb-1 block text-xs font-bold text-foreground">
-                        تكلفة {itemUnit} الواحد *
-                      </label>
-                      <AmountInput
-                        min={0}
-                        placeholder="مثال: 440"
-                        aria-label={`تكلفة ${itemUnit} الواحد`}
-                        value={toNumberOrNull(unitCost)}
-                        onValueChange={(v) =>
-                          handleQtyOrCostChange(qty, v == null ? "" : String(v))
-                        }
-                        wordsClassName="text-[10px] leading-3"
-                      />
-                    </div>
+                  <div>
+                    <label className="mb-1 block text-xs font-bold text-foreground">
+                      تكلفة {itemUnit} الواحد *
+                    </label>
+                    <AmountInput
+                      min={0}
+                      placeholder="مثال: 440"
+                      aria-label={`تكلفة ${itemUnit} الواحد`}
+                      value={toNumberOrNull(unitCost)}
+                      onValueChange={(v) => handleQtyOrCostChange(qty, v == null ? "" : String(v))}
+                      wordsClassName="text-[10px] leading-3"
+                    />
                   </div>
-                )}
+                </div>
 
                 {/* شريط الإيضاح المخزني اللحظي */}
                 {Number(qty) > 0 && (
@@ -666,6 +545,9 @@ export function OpeningBalancesPage() {
                         </option>
                       ))}
                     </select>
+                    <p className="mt-1.5 text-[11px] leading-relaxed text-muted-foreground">
+                      يسجل المبلغ كذمم مدينة على العميل في رصيده وكشف حسابه، ويمكن تسويته لاحقاً من شاشة تحصيل دفعة.
+                    </p>
                   </div>
                 )}
 
@@ -803,7 +685,9 @@ export function OpeningBalancesPage() {
                             {l.ledger_account_code || "—"}
                           </td>
                           <td className="p-3 text-foreground font-medium">
-                            {l.quantity ? `${l.quantity} كجم × ${l.unit_cost} — ` : ""}
+                            {l.quantity
+                              ? `${l.quantity} ${items.data?.find((item) => item.id === l.product_id)?.unit?.short_name || items.data?.find((item) => item.id === l.product_id)?.unit?.name_ar || "وحدة"} × ${l.unit_cost} — `
+                              : ""}
                             {l.description}
                           </td>
                           <td className="p-3 text-end font-mono font-bold text-foreground">

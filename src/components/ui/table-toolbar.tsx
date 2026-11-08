@@ -251,12 +251,8 @@ export function TableToolbar({
     <div
       className={cn(
         "flex flex-col gap-2",
-        /*
-         * نفس إزاحة شريط السجلات الموحّد: الترويسة الثابتة في الهيكل ارتفاعها
-         * ٤rem، وشريط `top-0` كان يختفي تحتها عند التمرير.
-         */
         sticky &&
-          "sticky top-[calc(4rem+env(safe-area-inset-top,0px))] z-20 border border-border/60 bg-background/80 shadow-sm backdrop-blur-xl",
+          "sticky top-0 z-20 border border-border/60 bg-background/80 shadow-sm backdrop-blur-xl",
         className,
       )}
     >

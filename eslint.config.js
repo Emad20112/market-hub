@@ -74,6 +74,26 @@ export default tseslint.config(
       ],
     },
   },
+  {
+    /*
+     * حظر استدعاء RPC مباشر خارج طبقة النطاقات (docs/ARCHITECTURE_REVIEW.md §3.2).
+     * يبدأ بوضع "warn" في المرحلة 1، ويُشدَّد إلى "error" مجالًا بعد مجال
+     * مع اكتمال تغليف دوال كل مجال في src/domains/.
+     */
+    files: ["src/**/*.{ts,tsx}"],
+    ignores: ["src/domains/**"],
+    rules: {
+      "no-restricted-properties": [
+        "warn",
+        {
+          object: "supabase",
+          property: "rpc",
+          message:
+            "استدعاء RPC مباشر غير مسموح خارج src/domains. استخدم خدمة المجال (src/domains/<domain>/services) — راجع docs/ARCHITECTURE_REVIEW.md §3.2.",
+        },
+      ],
+    },
+  },
   eslintPluginPrettier,
   {
     /* استثناء: طبقات الطباعة والقوالب هي المكان الشرعي الوحيد لأرقام الدعم. */

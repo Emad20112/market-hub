@@ -1,91 +1,52 @@
-# نشر Vortex ERP وSupabase ذاتيًا عبر Docker
+# بيئة الإنتاج المحلية
 
-هذا النشر يشغّل تطبيق Vortex وSupabase ذاتية الاستضافة على **خادم Linux إنتاجي مستقل**. تبقى حاويات `supabase start` المحلية للتطوير كما هي ولا تُحوّل أو تُحذف.
-
-إذا كان المقصود تشغيل نسخة محلية خاصة على جهاز Windows الحالي عبر Docker Desktop، اتبع [دليل قاعدة الإنتاج المحلية](../docs/deployment/2026-11-04-local-production-docker-runbook.md). هذا مسار منفصل عن نشر Linux والنطاقات العامة الموضح في بقية هذا الملف، ويُدار من PowerShell دون الحاجة إلى Ubuntu أو WSL.
-
-لخطوات تجهيز جهاز عميل جديد من الصفر، راجع [دليل تثبيت Vortex للعميل على Windows](../docs/deployment/windows-customer-installation.md).
-
-> لا تستخدم جهاز Windows الحالي كخادم عام للشركات. يلزم خادم Linux دائم، ونطاقان يشيران إليه، ونسخ احتياطية خارج الخادم. إعداد Supabase الذاتي يحمّلك مسؤولية تحديث PostgreSQL وتأمينه ومراقبته واستعادة نسخه الاحتياطية.
+يشغّل هذا المجلد نسخة الإنتاج المعتمدة على جهاز Windows عبر Docker Desktop، وتعمل محليًا دون اعتماد على نطاق عام أو خادم سحابي. بياناتها محفوظة في `deploy/supabase-stack/volumes/db/data`. التطوير يستخدم إعداد Supabase السحابي من `.env`، ولا توجد قاعدة تطوير محلية في Docker.
 
 ## المتطلبات
 
-- خادم Linux مع Docker Engine وDocker Compose Plugin حديث (Compose 2.24.4 أو أحدث لدعم `!override`).
-- RAM لا تقل عن 4 GB؛ يوصى بـ8 GB أو أكثر، وقرص SSD بسعة 80 GB أو أكثر لتشغيل خدمات Supabase براحة.
-- نطاق التطبيق مثل `erp.example.com` ونطاق API مثل `api.example.com`، وكلا سجلّي DNS يشيران إلى عنوان الخادم.
-- المنافذ العامة `80/tcp` و`443/tcp` و`443/udp` فقط. PostgreSQL ومجمع الاتصالات لا يُنشران على الإنترنت؛ لوحة Studio تمر عبر بوابة HTTPS وتتطلب مصادقة.
-- Git وPython 3 وNode.js/npm على الخادم لتجهيز Supabase وتشغيل الترحيلات.
+- Windows مع Docker Desktop يعمل وGit for Windows.
+- ملفات الإنتاج الخاصة موجودة: `deploy/.env.local-production` و`deploy/supabase-stack/.env`.
+- صور Docker المطلوبة موجودة محليًا إذا كان الجهاز بلا إنترنت.
 
-راجع [دليل Supabase الرسمي للاستضافة عبر Docker](https://supabase.com/docs/guides/self-hosting/docker) و[متطلبات الخادم](https://supabase.com/docs/guides/self-hosting/docker#system-requirements). لا تستخدم حزمة `supabase start` المحلية كخدمة إنتاج.
+## التشغيل والتحقق
 
-## تجهيز Supabase الإنتاجية
+استخدم دليل التشغيل التفصيلي في [`docs/deployment/2026-11-04-local-production-docker-runbook.md`](../docs/deployment/2026-11-04-local-production-docker-runbook.md). التطبيق متاح على `http://localhost:3001`، وواجهة Supabase على `http://localhost:8000`، وقاعدة PostgreSQL محلية فقط على `127.0.0.1:5433`.
 
-من نسخة المشروع على خادم Linux، نفّذ مرة واحدة:
-
-```sh
-bash deploy/bootstrap-self-hosted-supabase.sh erp.example.com api.example.com
-```
-
-يحمّل السكربت إعداد Docker الرسمي المثبّت على الإصدار `self-hosted/v0.8.3`، وينشئ أسرارًا جديدة على الخادم، ويضبط عناوين التطبيق وAPI. كما ينشئ `deploy/.env.production` بمفتاحي النشر والسر الخادمي المطابقين للمكدس، ويضبط الملفين على صلاحية `600`. لا يطبع الأسرار ولا يبدأ الحاويات، ويرفض الكتابة فوق إعداد موجود. مجلد `deploy/supabase-stack/` وملفات البيئة مستثناة من Git ومن سياق بناء صورة التطبيق.
-
-يعطّل الإعداد التسجيل العام، والتأكيد التلقائي للبريد والهاتف، والمستخدمين المجهولين. لا تفتح تسجيل المستخدمين قبل اختيار طريقة تحقق وإعدادها. اضبط SMTP حقيقيًا قبل الاعتماد على رسائل دعوة المستخدمين أو استعادة كلمات المرور؛ إعداد البريد الافتراضي مخصص للتطوير.
-
-راجع سجلات DNS قبل التشغيل، ثم من مجلد `deploy/supabase-stack`:
-
-```sh
-docker compose --project-name supabase --env-file .env -f docker-compose.yml -f docker-compose.production.override.yaml config --quiet
-docker compose --project-name supabase --env-file .env -f docker-compose.yml -f docker-compose.production.override.yaml up -d --wait
-```
-
-شبكة Supabase الداخلية اسمها `supabase_default`. لا ينشر ملف التعديل API gateway أو مجمع الاتصالات على منافذ المضيف، ويربط PostgreSQL بـ`127.0.0.1:5433` فقط لاستخدام الترحيلات والنسخ الاحتياطي من الخادم نفسه. لا تفتح هذا المنفذ في جدار الحماية.
-
-## إعداد التطبيق وCaddy
-
-أنشأ سكربت التهيئة `deploy/.env.production` من مفاتيح المكدس الذاتي. راجع أسماء النطاقات والهدف دون طباعة الملف أو نسخ السر إلى الطرفية:
-
-```sh
-grep -E '^(APP_DOMAIN|SUPABASE_DOMAIN|VITE_SUPABASE_TARGET|SUPABASE_TARGET|SUPABASE_URL)=' deploy/.env.production
-```
-
-يكون `VITE_SUPABASE_TARGET` و`SUPABASE_TARGET` مساويين لـ`docker`، ويكون عنوان الخادم داخل شبكة Docker هو `http://api-gw:8000`. مفتاح النشر العام يدخل في حزمة المتصفح، بينما `SUPABASE_SECRET_KEY` يبقى خاصًا ببيئة الخادم ويتجاوز RLS؛ لا تضعه في متغير `VITE_*` أو وسيطة بناء، ولا تشاركه. يتطلب تغيير النطاقين إعادة تهيئة مدروسة للملفين؛ لا تستبدل أسرار مكدس قائم.
-
-تحقق من الإعداد ثم ابنِ التطبيق وشغّله من جذر المستودع:
-
-```sh
-docker compose --env-file deploy/.env.production -f deploy/compose.production.yaml config --quiet
-docker compose --env-file deploy/.env.production -f deploy/compose.production.yaml build app
-docker compose --env-file deploy/.env.production -f deploy/compose.production.yaml up -d
-```
-
-Caddy يخدم التطبيق وAPI على النطاقين عبر HTTPS، ويوجه API إلى بوابة Supabase عبر شبكة Docker الخاصة. لا تُنشر منافذ `3000` أو `5432` أو `5433` أو `6543` أو `8000` للعامة.
-
-## تطبيق الترحيلات والبذور النظامية
-
-**الدفع إلى استضافة ذاتية قائمة معطّل حاليًا.** أصبح `supabase/migrations/`
-خط أساس لإنشاء قواعد جديدة، وليس سجل تحديث للقواعد القائمة. سيوقف
-`npm run db:selfhosted:push` نفسه عمدًا حتى تُراجع خطة انتقال سجل كل بيئة.
-
-لإنشاء قاعدة Docker المحلية الجديدة فقط على Windows، اتبع
-[`runbook المحلي`](../docs/deployment/2026-11-04-local-production-docker-runbook.md)
-واستخدم:
+تحقق من Compose دون تشغيل أو تعديل البيانات:
 
 ```powershell
-npm run db:selfhosted:push:local
+docker compose --env-file deploy/supabase-stack/.env --project-name supabase `
+  -f deploy/supabase-stack/docker-compose.yml `
+  -f deploy/supabase-stack/docker-compose.local-production.override.yaml config --quiet
+
+docker compose --env-file deploy/.env.local-production `
+  -f deploy/compose.production.yaml `
+  -f deploy/compose.local-production.override.yaml config --quiet
 ```
 
-لا ينفذ هذا الإجراء `reset`، ويشترط قاعدة محلية فارغة، ويستبعد حسابات مسؤولي
-المنصة وبيانات العينات.
+## بناء تحديثات التطبيق وتشغيلها
 
-## التشغيل والصيانة
+بعد تعديل كود التطبيق، ابنِ صورة الإنتاج وشغّل حاوية التطبيق فقط:
 
-```sh
-docker compose --env-file deploy/.env.production -f deploy/compose.production.yaml ps
-docker compose --env-file deploy/.env.production -f deploy/compose.production.yaml logs -f app proxy
+```powershell
+docker compose --env-file deploy/.env.local-production `
+  -f deploy/compose.production.yaml `
+  -f deploy/compose.local-production.override.yaml build app
+
+docker compose --env-file deploy/.env.local-production `
+  -f deploy/compose.production.yaml `
+  -f deploy/compose.local-production.override.yaml up -d --no-deps app
 ```
 
-- اختبر نسخًا احتياطية خارج الخادم واستعادة فعلية لقاعدة البيانات وملفات Storage قبل تشغيل الشركات.
-- ضع مراقبة وتنبيهات، وحدّث صور Supabase وفق إصدارات متوافقة، واحتفظ بإمكانية الرجوع.
-- لا تنفّذ `down -v` أو `reset.sh` على الإنتاج؛ كلاهما قد يحذف بيانات دائمة.
-- `restart: unless-stopped` يعيد تشغيل الحاويات ولا يوفر وحده نسخًا احتياطيًا أو تعافيًا من تعطل الخادم.
+يُحدّث البناء الصورة `vortex-erp:local-production` ثم يعيد إنشاء الحاوية `vortex-erp-local-production` دون إيقاف قاعدة البيانات. افتح `http://localhost:3001` لرؤية النسخة المحدّثة. أمر `npm run build` وحده لا يحدّث حاوية الإنتاج.
 
-هذا الملف يشرح نشر الخادم العام على Linux؛ لم يبدأ هذا المسار العام ولم تُنشأ قاعدة على خادم Linux بعد. أما نسخة Windows المحلية عبر Docker Desktop فتعمل حسب [دليل التشغيل المحلي](../docs/deployment/2026-11-04-local-production-docker-runbook.md)، ولا يعني ذلك أن الخادم العام أو وصول أجهزة أخرى أصبح جاهزًا.
+## التطوير
+
+ملف `.env` في جذر المشروع يخص `npm run dev` فقط، ويمكن توجيهه إلى مشروع Supabase سحابي منفصل. لا تنسخ إعدادات أو أسرار الإنتاج المحلية إليه.
+
+## حماية البيانات
+
+- لا تحذف `deploy/supabase-stack/volumes/db/data`؛ هذا مجلد قاعدة الإنتاج.
+- لا تستخدم `docker compose down -v` أو `supabase db reset` على الإنتاج.
+- احفظ نسخًا احتياطية مستقلة للتطبيق وقاعدة البيانات وملفات التخزين.
+- لا تطبق ترحيلات على قاعدة الإنتاج قبل اعتمادها والتحقق من توافقها مع سجل الترحيلات والبيانات الموجودة.

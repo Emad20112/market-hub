@@ -8,11 +8,11 @@
 
 | الجزء | العنوان على الجهاز | الاستخدام |
 | --- | --- | --- |
-| نسخة التطبيق المحلية الإنتاجية | `http://localhost:3001` | المتصفح يفتح التطبيق |
+| نسخة التطبيق المحلية الإنتاجية | `http://localhost:3001` | المنفذ المنشور على جهازك؛ صورة التطبيق `vortex-erp:local-production` والحاوية `vortex-erp-local-production` |
 | Supabase API | `http://localhost:8000` | اتصال المتصفح بالتوثيق وREST وStorage والدوال |
 | PostgreSQL الإنتاجية | `127.0.0.1:5433` | الترحيلات والنسخ الاحتياطي من هذا الجهاز فقط |
-| تطبيق التطوير الحالي | `http://localhost:3000` | يبقى منفصلًا عن النسخة المحلية الإنتاجية |
-| Supabase التطوير الحالية | المنافذ والشبكة التي أنشأها Supabase CLI | لا تُستخدم لترحيلات الإنتاج ولا تُحذف |
+| تطبيق التطوير | `http://localhost:3000` | `npm run dev`؛ يستخدم إعداد Supabase في ملف `.env` |
+| قاعدة التطوير | مشروع Supabase السحابي المضبوط في `.env` | لا توجد قاعدة تطوير محلية في Docker |
 
 يكون اتصال التطبيق داخل Docker إلى `http://api-gw:8000` على شبكة `supabase_default`. أما المتصفح فيستخدم `localhost:8000`. تُربط المنافذ المنشورة بـ`127.0.0.1` حتى لا تستقبل اتصالات من الشبكة المحلية. لا يعمل Caddy ولا تُستخدم نطاقات عامة.
 
@@ -24,7 +24,7 @@ flowchart LR
   Gateway --> Auth[Auth وREST وStorage والدوال]
   Auth --> DB[(PostgreSQL الإنتاجية)]
   Migrations[ترحيلات التطبيق] -->|localhost:5433| DB
-  Dev[التطوير الحالي: 3000 و5432/54321] -. شبكة وبيانات مستقلة .- DB
+  Dev[التطوير: localhost:3000 مع Supabase السحابي] -. مستقل عن قاعدة الإنتاج .- DB
 ```
 
 > هذه نسخة محلية على جهاز واحد. لن يصل إليها موظف من جهاز آخر، ولن تعمل إذا أُغلق الجهاز أو Docker Desktop. استخدامها عبر الإنترنت أو كخدمة متاحة للفروع يتطلب إعداد نشر منفصلًا وHTTPS ونسخًا احتياطية خارج الجهاز.
@@ -51,7 +51,7 @@ flowchart LR
 ## 3. ملفات التجهيز التي أضيفت
 
 - `deploy/supabase-local-production.override.yaml`: يعزل منفذ API وقاعدة البيانات على loopback، ويوقف منافذ Supavisor المنشورة.
-- `deploy/compose.local-production.override.yaml`: يربط التطبيق المحلي على المنفذ `3001`، ويمنع منافذ Caddy العامة.
+- `deploy/compose.local-production.override.yaml`: يربط التطبيق المحلي على المنفذ `3001`، ولا يفتح التطبيق إلا على loopback.
 - `deploy/app.local-production.env.example`: يشرح القيم المتوقعة للعنوان المحلي؛ لا يحتوي أسرارًا فعلية.
 - `npm run db:selfhosted:bootstrap:local`: يهيئ مكدس Supabase محليًا بإصدار رسمي مثبّت عبر PowerShell وGit Bash، وينشئ مفاتيح جديدة، ويكتب `.env.local-production`، ويجهز وظائف Edge الموجودة في المشروع. لا يحتاج Ubuntu أو WSL، لكنه يحتاج اتصالًا لتنزيل إعدادات المصدر، ولا يبدأ Docker أو يسحب الصور.
 - `npm run db:selfhosted:protect:local`: يقيّد صلاحية قراءة ملفي الأسرار على حساب Windows الحالي وSYSTEM وAdministrators. ملفات `chmod 600` داخل مسار `/mnt/c` قد لا تحصل وحدها على صلاحيات Windows المطلوبة.
@@ -110,7 +110,7 @@ docker compose --project-name supabase --env-file deploy/supabase-stack/.env `
   -f deploy/supabase-stack/docker-compose.local-production.override.yaml up -d --wait
 ```
 
-هذه قاعدة جديدة ذات مجلد بيانات منفصل عن قاعدة التطوير. لا تنفذ `supabase start` لتشغيل هذه القاعدة، ولا توجه التطبيق إلى شبكة التطوير `supabase_network_kwzqvgdyadylwnvjghqn`.
+قاعدة الإنتاج المحلية معزولة في مجلد بياناتها وشبكتها الخاصة. لا تنفذ `supabase start`؛ تطوير التطبيق يستخدم مشروع Supabase السحابي المعرّف في `.env`.
 
 ## 5. تطبيق مخطط قاعدة البيانات والبذور
 
@@ -188,24 +188,56 @@ Invoke-WebRequest http://localhost:3001
 
 لإيقاف المكدسين مع حفظ البيانات استخدم `stop`، ولإعادتهما استخدم `up -d --wait` بالأعلام والملفات نفسها. لا تستخدم `down -v` أو `reset.sh` أو `git clean -xfd`؛ قد تحذف قاعدة البيانات والملفات المرفقة. تخزين Postgres والملفات موجود تحت `deploy/supabase-stack/volumes/`، لذلك لا تحذف هذا المجلد ولا تنقل المستودع دون نسخه.
 
-مثال لنسخة قاعدة بيانات قبل تغيير مهم؛ ينشئ dump داخل الحاوية ثم ينسخه إلى مجلد خاص خارج المستودع:
+استخدم سكربت الإنتاج المحلي المخصص. يتحقق من أن إعداد التطبيق هدفه Docker المحلي وأن قاعدة Supabase منشورة فقط على `127.0.0.1:5433`، ثم ينشئ dump بصيغة PostgreSQL القابلة للتحقق، وينسخ ملفات Storage وملفي البيئة إلى مجلد خارج المستودع، ويكتب `manifest.json` وبصمة SHA-256. لا يبحث عن أول حاوية باسم Supabase، لذلك لا يخلط قاعدة التطوير بالإنتاج.
 
 ```powershell
-$stamp = Get-Date -Format "yyyyMMdd-HHmmss"
-$backupDir = Join-Path $env:USERPROFILE "MarketHubBackups\$stamp"
-New-Item -ItemType Directory -Force -Path $backupDir | Out-Null
-docker exec supabase-db pg_dump -U postgres -d postgres -Fc -f "/tmp/market-hub-$stamp.dump"
-docker cp "supabase-db:/tmp/market-hub-$stamp.dump" (Join-Path $backupDir "database.dump")
-docker exec supabase-db rm -f "/tmp/market-hub-$stamp.dump"
+npm run db:backup
 ```
 
-هذه النسخة تشمل قاعدة PostgreSQL ولا تشمل ملفات Supabase Storage. انسخ `deploy/supabase-stack/volumes/storage` وسري البيئة إلى وسيط آمن منفصل عند الحاجة، واحتفظ بنسخ مشفرة بعيدًا عن قرص الجهاز. لا تُعد قاعدة من النسخة فوق قاعدة مستخدمة قبل مراجعة الهدف والنسخة.
+مكان الحفظ الافتراضي `%USERPROFILE%\MarketHubBackups\<timestamp>`. لكتابة النسخة مباشرة إلى قرص خارجي أو USB:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/backup-local-production.ps1 -DestinationRoot "E:\MarketHubBackups"
+```
+
+كل مجلد نسخة يحتوي `database.dump` و`storage/` وملفي البيئة `supabase-stack.env` و`app.env` وبيان `manifest.json`. ملفا البيئة مطلوبان لاستعادة **التثبيت نفسه** ويحويان أسرارًا؛ لذلك تُقيّد صلاحيات المجلد محليًا ولا تشارك النسخة إلا كحزمة سرية. البصمة تكشف تلف ملف قاعدة البيانات، والسكربت يتحقق من سلامة dump وتطابق عدد ملفات Storage وحجمها. لا يشفّر السكربت النسخة؛ استخدم USB مشفرًا بـBitLocker أو شفّر مجلد النسخة قبل نقله. انسخ المجلد كاملًا إلى وسيط منفصل، واختبر الاستعادة دوريًا على قاعدة مؤقتة قبل الاعتماد عليه.
+
+هذا المسار محلي بالكامل ولا يرفع شيئًا إلى Google أو إلى Supabase السحابية. حاوية `tenant-backups` المحلية، إن استُخدمت من واجهة التطبيق، تبقى على القرص نفسه مع بقية Docker؛ فلا تعتبر نسخة خارجية. النسخة خارج الجهاز تكون بنسخ مجلد `MarketHubBackups` إلى USB أو قرص خارجي، أو إلى جهاز نسخ احتياطي ضمن شبكة العميل. لا تحذف النسخ القديمة أو مجلدات `backups/` يدويًا قبل التأكد من وجود نسخة أحدث مستعادة ومتحقق منها.
 
 أُنشئت نسخة تحقق فعلية خارج المستودع في `%USERPROFILE%\MarketHubBackups\20261107-013457`، وتضم dump بصيغة custom، وملفي البيئة، ونسخة Storage، وبيان SHA-256. محتوى Storage الحالي ملف `.gitkeep` فقط. استُعيد الـdump بنجاح إلى قاعدة اختبار منفصلة؛ النسخة صالحة للاستعادة، لكن هذه النسخة المحلية على القرص نفسه ليست بديلًا عن نسخة مشفرة خارج الجهاز.
 
 ## 9. الحالة الحالية وحدود الاستخدام
 
 - التطبيق وقاعدة البيانات محليان ومستقلان عن التطوير والسحابة؛ التشغيل ينجح بصور محلية دون pull. سياسة إعادة التشغيل `unless-stopped`، وDocker Desktop مضبوط للبدء مع تسجيل دخول Windows.
+- نسخة Vercel وقاعدة Supabase السحابية مسار منفصل يحتاج اتصالًا بالإنترنت. تشغيل النسخة المحلية دون إنترنت يتصل فقط بعنوان Supabase المحلي؛ بيانات السحابة والبيانات المحلية ليستا قاعدة واحدة ولا تتزامنان تلقائيًا.
+- حاوية التطبيق تشغّل ناتج البناء `.output` بواسطة Node.js؛ لا تحتاج ملفات المصدر لتشغيل صورة موجودة. يلزم المصدر وملفات البناء لإنتاج صورة جديدة، أو تنقل صورة Docker المبنية إلى الجهاز الآخر بـ`docker save`/`docker load`. ملفات Compose وإعداد العميل تبقى لازمة لتشغيل الحاويات، والنسخ الاحتياطي للبيانات منفصل عن نقل الصور.
+
+### نقل حزمة الصور دون اتصال
+
+يستخدم الإنتاج المحلي صورة `vortex-erp:local-production` وحاوية باسم `vortex-erp-local-production`. المنفذ `3000` داخلي للحاوية فقط؛ المنفذ المنشور على جهازك هو `3001`. بعد بناء إصدار معتمد، صدّر صورة التطبيق وصور Supabase إلى ملف واحد:
+
+```powershell
+docker compose --env-file deploy/.env.local-production `
+  -f deploy/compose.production.yaml `
+  -f deploy/compose.local-production.override.yaml build app
+
+docker save -o .\vortex-erp-local-production-images.tar `
+  vortex-erp:local-production `
+  supabase/studio:2026.10.12-sha-3699278 envoyproxy/envoy:v1.39.1 `
+  supabase/gotrue:v2.197.0 postgrest/postgrest:v14.18 `
+  supabase/realtime:v2.143.3 supabase/storage-api:v1.81.0 `
+  darthsim/imgproxy:v3.31.4 supabase/postgres-meta:v0.100.0 `
+  supabase/edge-runtime:v1.77.4 supabase/postgres:17.6.1.136 `
+  supabase/supavisor:2.9.13
+```
+
+انسخ الملف إلى الجهاز الآخر بوساطة USB أو مشاركة ملفات داخلية ثم استورده:
+
+```powershell
+docker load -i .\vortex-erp-local-production-images.tar
+```
+
+صور Docker تتضمن برنامج التطبيق المبني ولا تتضمن قاعدة البيانات أو ملفات العملاء أو أسرار إعداد العميل. تشغيل تثبيت جاهز لا يحتاج ملفات مصدر التطبيق، لكنه يحتاج ملفات Compose وإعداداته. تهيئة قاعدة جديدة تحتاج أيضًا حزمة الترحيلات والبذور وأداة التهيئة؛ جهّزها مع الإصدار المعتمد ولا تنسخ بيانات تثبيت عميل آخر. لا تنفذ خطوة `build app` إذا لم تكن تغييرات الإصدار قد اعتمدت، فهي تبني الكود الموجود حاليًا على جهاز البناء.
 - المنافذ مربوطة إلى `127.0.0.1`؛ لذلك لا يستطيع جهاز عميل آخر الوصول إلى التطبيق حاليًا. تبقى هذه النسخة لجهاز Windows نفسه. لا تفتح المنافذ مباشرة على LAN؛ الوصول من أجهزة أخرى يحتاج إعداد HTTPS موثوقًا وشهادة يثق بها كل جهاز، أو VPN مناسبًا، مع ضبط نطاقات Auth وCORS والتحقق من الجدار الناري.
 - النسخ الاحتياطي والاستعادة اختُبرا على قاعدة مؤقتة، ولم يُجر أي reset أو حذف لبيانات القاعدة الفعلية أو اتصال بالسحابة.
 - إنهاء التسليم للعملاء يتطلب إكمال قبول واجهة المستخدم يدويًا، وتغيير/إنشاء حسابات كل عميل بصورة منفصلة، وتحديد طريقة وصولهم (هذا الجهاز فقط أو شبكة محلية آمنة)، وتجربة الاستعادة من وسيط منفصل. لا تشارك ملفات الأسرار أو نسخة النسخ الاحتياطي.

@@ -69,6 +69,9 @@ export const ROUTE_ACCESS: Record<string, RouteAccessRule> = {
   "/milling/intake": {
     allowedRoles: ["owner", "manager", "accountant", "warehouse", "cashier"],
   },
+  "/milling/records": {
+    allowedRoles: ["owner", "manager", "accountant", "warehouse", "cashier"],
+  },
   // التسليم وكشف الأمانات: تسليم نواتج ومستندات أمانات العميل.
   "/milling/delivery": {
     allowedRoles: ["owner", "manager", "accountant", "warehouse", "cashier"],

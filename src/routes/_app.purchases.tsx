@@ -372,10 +372,16 @@ function PurchasesPage() {
         partial: t("sales.status.partial"),
         unpaid: t("sales.status.unpaid"),
         cancelled: t("sales.status.cancelled"),
+        completed: isRtl ? "مكتملة" : "Completed",
+        confirmed: isRtl ? "مؤكدة" : "Confirmed",
+        received: isRtl ? "مستلمة" : "Received",
+        returned: isRtl ? "مرتجعة" : "Returned",
+        draft: isRtl ? "مسودة" : "Draft",
+        drafted: isRtl ? "مسودة" : "Draft",
       };
       return map[s] ?? s;
     },
-    [t],
+    [isRtl, t],
   );
 
   const statusBadge = (s: string) => {
@@ -403,6 +409,42 @@ function PurchasesPage() {
         text: "text-muted-foreground",
         dot: "bg-muted-foreground",
         label: t("sales.status.cancelled"),
+      },
+      completed: {
+        bg: "bg-emerald-500/10 border-emerald-500/30",
+        text: "text-emerald-500",
+        dot: "bg-emerald-500",
+        label: isRtl ? "مكتملة" : "Completed",
+      },
+      received: {
+        bg: "bg-cyan-500/10 border-cyan-500/30",
+        text: "text-cyan-600 dark:text-cyan-400",
+        dot: "bg-cyan-500",
+        label: isRtl ? "مستلمة" : "Received",
+      },
+      returned: {
+        bg: "bg-violet-500/10 border-violet-500/30",
+        text: "text-violet-600 dark:text-violet-400",
+        dot: "bg-violet-500",
+        label: isRtl ? "مرتجعة" : "Returned",
+      },
+      confirmed: {
+        bg: "bg-blue-500/10 border-blue-500/30",
+        text: "text-blue-500",
+        dot: "bg-blue-500",
+        label: isRtl ? "مؤكدة" : "Confirmed",
+      },
+      draft: {
+        bg: "bg-slate-500/10 border-slate-500/30",
+        text: "text-slate-500",
+        dot: "bg-slate-500",
+        label: isRtl ? "مسودة" : "Draft",
+      },
+      drafted: {
+        bg: "bg-slate-500/10 border-slate-500/30",
+        text: "text-slate-500",
+        dot: "bg-slate-500",
+        label: isRtl ? "مسودة" : "Draft",
       },
     };
     const c = map[s] ?? {

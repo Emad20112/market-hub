@@ -77,7 +77,7 @@ import { usePaymentPanel } from "@/components/payments/payment-panel";
 import { InvoiceProductFinder } from "@/components/sales/invoice-product-finder";
 import { InvoiceLinesGrid, type UnitOption } from "@/components/sales/invoice-lines-grid";
 import { InvoiceSummaryPanel } from "@/components/sales/invoice-summary-panel";
-import { InvoiceStatusStrip } from "@/components/sales/invoice-status-strip";
+import { CustomerFormDialog } from "@/components/contacts/customer-form-dialog";
 import { newLineKey, type PosCartLine } from "@/components/sales/invoice-pos-types";
 import { useCompanyCurrency } from "@/hooks/use-company-currency";
 import { useNegativeSalesSetting } from "@/hooks/use-negative-sales-setting";
@@ -224,6 +224,7 @@ export function SalesInvoiceComposer() {
   } | null>(null);
   const [successModalOpen, setSuccessModalOpen] = useState(false);
   const [luxuryPreviewOpen, setLuxuryPreviewOpen] = useState(false);
+  const [customerDialogOpen, setCustomerDialogOpen] = useState(false);
 
   /* ------------------------------------------------------------ loading */
 
@@ -824,18 +825,6 @@ export function SalesInvoiceComposer() {
         >
           {/* ───────────────────────────── عمود المستند */}
           <div className="order-2 flex min-w-0 flex-col gap-3 lg:order-1 lg:h-full">
-            <InvoiceStatusStrip
-              isRtl={isRtl}
-              lineCount={cart.length}
-              quantity={cart.reduce((sum, l) => sum + (Number(l.quantity) || 0), 0)}
-              subtotal={subtotal}
-              paid={effectivePaid}
-              remaining={remaining}
-              currencySymbol={currencySymbol}
-              lastInvoiceNumber={lastInvoice?.number ?? null}
-              onOpenLast={() => setLuxuryPreviewOpen(true)}
-            />
-
             <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-border/80 bg-card shadow-sm">
               {/* ترويسة المستند */}
               <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-border/70 bg-gradient-to-b from-muted/40 to-transparent px-3 py-2">
@@ -852,6 +841,18 @@ export function SalesInvoiceComposer() {
                 </div>
 
                 <div className="flex items-center gap-2">
+                  {lastInvoice?.number && (
+                    <button
+                      type="button"
+                      tabIndex={-1}
+                      onClick={() => setLuxuryPreviewOpen(true)}
+                      className="inline-flex items-center gap-1 rounded-md border border-primary/20 bg-primary/10 px-2 py-0.5 text-[10px] font-bold text-primary transition hover:bg-primary/20"
+                      title={isRtl ? "معاينة آخر فاتورة صدرت" : "Preview last invoice"}
+                    >
+                      <Receipt className="size-3" />
+                      <span>{isRtl ? "آخر فاتورة:" : "Last:"} #{toSystemDigits(lastInvoice.number)}</span>
+                    </button>
+                  )}
                   {hasMultiWarehouse && warehouses.length > 1 && (
                     <select
                       value={warehouseId}
@@ -1002,6 +1003,8 @@ export function SalesInvoiceComposer() {
                     : null
                 }
                 lineCount={lines.length}
+                totalQuantity={cart.reduce((sum, l) => sum + (Number(l.quantity) || 0), 0)}
+                onNewCustomer={() => setCustomerDialogOpen(true)}
                 submitting={submitting}
                 canSubmit={lines.length > 0 && payment.isPayable}
                 onSubmit={() => void submit()}
@@ -1013,7 +1016,18 @@ export function SalesInvoiceComposer() {
         </div>
       </div>
 
-      <OperationSuccessModal
+              <CustomerFormDialog
+          open={customerDialogOpen}
+          onClose={() => setCustomerDialogOpen(false)}
+          onSaved={(newCust) => {
+            setCustomers((prev) => [...prev, newCust]);
+            setCustomerId(newCust.id);
+            setCustomerDialogOpen(false);
+            toast.success(`تمت إضافة واختيار العميل: ${newCust.name}`);
+          }}
+        />
+
+        <OperationSuccessModal
         open={successModalOpen}
         onClose={() => setSuccessModalOpen(false)}
         title={isRtl ? "تم إصدار الفاتورة بنجاح" : "Invoice Issued Successfully"}

@@ -414,7 +414,8 @@ CREATE FUNCTION public.rpc_allowlist() RETURNS text[]
     SET search_path TO 'public'
     AS $$
   SELECT ARRAY[
-    -- ── البيع والشراء والمخزون ──
+    -- ── البيع والشراء والمخزون ── (الأسماء المنقولة للباك اند تبقى للاحتفاظ
+    -- بالسجل التاريخي فقط — إسقاطها مؤجل للمرحلة 13 مع الدوال نفسها)
     'create_sale', 'create_sales_return', 'create_purchase',
     'create_purchase_return', 'create_stock_transfer',
     'post_sales_invoice', 'post_purchase_invoice',

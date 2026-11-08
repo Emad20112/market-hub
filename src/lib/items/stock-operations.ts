@@ -17,6 +17,10 @@
  */
 
 import { supabase } from "@/integrations/supabase/client";
+import { receiveCustomerOwnedStockFn } from "@/server/api/inventory/receive-customer-owned-stock";
+import { releaseCustomerOwnedStockFn } from "@/server/api/inventory/release-customer-owned-stock";
+import { postOpeningStockFn } from "@/server/api/stock/post-opening-stock";
+import { postStockAdjustmentFn } from "@/server/api/stock/post-stock-adjustment";
 
 const db = supabase as any;
 
@@ -49,20 +53,24 @@ export async function postOpeningStock(input: {
     return { ok: false, message: "لا توجد بنود في رصيد أول المدة." };
   }
 
-  const { data, error } = await db.rpc("post_opening_stock", {
-    _warehouse_id: input.warehouseId,
-    _effective_date: input.effectiveDate,
-    _note: input.note ?? null,
-    _items: input.lines.map((line) => ({
-      product_id: line.productId,
-      quantity: line.quantity,
-      unit_cost: line.unitCost,
-      note: line.note ?? null,
-    })),
-  });
-
-  if (error) return { ok: false, message: error.message };
-  return { ok: true, id: data as string };
+  try {
+    const res = await postOpeningStockFn({
+      data: {
+        warehouseId: input.warehouseId,
+        effectiveDate: input.effectiveDate,
+        note: input.note ?? null,
+        items: input.lines.map((line) => ({
+          productId: line.productId,
+          quantity: line.quantity,
+          unitCost: line.unitCost,
+          note: line.note ?? null,
+        })),
+      },
+    });
+    return { ok: true, id: res.openingId };
+  } catch (err) {
+    return { ok: false, message: (err as Error).message };
+  }
 }
 
 /* ------------------------------------------------------ stock adjustment */
@@ -93,21 +101,25 @@ export async function postStockAdjustment(input: {
     return { ok: false, message: "لا توجد بنود في التسوية." };
   }
 
-  const { data, error } = await db.rpc("post_stock_adjustment", {
-    _warehouse_id: input.warehouseId,
-    _reason: input.reason,
-    _note: input.note ?? null,
-    _effective_date: input.effectiveDate,
-    _items: input.lines.map((line) => ({
-      product_id: line.productId,
-      quantity: line.quantity,
-      unit_cost: line.unitCost,
-      note: line.note ?? null,
-    })),
-  });
-
-  if (error) return { ok: false, message: error.message };
-  return { ok: true, id: data as string };
+  try {
+    const res = await postStockAdjustmentFn({
+      data: {
+        warehouseId: input.warehouseId,
+        reason: input.reason,
+        note: input.note ?? null,
+        effectiveDate: input.effectiveDate,
+        items: input.lines.map((line) => ({
+          productId: line.productId,
+          quantity: line.quantity,
+          unitCost: line.unitCost,
+          note: line.note ?? null,
+        })),
+      },
+    });
+    return { ok: true, id: res.adjustmentId };
+  } catch (err) {
+    return { ok: false, message: (err as Error).message };
+  }
 }
 
 /* --------------------------------------------------- customer-owned stock */
@@ -125,17 +137,21 @@ export async function receiveCustomerOwnedStock(input: {
   unitCost?: number;
   note?: string;
 }): Promise<StockOperationResult> {
-  const { data, error } = await db.rpc("receive_customer_owned_stock", {
-    _customer_id: input.customerId,
-    _product_id: input.productId,
-    _warehouse_id: input.warehouseId,
-    _quantity: input.quantity,
-    _unit_cost: input.unitCost ?? 0,
-    _note: input.note ?? null,
-  });
-
-  if (error) return { ok: false, message: error.message };
-  return { ok: true, id: data as string };
+  try {
+    const res = await receiveCustomerOwnedStockFn({
+      data: {
+        customerId: input.customerId,
+        productId: input.productId,
+        warehouseId: input.warehouseId,
+        quantity: input.quantity,
+        unitCost: input.unitCost ?? 0,
+        note: input.note ?? null,
+      },
+    });
+    return { ok: true, id: res.movementId };
+  } catch (err) {
+    return { ok: false, message: (err as Error).message };
+  }
 }
 
 /**
@@ -149,16 +165,20 @@ export async function releaseCustomerOwnedStock(input: {
   quantity: number;
   note?: string;
 }): Promise<StockOperationResult> {
-  const { data, error } = await db.rpc("release_customer_owned_stock", {
-    _customer_id: input.customerId,
-    _product_id: input.productId,
-    _warehouse_id: input.warehouseId,
-    _quantity: input.quantity,
-    _note: input.note ?? null,
-  });
-
-  if (error) return { ok: false, message: error.message };
-  return { ok: true, id: data as string };
+  try {
+    const res = await releaseCustomerOwnedStockFn({
+      data: {
+        customerId: input.customerId,
+        productId: input.productId,
+        warehouseId: input.warehouseId,
+        quantity: input.quantity,
+        note: input.note ?? null,
+      },
+    });
+    return { ok: true, id: res.movementId };
+  } catch (err) {
+    return { ok: false, message: (err as Error).message };
+  }
 }
 
 /* --------------------------------------------------------------- reading */

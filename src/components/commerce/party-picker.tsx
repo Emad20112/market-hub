@@ -1,13 +1,6 @@
 import { useMemo, useState } from "react";
-import {
-  Check,
-  ChevronsUpDown,
-  ShoppingBag,
-  Sparkles,
-  Truck,
-  UserRound,
-  Wallet,
-} from "lucide-react";
+import { Check, ChevronDown, ShoppingBag, Sparkles, Truck, UserRound, Wallet } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
   Command,
@@ -74,13 +67,14 @@ function BalanceChip({ balance, lang }: { balance: number; lang: string }) {
   const negative = balance < 0;
   return (
     <span
-      className={`inline-flex shrink-0 items-center gap-1 rounded-full border px-2 py-0.5 font-mono text-[10px] font-bold tabular-nums [unicode-bidi:isolate] ${
+      className={cn(
+        "inline-flex shrink-0 items-center gap-1 rounded-lg border px-2 py-0.5 font-mono text-[10px] font-bold tabular-nums [unicode-bidi:isolate] shadow-2xs",
         positive
-          ? "border-amber-400/30 bg-gradient-to-l from-amber-500/15 to-amber-400/5 text-amber-700 dark:text-amber-300"
+          ? "border-amber-400/30 bg-amber-500/10 text-amber-700 dark:text-amber-300"
           : negative
-            ? "border-emerald-400/30 bg-gradient-to-l from-emerald-500/15 to-emerald-400/5 text-emerald-700 dark:text-emerald-300"
-            : "border-border/70 bg-muted/60 text-muted-foreground"
-      }`}
+            ? "border-emerald-400/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
+            : "border-border/70 bg-muted/60 text-muted-foreground",
+      )}
       title={lang === "ar" ? "رصيد الحساب" : "Account balance"}
     >
       <Wallet className="size-3 shrink-0 opacity-70" />
@@ -138,35 +132,47 @@ export function PartyPicker({
           role="combobox"
           aria-label={label}
           aria-expanded={open}
-          className={`h-10 min-w-0 w-full justify-between gap-2 rounded-2xl border-border/70 bg-background/75 px-2 text-start shadow-sm transition hover:border-primary/35 hover:bg-primary/[0.035] ${className}`}
+          data-form-nav
+          className={cn(
+            "group h-10 min-w-0 w-full justify-between items-center gap-2 rounded-2xl border border-border/70 bg-background/80 px-2.5 text-start shadow-xs transition hover:border-primary/40 hover:bg-primary/[0.035]",
+            className,
+          )}
         >
-          <span
-            className={`grid size-7 shrink-0 place-items-center overflow-hidden rounded-full text-[11px] font-extrabold text-white shadow-sm ring-1 ring-black/5 ${
-              selected
-                ? `${nameColorClass(selected.name)} bg-gradient-to-br`
-                : "bg-primary/10 text-primary"
-            }`}
-          >
-            {selected ? nameInitial(selected.name) : <PartyIcon className="size-4" />}
-          </span>
-          <span className="min-w-0 flex-1">
-            <span className="flex items-center gap-1.5">
-              <span className="block truncate text-xs font-semibold text-foreground">
-                {selected?.name ?? fallbackLabel}
-              </span>
-              {isPinnedSelected && (
-                <span className="shrink-0 rounded-full border border-primary/25 bg-primary/10 px-1.5 text-[9px] font-bold text-primary">
-                  {isArabic ? "افتراضي" : "Default"}
-                </span>
+          {/* الجانب الأيمن: الأفاتار + اسم العميل/المورد موزون في المنتصف تماماً دون أي تشويش */}
+          <div className="flex min-w-0 flex-1 items-center gap-2">
+            <span
+              className={cn(
+                "grid size-7 shrink-0 place-items-center overflow-hidden rounded-full text-[11px] font-extrabold text-white shadow-xs ring-1 ring-black/5",
+                selected
+                  ? `${nameColorClass(selected.name)} bg-gradient-to-br`
+                  : "bg-primary/10 text-primary",
               )}
+            >
+              {selected ? nameInitial(selected.name) : <PartyIcon className="size-4" />}
             </span>
-            {selected?.balance != null && (
-              <span className="mt-0.5 block w-fit">
-                <BalanceChip balance={Number(selected.balance)} lang={lang} />
+            <span className="truncate text-xs font-bold text-foreground leading-normal">
+              {selected?.name ?? fallbackLabel}
+            </span>
+          </div>
+
+          {/* الجانب الأيسر: شارة افتراضي (للجهة النقدية بدون رصيد) أو الرصيد للعملاء العاديين + سهم منسدل أنيق */}
+          <div className="flex shrink-0 items-center gap-1.5">
+            {isPinnedSelected ? (
+              <span className="rounded-md border border-primary/30 bg-primary/10 px-2 py-0.5 text-[10px] font-bold text-primary shadow-2xs">
+                {isArabic ? "افتراضي" : "Default"}
               </span>
+            ) : (
+              selected?.balance != null &&
+              Number(selected.balance) !== 0 && (
+                <BalanceChip balance={Number(selected.balance)} lang={lang} />
+              )
             )}
-          </span>
-          <ChevronsUpDown className="size-4 shrink-0 text-muted-foreground/70" />
+            <span className="grid size-6 shrink-0 place-items-center rounded-lg bg-surface-2/70 text-muted-foreground/80 transition-colors group-hover:bg-muted group-hover:text-foreground">
+              <ChevronDown
+                className={cn("size-3.5 transition-transform duration-200", open && "rotate-180")}
+              />
+            </span>
+          </div>
         </Button>
       </PopoverTrigger>
       <PopoverContent
@@ -222,9 +228,13 @@ export function PartyPicker({
                       {option.name}
                     </span>
                     <span className="block truncate text-[10px] text-muted-foreground">
-                      {isArabic
-                        ? "بيع فوري نقدي — لا يُسجَّل عليه دين"
-                        : "Walk-in cash sale — cannot carry debt"}
+                      {kind === "supplier"
+                        ? isArabic
+                          ? "شراء فوري نقدي — بدون رصيد آجل"
+                          : "Walk-in cash purchase — no credit"
+                        : isArabic
+                          ? "بيع فوري نقدي — لا يُسجَّل عليه دين"
+                          : "Walk-in cash sale — cannot carry debt"}
                     </span>
                   </span>
                   <Check
@@ -287,7 +297,7 @@ export function PartyPicker({
                       <span className="min-w-0 flex-1 truncate">
                         {option.phone || (isArabic ? "بدون هاتف" : "No phone")}
                       </span>
-                      {balance != null && (
+                      {balance != null && balance !== 0 && (
                         <>
                           {/* فاصل عمودي أنيق بين الهاتف والرصيد */}
                           <span

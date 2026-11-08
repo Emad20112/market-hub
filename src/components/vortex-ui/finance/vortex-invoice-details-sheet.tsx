@@ -322,12 +322,12 @@ export function VortexInvoiceDetailsSheet({
               </div>
             </div>
 
-            <div className="flex items-center gap-2 shrink-0">{renderStatusBadge()}</div>
           </div>
         </div>
 
         {/* ─── Scrollable Body ─── */}
         <div className="flex-1 overflow-y-auto p-5 sm:p-6 space-y-5 custom-scrollbar">
+          <div className="flex justify-start">{renderStatusBadge()}</div>
           {/* 1. Financial Overview Cards (MiniStats style) */}
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
             <div className="rounded-2xl border border-border/70 bg-card p-3.5 space-y-0.5">

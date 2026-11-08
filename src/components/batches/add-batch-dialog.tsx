@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+﻿import { useState, useEffect, useMemo } from "react";
 import {
   Dialog,
   DialogContent,
@@ -33,8 +33,9 @@ import {
   RefreshCw,
   Check,
 } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
 import { useI18n } from "@/lib/i18n";
+import { supabase } from "@/integrations/supabase/client";
+import { saveProductBatchFn } from "@/server/api/inventory/save-product-batch";
 import { toast } from "sonner";
 import { useBatchSettings } from "@/hooks/use-batch-settings";
 
@@ -197,18 +198,18 @@ export function AddBatchDialog({
 
     setSaving(true);
     try {
-      const { data, error } = await supabase.rpc("save_product_batch" as any, {
-        p_product_id: form.product_id,
-        p_warehouse_id: form.warehouse_id,
-        p_batch_number: form.batch_number.trim(),
-        p_expiry_date: form.expiry_date || null,
-        p_quantity: qty,
-        p_unit_cost: cost,
-        p_note: form.note.trim() || null,
-        p_sync_inventory: form.sync_inventory,
+      await saveProductBatchFn({
+        data: {
+          productId: form.product_id,
+          warehouseId: form.warehouse_id,
+          batchNumber: form.batch_number.trim(),
+          expiryDate: form.expiry_date || null,
+          quantity: qty,
+          unitCost: cost,
+          note: form.note.trim() || null,
+          syncInventory: form.sync_inventory,
+        },
       });
-
-      if (error) throw error;
 
       toast.success(
         isAr ? "تم حفظ الدفعة بنجاح وتحديث المخزون" : "Batch recorded and stock updated",

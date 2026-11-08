@@ -7,19 +7,16 @@
 | السكربت | وظيفته | البيئة المستهدفة | الأمر المكافئ |
 | :--- | :--- | :--- | :--- |
 | `start-site.ps1` | فحص المتطلبات، تشغيل السوبابيز المحلي، وتشغيل خادم الويب وفتح المتصفح | محلي | `start-market-hup.bat` |
-| `db-local-rebuild.ps1` | إعادة بناء قاعدة بيانات Docker المحلية وتطبيق الترحيلات والبذور وعينات المطحنة | محلي (Docker) | `npm run db:local:rebuild` |
-| `apply-local-migrations.ps1` | تطبيق الترحيلات الجديدة على قاعدة Docker محلية **دون مسح** بيانات العميل | محلي (Docker) | `npm run db:local:migrate` |
-| `db-local-status.ps1` | عرض عناوين API، Studio، والمنافذ لقاعدة بيانات Docker المحلية | محلي (Docker) | `npm run db:local:status` |
 | `push-cloud.ps1` | يرفض دفع خط الأساس إلى مشروع سحابي قائم؛ ينتظر إعداد ترحيل انتقال أمامي | سحابي (Cloud) | `npm run db:cloud:push` |
 | `apply-cloud-seeds.mjs` | مساعد سكربت السحابة لتطبيق بذور النظام المرجعية دون بيانات تجريبية | سحابي (Cloud) | داخلي (يستدعيه push-cloud) |
-| `local_backup.ps1` | أخذ نسخة احتياطية من قاعدة بيانات Docker وحفظها في مجلد backups | محلي (Docker) | يدوي أو عبر `db-control.bat` |
+| `local_backup.ps1` | واجهة توافقية لأخذ نسخة إنتاج Docker المحلية عبر سكربت النسخ المحدد | إنتاج محلي (Docker فقط) | `npm run db:backup` |
+| `backup-local-production.ps1` | فحص هدف Docker، ثم نسخ PostgreSQL وSupabase Storage وإعدادات هذا التثبيت مع تحقق وبصمة SHA-256 | إنتاج محلي (Docker فقط) | `npm run db:backup` أو `powershell -File scripts/backup-local-production.ps1` |
 | `verify-backup.ps1` | التحقق من صحة واكتمال النسخ الاحتياطية | محلي | يدوي |
-| `functions-local-start.ps1` | تشغيل دوال الحافة (Edge Functions) محلياً | محلي | `npm run db:functions:start` |
 | `update-supabase-types.mjs` | تحديث ملف أنواع TypeScript المستخرجة من جداول Supabase | محلي/سحابي | يدوي |
 
 `push-cloud.ps1` يتحقق أن `SUPABASE_DB_URL` تخص المشروع المرتبط، ويفحص سجل
 الترحيلات ومخطط `public` قبل أي دفع. يرفض المشروع الحالي لأن المسار النشط خط
 أساس لقواعد جديدة بينما السحابة تحتوي مخططًا وسجلًا قائمين.
-إذا كان `.env` موجّهًا إلى Docker المحلي، اتركه كما هو واضبط `SUPABASE_CLOUD_DB_URL` مؤقتًا في جلسة PowerShell قبل تشغيل النشر السحابي؛ يتقدّم هذا الاتصال على متغير `.env`، ويُتحقق من المشروع المرتبط ولا تُطبع قيمته.
+ملف `.env` مخصص لتطوير التطبيق، ويضبطه المطور على مشروع Supabase السحابي المقصود قبل استخدام `db:cloud:push`. لا تستخدم أسرار الإنتاج المحلي في هذا المسار.
 
 > **تنبيه:** يمكنك تنفيذ كافة هذه العمليات بسهولة تامة عن طريق تشغيل `db-control.bat` في جذر المشروع.

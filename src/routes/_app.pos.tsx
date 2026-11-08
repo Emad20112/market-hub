@@ -28,6 +28,7 @@ import {
   FileText,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { createSaleFn } from "@/server/api/sales/create-sale";
 import { useI18n } from "@/lib/i18n";
 import { money } from "@/lib/format";
 import { decomposeStock, formatDecomposed } from "@/lib/stock-decompose";
@@ -349,6 +350,7 @@ function POSPage() {
   const [catalogLoading, setCatalogLoading] = useState(true);
   const [catalogComplete, setCatalogComplete] = useState(false);
   const [stockMap, setStockMap] = useState<Record<string, number>>({});
+  const [stockLoadedWarehouseId, setStockLoadedWarehouseId] = useState("");
   const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
 
@@ -632,6 +634,22 @@ function POSPage() {
             setProducts((prev) => (prev.length === 0 ? (data as Product[]) : prev));
             setCatalogLoading(false);
           }
+        });
+
+      // Begin loading the selected warehouse stock independently from the full
+      // catalog/UOM enrichment. Waiting for the latter made every item briefly
+      // look sold out on first entry to the POS.
+      void supabase
+        .from("warehouses")
+        .select("id,name,name_ar")
+        .eq("is_active", true)
+        .order("name")
+        .then(({ data, error }) => {
+          if (error || !data?.length) return;
+          setWarehouses(data as Warehouse[]);
+          setWarehouseId((current) =>
+            data.some((warehouse) => warehouse.id === current) ? current : data[0].id,
+          );
         });
 
       const [
@@ -966,15 +984,22 @@ function POSPage() {
   }
 
   async function loadStock(whId: string) {
-    const { data } = await supabase
+    setStockLoadedWarehouseId("");
+    const { data, error } = await supabase
       .from("inventory")
       .select("product_id,quantity")
       .eq("warehouse_id", whId);
+    if (error) {
+      console.error("[pos] Failed to load warehouse stock:", error);
+      setStockMap({});
+      return;
+    }
     const map: Record<string, number> = {};
     (data ?? []).forEach((r) => {
       map[r.product_id] = Number(r.quantity);
     });
     setStockMap(map);
+    setStockLoadedWarehouseId(whId);
   }
 
   // Active Filters Count
@@ -1242,6 +1267,13 @@ function POSPage() {
     });
 
     return [...matchingProducts].sort((a, b) => {
+      // For the default catalog order, surface saleable goods before exhausted
+      // ones. Explicit stock sorting remains available to users.
+      if (catalogSort === "name_asc" && warehouseId && stockLoadedWarehouseId === warehouseId) {
+        const aAvailable = a.is_service === true || (stockMap[a.id] ?? 0) > 0;
+        const bAvailable = b.is_service === true || (stockMap[b.id] ?? 0) > 0;
+        if (aAvailable !== bAvailable) return aAvailable ? -1 : 1;
+      }
       switch (catalogSort) {
         case "name_desc":
           return (b.name_ar || b.name).localeCompare(a.name_ar || a.name, lang);
@@ -1271,6 +1303,8 @@ function POSPage() {
     models,
     catalogConfig,
     catalogSort,
+    warehouseId,
+    stockLoadedWarehouseId,
     stockMap,
     lang,
   ]);
@@ -1501,6 +1535,22 @@ function POSPage() {
         },
       ];
     });
+  }
+
+  function selectPosProduct(product: Product) {
+    if (product.is_service !== true && (!warehouseId || stockLoadedWarehouseId !== warehouseId)) {
+      toast.info(
+        lang === "ar"
+          ? warehouseId
+            ? "جارٍ تحميل مخزون المستودع، حاول بعد لحظة"
+            : "اختر مستودعًا أولًا لعرض المخزون والبيع"
+          : warehouseId
+            ? "Loading warehouse stock; try again shortly."
+            : "Select a warehouse first to check stock and sell.",
+      );
+      return;
+    }
+    addToCart(product);
   }
 
   function getDefaultSaleUom(product: Product): SaleUom {
@@ -2094,33 +2144,34 @@ function POSPage() {
       }
 
       try {
-        const { data, error } = await supabase.rpc("create_sale", {
-          _warehouse_id: warehouseId,
-          _customer_id: (customerId || null) as any,
-          _payment_method: finalMethod as any,
-          _paid: Math.min(Math.max(effectivePaid, 0), total),
-          _discount: discountN,
-          _note: finalNote as any,
-          _sale_date: saleDate,
-          _payment_splits: (isSplitPayment
-            ? paymentSplits
-            : finalMethod === "cheque" && effectivePaid > 0
-              ? [{ method: "cheque", amount: Math.min(effectivePaid, total) }]
-              : []) as any,
-          _items: cart.map((l) => ({
-            product_id: l.product_id,
-            quantity: l.quantity,
-            unit_price: l.unit_price,
-            tax_rate: l.tax_rate,
-            is_service: !!l.is_service,
-            name: l.name,
-            batch_id: l.batch_id ?? null,
-            batch_number: l.batch_number ?? null,
-            uom_id: l.uom_id ?? null,
-          })),
+        const res = await createSaleFn({
+          data: {
+            warehouseId: warehouseId,
+            customerId: (customerId || null) as any,
+            paymentMethod: finalMethod as any,
+            paid: Math.min(Math.max(effectivePaid, 0), total),
+            discount: discountN,
+            note: finalNote as any,
+            saleDate: saleDate,
+            paymentSplits: (isSplitPayment
+              ? paymentSplits
+              : finalMethod === "cheque" && effectivePaid > 0
+                ? [{ method: "cheque", amount: Math.min(effectivePaid, total) }]
+                : []) as any,
+            items: cart.map((l) => ({
+              productId: l.product_id,
+              quantity: l.quantity,
+              unitPrice: l.unit_price,
+              taxRate: l.tax_rate,
+              isService: !!l.is_service,
+              name: l.name,
+              batchId: l.batch_id ?? null,
+              batchNumber: l.batch_number ?? null,
+              uomId: l.uom_id ?? null,
+            })),
+          },
         });
-        if (error) throw error;
-        invoiceId = data as string;
+        invoiceId = res.invoiceId;
         const { data: inv } = await supabase
           .from("sales_invoices")
           .select("invoice_number")
@@ -2790,8 +2841,9 @@ function POSPage() {
                       const stock = stockMap[p.id] ?? 0;
                       const saleUom = getDefaultSaleUom(p);
                       const stockInSaleUnit = stock / Math.max(saleUom.factor_to_base, 0.000000001);
-                      const low = p.is_service !== true && stock <= 0;
-                      const canAddToCart = !low || allowNegativeSales;
+                      const stockKnown =
+                        Boolean(warehouseId) && stockLoadedWarehouseId === warehouseId;
+                      const low = stockKnown && p.is_service !== true && stock <= 0;
                       const catLabel =
                         lang === "ar"
                           ? p.category?.name_ar || p.category?.name
@@ -2822,22 +2874,33 @@ function POSPage() {
                       return (
                         <button
                           key={p.id}
-                          onClick={() => addToCart(p)}
-                          disabled={!canAddToCart}
-                          aria-disabled={!canAddToCart}
+                          onClick={() => selectPosProduct(p)}
+                          aria-label={
+                            low && !allowNegativeSales
+                              ? `${lang === "ar" ? "نفد المخزون" : "Out of stock"}: ${p.name_ar || p.name}`
+                              : undefined
+                          }
                           className={`group relative flex flex-col items-start justify-between gap-2 rounded-2xl border p-2.5 text-start transition-all duration-150 hover:shadow-md active:scale-[0.98] ${
                             low
-                              ? `border-destructive/25 bg-gradient-to-b from-card to-destructive/[0.06] ${
-                                  canAddToCart ? "" : "cursor-not-allowed"
-                                }`
+                              ? allowNegativeSales
+                                ? "border-amber-500/50 bg-gradient-to-b from-card to-amber-500/[0.07] hover:border-amber-500"
+                                : "border-destructive/55 bg-gradient-to-b from-card to-destructive/[0.07] hover:border-destructive"
                               : "border-border/80 bg-white hover:border-primary/50 dark:bg-card"
                           }`}
                         >
                           {/* شريط نفاد المخزون أنيق أعلى البطاقة — بدل تعتيم كامل يخفي المحتوى */}
                           {low && (
-                            <span className="absolute end-2 top-2 inline-flex items-center gap-1 rounded-full border border-destructive/30 bg-destructive/10 px-2 py-0.5 text-[9px] font-bold text-destructive backdrop-blur-sm">
+                            <span
+                              className={`absolute end-2 top-2 inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[9px] font-bold backdrop-blur-sm ${allowNegativeSales ? "border-amber-500/35 bg-amber-500/10 text-amber-700 dark:text-amber-300" : "border-destructive/35 bg-destructive/10 text-destructive"}`}
+                            >
                               <PackageX className="size-2.5" aria-hidden />
-                              {lang === "ar" ? "نفد" : "Out of stock"}
+                              {allowNegativeSales
+                                ? lang === "ar"
+                                  ? "بيع بالسالب"
+                                  : "Negative sale allowed"
+                                : lang === "ar"
+                                  ? "نفد — اضغط للتنبيه"
+                                  : "Out — click for notice"}
                             </span>
                           )}
                           <div className="w-full">
@@ -2913,13 +2976,23 @@ function POSPage() {
                               title={unitLabel ? `${stock} ${unitLabel}` : undefined}
                               className={`text-[10px] font-mono px-2 py-0.5 rounded-full font-semibold ${
                                 low
-                                  ? "hidden"
-                                  : stock <= 5
+                                  ? allowNegativeSales
                                     ? "bg-amber-500/15 text-amber-700 dark:text-amber-300"
-                                    : "bg-muted text-muted-foreground"
+                                    : "border border-destructive/35 bg-destructive/10 text-destructive"
+                                  : !stockKnown
+                                    ? "bg-muted text-muted-foreground"
+                                    : stock <= 5
+                                      ? "bg-amber-500/15 text-amber-700 dark:text-amber-300"
+                                      : "bg-muted text-muted-foreground"
                               }`}
                             >
-                              {decompText}
+                              {!stockKnown && p.is_service !== true
+                                ? lang === "ar"
+                                  ? "جارٍ التحقق…"
+                                  : "Checking…"
+                                : low
+                                  ? "0"
+                                  : decompText}
                             </span>
                           </div>
                         </button>
@@ -2932,8 +3005,9 @@ function POSPage() {
                     {visibleFiltered.map((p) => {
                       const stock = stockMap[p.id] ?? 0;
                       const saleUom = getDefaultSaleUom(p);
-                      const low = p.is_service !== true && stock <= 0;
-                      const canAddToCart = !low || allowNegativeSales;
+                      const stockKnown =
+                        Boolean(warehouseId) && stockLoadedWarehouseId === warehouseId;
+                      const low = stockKnown && p.is_service !== true && stock <= 0;
                       const catLabel =
                         lang === "ar"
                           ? p.category?.name_ar || p.category?.name
@@ -2952,7 +3026,7 @@ function POSPage() {
                       return (
                         <div
                           key={p.id}
-                          className="group flex items-center justify-between gap-2.5 rounded-xl border border-border/70 bg-white p-2 transition-all hover:border-primary/50 hover:shadow-xs dark:bg-card"
+                          className={`group flex items-center justify-between gap-2.5 rounded-xl border bg-white p-2 transition-all hover:shadow-xs dark:bg-card ${low ? (allowNegativeSales ? "border-amber-500/45 hover:border-amber-500" : "border-destructive/50 hover:border-destructive") : "border-border/70 hover:border-primary/50"}`}
                         >
                           {/* Code / Barcode */}
                           {(p.barcode || p.sku) && (
@@ -2984,13 +3058,29 @@ function POSPage() {
                               title={unitLabel ? `${stock} ${unitLabel}` : undefined}
                               className={`rounded-full px-2 py-0.5 font-mono text-[10px] font-semibold ${
                                 low
-                                  ? "bg-destructive/15 text-destructive"
-                                  : stock <= 5
+                                  ? allowNegativeSales
                                     ? "bg-amber-500/15 text-amber-700 dark:text-amber-300"
-                                    : "bg-muted/70 text-muted-foreground"
+                                    : "bg-destructive/15 text-destructive"
+                                  : !stockKnown
+                                    ? "bg-muted text-muted-foreground"
+                                    : stock <= 5
+                                      ? "bg-amber-500/15 text-amber-700 dark:text-amber-300"
+                                      : "bg-muted/70 text-muted-foreground"
                               }`}
                             >
-                              {low ? (lang === "ar" ? "نفد" : "0") : decompText}
+                              {!stockKnown && p.is_service !== true
+                                ? lang === "ar"
+                                  ? "جارٍ التحقق…"
+                                  : "Checking…"
+                                : low
+                                  ? allowNegativeSales
+                                    ? lang === "ar"
+                                      ? "نفد · بيع سالب"
+                                      : "Out · negative sale"
+                                    : lang === "ar"
+                                      ? "نفد"
+                                      : "Out"
+                                  : decompText}
                             </span>
                           </div>
 
@@ -3002,10 +3092,15 @@ function POSPage() {
                           {/* Quick Add Button */}
                           <button
                             type="button"
-                            disabled={!canAddToCart}
-                            onClick={() => addToCart(p)}
-                            className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary transition hover:bg-primary hover:text-primary-foreground active:scale-90 disabled:opacity-30"
-                            title={t("pos.add_to_cart")}
+                            onClick={() => selectPosProduct(p)}
+                            className={`grid h-7 w-7 shrink-0 place-items-center rounded-lg transition active:scale-90 ${low && !allowNegativeSales ? "bg-destructive/10 text-destructive hover:bg-destructive hover:text-white" : "bg-primary/10 text-primary hover:bg-primary hover:text-primary-foreground"}`}
+                            title={
+                              low && !allowNegativeSales
+                                ? lang === "ar"
+                                  ? "نفد المخزون — اضغط للتنبيه"
+                                  : "Out of stock — click for notice"
+                                : t("pos.add_to_cart")
+                            }
                           >
                             <Plus className="h-4 w-4" />
                           </button>
@@ -3109,8 +3204,9 @@ function POSPage() {
                         {visibleTableRows.map((p) => {
                           const stock = stockMap[p.id] ?? 0;
                           const saleUom = getDefaultSaleUom(p);
-                          const low = p.is_service !== true && stock <= 0;
-                          const canAddToCart = !low || allowNegativeSales;
+                          const stockKnown =
+                            Boolean(warehouseId) && stockLoadedWarehouseId === warehouseId;
+                          const low = stockKnown && p.is_service !== true && stock <= 0;
                           const catLabel =
                             lang === "ar"
                               ? p.category?.name_ar || p.category?.name
@@ -3129,11 +3225,8 @@ function POSPage() {
                           return (
                             <tr
                               key={p.id}
-                              onClick={() => canAddToCart && addToCart(p)}
-                              className={`transition hover:bg-primary/[0.04] ${
-                                canAddToCart ? "cursor-pointer" : "cursor-not-allowed"
-                              }`}
-                              aria-disabled={!canAddToCart}
+                              onClick={() => selectPosProduct(p)}
+                              className={`cursor-pointer transition hover:bg-primary/[0.04] ${low ? (allowNegativeSales ? "bg-amber-500/[0.04]" : "bg-destructive/[0.04]") : ""}`}
                             >
                               <td className="py-2 px-3 font-mono text-[11px] text-muted-foreground">
                                 {p.barcode || p.sku || "—"}
@@ -3151,13 +3244,29 @@ function POSPage() {
                                   title={unitLabel ? `${stock} ${unitLabel}` : undefined}
                                   className={`rounded-md px-1.5 py-0.5 text-[10px] ${
                                     low
-                                      ? "bg-destructive/15 text-destructive"
-                                      : stock <= 5
+                                      ? allowNegativeSales
                                         ? "bg-amber-500/15 text-amber-700 dark:text-amber-300"
-                                        : "bg-muted/70 text-foreground"
+                                        : "bg-destructive/15 text-destructive"
+                                      : !stockKnown
+                                        ? "bg-muted text-muted-foreground"
+                                        : stock <= 5
+                                          ? "bg-amber-500/15 text-amber-700 dark:text-amber-300"
+                                          : "bg-muted/70 text-foreground"
                                   }`}
                                 >
-                                  {low ? (lang === "ar" ? "نفد" : "0") : decompText}
+                                  {!stockKnown && p.is_service !== true
+                                    ? lang === "ar"
+                                      ? "جارٍ التحقق…"
+                                      : "Checking…"
+                                    : low
+                                      ? allowNegativeSales
+                                        ? lang === "ar"
+                                          ? "نفد · بيع سالب"
+                                          : "Out · negative sale"
+                                        : lang === "ar"
+                                          ? "نفد"
+                                          : "Out"
+                                      : decompText}
                                 </span>
                               </td>
                               <td className="py-2 px-3 text-end font-mono font-bold text-primary [unicode-bidi:isolate]">
@@ -3166,12 +3275,11 @@ function POSPage() {
                               <td className="py-2 px-3 text-center">
                                 <button
                                   type="button"
-                                  disabled={!canAddToCart}
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    addToCart(p);
+                                    selectPosProduct(p);
                                   }}
-                                  className="inline-grid h-6 w-6 place-items-center rounded-md bg-primary/10 text-primary hover:bg-primary hover:text-primary-foreground active:scale-90 transition disabled:opacity-30"
+                                  className={`inline-grid h-6 w-6 place-items-center rounded-md active:scale-90 transition ${low && !allowNegativeSales ? "bg-destructive/10 text-destructive hover:bg-destructive hover:text-white" : "bg-primary/10 text-primary hover:bg-primary hover:text-primary-foreground"}`}
                                 >
                                   <Plus className="h-3.5 w-3.5" />
                                 </button>
@@ -3910,13 +4018,26 @@ function POSPage() {
             name: lang === "ar" && p.name_ar ? p.name_ar : p.name,
             meta: p.barcode || p.sku || null,
             value: money(saleUom.sale_price),
-            sub: `${t("pos.stock")}: ${decompText}`,
-            disabled: !allowNegativeSales && p.is_service !== true && stock <= 0,
+            sub:
+              (!warehouseId || stockLoadedWarehouseId !== warehouseId) && p.is_service !== true
+                ? lang === "ar"
+                  ? "جارٍ التحقق من المخزون…"
+                  : "Checking stock…"
+                : p.is_service !== true && stock <= 0
+                  ? allowNegativeSales
+                    ? lang === "ar"
+                      ? "نفد — البيع بالسالب مسموح"
+                      : "Out — negative sale allowed"
+                    : lang === "ar"
+                      ? "نفد — اضغط للتنبيه"
+                      : "Out — tap for notice"
+                  : `${t("pos.stock")}: ${decompText}`,
+            disabled: false,
           };
         })}
         onSelect={(id) => {
           const product = products.find((p) => p.id === id);
-          if (product) addToCart(product);
+          if (product) selectPosProduct(product);
           setMobilePickerOpen(false);
         }}
       />

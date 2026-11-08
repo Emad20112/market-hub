@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { PageHeader } from "@/components/page-header";
 import { useI18n } from "@/lib/i18n";
 import { supabase } from "@/integrations/supabase/client";
+import { setPeriodStatusFn } from "@/server/api/accounting/set-period-status";
 import { money } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -172,18 +173,16 @@ function FiscalPeriodsPage() {
     setBusy(true);
     setActionError(null);
     const target = p.status === "OPEN" ? "CLOSED" : "OPEN";
-    const { error: rpcErr } = await supabase.rpc(
-      "set_period_status" as never,
-      {
-        p_period_id: p.id,
-        p_status: target,
-      } as never,
-    );
-    setBusy(false);
-    if (rpcErr) {
-      setActionError(rpcErr.message);
+    try {
+      await setPeriodStatusFn({
+        data: { periodId: p.id, status: target },
+      });
+    } catch (err) {
+      setBusy(false);
+      setActionError((err as Error).message);
       return;
     }
+    setBusy(false);
     await loadPeriods();
   };
 

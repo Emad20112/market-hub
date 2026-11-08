@@ -39,8 +39,7 @@ import {
   type ProductOption,
   type GrainType,
 } from "@/lib/milling";
-import { MillingDocumentsBoard } from "@/components/milling/milling-documents-board";
-import { CustodyAdjustmentPanel } from "@/components/milling/custody-adjustment-panel";
+
 import {
   MillingPanel,
   MillingSectionTitle,
@@ -60,10 +59,12 @@ import { QuickProductDialog } from "@/components/milling/quick-product-dialog";
 import { PartyPicker } from "@/components/commerce/party-picker";
 import { CustomerFormDialog } from "@/components/contacts/customer-form-dialog";
 import { useI18n } from "@/lib/i18n";
-import { WarehouseBadge } from "@/components/ui/warehouse-badge";
+import { WarehousePicker } from "@/components/warehouse/warehouse-picker";
+import { WarehouseFormDialog } from "@/components/warehouse/warehouse-form-dialog";
+import { Plus } from "lucide-react";
 
 export const Route = createFileRoute("/_app/milling/milling")({
-  head: () => ({ meta: [{ title: "عمليات الطحن ونواتج الأمانات — فورتكس ERP" }] }),
+  head: () => ({ meta: [{ title: "عمليات الطحن ونواتج الحبوب — فورتكس ERP" }] }),
   component: MillingMillPage,
 });
 
@@ -88,6 +89,7 @@ function MillingMillPage() {
   const [customerId, setCustomerId] = useState("");
   const [newCustomerOpen, setNewCustomerOpen] = useState(false);
   const [warehouseId, setWarehouseId] = useState("");
+  const [quickWarehouseOpen, setQuickWarehouseOpen] = useState(false);
   const [grains, setGrains] = useState<CustodyLine[]>([{ itemId: "", bags: 0, kg: 0 }]);
   const [outputs, setOutputs] = useState<CustodyLine[]>([{ itemId: "", bags: 0, kg: 0 }]);
   /** نافذة إضافة ناتج جديد — تُركَّب على `document.body` فتعلو الكاونتر. */
@@ -408,7 +410,7 @@ function MillingMillPage() {
         {/* واجهة تشغيل داخلية بلا إيحاءات إصدار فواتير أو سندات للعميل */}
         <PageHeader
           title="تشغيل الطحن"
-          subtitle="معالجة داخلية لأمانات العملاء: صرف الحبوب، تسجيل النواتج، ومراجعة الرصيد."
+          subtitle="معالجة داخلية لحبوب العملاء: صرف الحبوب، تسجيل النواتج، ومراجعة الرصيد."
           actions={
             <div className="flex items-center gap-2">
               <Link
@@ -437,9 +439,9 @@ function MillingMillPage() {
             />
 
             <div className="space-y-4 p-4">
-              {/* العميل والمستودع — المستودع شارة، لا حقل يزاحم العميل */}
-              <div className="space-y-2">
-                <MillingField label="صاحب الأمانة (العميل) *">
+              {/* العميل والمستودع جنباً إلى جنب بتصميم متناسق وأنيق */}
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <MillingField label="العميل *">
                   <div className="flex min-w-0 flex-1 items-center gap-1.5">
                     <PartyPicker
                       options={customers.data ?? []}
@@ -457,7 +459,7 @@ function MillingMillPage() {
                     <button
                       type="button"
                       onClick={() => setNewCustomerOpen(true)}
-                      className="grid size-9 shrink-0 place-items-center rounded-full border border-primary/25 bg-primary/10 text-primary shadow-sm transition hover:border-primary/40 hover:bg-primary/15 active:scale-95 cursor-pointer"
+                      className="grid size-9 shrink-0 place-items-center rounded-full border border-primary/25 bg-primary/10 text-primary shadow-xs transition hover:border-primary/40 hover:bg-primary/15 active:scale-95 cursor-pointer"
                       title={lang === "ar" ? "إضافة عميل جديد" : "Add customer"}
                       aria-label={lang === "ar" ? "إضافة عميل جديد" : "Add customer"}
                     >
@@ -466,18 +468,35 @@ function MillingMillPage() {
                   </div>
                 </MillingField>
 
-                <WarehouseBadge
-                  value={warehouseId}
-                  onChange={setWarehouseId}
-                  required
-                  warehouses={(warehouses.data ?? []).map((w) => ({
-                    id: w.id,
-                    nameAr: w.name_ar || w.name,
-                  }))}
-                />
+                <MillingField label="المستودع / المخزن *">
+                  <div className="flex min-w-0 flex-1 items-center gap-1.5">
+                    <WarehousePicker
+                      options={(warehouses.data ?? []).map((w) => ({
+                        id: w.id,
+                        name: w.name,
+                        name_ar: w.name_ar,
+                        is_default: Boolean(w.is_default),
+                      }))}
+                      value={warehouseId}
+                      onChange={setWarehouseId}
+                      lang={lang}
+                      onAddNew={() => setQuickWarehouseOpen(true)}
+                      className="h-10 min-w-0 flex-1 rounded-2xl border-amber-500/20 bg-amber-500/[0.035] text-xs hover:border-amber-500/50 hover:bg-amber-500/[0.07]"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setQuickWarehouseOpen(true)}
+                      className="grid size-9 shrink-0 place-items-center rounded-full border border-amber-500/25 bg-amber-500/10 text-amber-600 dark:text-amber-400 shadow-xs transition hover:border-amber-500/40 hover:bg-amber-500/15 active:scale-95 cursor-pointer"
+                      title={lang === "ar" ? "إضافة مستودع جديد" : "Add warehouse"}
+                      aria-label={lang === "ar" ? "إضافة مستودع جديد" : "Add warehouse"}
+                    >
+                      <Plus className="h-4 w-4" />
+                    </button>
+                  </div>
+                </MillingField>
               </div>
 
-              {/* أسطر الحبوب المطحونة — صنف مستقل لكل سطر من رصيد أمانات العميل */}
+              {/* أسطر الحبوب المطحونة — صنف مستقل لكل سطر من رصيد حبوب العميل */}
               <div className="rounded-2xl border border-border/80 bg-surface-2/30 p-3.5 space-y-3">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <h4 className="flex items-center gap-2 text-sm font-bold text-foreground">
@@ -590,7 +609,7 @@ function MillingMillPage() {
                   {/*
                     إضافة ناتج من داخل الشاشة: زرّ دائريّ بأيقونة يفتح نافذة
                     منبثقة فوق الكاونتر. قبل ذلك كان الطريق الوحيد مغادرة
-                    الكاونتر إلى «أصناف الأمانات» وترك المستند مفتوحًا تكتشف
+                    الكاونتر إلى «أصناف الحبوب» وترك المستند مفتوحًا تكتشف
                     لاحقًا أنه فقد سياقه.
                   */}
                   <QuickAddButton
@@ -894,42 +913,6 @@ function MillingMillPage() {
           </MillingPanel>
         </div>
 
-        {/* أدوات التشغيل والسجل خارج مسار تسجيل العملية لتقليل ازدحام الشاشة */}
-        <details className="group rounded-2xl border border-border bg-card">
-          <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-sm font-bold transition hover:bg-muted/40 [&::-webkit-details-marker]:hidden">
-            <span>سجل عمليات الطحن</span>
-            <span className="text-xs font-medium text-muted-foreground">عرض عند الحاجة</span>
-          </summary>
-          <div className="border-t border-border p-3 sm:p-4">
-            <MillingDocumentsBoard focus="milling" title="سجل عمليات الطحن" />
-          </div>
-        </details>
-
-        <details className="group rounded-2xl border border-border bg-card">
-          <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-sm font-bold transition hover:bg-muted/40 [&::-webkit-details-marker]:hidden">
-            <span>تسويات الأمانات</span>
-            <span className="text-xs font-medium text-muted-foreground">أداة إدارية منفصلة</span>
-          </summary>
-          <div className="border-t border-border p-3 sm:p-4">
-            <CustodyAdjustmentPanel
-              customerId={customerId}
-              warehouseId={warehouseId}
-              items={[
-                ...grainBalances.map((b) => ({
-                  id: b.item_id,
-                  sku: "",
-                  name: b.name_ar ?? "صنف بدون اسم",
-                  name_ar: b.name_ar,
-                  item_class: b.item_class,
-                  sale_price: 0,
-                  package_weight_kg: null,
-                })),
-                ...(outputItems.data ?? []),
-              ]}
-            />
-          </div>
-        </details>
-
         {/* إضافة ناتج — نافذة منبثقة فوق الشاشة، لا نافذة تُقصّ داخل اللوحة. */}
         <QuickProductDialog
           open={quickOutputOpen}
@@ -948,6 +931,19 @@ function MillingMillPage() {
             }
           }}
         />
+        {/* نافذة إضافة مستودع جديد */}
+        <WarehouseFormDialog
+          open={quickWarehouseOpen}
+          onClose={() => setQuickWarehouseOpen(false)}
+          hint="سيتم اختيار المستودع الجديد تلقائياً لتشغيل الطحن."
+          onSaved={(newWh) => {
+            void qc.invalidateQueries({ queryKey: ["milling", "warehouses"] });
+            setWarehouseId(newWh.id);
+            setQuickWarehouseOpen(false);
+            toast.success(`تمت إضافة واختيار المستودع: ${newWh.name_ar || newWh.name}`);
+          }}
+        />
+
         {/* نافذة إضافة عميل جديد سريعاً دون مغادرة شاشة الطحن */}
         <CustomerFormDialog
           open={newCustomerOpen}

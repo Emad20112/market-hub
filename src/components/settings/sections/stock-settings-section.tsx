@@ -9,6 +9,7 @@ import { Boxes, Check, Hash, Layers, Scale, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { setCompanyCostingMethodFn } from "@/server/api/stock/set-company-costing-method";
 import { COSTING_METHOD_LABELS, type CostingMethod } from "@/lib/items";
 import {
   getStockSettings,
@@ -29,6 +30,8 @@ export function StockSettingsSection({ canEdit = true, lang = "ar" }: StockSetti
   const [settings, setSettings] = useState<StockSettings>(() => getStockSettings());
   const [allowNegativeSales, setAllowNegativeSales] = useState(false);
   const [savedAllowNegativeSales, setSavedAllowNegativeSales] = useState(false);
+  const [allowNegativeCustodyDelivery, setAllowNegativeCustodyDelivery] = useState(false);
+  const [savedAllowNegativeCustodyDelivery, setSavedAllowNegativeCustodyDelivery] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [savedSnapshot, setSavedSnapshot] = useState(() => getStockSettings());
   const [costingMethod, setCostingMethod] = useState<CostingMethod>("MOVING_AVERAGE");
@@ -41,8 +44,16 @@ export function StockSettingsSection({ canEdit = true, lang = "ar" }: StockSetti
   const isDirty = useMemo(
     () =>
       JSON.stringify(settings) !== JSON.stringify(savedSnapshot) ||
-      allowNegativeSales !== savedAllowNegativeSales,
-    [settings, savedSnapshot, allowNegativeSales, savedAllowNegativeSales],
+      allowNegativeSales !== savedAllowNegativeSales ||
+      allowNegativeCustodyDelivery !== savedAllowNegativeCustodyDelivery,
+    [
+      settings,
+      savedSnapshot,
+      allowNegativeSales,
+      savedAllowNegativeSales,
+      allowNegativeCustodyDelivery,
+      savedAllowNegativeCustodyDelivery,
+    ],
   );
 
   useEffect(() => {
@@ -56,13 +67,16 @@ export function StockSettingsSection({ canEdit = true, lang = "ar" }: StockSetti
     void (async () => {
       const { data, error } = await (supabase as any)
         .from("company_settings")
-        .select("allow_negative_sales")
+        .select("allow_negative_sales, allow_negative_custody_delivery")
         .eq("id", 1)
         .maybeSingle();
       if (!active || error) return;
       const enabled = Boolean(data?.allow_negative_sales);
       setAllowNegativeSales(enabled);
       setSavedAllowNegativeSales(enabled);
+      const custodyEnabled = Boolean(data?.allow_negative_custody_delivery);
+      setAllowNegativeCustodyDelivery(custodyEnabled);
+      setSavedAllowNegativeCustodyDelivery(custodyEnabled);
     })();
     return () => {
       active = false;
@@ -100,16 +114,25 @@ export function StockSettingsSection({ canEdit = true, lang = "ar" }: StockSetti
     if (!canEdit || !isDirty) return;
     setIsSaving(true);
     try {
-      const { error } = await (supabase as any)
-        .from("company_settings")
-        .upsert({ id: 1, allow_negative_sales: allowNegativeSales }, { onConflict: "id" });
+      const { error } = await (supabase as any).from("company_settings").upsert(
+        {
+          id: 1,
+          allow_negative_sales: allowNegativeSales,
+          allow_negative_custody_delivery: allowNegativeCustodyDelivery,
+        },
+        { onConflict: "id" },
+      );
       if (error) throw error;
       const saved = saveStockSettings(settings);
       setSettings(saved);
       setSavedSnapshot(saved);
       setSavedAllowNegativeSales(allowNegativeSales);
+      setSavedAllowNegativeCustodyDelivery(allowNegativeCustodyDelivery);
       await queryClient.invalidateQueries({
         queryKey: ["company-settings", "allow-negative-sales"],
+      });
+      await queryClient.invalidateQueries({
+        queryKey: ["company-settings", "allow-negative-custody-delivery"],
       });
       toast.success(
         isAr
@@ -142,12 +165,13 @@ export function StockSettingsSection({ canEdit = true, lang = "ar" }: StockSetti
     if (costingMethod === savedCostingMethod) return;
     setCostingSaveState("saving");
     try {
-      const { error } = await (supabase as any).rpc("set_company_costing_method", {
-        _method: costingMethod,
-        _source: "stock_settings",
-        _notes: "Changed from company stock settings",
+      await setCompanyCostingMethodFn({
+        data: {
+          method: costingMethod,
+          source: "stock_settings",
+          notes: "Changed from company stock settings",
+        },
       });
-      if (error) throw error;
       setSavedCostingMethod(costingMethod);
       await queryClient.invalidateQueries({ queryKey: ["company-costing-method"] });
       toast.success(isAr ? "تم حفظ طريقة تقييم المخزون" : "Inventory valuation method saved");
@@ -443,6 +467,24 @@ export function StockSettingsSection({ canEdit = true, lang = "ar" }: StockSetti
                 <Switch
                   checked={settings.autoGenerateSku}
                   onCheckedChange={(val) => setSettings({ ...settings, autoGenerateSku: val })}
+                  disabled={!canEdit}
+                />
+              </div>
+
+              <div className="flex items-center justify-between p-4 rounded-2xl border border-amber-500/25 bg-amber-500/5">
+                <div className="space-y-0.5 me-2">
+                  <div className="text-xs font-bold text-foreground">
+                    {isAr ? "السماح بتسليم الأمانات بالسالب" : "Allow Negative Custody Delivery"}
+                  </div>
+                  <div className="text-[11px] text-muted-foreground">
+                    {isAr
+                      ? "يسمح بتسليم نواتج أكثر من رصيد العميل. يظهر الفرق كرصيد أمانة سالب على العميل. لا يسمح باستلام أو طحن حبوب غير مسجلة، ولا يؤثر على مخزون المنشأة."
+                      : "Allows delivering more output than the customer's custody balance. The difference remains as a negative customer custody balance. Intake and milling still require recorded grain; company stock is unaffected."}
+                  </div>
+                </div>
+                <Switch
+                  checked={allowNegativeCustodyDelivery}
+                  onCheckedChange={setAllowNegativeCustodyDelivery}
                   disabled={!canEdit}
                 />
               </div>
