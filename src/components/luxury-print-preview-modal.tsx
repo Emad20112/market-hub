@@ -40,7 +40,9 @@ import { toast } from "sonner";
 export type PrintMethodType = "thermal" | "page";
 
 function isThermalTemplateId(templateId?: InvoiceTemplateId): boolean {
-  return Boolean(templateId && (templateId === "milling-thermal" || templateId.startsWith("thermal")));
+  return Boolean(
+    templateId && (templateId === "milling-thermal" || templateId.startsWith("thermal")),
+  );
 }
 
 export interface LuxuryPrintPreviewModalProps {
@@ -141,7 +143,9 @@ export function LuxuryPrintPreviewModal({
   const resolvedDocumentType =
     request?.documentType ??
     documentType ??
-    (activeDoc && "docType" in activeDoc ? (activeDoc.docType as PrintingDocumentType) : undefined) ??
+    (activeDoc && "docType" in activeDoc
+      ? (activeDoc.docType as PrintingDocumentType)
+      : undefined) ??
     "customer_invoice";
   const handleModalClose = () => {
     if (onClose) onClose();
@@ -178,7 +182,10 @@ export function LuxuryPrintPreviewModal({
     const docType = request?.documentType ?? resolvedDocumentType;
     const deptOverride = settings.overrides[docType];
     const configuredTemplate = request?.templateId ?? deptOverride?.templateId;
-    if (configuredTemplate && isThermalTemplateId(configuredTemplate) === (initialMethod === "thermal")) {
+    if (
+      configuredTemplate &&
+      isThermalTemplateId(configuredTemplate) === (initialMethod === "thermal")
+    ) {
       return configuredTemplate;
     }
     if (initialMethod === "thermal") {
@@ -191,7 +198,13 @@ export function LuxuryPrintPreviewModal({
     return docType === "mill_document" || docType === "delivery_note" || docType === "daily_ticket"
       ? "milling-master"
       : "elegant"; // Default to executive luxury A4/A5 template
-  }, [request?.templateId, request?.settings, request?.documentType, resolvedDocumentType, initialMethod]);
+  }, [
+    request?.templateId,
+    request?.settings,
+    request?.documentType,
+    resolvedDocumentType,
+    initialMethod,
+  ]);
 
   const [activeTemplate, setActiveTemplate] = useState<InvoiceTemplateId>(initialTemplateId);
 
@@ -201,7 +214,10 @@ export function LuxuryPrintPreviewModal({
     const docType = request?.documentType ?? resolvedDocumentType;
     const deptOverride = settings.overrides[docType];
     const configuredPaper = request?.paperId ?? deptOverride?.paperId;
-    if (configuredPaper && PRINT_PAPERS[configuredPaper].thermal === (initialMethod === "thermal")) {
+    if (
+      configuredPaper &&
+      PRINT_PAPERS[configuredPaper].thermal === (initialMethod === "thermal")
+    ) {
       return configuredPaper;
     }
     if (defaultFormat === "thermal-58") return "thermal-58";
@@ -302,14 +318,17 @@ export function LuxuryPrintPreviewModal({
       (template): template is InvoiceTemplateId => Boolean(template),
     );
     const configuredThermalTemplate = configuredTemplates.find(isThermalTemplateId);
-    const configuredPageTemplate = configuredTemplates.find((template) => !isThermalTemplateId(template));
+    const configuredPageTemplate = configuredTemplates.find(
+      (template) => !isThermalTemplateId(template),
+    );
 
     if (newMethod === "thermal") {
-      setActiveTemplate(configuredThermalTemplate ?? (
-        docType === "mill_document" || docType === "delivery_note" || docType === "daily_ticket"
-          ? "milling-thermal"
-          : "thermal-milling"
-      ));
+      setActiveTemplate(
+        configuredThermalTemplate ??
+          (docType === "mill_document" || docType === "delivery_note" || docType === "daily_ticket"
+            ? "milling-thermal"
+            : "thermal-milling"),
+      );
       setActivePaper(
         request?.paperId?.startsWith("thermal")
           ? request.paperId
@@ -320,11 +339,12 @@ export function LuxuryPrintPreviewModal({
       return;
     }
 
-    setActiveTemplate(configuredPageTemplate ?? (
-      docType === "mill_document" || docType === "delivery_note" || docType === "daily_ticket"
-        ? "milling-master"
-        : "elegant"
-    ));
+    setActiveTemplate(
+      configuredPageTemplate ??
+        (docType === "mill_document" || docType === "delivery_note" || docType === "daily_ticket"
+          ? "milling-master"
+          : "elegant"),
+    );
     setActivePaper(
       request?.paperId && !request.paperId.startsWith("thermal")
         ? request.paperId
@@ -378,12 +398,7 @@ export function LuxuryPrintPreviewModal({
       paperId: activePaper,
       templateId: activeTemplate,
       theme: activeTheme,
-      method:
-        printMethod === "thermal"
-          ? "thermal"
-          : request?.method === "pdf"
-            ? "pdf"
-            : "browser",
+      method: printMethod === "thermal" ? "thermal" : request?.method === "pdf" ? "pdf" : "browser",
       accentColor: customColor,
       settings: unifiedSettings,
       showBarcode,

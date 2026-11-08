@@ -213,7 +213,7 @@ export const FieldInput = React.forwardRef<HTMLInputElement, FieldInputProps>(
             : undefined;
 
     const activeEndItems =
-      (Boolean(enableVoice && !readOnly && !props.disabled) ? 1 : 0) +
+      (enableVoice && !readOnly && !props.disabled ? 1 : 0) +
       (showClear ? 1 : 0) +
       (suffix ? 1 : 0);
     const peClass = activeEndItems >= 2 ? "pe-20" : activeEndItems === 1 ? "pe-10" : "";

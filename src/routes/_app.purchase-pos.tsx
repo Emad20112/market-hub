@@ -67,6 +67,7 @@ import {
   getPaymentMethodDefinition,
   paymentUiText,
 } from "@/lib/payments/payment-methods";
+import { createPurchaseFn } from "@/server/api/purchasing/create-purchase";
 
 export const Route = createFileRoute("/_app/purchase-pos")({
   head: () => ({ meta: [{ title: "نقطة المشتريات — فورتيكس ERP" }] }),
@@ -1454,7 +1455,7 @@ function PurchasePOSPage() {
         return method
           ? {
               method: method.legacyValue,
-              payment_method_id: method.id,
+              paymentMethodId: method.id,
               amount: Math.round((Number(line.amount) || 0) * 100) / 100,
               reference: line.reference?.trim() || null,
             }
@@ -1513,32 +1514,46 @@ function PurchasePOSPage() {
       let invoiceId: string | null = null;
       let error: any = null;
 
-      const purchaseRpcArgs = {
-        _warehouse_id: warehouseId,
-        _supplier_id: supplierId,
-        _payment_method:
-          paymentMethod === "split"
-            ? "split"
-            : (selectedPurchasePaymentMethod?.legacyValue ?? toLegacyPaymentValue(paymentMethod)),
-        _paid: paidN,
-        _discount: discountN,
-        _note: composedNote as any,
-        _items: cart.map((l) => ({
-          product_id: l.product_id,
-          quantity: Number(l.quantity),
-          unit_cost: Number(l.unit_cost),
-          tax_rate: Number(l.tax_rate),
-          batch_number: l.batch_number.trim() || null,
-          expiry_date: l.expiry_date || null,
-          uom_id: l.uom_id,
-        })),
-        _payment_splits: paymentMethod === "split" ? purchaseSplits : [],
-      };
-      // Use the current atomic RPC signature for both split and single tenders;
-      // the old short overload does not accept UOM snapshots.
-      const res = await (supabase.rpc as any)("create_purchase", purchaseRpcArgs);
-      invoiceId = res.data;
-      error = res.error;
+      // المرحلة 13.2: نفس الذرّية عبر server function بدل RPC (create_purchase سابقًا).
+      // التحقق والإدراج والمحاسبة والمخزون في معاملة واحدة داخل الباك اند؛
+      // ترجمة الأخطاء تبقى في الواجهة كما كانت مع RPC.
+      let res: { invoiceId: string };
+      try {
+        res = await createPurchaseFn({
+          data: {
+            warehouseId,
+            supplierId,
+            paymentMethod:
+              paymentMethod === "split"
+                ? "split"
+                : (selectedPurchasePaymentMethod?.legacyValue ??
+                  toLegacyPaymentValue(paymentMethod)),
+            paid: paidN,
+            discount: discountN,
+            note: composedNote as any,
+            items: cart.map((l) => ({
+              productId: l.product_id,
+              quantity: Number(l.quantity),
+              unitCost: Number(l.unit_cost),
+              taxRate: Number(l.tax_rate),
+              batchNumber: l.batch_number.trim() || null,
+              expiryDate: l.expiry_date || null,
+              uomId: l.uom_id,
+            })),
+            paymentSplits: paymentMethod === "split" ? purchaseSplits : [],
+          },
+        });
+      } catch (fnErr: any) {
+        throw new Error(
+          translateRpcError(
+            fnErr,
+            lang === "ar" ? "ar" : "en",
+            lang === "ar" ? "تعذر تسجيل فاتورة المشتريات" : "Failed to record purchase invoice",
+          ),
+        );
+      }
+      invoiceId = res.invoiceId;
+      error = null;
 
       if (error) throw error;
 

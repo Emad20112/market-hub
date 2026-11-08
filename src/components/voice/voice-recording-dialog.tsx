@@ -49,21 +49,14 @@ export function VoiceRecordingDialog({
   const [hasManuallyEdited, setHasManuallyEdited] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
-  const {
-    status,
-    isListening,
-    fullTranscript,
-    error,
-    startListening,
-    stopListening,
-    reset,
-  } = useSpeechToText({
-    lang,
-    continuous: true,
-    interimResults: true,
-    normalizeArabic: true,
-    normalizeDigits: true,
-  });
+  const { status, isListening, fullTranscript, error, startListening, stopListening, reset } =
+    useSpeechToText({
+      lang,
+      continuous: true,
+      interimResults: true,
+      normalizeArabic: true,
+      normalizeDigits: true,
+    });
 
   useEffect(() => {
     setMounted(true);

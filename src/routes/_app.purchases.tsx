@@ -66,6 +66,7 @@ import {
   paymentMethodLabel,
   toLegacyPaymentValue,
 } from "@/lib/payments/payment-methods";
+import { createPurchaseFn } from "@/server/api/purchasing/create-purchase";
 
 export const Route = createFileRoute("/_app/purchases")({
   head: () => ({ meta: [{ title: "المشتريات — فورتيكس ERP" }] }),
@@ -1524,6 +1525,7 @@ function ViewDialog({
   onClose,
   pmLabel,
   statusLabel,
+  statusBadge,
   hasMultiWarehouse,
   onWhatsApp,
   onSms,
@@ -1536,6 +1538,7 @@ function ViewDialog({
   onClose: () => void;
   pmLabel: (m: string) => string;
   statusLabel: (s: string) => string;
+  statusBadge: (s: string) => React.ReactNode;
   hasMultiWarehouse?: boolean;
   onWhatsApp: () => void;
   onSms: () => void;
@@ -2244,34 +2247,27 @@ function CreateDialog({
 
     setLoading(true);
     try {
-      let invId: string | null = null;
-      let error: any = null;
-
-      const res = await (supabase.rpc as any)("create_purchase", {
-        _warehouse_id: warehouseId,
-        _supplier_id: supplierId,
-        // The picker holds a catalogue id. Convert at the boundary, exactly as
-        // the POS screen does, so `create_purchase` receives the stored value it
-        // casts into the ENUM.
-        _payment_method: toLegacyPaymentValue(paymentMethod),
-        _paid: paymentMethod === "credit" ? 0 : paidN || total,
-        _discount: discountN,
-        _note: (note || null) as any,
-        _items: cart.map((l) => ({
-          product_id: l.product_id,
-          quantity: Number(l.quantity),
-          unit_cost: Number(l.unit_cost),
-          tax_rate: Number(l.tax_rate),
-          batch_number: l.batch_number.trim() || null,
-          expiry_date: l.expiry_date || null,
-          uom_id: l.uom_id,
-        })),
-        _payment_splits: [],
+      // المرحلة 13.2: نفس الذرّية عبر server function بدل RPC (create_purchase سابقًا).
+      const res = await createPurchaseFn({
+        data: {
+          warehouseId,
+          supplierId,
+          paymentMethod: toLegacyPaymentValue(paymentMethod),
+          paid: paymentMethod === "credit" ? 0 : paidN || total,
+          discount: discountN,
+          note: (note || null) as never,
+          items: cart.map((l) => ({
+            productId: l.product_id,
+            quantity: Number(l.quantity),
+            unitCost: Number(l.unit_cost),
+            taxRate: Number(l.tax_rate),
+            batchNumber: l.batch_number.trim() || null,
+            expiryDate: l.expiry_date || null,
+            uomId: l.uom_id ?? null,
+          })),
+        },
       });
-      invId = res.data;
-      error = res.error;
-
-      if (error) throw error;
+      const invId: string | null = res.invoiceId ?? null;
 
       // Attach treasury settlement details if provided
       if (invId) {

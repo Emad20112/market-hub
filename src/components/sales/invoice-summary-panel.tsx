@@ -362,7 +362,9 @@ export function InvoiceSummaryPanel({
           <span>{isRtl ? "البنود والكميات" : "Items & Qty"}</span>
           <span className="font-mono font-bold text-foreground">
             {toSystemDigits(lineCount)} {isRtl ? "صنف" : "items"}
-            {totalQuantity != null && totalQuantity > 0 && ` (${toSystemDigits(Math.round(totalQuantity * 1000) / 1000)})`}
+            {totalQuantity != null &&
+              totalQuantity > 0 &&
+              ` (${toSystemDigits(Math.round(totalQuantity * 1000) / 1000)})`}
           </span>
         </div>
 
@@ -376,34 +378,26 @@ export function InvoiceSummaryPanel({
         {Number(discount) > 0 && (
           <div className="flex items-center justify-between text-[11px] text-rose-600 dark:text-rose-400">
             <span>{isRtl ? "الخصم الممنوح" : "Discount"}</span>
-            <span className="font-mono font-bold">
-              −{toSystemDigits(money(Number(discount)))}
-            </span>
+            <span className="font-mono font-bold">−{toSystemDigits(money(Number(discount)))}</span>
           </div>
         )}
 
         <div className="flex items-center justify-between text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold">
           <span>{isRtl ? "المبلغ المدفوع" : "Amount paid"}</span>
-          <span className="font-mono font-bold">
-            {toSystemDigits(money(effectivePaid))}
-          </span>
+          <span className="font-mono font-bold">{toSystemDigits(money(effectivePaid))}</span>
         </div>
 
         {remaining > 0 && (
           <div className="flex items-center justify-between text-[11px] text-amber-700 dark:text-amber-300 font-bold">
             <span>{isRtl ? "المتبقي (آجل)" : "Remaining debt"}</span>
-            <span className="font-mono">
-              {toSystemDigits(money(remaining))}
-            </span>
+            <span className="font-mono">{toSystemDigits(money(remaining))}</span>
           </div>
         )}
 
         {change > 0 && (
           <div className="flex items-center justify-between text-[11px] text-sky-600 dark:text-sky-400 font-bold">
             <span>{isRtl ? "الباقي للعميل" : "Change due"}</span>
-            <span className="font-mono">
-              {toSystemDigits(money(change))}
-            </span>
+            <span className="font-mono">{toSystemDigits(money(change))}</span>
           </div>
         )}
       </div>

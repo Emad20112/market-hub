@@ -1443,7 +1443,7 @@ function CustomersPage() {
             <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
               <MiniStat
                 label={lang === "ar" ? "الرصيد الدفتري" : "Ledger Balance"}
-                value={money(selectedBalance)}
+                value={toSystemDigits(money(selectedBalance))}
                 color={
                   selectedBalance > 0
                     ? "text-amber-400"
@@ -1454,18 +1454,18 @@ function CustomersPage() {
               />
               <MiniStat
                 label={lang === "ar" ? "حد الائتمان" : "Credit Limit"}
-                value={money(Number(selected.credit_limit))}
+                value={toSystemDigits(money(Number(selected.credit_limit)))}
                 color={Number(selected.credit_limit) > 0 ? "text-rose-400" : undefined}
               />
               {detailStats && (
                 <>
                   <MiniStat
                     label={lang === "ar" ? "إجمالي المشتريات" : "Total Purchases"}
-                    value={money(detailStats.totalPurchases)}
+                    value={toSystemDigits(money(detailStats.totalPurchases))}
                   />
                   <MiniStat
                     label={lang === "ar" ? "إجمالي المدفوعات" : "Total Payments"}
-                    value={money(detailStats.totalPayments)}
+                    value={toSystemDigits(money(detailStats.totalPayments))}
                     color="text-emerald-400"
                   />
                 </>
@@ -1560,12 +1560,16 @@ function CustomersPage() {
                           <span className="flex items-center gap-2 font-mono text-[11px]">
                             {b.bags_balance > 0 && (
                               <span className="text-foreground">
-                                {toSystemDigits(formatSystemNumber(b.bags_balance, { decimals: 0 }))} كيس
+                                {toSystemDigits(
+                                  formatSystemNumber(b.bags_balance, { decimals: 0 }),
+                                )}{" "}
+                                كيس
                               </span>
                             )}
                             {b.kg_balance > 0 && (
                               <span className="text-muted-foreground">
-                                {toSystemDigits(formatSystemNumber(b.kg_balance, { decimals: 2 }))} كجم
+                                {toSystemDigits(formatSystemNumber(b.kg_balance, { decimals: 2 }))}{" "}
+                                كجم
                               </span>
                             )}
                           </span>
@@ -1593,7 +1597,11 @@ function CustomersPage() {
                             {toSystemDigits(formatSystemNumber(Number(m.total), { decimals: 2 }))}
                             {m.outstanding > 0 && (
                               <span className="ms-2 text-amber-600 dark:text-amber-300">
-                                ({toSystemDigits(formatSystemNumber(Number(m.outstanding), { decimals: 2 }))} متبقٍ)
+                                (
+                                {toSystemDigits(
+                                  formatSystemNumber(Number(m.outstanding), { decimals: 2 }),
+                                )}{" "}
+                                متبقٍ)
                               </span>
                             )}
                           </span>
@@ -1706,7 +1714,9 @@ function MiniStat({ label, value, color }: { label: string; value: string; color
   return (
     <div className="rounded-2xl border border-border/70 bg-card/80 p-3 text-center shadow-xs">
       <div className="text-[10px] font-semibold text-muted-foreground">{label}</div>
-      <div className={`font-mono text-base tabular-nums font-black mt-1 ${color ?? "text-foreground"}`}>
+      <div
+        className={`font-mono text-base tabular-nums font-black mt-1 ${color ?? "text-foreground"}`}
+      >
         <Ltr>{value}</Ltr>
       </div>
     </div>

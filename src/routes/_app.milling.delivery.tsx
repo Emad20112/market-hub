@@ -61,7 +61,6 @@ import { useI18n } from "@/lib/i18n";
 import { useNegativeCustodySetting } from "@/hooks/use-negative-custody-setting";
 import { WarehousePicker } from "@/components/warehouse/warehouse-picker";
 import { WarehouseFormDialog } from "@/components/warehouse/warehouse-form-dialog";
-import { Plus } from "lucide-react";
 
 export const Route = createFileRoute("/_app/milling/delivery")({
   head: () => ({ meta: [{ title: "تسليم الحبوب والنواتج — فورتكس ERP" }] }),

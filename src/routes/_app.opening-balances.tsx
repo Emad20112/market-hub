@@ -53,19 +53,19 @@ import {
   updateOpeningDocument,
 } from "@/lib/opening-balances";
 import { PageHeader } from "@/components/page-header";
+import { Card } from "@/components/ui/card";
+import { VortexMetricCard } from "@/components/vortex-ui";
 import { AmountInput } from "@/components/ui/amount-input";
 import { QuantityInput } from "@/components/ui/quantity-input";
 import {
   Cell,
   MillingEmpty,
-  MillingPanel,
   MillingRow,
   MillingSectionTitle,
   MillingTable,
   Mono,
   Pill,
   QueryErrorGuard,
-  StatTile,
 } from "@/components/milling/milling-ui";
 import { cn } from "@/lib/utils";
 
@@ -358,7 +358,7 @@ export function OpeningBalancesPage() {
         />
 
         {/* ─── البطاقة العلوية: إضافة بند جديد ─── */}
-        <MillingPanel className="border-primary/20 shadow-md shadow-primary/5">
+        <Card className="overflow-hidden border-primary/20 shadow-md shadow-primary/5">
           <div className="border-b border-border/70 p-4 sm:p-5">
             <MillingSectionTitle
               icon={<BookOpen className="h-4 w-4 text-primary" />}
@@ -546,7 +546,8 @@ export function OpeningBalancesPage() {
                       ))}
                     </select>
                     <p className="mt-1.5 text-[11px] leading-relaxed text-muted-foreground">
-                      يسجل المبلغ كذمم مدينة على العميل في رصيده وكشف حسابه، ويمكن تسويته لاحقاً من شاشة تحصيل دفعة.
+                      يسجل المبلغ كذمم مدينة على العميل في رصيده وكشف حسابه، ويمكن تسويته لاحقاً من
+                      شاشة تحصيل دفعة.
                     </p>
                   </div>
                 )}
@@ -773,7 +774,7 @@ export function OpeningBalancesPage() {
               </div>
             </div>
           )}
-        </MillingPanel>
+        </Card>
 
         {/* تنبيهات ورسائل النجاح والخطأ */}
         {error && (
@@ -791,7 +792,7 @@ export function OpeningBalancesPage() {
         )}
 
         {/* ─── بطاقة القيود المسجلة والمرحلة ─── */}
-        <MillingPanel>
+        <Card className="overflow-hidden">
           <div className="border-b border-border/70 p-4 sm:p-5">
             <MillingSectionTitle
               icon={<Scale className="h-4 w-4 text-emerald-500" />}
@@ -912,11 +913,11 @@ export function OpeningBalancesPage() {
               </table>
             </div>
           )}
-        </MillingPanel>
+        </Card>
 
         {/* ─── تفاصيل بنود المستند المختار ─── */}
         {selected && (
-          <MillingPanel>
+          <Card className="overflow-hidden">
             <div className="border-b border-border/70 p-4 sm:p-5">
               <MillingSectionTitle
                 icon={<BookOpen className="h-4 w-4 text-primary" />}
@@ -967,27 +968,35 @@ export function OpeningBalancesPage() {
                 </table>
               </div>
             )}
-          </MillingPanel>
+          </Card>
         )}
 
         {/* بطاقات الإحصاء السفلية */}
         <div className="grid gap-3 sm:grid-cols-3">
-          <StatTile
+          <VortexMetricCard
             title="إجمالي القيود الافتتاحية"
             value={documents.data?.length ?? 0}
-            tone="sky"
+            type="count"
+            currency={false}
+            icon={<BookOpen className="size-4" />}
           />
-          <StatTile
+          <VortexMetricCard
             title="قيود مرحَّلة نهائياً"
             value={(documents.data ?? []).filter((d) => d.status === "POSTED").length}
-            tone="emerald"
+            type="count"
+            currency={false}
+            tone="success"
+            icon={<FileCheck className="size-4" />}
           />
-          <StatTile
+          <VortexMetricCard
             title="مسودات قيد غير متوازنة"
             value={
               (documents.data ?? []).filter((d) => d.status === "DRAFT" && !d.is_balanced).length
             }
-            tone="amber"
+            type="count"
+            currency={false}
+            tone="warning"
+            icon={<TriangleAlert className="size-4" />}
           />
         </div>
       </div>

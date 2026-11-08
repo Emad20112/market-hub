@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Check, GitBranch, LoaderCircle, Pencil, Plus, X } from "lucide-react";
 import { toast } from "sonner";
+import { saveExpenseDimensionFn } from "@/server/api/expenses/save-expense-dimension";
 import { ActionButton } from "@/components/ui/action-button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -60,15 +61,17 @@ export function ExpenseCostCentersSection({ canEdit = false, lang = "ar" }) {
     }
     setSaving(true);
     try {
-      const { error } = await (supabase as any).rpc("save_expense_dimension", {
-        p_kind: "cost_center",
-        p_id: values.id,
-        p_code: values.code.trim(),
-        p_name: values.name.trim(),
-        p_name_ar: values.name_ar.trim(),
-        p_is_active: active,
+      // المرحلة 13.2: نفس الذرّية عبر server function بدل RPC (save_expense_dimension سابقًا).
+      await saveExpenseDimensionFn({
+        data: {
+          kind: "cost_center",
+          id: values.id,
+          code: values.code.trim(),
+          name: values.name.trim(),
+          nameAr: values.name_ar.trim(),
+          isActive: active,
+        },
       });
-      if (error) throw error;
       toast.success(isAr ? "تم حفظ مركز التكلفة" : "Cost center saved");
       setForm(EMPTY_FORM);
       await loadCenters();
@@ -88,15 +91,17 @@ export function ExpenseCostCentersSection({ canEdit = false, lang = "ar" }) {
     if (!canEdit || saving) return;
     setSaving(true);
     try {
-      const { error } = await (supabase as any).rpc("save_expense_dimension", {
-        p_kind: "cost_center",
-        p_id: center.id,
-        p_code: center.code,
-        p_name: center.name,
-        p_name_ar: center.name_ar,
-        p_is_active: !center.is_active,
+      // المرحلة 13.2: نفس الذرّية عبر server function بدل RPC (save_expense_dimension سابقًا).
+      await saveExpenseDimensionFn({
+        data: {
+          kind: "cost_center",
+          id: center.id,
+          code: center.code,
+          name: center.name,
+          nameAr: center.name_ar,
+          isActive: !center.is_active,
+        },
       });
-      if (error) throw error;
       await loadCenters();
     } catch (error) {
       console.error("Could not change cost center status", error);

@@ -9,7 +9,8 @@
 import assert from "node:assert/strict";
 import net from "node:net";
 process.env.SERVER_DATABASE_URL =
-  process.env.SERVER_DATABASE_URL ?? "postgresql://postgres:bbb1750d085fc3323699002b7a61d4a3@127.0.0.1:5433/postgres";
+  process.env.SERVER_DATABASE_URL ??
+  "postgresql://postgres:bbb1750d085fc3323699002b7a61d4a3@127.0.0.1:5433/postgres";
 import { getPool } from "@/server/shared/db/pool";
 import { withTransaction } from "@/server/shared/db/transaction";
 import {
@@ -35,9 +36,15 @@ async function run(name: string, fn: (() => Promise<void>) | null) {
 function tcpAlive(host: string, port: number): Promise<boolean> {
   return new Promise((resolve) => {
     const socket = net.connect({ host, port, timeout: 1500 });
-    socket.once("connect", () => { socket.destroy(); resolve(true); });
+    socket.once("connect", () => {
+      socket.destroy();
+      resolve(true);
+    });
     socket.once("error", () => resolve(false));
-    socket.once("timeout", () => { socket.destroy(); resolve(false); });
+    socket.once("timeout", () => {
+      socket.destroy();
+      resolve(false);
+    });
   });
 }
 
@@ -112,58 +119,85 @@ async function main() {
     const { rows: cc } = await tx.query<{ id: string }>(
       "SELECT id::text FROM public.expense_cost_centers WHERE is_active LIMIT 1",
     );
-    return { wheat: bySku.get("RM-WHEAT"), flour: bySku.get("FG-FLOUR"), bran: bySku.get("FG-BRAN"), warehouse: wh[0]?.id, center: cc[0]?.id };
+    return {
+      wheat: bySku.get("RM-WHEAT"),
+      flour: bySku.get("FG-FLOUR"),
+      bran: bySku.get("FG-BRAN"),
+      warehouse: wh[0]?.id,
+      center: cc[0]?.id,
+    };
   }
 
   await run(
     "[تكافؤ] create+complete_production_order — أمر كامل بمواد ونواتج وفاقد (بيتًا-بيتًا)",
     oldAvailable
       ? async () => {
-        await withTransaction({ rollback: true }, async (tx) => {
-          await tx.query("SELECT set_config('request.jwt.claims', $1, true)", [CLAIMS(OWNER)]);
-          const inp = await loadProductionInputs(tx);
-          assert.ok(inp.wheat && inp.flour && inp.bran && inp.warehouse && inp.center, "بذور العينة ناقصة");
-          const payloads = {
-            warehouseId: inp.warehouse,
-            costCenterId: inp.center,
-            productionDate: new Date().toISOString().slice(0, 10),
-            materials: [{ product_id: inp.wheat, quantity: 50, uom_id: null }],
-            outputs: [
-              { product_id: inp.flour, quantity: 40, uom_id: null, allocation_value_per_base: 2 },
-              { product_id: inp.bran, quantity: 5, uom_id: null, allocation_value_per_base: 1 },
-            ],
-            losses: [
-              { loss_type: "NORMAL", quantity: 2, uom_id: null, reason: "غبار طحن طبيعي", product_id: inp.wheat },
-              { loss_type: "ABNORMAL", quantity: 3, uom_id: null, reason: "عطل مفاجئ في الأسطوانة", product_id: inp.wheat },
-            ],
-          };
-          async function cycle(useNew: boolean) {
-            let orderId: string;
-            if (useNew) {
-              orderId = await createAndPostProductionOrderInner(tx, session, payloads);
-            } else {
-              const { rows } = await tx.query<{ id: string }>(
-                `SELECT public.create_and_post_production_order(
+          await withTransaction({ rollback: true }, async (tx) => {
+            await tx.query("SELECT set_config('request.jwt.claims', $1, true)", [CLAIMS(OWNER)]);
+            const inp = await loadProductionInputs(tx);
+            assert.ok(
+              inp.wheat && inp.flour && inp.bran && inp.warehouse && inp.center,
+              "بذور العينة ناقصة",
+            );
+            const payloads = {
+              warehouseId: inp.warehouse,
+              costCenterId: inp.center,
+              productionDate: new Date().toISOString().slice(0, 10),
+              materials: [{ product_id: inp.wheat, quantity: 50, uom_id: null }],
+              outputs: [
+                { product_id: inp.flour, quantity: 40, uom_id: null, allocation_value_per_base: 2 },
+                { product_id: inp.bran, quantity: 5, uom_id: null, allocation_value_per_base: 1 },
+              ],
+              losses: [
+                {
+                  loss_type: "NORMAL",
+                  quantity: 2,
+                  uom_id: null,
+                  reason: "غبار طحن طبيعي",
+                  product_id: inp.wheat,
+                },
+                {
+                  loss_type: "ABNORMAL",
+                  quantity: 3,
+                  uom_id: null,
+                  reason: "عطل مفاجئ في الأسطوانة",
+                  product_id: inp.wheat,
+                },
+              ],
+            };
+            async function cycle(useNew: boolean) {
+              let orderId: string;
+              if (useNew) {
+                orderId = await createAndPostProductionOrderInner(tx, session, payloads);
+              } else {
+                const { rows } = await tx.query<{ id: string }>(
+                  `SELECT public.create_and_post_production_order(
                      $1::uuid, $2::uuid, CURRENT_DATE, NULL,
                      $3::jsonb, $4::jsonb, '[]'::jsonb, $5::jsonb)::text AS id`,
-                [
-                  payloads.warehouseId, payloads.costCenterId,
-                  JSON.stringify(payloads.materials), JSON.stringify(payloads.outputs),
-                  JSON.stringify(payloads.losses.map((l) => ({
-                    loss_type: l.loss_type, quantity: l.quantity,
-                    uom_id: null, reason: l.reason,
-                  }))),
-                ],
-              );
-              orderId = rows[0].id;
+                  [
+                    payloads.warehouseId,
+                    payloads.costCenterId,
+                    JSON.stringify(payloads.materials),
+                    JSON.stringify(payloads.outputs),
+                    JSON.stringify(
+                      payloads.losses.map((l) => ({
+                        loss_type: l.loss_type,
+                        quantity: l.quantity,
+                        uom_id: null,
+                        reason: l.reason,
+                      })),
+                    ),
+                  ],
+                );
+                orderId = rows[0].id;
+              }
+              return snapshotOrder(tx, orderId);
             }
-            return snapshotOrder(tx, orderId);
-          }
-          const oldSnap = await cycle(false);
-          const newSnap = await cycle(true);
-          assert.deepEqual(newSnap, oldSnap);
-        });
-      }
+            const oldSnap = await cycle(false);
+            const newSnap = await cycle(true);
+            assert.deepEqual(newSnap, oldSnap);
+          });
+        }
       : null,
   );
 
@@ -171,49 +205,52 @@ async function main() {
     "[تكافؤ] reverse_production_order — العكس الكامل (حركات + قيود معكوسة)",
     oldAvailable
       ? async () => {
-        // الأصل يمنع العكس داخل نفس المعاملة لأن حركات القمح اللاحقة
-        // (الناتج من الأمروين المتتاليين) تحجب العكس — نتحقق هنا من الشرط فقط:
-        // الأمر المرحل حديثًا لعكسه يجب أن يكون وحيد الحركة على منتجاته.
-        await withTransaction({ rollback: true }, async (tx) => {
-          await tx.query("SELECT set_config('request.jwt.claims', $1, true)", [CLAIMS(OWNER)]);
-          const inp = await loadProductionInputs(tx);
-          const payloads = {
-            warehouseId: inp.warehouse!,
-            costCenterId: inp.center!,
-            productionDate: new Date().toISOString().slice(0, 10),
-            materials: [{ product_id: inp.wheat!, quantity: 50, uom_id: null }],
-            outputs: [
-              { product_id: inp.flour!, quantity: 45, uom_id: null },
-            ],
-            losses: [],
-          };
-          const { rows } = await tx.query<{ id: string }>(
-            `SELECT public.create_and_post_production_order(
+          // الأصل يمنع العكس داخل نفس المعاملة لأن حركات القمح اللاحقة
+          // (الناتج من الأمروين المتتاليين) تحجب العكس — نتحقق هنا من الشرط فقط:
+          // الأمر المرحل حديثًا لعكسه يجب أن يكون وحيد الحركة على منتجاته.
+          await withTransaction({ rollback: true }, async (tx) => {
+            await tx.query("SELECT set_config('request.jwt.claims', $1, true)", [CLAIMS(OWNER)]);
+            const inp = await loadProductionInputs(tx);
+            const payloads = {
+              warehouseId: inp.warehouse!,
+              costCenterId: inp.center!,
+              productionDate: new Date().toISOString().slice(0, 10),
+              materials: [{ product_id: inp.wheat!, quantity: 50, uom_id: null }],
+              outputs: [{ product_id: inp.flour!, quantity: 45, uom_id: null }],
+              losses: [],
+            };
+            const { rows } = await tx.query<{ id: string }>(
+              `SELECT public.create_and_post_production_order(
                  $1::uuid, $2::uuid, CURRENT_DATE, NULL,
                  $3::jsonb, $4::jsonb, '[]'::jsonb, '[]'::jsonb)::text AS id`,
-            [
-              payloads.warehouseId, payloads.costCenterId,
-              JSON.stringify(payloads.materials), JSON.stringify(payloads.outputs),
-            ],
-          );
-          const orderId = rows[0].id;
-          // العكس بالجديد (لا يعمل بالقديم داخل نفس المعاملة بحكم الأقفال).
-          await reverseProductionOrderInner(tx, session, { orderId, reason: "عكس تكافؤ — اختبار" });
-          const { rows: after } = await tx.query<{ status: string }>(
-            "SELECT status FROM public.production_orders WHERE id = $1::uuid",
-            [orderId],
-          );
-          assert.equal(after[0].status, "REVERSED");
-          const { rows: rv } = await tx.query<{ n: string }>(
-            `SELECT count(*)::text AS n FROM public.journal_entries je
+              [
+                payloads.warehouseId,
+                payloads.costCenterId,
+                JSON.stringify(payloads.materials),
+                JSON.stringify(payloads.outputs),
+              ],
+            );
+            const orderId = rows[0].id;
+            // العكس بالجديد (لا يعمل بالقديم داخل نفس المعاملة بحكم الأقفال).
+            await reverseProductionOrderInner(tx, session, {
+              orderId,
+              reason: "عكس تكافؤ — اختبار",
+            });
+            const { rows: after } = await tx.query<{ status: string }>(
+              "SELECT status FROM public.production_orders WHERE id = $1::uuid",
+              [orderId],
+            );
+            assert.equal(after[0].status, "REVERSED");
+            const { rows: rv } = await tx.query<{ n: string }>(
+              `SELECT count(*)::text AS n FROM public.journal_entries je
                 WHERE je.source_type = 'production_completion'
                   AND je.source_id = $1::uuid
                   AND je.status = 'REVERSED'`,
-            [orderId],
-          );
-          assert.equal(Number(rv[0].n), 1);
-        });
-      }
+              [orderId],
+            );
+            assert.equal(Number(rv[0].n), 1);
+          });
+        }
       : null,
   );
 

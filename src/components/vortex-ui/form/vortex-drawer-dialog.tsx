@@ -184,7 +184,7 @@ export function VortexDrawerDialog({
         <DrawerPrimitive.Overlay className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs transition-opacity duration-200" />
         <DrawerPrimitive.Content
           className={cn(
-            "fixed inset-x-0 bottom-0 z-50 mt-12 flex max-h-[92vh] flex-col rounded-t-[26px] border-t border-border/70 bg-card/98 text-card-foreground shadow-2xl backdrop-blur-2xl focus:outline-none pb-safe",
+            "fixed inset-x-0 bottom-0 z-50 flex h-[94dvh] max-h-[94dvh] flex-col rounded-t-[26px] border-t border-border/70 bg-card/98 text-card-foreground shadow-2xl backdrop-blur-2xl focus:outline-none pb-safe sm:h-auto",
             className,
           )}
         >
@@ -236,7 +236,7 @@ export function VortexDrawerDialog({
           <div
             data-vaul-no-drag
             className={cn(
-              "min-h-0 flex-1 touch-pan-y overflow-y-auto overscroll-y-contain px-5 py-4 custom-scrollbar",
+              "min-h-0 flex-1 touch-pan-y overflow-y-auto overscroll-y-contain px-4 py-3 custom-scrollbar sm:px-5 sm:py-4",
               bodyClassName,
             )}
           >
@@ -245,7 +245,7 @@ export function VortexDrawerDialog({
 
           {/* Mobile Sticky Footer */}
           {footer && (
-            <div className="shrink-0 border-t border-border/40 bg-card/95 px-5 py-3 shadow-lg">
+            <div className="shrink-0 border-t border-border/40 bg-card/95 px-3.5 py-2.5 shadow-lg sm:px-5 sm:py-3">
               {footer}
             </div>
           )}

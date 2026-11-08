@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import type { SidebarViewMode } from "./sidebar-views";
 
 const STORAGE_PREFIX = "vortex_sidebar_preferences_v1:";
-const VALID_MODES = new Set<SidebarViewMode>(["daily", "activity", "focus", "explorer"]);
+const VALID_MODES = new Set<SidebarViewMode>(["daily", "activity", "focus"]);
 const VALID_ICON_SHAPES = new Set(["rounded", "circle"]);
 const VALID_ICON_COLOR_MODES = new Set(["system", "activity", "custom"]);
 

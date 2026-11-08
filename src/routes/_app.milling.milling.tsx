@@ -61,7 +61,6 @@ import { CustomerFormDialog } from "@/components/contacts/customer-form-dialog";
 import { useI18n } from "@/lib/i18n";
 import { WarehousePicker } from "@/components/warehouse/warehouse-picker";
 import { WarehouseFormDialog } from "@/components/warehouse/warehouse-form-dialog";
-import { Plus } from "lucide-react";
 
 export const Route = createFileRoute("/_app/milling/milling")({
   head: () => ({ meta: [{ title: "عمليات الطحن ونواتج الحبوب — فورتكس ERP" }] }),

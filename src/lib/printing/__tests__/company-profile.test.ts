@@ -113,10 +113,7 @@ const nullish = cacheCompanyProfile({
   footer_contact: null,
 });
 check("null name falls back instead of rendering 'null'", !String(nullish.name).includes("null"));
-check(
-  "null phone stays absent instead of using a platform contact",
-  nullish.phone === undefined,
-);
+check("null phone stays absent instead of using a platform contact", nullish.phone === undefined);
 check("null email becomes undefined", nullish.email === undefined);
 
 // مسح الكاش

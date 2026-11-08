@@ -321,7 +321,6 @@ export function VortexInvoiceDetailsSheet({
                 </SheetDescription>
               </div>
             </div>
-
           </div>
         </div>
 

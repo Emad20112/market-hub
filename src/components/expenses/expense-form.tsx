@@ -132,8 +132,9 @@ export function ExpenseFormDialog({
 }) {
   const { t, lang } = useI18n();
   const ar = lang === "ar";
-  const { hasRole } = useAuth();
+  const { hasRole, isPlatformSuperadmin } = useAuth();
   const mutations = useExpenseMutations();
+  const canDirectApproveAndPost = hasRole("owner") || hasRole("manager") || isPlatformSuperadmin;
 
   // وضع العملية: جديد = سند صرف دائماً (المصروف الآجل فورم منفصل). تعديل = حسب المستند.
   const [opMode, setOpMode] = useState<ExpenseOperationMode>("CASH_PAYMENT");
@@ -238,6 +239,22 @@ export function ExpenseFormDialog({
     header.tax_mode === "EXCLUSIVE" && enteredTaxRate.ok
       ? roundMoney(enteredAmount * (1 + enteredTaxRate.value / 100))
       : enteredAmount;
+
+  const availableCategories = useMemo(() => {
+    const categories = (lookups?.categories ?? []).filter(
+      (category) => !initialCostCenterId || category.production_cost_eligible,
+    );
+    const seen = new Set<string>();
+    return categories.filter((category) => {
+      const label = (ar ? category.name_ar || category.name : category.name || "")
+        .trim()
+        .toLocaleLowerCase();
+      const key = label || category.id;
+      if (seen.has(key) && category.id !== primaryLine.category_id) return false;
+      seen.add(key);
+      return true;
+    });
+  }, [lookups?.categories, initialCostCenterId, ar, primaryLine.category_id]);
 
   const selectedCategory = useMemo(() => {
     return lookups?.categories?.find((c) => c.id === primaryLine.category_id);
@@ -421,20 +438,22 @@ export function ExpenseFormDialog({
     }
 
     const isCashPayment = opMode === "CASH_PAYMENT";
-    const canApproveNow = hasRole("owner") || hasRole("manager");
-    const canPostNow = hasRole("owner") || hasRole("manager") || hasRole("accountant");
+    const canApproveNow = hasRole("owner") || hasRole("manager") || isPlatformSuperadmin;
+    const canPostNow =
+      hasRole("owner") || hasRole("manager") || hasRole("accountant") || isPlatformSuperadmin;
     const directDraftPost =
-      isCashPayment && submit && !editing && canPostNow && hasRole("owner") && ownerDraftOverride;
+      isCashPayment &&
+      submit &&
+      !editing &&
+      canPostNow &&
+      canDirectApproveAndPost &&
+      ownerDraftOverride;
     const submitForApproval = submit && !directDraftPost;
-
-    if (directDraftPost && ownerDraftReason.trim().length < 10) {
-      toast.error(
-        ar
-          ? "اكتب سبباً واضحاً (١٠ أحرف على الأقل) لترحيل السند دون اعتماد مسبق"
-          : "Write a clear reason (at least 10 characters) to post without prior approval",
-      );
-      return;
-    }
+    const effectiveReason =
+      ownerDraftReason.trim() ||
+      (ar
+        ? "اعتماد وترحيل مباشر بتفويض الإدارة"
+        : "Direct approval and posting by authorized management");
 
     if (isCashPayment && submit) {
       const unmappedCategory = payloadLines.some((line) => {
@@ -503,7 +522,7 @@ export function ExpenseFormDialog({
             id: created.id,
             approve: true,
             version: created.version,
-            reason: ownerDraftReason.trim(),
+            reason: effectiveReason,
           });
           await mutations.post.mutateAsync({
             id: created.id,
@@ -779,7 +798,7 @@ export function ExpenseFormDialog({
                         ? "اختر تصنيف المصروف…"
                         : "Choose an expense category…"}
                 </option>
-                {(lookups?.categories ?? []).map((cat) => (
+                {availableCategories.map((cat) => (
                   <option key={cat.id} value={cat.id}>
                     {cat.account_code ? `[${cat.account_code}] ` : ""}
                     {ar ? cat.name_ar || cat.name : cat.name}
@@ -1158,10 +1177,9 @@ export function ExpenseFormDialog({
         )}
 
         {/*
-          الترحيل لا يتخطى الاعتماد: التدفق الإلزامي هو إرسال ← اعتماد ← ترحيل.
-          التجاوز متاح للمالك فقط، ويتطلب سبباً مكتوباً يُحفظ في المستند وسجل التدقيق.
+          يمكن للمخول اعتماد سند الصرف وترحيله مباشرة مع حفظ سبب العملية في سجل التدقيق.
         */}
-        {opMode === "CASH_PAYMENT" && hasRole("owner") && !isEditing ? (
+        {opMode === "CASH_PAYMENT" && canDirectApproveAndPost && !isEditing ? (
           <div className="rounded-2xl border border-border/70 bg-surface/50 p-4 sm:p-5 space-y-3">
             <label className="flex items-start gap-2 text-xs font-semibold text-foreground">
               <input
@@ -1172,8 +1190,8 @@ export function ExpenseFormDialog({
               />
               <span>
                 {ar
-                  ? "توقيع المالك: اعتماد مباشر ثم ترحيل وسداد دون انتظار شخص آخر (يسجّل في سجل الاعتماد)"
-                  : "Owner override: approve and post this voucher in one step without a second approver (recorded in the approval log)"}
+                  ? "اعتماد وترحيل مباشر للمستخدم المخول (يسجل في سجل التدقيق)"
+                  : "Direct approval and posting for authorized users (recorded in the audit log)"}
               </span>
             </label>
             {ownerDraftOverride ? (
@@ -1183,8 +1201,8 @@ export function ExpenseFormDialog({
                 rows={2}
                 placeholder={
                   ar
-                    ? "سبب التجاوز (١٠ أحرف على الأقل)، مثلاً: سداد فوري لفاتورة طارئة"
-                    : "Override reason (at least 10 characters)"
+                    ? "ملاحظة الاعتماد، مثلاً: صرف عاجل لمصروف معتمد"
+                    : "Approval note, for example: urgent approved expense"
                 }
                 className="w-full rounded-xl border border-border bg-surface px-3 py-2 text-xs text-foreground"
               />

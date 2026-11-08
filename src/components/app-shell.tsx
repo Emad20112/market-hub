@@ -5,9 +5,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { memo, useEffect, useMemo, useRef, useState } from "react";
 import {
   Bell,
-  Check,
   ChevronDown,
-  Layers3,
   LogOut,
   Menu,
   Moon,
@@ -15,7 +13,6 @@ import {
   PanelLeftOpen,
   RotateCw,
   Sparkles,
-  Star,
   Sun,
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
@@ -41,18 +38,9 @@ import { ThemePaletteQuickSwitcher } from "@/components/theme/theme-palette-quic
 import { getSidebarSections, type SidebarSection } from "@/lib/navigation";
 import { routeIcon } from "@/lib/navigation/route-icons";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
   buildSidebarView,
   useSidebarPreferences,
   type SidebarViewGroup,
-  type SidebarViewMode,
   type SidebarPreferences,
 } from "@/lib/navigation";
 
@@ -190,6 +178,8 @@ function getSidebarStyle(category: string, groupKey: string, preferences: Sideba
   // Keep section rows neutral; category color belongs to the icon only.
   return {
     ...style,
+    iconActive: "text-primary",
+    iconInactive: "text-muted-foreground group-hover:text-primary",
     iconBoxActive: "bg-sidebar-accent text-foreground",
     iconBoxInactive: "bg-transparent text-muted-foreground group-hover:bg-sidebar-accent",
     accentPill: "bg-primary",
@@ -210,7 +200,7 @@ const SidebarContents = memo(function SidebarContents({
   const isAr = lang === "ar";
 
   const { user, signOut, isPlatformAdmin, isPlatformSuperadmin, roles } = useAuth();
-  const { preferences, update, toggleFavorite, recordRecent } = useSidebarPreferences(user?.id);
+  const { preferences } = useSidebarPreferences(user?.id);
 
   const { isModuleEnabled } = useModules();
 
@@ -255,50 +245,19 @@ const SidebarContents = memo(function SidebarContents({
    * the current screen is force-opened: navigating into a page must never leave
    * its own link hidden inside a collapsed group.
    */
-  const { groups: viewGroups, availableFocusGroups } = useMemo(
-    () =>
-      buildSidebarView(
-        filteredSections,
-        preferences.mode,
-        preferences.mode === "explorer" ? preferences.explorerGroup : preferences.focusGroup,
-      ),
-    [filteredSections, preferences.mode, preferences.focusGroup, preferences.explorerGroup],
+  const { groups: viewGroups } = useMemo(
+    () => buildSidebarView(filteredSections, "activity"),
+    [filteredSections],
   );
-  useEffect(() => {
-    if (preferences.mode === "explorer") {
-      navigationRef.current?.scrollTo({ top: 0 });
-    }
-  }, [preferences.explorerGroup, preferences.mode]);
 
   // مجدول النسخ الاحتياطي التلقائي — يعمل مرة واحدة عند إقلاع التطبيق
   useEffect(() => {
     startAutoBackupScheduler();
   }, []);
 
-  useEffect(() => {
-    if (
-      preferences.mode === "focus" &&
-      preferences.focusGroup &&
-      !availableFocusGroups.some((group) => group.key === preferences.focusGroup)
-    ) {
-      update({
-        focusGroup:
-          availableFocusGroups.find((group) => group.key !== "command_center")?.key ??
-          availableFocusGroups[0]?.key ??
-          "command_center",
-      });
-    }
-  }, [
-    availableFocusGroups,
-    preferences.explorerGroup,
-    preferences.focusGroup,
-    preferences.mode,
-    update,
-  ]);
-
   const activeGroupKey = useMemo(() => {
     return (
-      availableFocusGroups.find((group) =>
+      viewGroups.find((group) =>
         group.entries.some(
           (entry) =>
             pathname === entry.path.split("?")[0] ||
@@ -307,103 +266,9 @@ const SidebarContents = memo(function SidebarContents({
         ),
       )?.key ?? null
     );
-  }, [availableFocusGroups, pathname]);
+  }, [viewGroups, pathname]);
 
-  const activeRouteId = useMemo(() => {
-    const matchingEntries = filteredSections
-      .flatMap((section) => section.entries)
-      .filter((entry) => {
-        const [entryPath, entryQuery] = entry.path.split("?");
-        if (
-          pathname !== entryPath &&
-          (entryPath === "/dashboard" || !pathname.startsWith(`${entryPath}/`))
-        ) {
-          return false;
-        }
-        const expectedSearch = new URLSearchParams(entryQuery ?? "");
-        return Array.from(expectedSearch.entries()).every(
-          ([key, value]) => currentSearchParams.get(key) === value,
-        );
-      })
-      .sort((left, right) => {
-        const leftQueryLength = left.path.split("?")[1]?.length ?? 0;
-        const rightQueryLength = right.path.split("?")[1]?.length ?? 0;
-        return (
-          rightQueryLength - leftQueryLength ||
-          right.path.split("?")[0].length - left.path.split("?")[0].length
-        );
-      });
-    return matchingEntries[0]?.id ?? null;
-  }, [currentSearchParams, filteredSections, pathname]);
-
-  useEffect(() => {
-    if (activeRouteId) recordRecent(activeRouteId);
-  }, [activeRouteId, recordRecent]);
-
-  const previousFocusPathname = useRef<string | null>(null);
-  useEffect(() => {
-    const pathnameChanged = previousFocusPathname.current !== pathname;
-    previousFocusPathname.current = pathname;
-    if (!pathnameChanged) return;
-    if (
-      preferences.mode === "focus" &&
-      activeGroupKey &&
-      activeGroupKey !== "command_center" &&
-      activeGroupKey !== preferences.focusGroup
-    ) {
-      update({ focusGroup: activeGroupKey });
-    }
-  }, [activeGroupKey, pathname, preferences.focusGroup, preferences.mode, update]);
-
-  const visibleEntries = useMemo(
-    () => filteredSections.flatMap((section) => section.entries),
-    [filteredSections],
-  );
-  const favoriteEntries = useMemo(
-    () =>
-      preferences.favorites.flatMap((id) => {
-        const entry = visibleEntries.find((candidate) => candidate.id === id);
-        return entry ? [entry] : [];
-      }),
-    [preferences.favorites, visibleEntries],
-  );
-  const recentEntries = useMemo(
-    () =>
-      preferences.recentIds.flatMap((id) => {
-        if (preferences.favorites.includes(id)) return [];
-        const entry = visibleEntries.find((candidate) => candidate.id === id);
-        return entry ? [entry] : [];
-      }),
-    [preferences.favorites, preferences.recentIds, visibleEntries],
-  );
-  const displayGroups: SidebarViewGroup[] =
-    preferences.mode === "explorer"
-      ? viewGroups
-      : [
-          ...(preferences.showFavorites && favoriteEntries.length
-            ? [
-                {
-                  key: "favorites",
-                  titleAr: "المفضلة",
-                  titleEn: "Favorites",
-                  styleCategory: "command_center" as const,
-                  entries: favoriteEntries,
-                },
-              ]
-            : []),
-          ...(preferences.showRecent && recentEntries.length
-            ? [
-                {
-                  key: "recent",
-                  titleAr: "آخر الصفحات",
-                  titleEn: "Recent pages",
-                  styleCategory: "command_center" as const,
-                  entries: recentEntries,
-                },
-              ]
-            : []),
-          ...viewGroups,
-        ];
+  const displayGroups: SidebarViewGroup[] = viewGroups;
 
   const { isOpen: isSectionOpen, toggle: toggleSection } = useSidebarSections({
     userId: user?.id,
@@ -458,89 +323,6 @@ const SidebarContents = memo(function SidebarContents({
           collapsed ? "px-2 py-3 space-y-2" : "px-3 py-3.5 space-y-2.5",
         )}
       >
-        <div className={cn("mb-3 space-y-2", collapsed && "mb-1 flex justify-center")}>
-          <DropdownMenu>
-            <Hint
-              label={collapsed ? t("nav.view.selector") : undefined}
-              side={dir === "rtl" ? "left" : "right"}
-            >
-              <DropdownMenuTrigger asChild>
-                <button
-                  type="button"
-                  className={cn(
-                    "flex min-h-10 items-center rounded-lg border border-sidebar-border/70 bg-sidebar-accent/35 text-start text-xs font-semibold text-foreground transition-colors hover:bg-sidebar-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50",
-                    collapsed ? "w-10 justify-center p-0" : "w-full gap-2 px-3",
-                  )}
-                  aria-label={t("nav.view.selector")}
-                >
-                  <Layers3 className="size-4 shrink-0 text-primary" />
-                  {!collapsed && (
-                    <>
-                      <span className="min-w-0 flex-1 truncate">{t("nav.view.selector")}</span>
-                      <span className="truncate text-[11px] font-medium text-muted-foreground">
-                        {t(`nav.view.${preferences.mode}`)}
-                      </span>
-                      <ChevronDown className="size-3.5 shrink-0 text-muted-foreground" />
-                    </>
-                  )}
-                </button>
-              </DropdownMenuTrigger>
-            </Hint>
-            <DropdownMenuContent align={dir === "rtl" ? "end" : "start"} className="w-60">
-              <DropdownMenuLabel>{t("nav.view.selector")}</DropdownMenuLabel>
-              {(["daily", "activity", "focus", "explorer"] as SidebarViewMode[]).map((mode) => (
-                <DropdownMenuItem
-                  key={mode}
-                  onSelect={() =>
-                    update({
-                      mode,
-                      ...(mode === "explorer" ? { explorerGroup: null } : {}),
-                      ...(mode === "focus" && activeGroupKey && activeGroupKey !== "command_center"
-                        ? { focusGroup: activeGroupKey }
-                        : {}),
-                    })
-                  }
-                >
-                  <span className="flex-1">{t(`nav.view.${mode}`)}</span>
-                  {preferences.mode === mode && <Check className="size-4 text-primary" />}
-                </DropdownMenuItem>
-              ))}
-              {preferences.mode === "focus" && (
-                <>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuLabel>{t("nav.view.choose_unit")}</DropdownMenuLabel>
-                  {availableFocusGroups
-                    .filter((group) => group.key !== "command_center")
-                    .map((group) => (
-                      <DropdownMenuItem
-                        key={group.key}
-                        onSelect={() => update({ focusGroup: group.key })}
-                      >
-                        <span className="flex-1">{t(`nav.view.group.${group.key}`)}</span>
-                        {preferences.focusGroup === group.key && (
-                          <Check className="size-4 text-primary" />
-                        )}
-                      </DropdownMenuItem>
-                    ))}
-                </>
-              )}
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                onSelect={() => update({ mode: "daily", focusGroup: "sales", explorerGroup: null })}
-              >
-                {t("nav.view.reset")}
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-          {!collapsed && preferences.mode === "focus" && (
-            <div className="flex items-center gap-2 px-1 text-[11px] text-muted-foreground">
-              <span className="shrink-0">{t("nav.view.choose_unit")}:</span>
-              <span className="truncate font-semibold text-foreground">
-                {t(`nav.view.group.${preferences.focusGroup}`)}
-              </span>
-            </div>
-          )}
-        </div>
         {displayGroups.map((sec, secIdx) => {
           const sectionKey = sec.key;
           const sectionOpen = collapsed ? true : isSectionOpen(sectionKey);
@@ -563,13 +345,7 @@ const SidebarContents = memo(function SidebarContents({
                   )}
                 >
                   <span className="min-w-0 flex-1 truncate text-start">
-                    {t(
-                      sec.key === "favorites"
-                        ? "nav.view.favorites"
-                        : sec.key === "recent"
-                          ? "nav.view.recent"
-                          : `nav.view.group.${sec.key}`,
-                    )}
+                    {t(`nav.view.group.${sec.key}`)}
                   </span>
                   <span
                     className={cn(
@@ -624,7 +400,6 @@ const SidebarContents = memo(function SidebarContents({
                         ? it.titleAr
                         : it.titleEn;
                   const catStyle = getSidebarStyle(sec.styleCategory, sec.key, preferences);
-                  const isFavorite = preferences.favorites.includes(it.id);
                   const iconShapeClass =
                     preferences.iconShape === "circle" ? "rounded-full" : "rounded-lg";
 
@@ -658,30 +433,21 @@ const SidebarContents = memo(function SidebarContents({
                                     ? "rounded-full"
                                     : "rounded-xl",
                                 )
-                              : preferences.mode === "explorer"
-                                ? "gap-2.5 ps-2.5 pe-9 py-2 rounded-lg text-[13px] font-medium"
-                                : "gap-3 ps-3 pe-10 py-2.5 rounded-xl text-[13.5px] sm:text-sm font-medium",
+                              : "gap-3 ps-3 pe-3 py-2 rounded-lg text-[13px] font-medium",
                             active
                               ? collapsed
                                 ? cn("shadow-md ring-2 ring-white/10", catStyle.iconBoxActive)
-                                : preferences.mode === "explorer"
-                                  ? "border border-sidebar-border/70 bg-sidebar-accent/70 text-foreground"
-                                : cn(
-                                    "text-foreground font-semibold border",
-                                    catStyle.activeBg,
-                                  )
+                                : cn("text-foreground font-semibold border", catStyle.activeBg)
                               : collapsed
                                 ? "text-muted-foreground hover:bg-surface-2 hover:text-foreground hover:scale-105"
-                                : preferences.mode === "explorer"
-                                  ? "text-muted-foreground hover:bg-sidebar-accent/50 hover:text-foreground"
-                                  : "text-muted-foreground hover:bg-sidebar-accent/70 hover:text-foreground",
+                                : "text-muted-foreground hover:bg-sidebar-accent/70 hover:text-foreground",
                           )}
                         >
                           {active && !collapsed && (
                             <span
                               className={cn(
                                 "absolute inset-y-2 w-[3.5px] rounded-full",
-                                preferences.mode === "explorer" ? "bg-primary" : catStyle.accentPill,
+                                catStyle.accentPill,
                                 dir === "rtl" ? "right-0" : "left-0",
                               )}
                             />
@@ -693,14 +459,8 @@ const SidebarContents = memo(function SidebarContents({
                               collapsed
                                 ? "h-full w-full"
                                 : cn(
-                                    preferences.mode === "explorer"
-                                      ? "h-6 w-6"
-                                      : cn("h-7 w-7", iconShapeClass),
-                                    preferences.mode === "explorer"
-                                      ? "bg-transparent"
-                                      : active
-                                        ? catStyle.iconBoxActive
-                                        : catStyle.iconBoxInactive,
+                                    cn("h-7 w-7", iconShapeClass),
+                                    active ? catStyle.iconBoxActive : catStyle.iconBoxInactive,
                                   ),
                             )}
                           >
@@ -725,43 +485,6 @@ const SidebarContents = memo(function SidebarContents({
                           )}
                         </Link>
                       </Hint>
-                      {!collapsed && sectionKey !== "recent" && (
-                        <Hint
-                          label={
-                            isFavorite
-                              ? isAr
-                                ? "إزالة من المفضلة"
-                                : "Remove from favorites"
-                              : isAr
-                                ? "إضافة إلى المفضلة"
-                                : "Add to favorites"
-                          }
-                          side={dir === "rtl" ? "left" : "right"}
-                        >
-                          <button
-                            type="button"
-                            onClick={() => toggleFavorite(it.id)}
-                            aria-label={
-                              isFavorite
-                                ? isAr
-                                  ? "إزالة من المفضلة"
-                                  : "Remove from favorites"
-                                : isAr
-                                  ? "إضافة إلى المفضلة"
-                                  : "Add to favorites"
-                            }
-                            aria-pressed={isFavorite}
-                            className="absolute inset-y-0 end-1 my-auto grid size-8 place-items-center rounded-md text-muted-foreground/70 opacity-70 transition-opacity hover:bg-sidebar-accent hover:text-amber-500 hover:opacity-100 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 group-hover:opacity-100"
-                          >
-                            <Star
-                              className={cn(
-                                "size-3.5",
-                                isFavorite && "fill-amber-400 text-amber-500",
-                              )}
-                            />
-                          </button>
-                        </Hint>
-                      )}
                     </li>
                   );
                 })}

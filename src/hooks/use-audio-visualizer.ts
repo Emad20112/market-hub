@@ -137,10 +137,7 @@ export function useAudioVisualizer() {
 
           // Calculate how many bars fit in the canvas
           const totalBarWidth = barWidth + barGap;
-          const numBars = Math.min(
-            bufferLength,
-            Math.floor(logicalWidth / totalBarWidth),
-          );
+          const numBars = Math.min(bufferLength, Math.floor(logicalWidth / totalBarWidth));
           const startX = Math.max(0, (logicalWidth - numBars * totalBarWidth) / 2);
 
           canvasCtx.save();

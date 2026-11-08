@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { AmountInput } from "@/components/ui/amount-input";
 import { QuantityInput } from "@/components/ui/quantity-input";
+import { directStockInFn } from "@/server/api/stock/direct-stock-in";
 
 type ProductItem = {
   id: string;
@@ -185,21 +186,16 @@ export function DirectStockInDialog({
           ? "توريد مخزني مباشر (إدخال كمية)"
           : "Direct stock receipt";
 
-      const { error: deltaErr } = await (supabase.rpc as any)("post_stock_delta", {
-        p_product_id: selectedProductId,
-        p_warehouse_id: selectedWarehouseId,
-        p_signed_qty: incomingQty,
-        p_unit_cost: Number(unitCostStr) || null,
-        p_movement_kind: "RECEIPT",
-        p_movement_type_legacy: "purchase",
-        p_source_type: "direct_stock_in",
-        p_source_id: crypto.randomUUID(),
-        p_note: noteText,
-        p_owner_type: "COMPANY",
-        p_owner_id: null,
+      // المرحلة 13.2: نفس الذرّية عبر server function بدل RPC (post_stock_delta سابقًا).
+      await directStockInFn({
+        data: {
+          productId: selectedProductId,
+          warehouseId: selectedWarehouseId,
+          quantity: incomingQty,
+          unitCost: Number(unitCostStr) || null,
+          note: noteText,
+        },
       });
-
-      if (deltaErr) throw deltaErr;
 
       toast.success(
         isAr

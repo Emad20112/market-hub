@@ -10,7 +10,8 @@
 import assert from "node:assert/strict";
 import net from "node:net";
 process.env.SERVER_DATABASE_URL =
-  process.env.SERVER_DATABASE_URL ?? "postgresql://postgres:bbb1750d085fc3323699002b7a61d4a3@127.0.0.1:5433/postgres";
+  process.env.SERVER_DATABASE_URL ??
+  "postgresql://postgres:bbb1750d085fc3323699002b7a61d4a3@127.0.0.1:5433/postgres";
 import { closePool, getPool } from "@/server/shared/db/pool";
 import { withTransaction } from "@/server/shared/db/transaction";
 import {
@@ -377,4 +378,3 @@ async function main() {
 }
 
 void main();
-

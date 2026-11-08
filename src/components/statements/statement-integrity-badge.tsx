@@ -16,7 +16,7 @@ import { useState } from "react";
 import { AlertTriangle, CheckCircle2, Info, Loader2, RefreshCw } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
+import { recalcCustomerBalanceFn } from "@/server/api/treasury/recalc-customer-balance";
 import { fmtAmount } from "@/lib/statements/format";
 import type { StatementIntegrity } from "@/lib/statements/types";
 import { useI18n } from "@/lib/i18n";
@@ -48,13 +48,19 @@ export function StatementIntegrityBadge({
     if (!customerId || reconciling) return;
     setReconciling(true);
     try {
-      const { data, error } = await (supabase.rpc as any)("recalculate_customer_balance", {
-        p_customer_id: customerId,
-        p_reason: ar ? "مطابقة من كشف الحساب" : "Reconciliation from account statement",
-        p_type: "recalculation",
+      // المرحلة 13.2: نفس الذرّية عبر server function بدل RPC.
+      const res = await recalcCustomerBalanceFn({
+        data: {
+          customerId,
+          reason: ar ? "مطابقة من كشف الحساب" : "Reconciliation from account statement",
+          type: "recalculation",
+        },
       });
-      if (error) throw error;
-      const result = (data ?? {}) as { difference?: number; changed?: boolean; status?: string };
+      const result = ((res as any)?.result ?? {}) as {
+        difference?: number;
+        changed?: boolean;
+        status?: string;
+      };
       if (result.status === "broken_documents") {
         toast.warning(
           ar

@@ -336,26 +336,42 @@ const millingThermalDoc = {
   company: { name: "شركة الطباعة", arabicName: "شركة الطباعة", logo: "/company-logo.png" },
   options: { showNotes: true, showLogo: true, showBarcode: true, showQrCode: true },
 };
-const millingThermalVisible = renderMillingThermalTemplate(
-  millingThermalDoc,
-  LABELS,
-  true,
-  { showNotes: true, showLogo: true, showBarcode: true, showQrCode: true },
+const millingThermalVisible = renderMillingThermalTemplate(millingThermalDoc, LABELS, true, {
+  showNotes: true,
+  showLogo: true,
+  showBarcode: true,
+  showQrCode: true,
+});
+check(
+  "milling thermal honors showLogo when a real logo is provided",
+  millingThermalVisible.includes('class="company-logo"') &&
+    millingThermalVisible.includes("/company-logo.png"),
 );
-check("milling thermal honors showLogo when a real logo is provided", millingThermalVisible.includes('class="company-logo"') && millingThermalVisible.includes("/company-logo.png"));
 check("milling thermal honors showBarcode", millingThermalVisible.includes("barcode-wrap"));
 check("milling thermal honors showQrCode", millingThermalVisible.includes("qr-wrap"));
-check("milling thermal shows notes when enabled", millingThermalVisible.includes("MILLING_NOTE_SHOULD_BE_TOGGLED"));
-
-const millingThermalHidden = renderMillingThermalTemplate(
-  millingThermalDoc,
-  LABELS,
-  true,
-  { showNotes: false, showLogo: false, showBarcode: false, showQrCode: false },
+check(
+  "milling thermal shows notes when enabled",
+  millingThermalVisible.includes("MILLING_NOTE_SHOULD_BE_TOGGLED"),
 );
-check("milling thermal hides notes when disabled", !millingThermalHidden.includes("MILLING_NOTE_SHOULD_BE_TOGGLED"));
-check("milling thermal hides logo when disabled", !millingThermalHidden.includes('class="company-logo"'));
-check("milling thermal hides barcode when disabled", !millingThermalHidden.includes("barcode-wrap"));
+
+const millingThermalHidden = renderMillingThermalTemplate(millingThermalDoc, LABELS, true, {
+  showNotes: false,
+  showLogo: false,
+  showBarcode: false,
+  showQrCode: false,
+});
+check(
+  "milling thermal hides notes when disabled",
+  !millingThermalHidden.includes("MILLING_NOTE_SHOULD_BE_TOGGLED"),
+);
+check(
+  "milling thermal hides logo when disabled",
+  !millingThermalHidden.includes('class="company-logo"'),
+);
+check(
+  "milling thermal hides barcode when disabled",
+  !millingThermalHidden.includes("barcode-wrap"),
+);
 check("milling thermal hides QR when disabled", !millingThermalHidden.includes("qr-wrap"));
 
 const millingThermalNoCompany = renderMillingThermalTemplate(
@@ -364,7 +380,11 @@ const millingThermalNoCompany = renderMillingThermalTemplate(
   true,
   { showCompanyInfo: true },
 );
-check("milling thermal does not invent a company name or address", !millingThermalNoCompany.includes("المطحنة الحديثة") && !millingThermalNoCompany.includes("المركز الرئيسي"));
+check(
+  "milling thermal does not invent a company name or address",
+  !millingThermalNoCompany.includes("المطحنة الحديثة") &&
+    !millingThermalNoCompany.includes("المركز الرئيسي"),
+);
 
 const referenceMillingReceipt = renderMillingThermalTemplate(
   {
@@ -391,23 +411,72 @@ const referenceMillingReceipt = renderMillingThermalTemplate(
   true,
   { showLogo: false, showNotes: false, showBarcode: true, showQrCode: false },
 );
-check("reference receipt has the dedicated grain section", referenceMillingReceipt.includes('class="grain-heading"') && referenceMillingReceipt.includes("تفاصيل الحبوب المستلمة:"));
+check(
+  "reference receipt has the dedicated grain section",
+  referenceMillingReceipt.includes('class="grain-heading"') &&
+    referenceMillingReceipt.includes("تفاصيل الحبوب المستلمة:"),
+);
 check("reference receipt shows the custody badge", referenceMillingReceipt.includes("أمانة عينية"));
-check("reference receipt includes the ticket and linked invoice numbers", referenceMillingReceipt.includes("MT-202610-0003") && referenceMillingReceipt.includes("INV-2026-10-0013"));
-check("reference receipt includes customer and phone metadata", referenceMillingReceipt.includes("فيصل الجماعي") && referenceMillingReceipt.includes("+967772217218"));
-check("reference receipt calculates bag size and net weight", referenceMillingReceipt.includes("200 كيس × 25 كجم") && referenceMillingReceipt.includes("5,000 كجم"));
-const referenceOrder = ["رقم السند:", "فاتورة الأجور:", "التاريخ:", "العميل:", "تفاصيل الحبوب المستلمة:", "نوع الحبوب:", "الكمية والأكياس:", "الوزن الصافي:"];
-check("reference receipt fields follow the reference visual order", referenceOrder.every((label, index) => index === 0 || referenceMillingReceipt.indexOf(label) > referenceMillingReceipt.indexOf(referenceOrder[index - 1])));
-check("reference receipt hides disabled notes", !referenceMillingReceipt.includes("ملاحظة اختبارية مخفية") && !referenceMillingReceipt.includes("تفاصيل داخلية مخفية"));
-check("reference receipt keeps barcode option and avoids automatic print", referenceMillingReceipt.includes('aria-label="MT-202610-0003"') && !referenceMillingReceipt.includes("onload="));
+check(
+  "reference receipt includes the ticket and linked invoice numbers",
+  referenceMillingReceipt.includes("MT-202610-0003") &&
+    referenceMillingReceipt.includes("INV-2026-10-0013"),
+);
+check(
+  "reference receipt includes customer and phone metadata",
+  referenceMillingReceipt.includes("فيصل الجماعي") &&
+    referenceMillingReceipt.includes("+967772217218"),
+);
+check(
+  "reference receipt calculates bag size and net weight",
+  referenceMillingReceipt.includes("200 كيس × 25 كجم") &&
+    referenceMillingReceipt.includes("5,000 كجم"),
+);
+const referenceOrder = [
+  "رقم السند:",
+  "فاتورة الأجور:",
+  "التاريخ:",
+  "العميل:",
+  "تفاصيل الحبوب المستلمة:",
+  "نوع الحبوب:",
+  "الكمية والأكياس:",
+  "الوزن الصافي:",
+];
+check(
+  "reference receipt fields follow the reference visual order",
+  referenceOrder.every(
+    (label, index) =>
+      index === 0 ||
+      referenceMillingReceipt.indexOf(label) >
+        referenceMillingReceipt.indexOf(referenceOrder[index - 1]),
+  ),
+);
+check(
+  "reference receipt hides disabled notes",
+  !referenceMillingReceipt.includes("ملاحظة اختبارية مخفية") &&
+    !referenceMillingReceipt.includes("تفاصيل داخلية مخفية"),
+);
+check(
+  "reference receipt keeps barcode option and avoids automatic print",
+  referenceMillingReceipt.includes('aria-label="MT-202610-0003"') &&
+    !referenceMillingReceipt.includes("onload="),
+);
 
 const referenceMillingQr = renderMillingThermalTemplate(
-  { ...docFor("mill_document"), number: "MT-202610-0003", lines: [{ product: "حبوب مستلمة: قمح", qty: 1, unit: "كيس", remainingKg: 25 }] },
+  {
+    ...docFor("mill_document"),
+    number: "MT-202610-0003",
+    lines: [{ product: "حبوب مستلمة: قمح", qty: 1, unit: "كيس", remainingKg: 25 }],
+  },
   LABELS,
   true,
   { showBarcode: false, showQrCode: true },
 );
-check("reference receipt can show QR without barcode", referenceMillingQr.includes('shape-rendering="crispEdges"') && !referenceMillingQr.includes('aria-label="MT-202610-0003"'));
+check(
+  "reference receipt can show QR without barcode",
+  referenceMillingQr.includes('shape-rendering="crispEdges"') &&
+    !referenceMillingQr.includes('aria-label="MT-202610-0003"'),
+);
 
 const engineMillingReceipt = renderUnifiedDocument({
   doc: {
@@ -420,21 +489,37 @@ const engineMillingReceipt = renderUnifiedDocument({
   paperId: "thermal-58",
   rtl: true,
 });
-check("unified engine routes milling intake to the reference receipt layout", engineMillingReceipt.includes('class="grain-heading"'));
-check("unified engine applies 58mm width to the milling receipt", engineMillingReceipt.includes("--print-paper-width:58mm"));
+check(
+  "unified engine routes milling intake to the reference receipt layout",
+  engineMillingReceipt.includes('class="grain-heading"'),
+);
+check(
+  "unified engine applies 58mm width to the milling receipt",
+  engineMillingReceipt.includes("--print-paper-width:58mm"),
+);
 
 const milledStageHtml = renderMillingThermalTemplate(
   {
     ...docFor("mill_document"),
     lines: [
       { product: "حبوب مستلمة: قمح", qty: 2, unit: "كيس", remainingKg: 100 },
-      { product: "ناتج طحن: دقيق", qty: 2, unit: "كيس", previousQty: 2, remainingQty: 2, currentKg: 90 },
+      {
+        product: "ناتج طحن: دقيق",
+        qty: 2,
+        unit: "كيس",
+        previousQty: 2,
+        remainingQty: 2,
+        currentKg: 90,
+      },
     ],
   },
   LABELS,
   true,
 );
-check("milled-stage output lines retain their detailed template", !milledStageHtml.includes('class="grain-heading"') && milledStageHtml.includes("ناتج طحن: دقيق"));
+check(
+  "milled-stage output lines retain their detailed template",
+  !milledStageHtml.includes('class="grain-heading"') && milledStageHtml.includes("ناتج طحن: دقيق"),
+);
 
 const settingsMillingSampleHtml = renderUnifiedDocument({
   doc: sampleDocumentFor("mill_document"),
@@ -444,7 +529,11 @@ const settingsMillingSampleHtml = renderUnifiedDocument({
   method: "thermal",
   rtl: true,
 });
-check("settings preview sample renders the milling receipt instead of throwing", settingsMillingSampleHtml.includes('class="grain-heading"') && settingsMillingSampleHtml.includes("مزارع الخير والبركة"));
+check(
+  "settings preview sample renders the milling receipt instead of throwing",
+  settingsMillingSampleHtml.includes('class="grain-heading"') &&
+    settingsMillingSampleHtml.includes("مزارع الخير والبركة"),
+);
 
 const salesUsingMillingTemplate = renderUnifiedDocument({
   doc: sampleDocumentFor("customer_invoice"),
@@ -795,10 +884,7 @@ check(
 /* القالب القياسي لا يطبع فوتر الموحّد أصلاً — فوتره خاص به بلا صنف footer-contact.
    القالب الموحّد (stdHtml من unified) يطبع بيانات المنشأة فقط عند showFooter. */
 /* فوتر الموحّد نفسه لا يستخدم صنف footer-contact — إنما داخل CSS المشترك فقط. */
-check(
-  "document output omits hard-coded platform support contacts",
-  !stdHtml.includes("779099272"),
-);
+check("document output omits hard-coded platform support contacts", !stdHtml.includes("779099272"));
 check("unified invoice carries the restored company rights line", rightsOccurrences(stdHtml) === 1);
 
 const invoiceTemplateOutputs = [

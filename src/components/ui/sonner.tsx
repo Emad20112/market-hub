@@ -176,8 +176,8 @@ const Toaster = ({ ...props }: ToasterProps) => {
     };
   }, []);
 
-  const [isMobile, setIsMobile] = useState(() =>
-    typeof window !== "undefined" && window.matchMedia("(max-width: 640px)").matches,
+  const [isMobile, setIsMobile] = useState(
+    () => typeof window !== "undefined" && window.matchMedia("(max-width: 640px)").matches,
   );
 
   useEffect(() => {

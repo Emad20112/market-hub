@@ -734,7 +734,8 @@ export function renderUnifiedLayout(
       options?.company?.name ||
       cachedCompany.name,
     arabicName: doc.company?.arabicName || options?.company?.arabicName || cachedCompany.arabicName,
-    englishName: doc.company?.englishName || options?.company?.englishName || cachedCompany.englishName,
+    englishName:
+      doc.company?.englishName || options?.company?.englishName || cachedCompany.englishName,
     phone: doc.company?.phone || options?.company?.phone || cachedCompany.phone,
     contacts:
       doc.company?.contacts ||
@@ -752,7 +753,9 @@ export function renderUnifiedLayout(
   };
   const rawLogo = company.logoUrl;
   const logoUrl =
-    typeof rawLogo === "string" && rawLogo.trim().length > 0 && !rawLogo.includes("inama-soft-logo.ico")
+    typeof rawLogo === "string" &&
+    rawLogo.trim().length > 0 &&
+    !rawLogo.includes("inama-soft-logo.ico")
       ? rawLogo.trim()
       : "";
 

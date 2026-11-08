@@ -181,13 +181,21 @@ export function OperationSuccessModal({
           {customer && (
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
               {renderedMessage?.canSendWhatsApp && (
-                <button type="button" onClick={handleWhatsAppClick} className="flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 py-3 text-xs font-bold text-white shadow-sm transition hover:bg-emerald-700 active:scale-[0.98]">
+                <button
+                  type="button"
+                  onClick={handleWhatsAppClick}
+                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 py-3 text-xs font-bold text-white shadow-sm transition hover:bg-emerald-700 active:scale-[0.98]"
+                >
                   <WhatsAppIcon className="size-4 shrink-0" />
                   <span>{isAr ? "إرسال عبر واتساب" : "Send via WhatsApp"}</span>
                 </button>
               )}
               {renderedMessage?.canSendSms && (
-                <button type="button" onClick={handleSmsClick} className="flex w-full items-center justify-center gap-2 rounded-xl border border-border bg-background py-3 text-xs font-bold text-foreground shadow-sm transition hover:bg-muted active:scale-[0.98]">
+                <button
+                  type="button"
+                  onClick={handleSmsClick}
+                  className="flex w-full items-center justify-center gap-2 rounded-xl border border-border bg-background py-3 text-xs font-bold text-foreground shadow-sm transition hover:bg-muted active:scale-[0.98]"
+                >
                   <MessageSquareText className="size-4 shrink-0" />
                   <span>{isAr ? "إرسال رسالة نصية" : "Send SMS"}</span>
                 </button>

@@ -850,7 +850,9 @@ export function SalesInvoiceComposer() {
                       title={isRtl ? "معاينة آخر فاتورة صدرت" : "Preview last invoice"}
                     >
                       <Receipt className="size-3" />
-                      <span>{isRtl ? "آخر فاتورة:" : "Last:"} #{toSystemDigits(lastInvoice.number)}</span>
+                      <span>
+                        {isRtl ? "آخر فاتورة:" : "Last:"} #{toSystemDigits(lastInvoice.number)}
+                      </span>
                     </button>
                   )}
                   {hasMultiWarehouse && warehouses.length > 1 && (
@@ -1016,18 +1018,18 @@ export function SalesInvoiceComposer() {
         </div>
       </div>
 
-              <CustomerFormDialog
-          open={customerDialogOpen}
-          onClose={() => setCustomerDialogOpen(false)}
-          onSaved={(newCust) => {
-            setCustomers((prev) => [...prev, newCust]);
-            setCustomerId(newCust.id);
-            setCustomerDialogOpen(false);
-            toast.success(`تمت إضافة واختيار العميل: ${newCust.name}`);
-          }}
-        />
+      <CustomerFormDialog
+        open={customerDialogOpen}
+        onClose={() => setCustomerDialogOpen(false)}
+        onSaved={(newCust) => {
+          setCustomers((prev) => [...prev, newCust]);
+          setCustomerId(newCust.id);
+          setCustomerDialogOpen(false);
+          toast.success(`تمت إضافة واختيار العميل: ${newCust.name}`);
+        }}
+      />
 
-        <OperationSuccessModal
+      <OperationSuccessModal
         open={successModalOpen}
         onClose={() => setSuccessModalOpen(false)}
         title={isRtl ? "تم إصدار الفاتورة بنجاح" : "Invoice Issued Successfully"}

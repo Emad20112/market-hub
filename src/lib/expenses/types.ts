@@ -276,6 +276,7 @@ export interface ExpenseLookupCategory {
   is_active: boolean;
   sort_order: number;
   usage_count: number;
+  production_cost_eligible?: boolean;
 }
 
 export interface ExpenseLookups {

@@ -1011,7 +1011,7 @@ function DashboardPage() {
             trend={{
               value:
                 (data?.alerts ?? 0) > 0
-                  ? `${num(data?.alerts)}`
+                  ? `${num(data?.alerts ?? 0)}`
                   : lang === "ar"
                     ? "سليم ✓"
                     : "Optimal ✓",

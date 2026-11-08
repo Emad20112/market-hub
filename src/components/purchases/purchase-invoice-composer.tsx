@@ -27,10 +27,11 @@ import { OperationSuccessModal } from "@/components/communication/operation-succ
 import { LuxuryPrintPreviewModal } from "@/components/luxury-print-preview-modal";
 import { playSuccessChime } from "@/lib/communication/audio";
 import { useFormNavigationScope } from "@/hooks/use-form-navigation";
-import { WarehousePicker, type WarehouseItem } from "@/components/warehouse/warehouse-picker";
+import { WarehousePicker, type WarehouseOption } from "@/components/warehouse/warehouse-picker";
 import { WarehouseFormDialog } from "@/components/warehouse/warehouse-form-dialog";
 import { SupplierFormDialog } from "@/components/contacts/supplier-form-dialog";
 import { toLegacyPaymentValue, paymentMethodLabel } from "@/lib/payments/payment-methods";
+import { createPurchaseFn } from "@/server/api/purchasing/create-purchase";
 import type { PaymentSettlementSelection } from "@/lib/payments/treasury-types";
 import {
   PurchaseProductFinder,
@@ -57,7 +58,7 @@ export function PurchaseInvoiceComposer() {
   // States
   const [suppliers, setSuppliers] = useState<SummarySupplier[]>([]);
   const [supplierId, setSupplierId] = useState("");
-  const [warehouses, setWarehouses] = useState<WarehouseItem[]>([]);
+  const [warehouses, setWarehouses] = useState<WarehouseOption[]>([]);
   const [warehouseId, setWarehouseId] = useState("");
   const [products, setProducts] = useState<PurchasableProduct[]>([]);
   const [cart, setCart] = useState<PurchaseCartLine[]>([]);
@@ -85,7 +86,7 @@ export function PurchaseInvoiceComposer() {
   const loadData = useCallback(async () => {
     try {
       setLoading(true);
-      const [suppliersRes, whRes, productsRes] = await Promise.all([
+      const [suppliersRes, whRes] = await Promise.all([
         supabase
           .from("suppliers")
           .select("id, name, phone, balance, is_system")
@@ -98,17 +99,20 @@ export function PurchaseInvoiceComposer() {
           .eq("is_active", true)
           .order("name")
           .limit(200),
-        supabase
-          .from("products")
-          .select(
-            "id, name, name_ar, sku, barcode, unit_id, cost_price, sale_price, tax_rate, tracking, unit:units!products_unit_id_fkey(short_name, name, name_ar)",
-          )
-          .eq("is_active", true)
-          .eq("is_custody_item", false)
-          .eq("is_purchasable", true)
-          .order("name")
-          .limit(1000),
       ]);
+      const productsRes = (await (supabase as any)
+        .from("products")
+        .select(
+          "id, name, name_ar, sku, barcode, unit_id, cost_price, sale_price, tax_rate, tracking, unit:units!products_unit_id_fkey(short_name, name, name_ar)",
+        )
+        .eq("is_active", true)
+        .eq("is_custody_item", false)
+        .eq("is_purchasable", true)
+        .order("name")
+        .limit(1000)) as unknown as {
+        data: Array<Record<string, unknown>> | null;
+        error: { message: string } | null;
+      };
 
       if (suppliersRes.error) throw suppliersRes.error;
       if (whRes.error) throw whRes.error;
@@ -121,7 +125,7 @@ export function PurchaseInvoiceComposer() {
         setSupplierId(cashSupplier.id);
       }
 
-      const whRows = (whRes.data ?? []) as WarehouseItem[];
+      const whRows = (whRes.data ?? []) as WarehouseOption[];
       setWarehouses(whRows);
       if (!warehouseId && whRows.length) {
         setWarehouseId(whRows[0].id);
@@ -491,30 +495,34 @@ export function PurchaseInvoiceComposer() {
 
     setSubmitting(true);
     try {
-      const payload = {
-        _warehouse_id: warehouseId,
-        _supplier_id: supplierId,
-        _payment_method: toLegacyPaymentValue(paymentMethod),
-        _paid: paidNum,
-        _discount: discountNum,
-        _note: note || null,
-        _items: cart.map((l) => ({
-          product_id: l.product.id,
-          quantity: Number(l.quantity) || 0,
-          unit_cost: Number(l.unitPrice) || 0,
-          uom_id: l.uomId,
-          tax_rate: Number(l.product.tax_rate) || 0,
-          batch_number: l.batchNumber?.trim() || null,
-          expiry_date: l.expiryDate || null,
-        })),
-      };
-
-      // eslint-disable-next-line no-restricted-properties
-      const { data: purchaseId, error } = await (supabase.rpc as any)("create_purchase", payload);
-      if (error) {
+      // المرحلة 13.2: نفس الذرّية عبر server function بدل RPC (create_purchase سابقًا).
+      let purchaseId: string;
+      try {
+        purchaseId = (
+          await createPurchaseFn({
+            data: {
+              warehouseId,
+              supplierId,
+              paymentMethod: toLegacyPaymentValue(paymentMethod),
+              paid: paidNum,
+              discount: discountNum,
+              note: note || null,
+              items: cart.map((l) => ({
+                productId: l.product.id,
+                quantity: Number(l.quantity) || 0,
+                unitCost: Number(l.unitPrice) || 0,
+                uomId: l.uomId,
+                taxRate: Number(l.product.tax_rate) || 0,
+                batchNumber: l.batchNumber?.trim() || null,
+                expiryDate: l.expiryDate || null,
+              })),
+            },
+          })
+        ).invoiceId;
+      } catch (fnErr: any) {
         throw new Error(
           translateRpcError(
-            error,
+            fnErr,
             isRtl ? "ar" : "en",
             isRtl ? "تعذر تسجيل فاتورة المشتريات" : "Failed to record purchase invoice",
           ),
@@ -581,7 +589,7 @@ export function PurchaseInvoiceComposer() {
         discount: discountNum,
         total,
         paid: paidNum,
-        remaining,
+        balance: remaining,
         notes: note || undefined,
       };
 
@@ -619,27 +627,32 @@ export function PurchaseInvoiceComposer() {
 
   const printLast = (template: InvoiceTemplate) => {
     if (!lastInvoice) return;
-    printInvoice(lastInvoice.doc, template, {
-      invoice: isRtl ? "فاتورة مشتريات" : "Purchase Invoice",
-      date: t("common.date"),
-      billTo: isRtl ? "المورد" : "Supplier",
-      warehouse: isRtl ? "المستودع" : "Warehouse",
-      paymentMethod: isRtl ? "طريقة الدفع" : "Payment Method",
-      status: isRtl ? "الحالة" : "Status",
-      item: isRtl ? "الصنف" : "Item",
-      unit: isRtl ? "الوحدة" : "Unit",
-      quantity: isRtl ? "الكمية" : "Qty",
-      unitPrice: isRtl ? "سعر الشراء" : "Unit Cost",
-      total: isRtl ? "الإجمالي" : "Total",
-      subtotal: isRtl ? "المجموع" : "Subtotal",
-      discount: isRtl ? "الخصم" : "Discount",
-      tax: isRtl ? "الضريبة" : "Tax",
-      netTotal: isRtl ? "الصافي" : "Net Total",
-      paid: isRtl ? "المدفوع" : "Paid",
-      remaining: isRtl ? "المتبقي" : "Remaining",
-      currency: "YER",
-      notes: isRtl ? "ملاحظات" : "Notes",
-    });
+    printInvoice(
+      lastInvoice.doc,
+      template,
+      {
+        invoice: isRtl ? "فاتورة مشتريات" : "Purchase Invoice",
+        date: t("common.date"),
+        billTo: isRtl ? "المورد" : "Supplier",
+        warehouse: isRtl ? "المستودع" : "Warehouse",
+        payment: isRtl ? "طريقة الدفع" : "Payment Method",
+        status: isRtl ? "الحالة" : "Status",
+        product: isRtl ? "الصنف" : "Item",
+        qty: isRtl ? "الكمية" : "Qty",
+        price: isRtl ? "سعر الشراء" : "Unit Cost",
+        total: isRtl ? "الإجمالي" : "Total",
+        subtotal: isRtl ? "المجموع" : "Subtotal",
+        tax: isRtl ? "الضريبة" : "Tax",
+        discount: isRtl ? "الخصم" : "Discount",
+        grandTotal: isRtl ? "الصافي" : "Net Total",
+        paid: isRtl ? "المدفوع" : "Paid",
+        balance: isRtl ? "المتبقي" : "Remaining",
+        thanks: isRtl ? "شكرًا لتعاملكم معنا" : "Thank you for your business",
+        poweredBy: isRtl ? "مدعوم بـ" : "Powered by",
+        notes: isRtl ? "ملاحظات" : "Notes",
+      },
+      isRtl,
+    );
   };
 
   const warehouseLabel =
@@ -706,10 +719,10 @@ export function PurchaseInvoiceComposer() {
 
             <div className="flex items-center gap-1.5">
               <WarehousePicker
-                warehouses={warehouses}
-                selectedId={warehouseId}
-                onSelect={setWarehouseId}
-                isRtl={isRtl}
+                options={warehouses}
+                value={warehouseId}
+                onChange={setWarehouseId}
+                lang={isRtl ? "ar" : "en"}
                 disabled={loading}
                 className="h-11"
               />
@@ -783,8 +796,8 @@ export function PurchaseInvoiceComposer() {
       {/* Supplier Creation Dialog */}
       <SupplierFormDialog
         open={supplierDialogOpen}
-        onOpenChange={setSupplierDialogOpen}
-        onSuccess={(created) => {
+        onClose={() => setSupplierDialogOpen(false)}
+        onSaved={(created) => {
           if (created?.id) {
             setSuppliers((prev) => [
               {
@@ -804,8 +817,8 @@ export function PurchaseInvoiceComposer() {
       {/* Warehouse Creation Dialog */}
       <WarehouseFormDialog
         open={warehouseDialogOpen}
-        onOpenChange={setWarehouseDialogOpen}
-        onSuccess={(created) => {
+        onClose={() => setWarehouseDialogOpen(false)}
+        onSaved={(created) => {
           if (created?.id) {
             setWarehouses((prev) => [
               {
@@ -840,7 +853,8 @@ export function PurchaseInvoiceComposer() {
             ? {
                 id: selectedSupplier.id,
                 name: selectedSupplier.name,
-                phone: selectedSupplier.phone || undefined,
+                phone: selectedSupplier.phone || null,
+                balance: selectedSupplier.balance || 0,
               }
             : undefined
         }
@@ -857,12 +871,11 @@ export function PurchaseInvoiceComposer() {
               }
             : null
         }
-        eventType="purchase_created"
+        eventType="purchase_invoice_share"
         onPrint={() => {
           setSuccessModalOpen(false);
           setLuxuryPreviewOpen(true);
         }}
-        onThermalPrint={() => printLast("thermal")}
       />
 
       {/* Luxury Print Preview Modal */}

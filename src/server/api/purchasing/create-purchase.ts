@@ -4,6 +4,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { sessionFromContext } from "@/server/shared/auth/session";
 import { createPurchase } from "@/server/domains/purchasing/application/purchasing.usecases";
+import type { CreatePurchaseInput } from "@/server/domains/purchasing/application/purchasing.usecases";
 
 const inputSchema = z.object({
   warehouseId: z.string().uuid(),
@@ -47,7 +48,7 @@ const inputSchema = z.object({
       }),
     )
     .min(1),
-});
+}) as z.ZodType<CreatePurchaseInput>;
 
 export const createPurchaseFn = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])

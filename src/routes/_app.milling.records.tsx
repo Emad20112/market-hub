@@ -110,8 +110,8 @@ export function MillingRecordsPage() {
   const [filterWarehouse, setFilterWarehouse] = useState<string>("all");
   const [filterDatePreset, setFilterDatePreset] = useState<string>("all");
   const [filterPaymentMethod, setFilterPaymentMethod] = useState<string>("all");
-  const [minAmount, setMinAmount] = useState<number | undefined>(undefined);
-  const [maxAmount, setMaxAmount] = useState<number | undefined>(undefined);
+  const [minAmount, setMinAmount] = useState<number | null>(null);
+  const [maxAmount, setMaxAmount] = useState<number | null>(null);
 
   // Details Sheet State
   const [selectedRecord, setSelectedRecord] = useState<UnifiedMillingRecord | null>(null);
@@ -1144,6 +1144,7 @@ export function MillingRecordsPage() {
         rows={filteredRows}
         loading={isLoading}
         columns={tableColumns}
+        getRowId={(r) => r.id}
         onRowClick={(record) => setSelectedRecord(record)}
         renderCard={(r) => {
           const isIntakeDoc = r.record_type === "INTAKE" || r.record_type === "INTAKE_DELIVERY";
@@ -1461,8 +1462,8 @@ export function MillingRecordsPage() {
           setFilterWarehouse("all");
           setFilterDatePreset("all");
           setFilterPaymentMethod("all");
-          setMinAmount(undefined);
-          setMaxAmount(undefined);
+          setMinAmount(null);
+          setMaxAmount(null);
         }}
       >
         <VortexFilterSection title={isRtl ? "المستودع وموقع الخدمة" : "Warehouse"}>
@@ -1509,13 +1510,13 @@ export function MillingRecordsPage() {
           <div className="grid grid-cols-2 gap-2">
             <AmountInput
               value={minAmount}
-              onChange={(val) => setMinAmount(val)}
+              onValueChange={(val) => setMinAmount(val)}
               placeholder={isRtl ? "الحد الأدنى" : "Min"}
               className="w-full text-xs font-mono"
             />
             <AmountInput
               value={maxAmount}
-              onChange={(val) => setMaxAmount(val)}
+              onValueChange={(val) => setMaxAmount(val)}
               placeholder={isRtl ? "الحد الأقصى" : "Max"}
               className="w-full text-xs font-mono"
             />

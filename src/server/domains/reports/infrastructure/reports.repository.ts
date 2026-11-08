@@ -482,6 +482,7 @@ export async function expenseLookups(tx: PoolClient, includeArchived: boolean): 
                  'id', c.id, 'name', c.name, 'name_ar', c.name_ar,
                  'is_active', c.is_active, 'sort_order', c.sort_order,
                  'usage_count', (SELECT count(*) FROM public.expense_lines l WHERE l.category_id = c.id),
+                 'production_cost_eligible', c.production_cost_eligible,
                  'account_id', c.account_id, 'account_code', a.code, 'account_name_ar', a.name_ar
                ) ORDER BY c.sort_order, c.name)
         FROM public.expense_categories c

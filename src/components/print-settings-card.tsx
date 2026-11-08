@@ -357,7 +357,7 @@ export function PrintSettingsCard({ canEdit = true }: PrintSettingsCardProps) {
         ? paperId.startsWith("thermal")
           ? "thermal"
           : "browser"
-        : override?.method ?? (dept?.defaultMethod === "page" ? "browser" : "thermal");
+        : (override?.method ?? (dept?.defaultMethod === "page" ? "browser" : "thermal"));
 
     return {
       doc: sampleDoc,

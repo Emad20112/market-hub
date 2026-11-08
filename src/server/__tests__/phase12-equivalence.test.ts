@@ -10,7 +10,8 @@
 import assert from "node:assert/strict";
 import net from "node:net";
 process.env.SERVER_DATABASE_URL =
-  process.env.SERVER_DATABASE_URL ?? "postgresql://postgres:bbb1750d085fc3323699002b7a61d4a3@127.0.0.1:5433/postgres";
+  process.env.SERVER_DATABASE_URL ??
+  "postgresql://postgres:bbb1750d085fc3323699002b7a61d4a3@127.0.0.1:5433/postgres";
 import { closePool, getPool } from "@/server/shared/db/pool";
 import { withTransaction } from "@/server/shared/db/transaction";
 import {
@@ -38,9 +39,15 @@ async function run(name: string, fn: (() => Promise<void>) | null) {
 function tcpAlive(host: string, port: number): Promise<boolean> {
   return new Promise((resolve) => {
     const socket = net.connect({ host, port, timeout: 1500 });
-    socket.once("connect", () => { socket.destroy(); resolve(true); });
+    socket.once("connect", () => {
+      socket.destroy();
+      resolve(true);
+    });
     socket.once("error", () => resolve(false));
-    socket.once("timeout", () => { socket.destroy(); resolve(false); });
+    socket.once("timeout", () => {
+      socket.destroy();
+      resolve(false);
+    });
   });
 }
 
@@ -77,25 +84,25 @@ async function main() {
     "[تكافؤ] list_expenses — عدد الصفوف والمرجع الأول (بيتًا-بيتًا)",
     oldAvailable
       ? async () => {
-        const filters = { limit: 10, search: null, status: null };
-        async function cycle(useNew: boolean) {
-          if (useNew) {
-            const rows = await listExpensesReport(session, filters);
-            return { count: rows.length, first: rows[0]?.["reference"] ?? null };
+          const filters = { limit: 10, search: null, status: null };
+          async function cycle(useNew: boolean) {
+            if (useNew) {
+              const rows = await listExpensesReport(session, filters);
+              return { count: rows.length, first: rows[0]?.["reference"] ?? null };
+            }
+            return withTransaction({ rollback: true }, async (tx) => {
+              await tx.query("SELECT set_config('request.jwt.claims', $1, true)", [CLAIMS(OWNER)]);
+              await tx.query("SELECT set_config('role', 'authenticated', true)");
+              const { rows } = await tx.query<{ reference: string | null }>(
+                "SELECT reference FROM public.list_expenses(p_limit => 10)",
+              );
+              return { count: rows.length, first: rows[0]?.reference ?? null };
+            });
           }
-          return withTransaction({ rollback: true }, async (tx) => {
-            await tx.query("SELECT set_config('request.jwt.claims', $1, true)", [CLAIMS(OWNER)]);
-            await tx.query("SELECT set_config('role', 'authenticated', true)");
-            const { rows } = await tx.query<{ reference: string | null }>(
-              "SELECT reference FROM public.list_expenses(p_limit => 10)",
-            );
-            return { count: rows.length, first: rows[0]?.reference ?? null };
-          });
+          const oldSnap = await cycle(false);
+          const newSnap = await cycle(true);
+          assert.deepEqual(newSnap, oldSnap);
         }
-        const oldSnap = await cycle(false);
-        const newSnap = await cycle(true);
-        assert.deepEqual(newSnap, oldSnap);
-      }
       : null,
   );
 
@@ -103,23 +110,27 @@ async function main() {
     "[تكافؤ] expense_summary — الإجماليات والعدادات (كائن كامل)",
     oldAvailable
       ? async () => {
-        async function cycle(useNew: boolean) {
-          if (useNew) {
-            return expenseSummaryReport(session, { dateFrom: null, dateTo: null, warehouseId: null });
+          async function cycle(useNew: boolean) {
+            if (useNew) {
+              return expenseSummaryReport(session, {
+                dateFrom: null,
+                dateTo: null,
+                warehouseId: null,
+              });
+            }
+            return withTransaction({ rollback: true }, async (tx) => {
+              await tx.query("SELECT set_config('request.jwt.claims', $1, true)", [CLAIMS(OWNER)]);
+              await tx.query("SELECT set_config('role', 'authenticated', true)");
+              const { rows } = await tx.query<{ d: unknown }>(
+                "SELECT public.expense_summary(NULL::date, NULL::date, NULL::uuid) AS d",
+              );
+              return rows[0]?.d;
+            });
           }
-          return withTransaction({ rollback: true }, async (tx) => {
-            await tx.query("SELECT set_config('request.jwt.claims', $1, true)", [CLAIMS(OWNER)]);
-            await tx.query("SELECT set_config('role', 'authenticated', true)");
-            const { rows } = await tx.query<{ d: unknown }>(
-              "SELECT public.expense_summary(NULL::date, NULL::date, NULL::uuid) AS d",
-            );
-            return rows[0]?.d;
-          });
+          const oldSnap = await cycle(false);
+          const newSnap = await cycle(true);
+          assert.deepEqual(newSnap, oldSnap);
         }
-        const oldSnap = await cycle(false);
-        const newSnap = await cycle(true);
-        assert.deepEqual(newSnap, oldSnap);
-      }
       : null,
   );
 
@@ -127,27 +138,27 @@ async function main() {
     "[تكافؤ] get_chart_of_accounts_tree — عدد الحسابات ورصيد 4111",
     oldAvailable
       ? async () => {
-        async function cycle(useNew: boolean) {
-          if (useNew) {
-            const rows = await chartOfAccounts(session);
-            const acct = rows.find((r) => r["code"] === "4111");
-            return {
-              count: rows.length,
-              bal4111: acct ? Number(acct["current_balance"]) : null,
-            };
+          async function cycle(useNew: boolean) {
+            if (useNew) {
+              const rows = await chartOfAccounts(session);
+              const acct = rows.find((r) => r["code"] === "4111");
+              return {
+                count: rows.length,
+                bal4111: acct ? Number(acct["current_balance"]) : null,
+              };
+            }
+            return withTransaction({ rollback: true }, async (tx) => {
+              const { rows } = await tx.query<{ code: string; current_balance: string }>(
+                "SELECT code, current_balance::text FROM public.get_chart_of_accounts_tree()",
+              );
+              const acct = rows.find((r) => r.code === "4111");
+              return { count: rows.length, bal4111: acct ? Number(acct.current_balance) : null };
+            });
           }
-          return withTransaction({ rollback: true }, async (tx) => {
-            const { rows } = await tx.query<{ code: string; current_balance: string }>(
-              "SELECT code, current_balance::text FROM public.get_chart_of_accounts_tree()",
-            );
-            const acct = rows.find((r) => r.code === "4111");
-            return { count: rows.length, bal4111: acct ? Number(acct.current_balance) : null };
-          });
+          const oldSnap = await cycle(false);
+          const newSnap = await cycle(true);
+          assert.deepEqual(newSnap, oldSnap);
         }
-        const oldSnap = await cycle(false);
-        const newSnap = await cycle(true);
-        assert.deepEqual(newSnap, oldSnap);
-      }
       : null,
   );
 
@@ -155,37 +166,37 @@ async function main() {
     "[تكافؤ] get_supplier_statement — كشف المورد النقدي (عدد الصفوف)",
     oldAvailable
       ? async () => {
-        async function cycle(useNew: boolean) {
-          if (useNew) {
-            return withTransaction(async (tx) => {
+          async function cycle(useNew: boolean) {
+            if (useNew) {
+              return withTransaction(async (tx) => {
+                const { rows: sup } = await tx.query<{ id: string }>(
+                  "SELECT id::text FROM public.suppliers WHERE is_system LIMIT 1",
+                );
+                if (!sup[0]) return { count: 0 };
+                const rows = await supplierLedgerStatement(session, {
+                  supplierId: sup[0].id,
+                  startDate: null,
+                  endDate: null,
+                });
+                return { count: rows.length };
+              });
+            }
+            return withTransaction({ rollback: true }, async (tx) => {
               const { rows: sup } = await tx.query<{ id: string }>(
                 "SELECT id::text FROM public.suppliers WHERE is_system LIMIT 1",
               );
               if (!sup[0]) return { count: 0 };
-              const rows = await supplierLedgerStatement(session, {
-                supplierId: sup[0].id,
-                startDate: null,
-                endDate: null,
-              });
+              const { rows } = await tx.query(
+                "SELECT * FROM public.get_supplier_statement($1::uuid)",
+                [sup[0].id],
+              );
               return { count: rows.length };
             });
           }
-          return withTransaction({ rollback: true }, async (tx) => {
-            const { rows: sup } = await tx.query<{ id: string }>(
-              "SELECT id::text FROM public.suppliers WHERE is_system LIMIT 1",
-            );
-            if (!sup[0]) return { count: 0 };
-            const { rows } = await tx.query(
-              "SELECT * FROM public.get_supplier_statement($1::uuid)",
-              [sup[0].id],
-            );
-            return { count: rows.length };
-          });
+          const oldSnap = await cycle(false);
+          const newSnap = await cycle(true);
+          assert.deepEqual(newSnap, oldSnap);
         }
-        const oldSnap = await cycle(false);
-        const newSnap = await cycle(true);
-        assert.deepEqual(newSnap, oldSnap);
-      }
       : null,
   );
 

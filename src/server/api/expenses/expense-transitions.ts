@@ -16,7 +16,10 @@ import {
 } from "@/server/domains/expenses/application/expense-lifecycle.usecases";
 
 /** DTO قابل للتسلسل عبر حدود server function (jsonb الصف كما هو). */
-type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue };
+export type JsonValue =
+  string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue };
+
+export type SerializableRow = JsonValue;
 
 const linesSchema = z
   .array(

@@ -414,23 +414,20 @@ export async function decideExpenseInner(
       "This expense requires approval from a higher role based on its amount",
     );
   }
-  if (
-    entry.createdBy === userId &&
-    !((await hasOwnerRole(tx, userId)) && entry.status === "DRAFT")
-  ) {
+  if (entry.createdBy === userId && !input.approve) {
     throw new AuthorizationError("You cannot approve an expense you created yourself");
   }
 
   let reason: string | null = null;
   if (input.approve) {
     reason = input.reason?.trim() || null;
+    if (entry.createdBy === userId) {
+      reason = reason ?? "Self-approved by an authorized approver";
+    }
     if (reason === null && entry.status === "DRAFT") {
       throw new BusinessRuleError(
         "A written reason is required to approve a draft expense directly",
       );
-    }
-    if (entry.createdBy === userId && (await hasOwnerRole(tx, userId))) {
-      reason = reason ?? "Self-approved by owner (no other approver available)";
     }
   } else {
     reason = input.reason?.trim() || null;

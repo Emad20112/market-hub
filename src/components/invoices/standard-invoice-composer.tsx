@@ -35,6 +35,7 @@ import { InvoiceSectionTabs } from "@/components/invoices/invoice-section-tabs";
 import { createSalesInvoice, type InvoiceLine } from "@/lib/sales-invoice";
 import { toLegacyPaymentValue, paymentMethodLabel } from "@/lib/payments/payment-methods";
 import { translateRpcError } from "@/lib/errors/rpc-errors";
+import { createPurchaseFn } from "@/server/api/purchasing/create-purchase";
 import {
   CustomerFormDialog,
   type CustomerRecord,
@@ -662,32 +663,41 @@ export function StandardInvoiceComposer({ kind }: { kind: Kind }) {
             : `Sales invoice ${invoiceNumber} created`,
         );
       } else {
-        const payload = {
-          _warehouse_id: warehouseId,
-          _supplier_id: partyId,
-          _payment_method: toLegacyPaymentValue(paymentMethod),
-          _paid: credit ? 0 : (paid ?? total),
-          _discount: discount ?? 0,
-          _note: note || null,
-          _items: cart.map(({ product, quantity, price, batch_number, expiry_date, uom_id }) => ({
-            product_id: product.id,
-            quantity,
-            unit_cost: price,
-            uom_id,
-            tax_rate: Number(product.tax_rate) || 0,
-            batch_number: batch_number.trim() || null,
-            expiry_date: expiry_date || null,
-          })),
-        };
-        const { data, error } = await (supabase.rpc as any)("create_purchase", payload);
-        if (error)
+        // المرحلة 13.2: نفس الذرّية عبر server function بدل RPC (create_purchase سابقًا).
+        let purchaseId: string;
+        try {
+          purchaseId = (
+            await createPurchaseFn({
+              data: {
+                warehouseId,
+                supplierId: partyId,
+                paymentMethod: toLegacyPaymentValue(paymentMethod),
+                paid: credit ? 0 : (paid ?? total),
+                discount: discount ?? 0,
+                note: note || null,
+                items: cart.map(
+                  ({ product, quantity, price, batch_number, expiry_date, uom_id }) => ({
+                    productId: product.id,
+                    quantity,
+                    unitCost: price,
+                    uomId: uom_id ?? null,
+                    taxRate: Number(product.tax_rate) || 0,
+                    batchNumber: batch_number.trim() || null,
+                    expiryDate: expiry_date || null,
+                  }),
+                ),
+              },
+            })
+          ).invoiceId;
+        } catch (fnErr: any) {
           throw new Error(
             translateRpcError(
-              error,
+              fnErr,
               ar ? "ar" : "en",
               ar ? "تعذر تسجيل فاتورة المشتريات" : "Failed to record purchase invoice",
             ),
           );
+        }
         if (
           settlement.cashboxId ||
           settlement.bankAccountId ||
@@ -701,11 +711,11 @@ export function StandardInvoiceComposer({ kind }: { kind: Kind }) {
               payment_reference: settlement.reference || settlement.paymentReference || null,
               payment_method_id: settlement.paymentMethodId || paymentMethod,
             })
-            .eq("id", data);
+            .eq("id", purchaseId);
           if (settlementError)
             throw new Error(translateRpcError(settlementError, ar ? "ar" : "en"));
         }
-        invoiceId = String(data ?? "");
+        invoiceId = String(purchaseId ?? "");
         const { data: invoiceRow } = await (supabase.from("purchase_invoices") as any)
           .select("invoice_number")
           .eq("id", invoiceId)

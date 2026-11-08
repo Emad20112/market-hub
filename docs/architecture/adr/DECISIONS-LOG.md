@@ -460,7 +460,69 @@ update_v2 — المرحلة 10b) ومشغلات القاعدة؛ الإسقاط
   - tsc نظيف على النطاق (المتبقي ملفات WIP سابقة)؛ eslint نظيف؛ الواجهة صفر
     استدعاء RPC لدوال 018-028 المنقولة (تحقق grep نهائي بعد إصلاح
     financial-bridge.ts و_finance.tsx — متبقيات المرحلة 12).
-  - ✅ **لم يُنفذ بعد:** تطبيق 029 على قاعدة حية — نفس قيد 10b/11/12.
+  - ✅ **أُنجز الحي 2026-11-08:** الترحيلات 018→029 طُبقت على قاعدة الإنتاج
+    المحلية (5433) وسُجلت كلها في `supabase_migrations.schema_migrations`
+    (الإجمالي 31 إصدارًا حتى 029؛ 019_negative كانت مطبقة سابقًا بلا تسجيل —
+    تحقق من اكتمالها ثم سُجلت). نتائج حية:
+    - دوال المنقول (018-028) كلها مُسقطة فعليًا: create_sale/create_purchase/
+      record_customer_payment/دورة المصاريف/الإنتاج/التقارير/النسخ — صفر بقايا.
+    - الجسور الباقية حية كما هو معتمد: post_stock_delta، create_journal_entry،
+      assert_period_open، apply_cost_movement، مساعدات 010 (11 دالة)، الطحن/
+      العهدة، 9b، post_sales_invoice/balance_and_post_return.
+    - rpc_allowlist = النسخة الجديدة (029)؛ التنفيذ بلّغ 273 منحًا و135 سحبًا
+      من PUBLIC/anon؛ إعادة التطبيق idempotent (0/0 في التشغيل الثاني).
+    - سطح anon متوافق مع القائمة: 65 دالة public فقط لها EXECUTE لـ anon،
+      كلها من القائمة (منها دوال RLS المستدعاة مباشرة من السياسات).
+    - PostgREST أُعيد تحميل المخطط (NOTIFY pgrst). محرك الدفع خدمة service_role.
+    - اختبارات التكافؤ على القاعدة الحية: 2/3/4/5/7/8/9/10/10b/11/12 كلها
+      خضراء (4 قديمة مُسقطة تُتخطى، والبقية نجاحات فعلية؛ الأخطر المرحلة 4
+      5/5 على المحرك والجسر معًا).
+  - حدود بقي (13.2): السحب الكامل من authenticated بعد نقل الطحن/العهدة و9b
+    وتحويل نداءات الواجهة الأربعة؛ إسقاط الجسور بعد انتقال آخر مستدعي SQL.
+
+
+## المرحلة 13.2 (جزء 1): تحويل نداءات الواجهة الأربعة + تثبيت جودة كامل (2026-11-08)
+### ما تم
+1. **create_purchase ×4 → createPurchaseFn** (باك اند المرحلة 8):
+   - purchase-pos.tsx: مسار الدفع المجزأ الكامل (splits كـ paymentMethodId camelCase)،
+   - _app.purchases.tsx (legacy path)،
+   - standard-invoice-composer.tsx (مسار المشتريات بعد مسار المبيعات)،
+   - purchase-invoice-composer.tsx (المؤلف الكامل).
+   - توسيع Use Case: يقبل الآن مقسّطات الواجهة الجاهزة (نفس عقد الصيغة 11)
+     بدل بنائها من paid فقط؛ طريقة "split" تُسجل كما في الأصل (splitCount > 1).
+2. **post_stock_delta → directStockInFn** (server/api/stock/direct-stock-in.ts جديد):
+   نفس العقد (RECEIPT/source_type=direct_stock_in/مفتاح قيمة لـ source_id)
+   مع فحص طبيعة الصنف (SERVICE مرفوض) قبل المحرك.
+3. **recalculate_customer_balance → recalcCustomerBalanceFn**
+   (server/api/treasury/recalc-customer-balance.ts جديد) — بغطاء use case
+   المرحلة 7 نفسه (مالك/مدير/محاسب، سبب إلزامي).
+4. **save_expense_dimension ×2 → saveExpenseDimensionFn**
+   (server/api/expenses/save-expense-dimension.ts جديد): إعادة تنفيذ حرفية
+   للدالة (010) داخل الباك اند: expense_assert_capability (rank ≥ 40)،
+   INSERT/UPDATE لـ cost_center وproject بنفس دلالات CASE/COALESCE،
+   audit_logs بنفس صيغة action، وإرجاع الصف jsonb.
+5. **نتيجة grep نهائية**: صفر استدعاءات RPC حية للدوال المنقولة (018-028)
+   في الواجهة. المتبقي من .rpc() كلها نطاق 012 (طحن/عهدة) و9b (شيكات/أصول/
+   ضرائب/إقفال/إعدادات الأقسام) المؤجلان للجزء الثاني باتفاق 13.1.
+6. **إصلاحات قسرية لخطوط الواجهة (ملفات WIP سابقة لزميل العمل)**:
+   إصلاح statusBadge/statusLabel في _app.purchases.tsx (كان ViewDialog
+   يستدعي statusBadge غير مُمرر)، WarehouseOption بدل WarehouseItem المحذوف
+   + props محاذية للـWarehousePicker في purchase-invoice-composer.tsx،
+   invoice_number/invoice_doc حسب عقد InvoiceDoc (balance بدل remaining)،
+   eventType شرعي (purchase_invoice_share بدل purchase_created)،
+   ChevronDown في milling.intake، getRowId/AmountInput في milling.records،
+   num(data?.alerts ?? 0) في dashboard، إزالة استيراد Plus المكرر في
+   milling.delivery/milling، Boolean() الزائد في ui/input.tsx.
+   النتيجة: tsc --noEmit نظيف صفر أخطاء (كان 11)، eslint صفر أخطاء،
+   prettier نظيف على كل الملفات المعدلة.
+7. **إعادة تشغيل كل اختبارات التكافؤ بعد التحويل**: 2→12 كلها خضراء
+   (الجانب القديم المُسقط يتخطى ⏭ كما هو معتمد، الجانب الجديد ينجح).
+
+### حدود الجزء 1 (13.2)
+- السحب الكامل من authenticated وإسقاط الجسور: ينتظر نقل الطحن/العهدة (012)
+  و9b — نفس قيد 13.1 حرفيًا.
+- ملفات WIP للزميل (app-shell/expense-form/صلاحيات الشريط الجانبي وغيرها)
+  موجودة في مسار العمل وأُعيد استعادتها كما هي دون مساس بعد فحص تضارب.
 
 
 

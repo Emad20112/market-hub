@@ -67,9 +67,10 @@ export function renderMillingMasterTemplate(
   );
   const compVat = esc(doc.company?.vat || companyProfile.taxNumber || "");
   const logoUrl = doc.company?.logo || companyProfile.logoUrl;
-  const logoHtml = opts.showLogo && logoUrl
-    ? `<img class="company-logo" src="${esc(logoUrl)}" alt="${compName}" />`
-    : "";
+  const logoHtml =
+    opts.showLogo && logoUrl
+      ? `<img class="company-logo" src="${esc(logoUrl)}" alt="${compName}" />`
+      : "";
 
   // Barcode & QR Svg
   const barcodeSvg = opts.showBarcode && doc.number ? generateBarcodeSvg(doc.number, 42) : "";
@@ -541,9 +542,10 @@ export function renderMillingThermalTemplate(
     doc.company?.phone || companyProfile.phone || companyProfile.contacts[0] || "",
   );
   const logoUrl = doc.company?.logo || companyProfile.logoUrl;
-  const logoHtml = opts.showLogo && logoUrl
-    ? `<img class="company-logo" src="${esc(logoUrl)}" alt="${compName}" />`
-    : "";
+  const logoHtml =
+    opts.showLogo && logoUrl
+      ? `<img class="company-logo" src="${esc(logoUrl)}" alt="${compName}" />`
+      : "";
   const barcodeHtml = opts.showBarcode && doc.number ? generateBarcodeSvg(doc.number, 38) : "";
   const qrPayload = [
     `Seller: ${rawCompanyName}`,
@@ -581,9 +583,7 @@ export function renderMillingThermalTemplate(
         .join("")
     : "";
 
-  const intakeGrains = doc.lines.filter((line) =>
-    line.product.trim().startsWith("حبوب مستلمة:"),
-  );
+  const intakeGrains = doc.lines.filter((line) => line.product.trim().startsWith("حبوب مستلمة:"));
   const hasMillingOutputs = doc.lines.some((line) => line.product.trim().startsWith("ناتج طحن:"));
   const isMillingIntake =
     doc.docType === "mill_document" && intakeGrains.length > 0 && !hasMillingOutputs;
@@ -625,7 +625,7 @@ export function renderMillingThermalTemplate(
       .map(
         (line) => `<div class="receipt-meta-row service-row">
           <span>${esc(line.product)}</span>
-          <strong dir="auto">${money(line.total ?? (line.qty * (line.price ?? 0)))}</strong>
+          <strong dir="auto">${money(line.total ?? line.qty * (line.price ?? 0))}</strong>
         </div>${opts.showNotes && line.note ? `<div class="receipt-note">${esc(line.note)}</div>` : ""}`,
       )
       .join("");
@@ -633,9 +633,11 @@ export function renderMillingThermalTemplate(
       ? ""
       : doc.lines
           .map((line) => {
-            const quantity = `${formatReceiptNumber(Number(line.qty) || 0)} ${line.unit ? esc(line.unit) : ""}`.trim();
-            const details = line.price !== undefined ? `${quantity} × ${money(line.price)}` : quantity;
-            const lineTotal = line.total ?? (line.qty * (line.price ?? 0));
+            const quantity =
+              `${formatReceiptNumber(Number(line.qty) || 0)} ${line.unit ? esc(line.unit) : ""}`.trim();
+            const details =
+              line.price !== undefined ? `${quantity} × ${money(line.price)}` : quantity;
+            const lineTotal = line.total ?? line.qty * (line.price ?? 0);
             return `<div class="grain-card invoice-item-card">
               <div class="invoice-item-heading"><strong>${esc(productNameWithoutUnit(line.product, line.unit))}</strong><strong dir="auto">${money(lineTotal)}</strong></div>
               <div class="grain-detail-row"><span>الكمية والسعر:</span><strong dir="auto">${details}</strong></div>
@@ -645,10 +647,14 @@ export function renderMillingThermalTemplate(
           .join("");
     const relatedInvoice = doc.relatedRef?.replace(/^\s*فاتورة\s+(?:رسمية|الأجور)\s*/i, "").trim();
     const logoUrl = doc.company?.logo || companyProfile.logoUrl;
-    const receiptLogo = opts.showLogo && logoUrl
-      ? `<img class="receipt-logo" src="${esc(logoUrl)}" alt="${esc(doc.company?.arabicName || doc.company?.name || companyProfile.arabicName || companyProfile.name)}" />`
-      : "";
-    const note = opts.showNotes && doc.notes ? `<div class="receipt-note"><strong>ملاحظة:</strong> ${esc(doc.notes)}</div>` : "";
+    const receiptLogo =
+      opts.showLogo && logoUrl
+        ? `<img class="receipt-logo" src="${esc(logoUrl)}" alt="${esc(doc.company?.arabicName || doc.company?.name || companyProfile.arabicName || companyProfile.name)}" />`
+        : "";
+    const note =
+      opts.showNotes && doc.notes
+        ? `<div class="receipt-note"><strong>ملاحظة:</strong> ${esc(doc.notes)}</div>`
+        : "";
     const companyHeader = !isMillingIntake
       ? `<header class="receipt-company">
           ${opts.showLogo && logoUrl ? `<img class="receipt-logo" src="${esc(logoUrl)}" alt="${esc(compName)}" />` : ""}
@@ -718,12 +724,14 @@ export function renderMillingThermalTemplate(
       ${!isMillingIntake && doc.operatorName ? metadataRow("البائع / المستخدم:", doc.operatorName) : ""}
     </section>
     <hr class="receipt-divider" />
-    ${isMillingIntake
-      ? `<section class="grain-section">
+    ${
+      isMillingIntake
+        ? `<section class="grain-section">
           <div class="grain-heading"><h1>تفاصيل الحبوب المستلمة:</h1><span class="custody-badge">أمانة عينية</span></div>
           ${grainCards}
         </section>`
-      : `<section class="invoice-items-section"><div class="receipt-section-heading">تفاصيل البنود:</div>${invoiceItemCards || `<div class="grain-card">لا توجد بنود</div>`}</section>`}
+        : `<section class="invoice-items-section"><div class="receipt-section-heading">تفاصيل البنود:</div>${invoiceItemCards || `<div class="grain-card">لا توجد بنود</div>`}</section>`
+    }
     ${serviceRows ? `<section class="service-section">${serviceRows}</section>` : ""}
     ${financialRows}
     ${note}
@@ -864,11 +872,7 @@ export function renderMillingThermalTemplate(
   ${barcodeHtml ? `<div class="code-wrap barcode-wrap">${barcodeHtml}</div>` : ""}
   ${qrHtml ? `<div class="code-wrap qr-wrap">${qrHtml}</div>` : ""}
 
-  ${
-    opts.showFooter
-      ? renderUniversalFooter(companyProfile, rtl, true)
-      : ""
-  }
+  ${opts.showFooter ? renderUniversalFooter(companyProfile, rtl, true) : ""}
   <div style="text-align:center;font-size:7.5px;color:#9ca3af;padding:2px 0">${COMPANY_RIGHTS_TEXT}</div>
 </body>
 </html>`;

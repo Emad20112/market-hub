@@ -200,8 +200,19 @@ export async function createPurchaseInner(
   }
 
   // بناء الأقساط داخليًا كما تفعل الصيغة 11 قبل التفويض للصيغة الأساسية.
+  // الدفع المجزأ يصل من الواجهة كمقسّطات جاهزة (method/amount/payment_method_id) —
+  // نفس عقد الصيغة 11-معاملات؛ تُتحقق هنا ثم تمر للجسم كما هي.
   let paymentSplits: PurchaseSplitInput[] = [];
-  if ((input.paid ?? 0) > 0 && input.paymentMethod !== "credit") {
+  const hasClientSplits =
+    Array.isArray(input.paymentSplits) &&
+    input.paymentSplits.some((s) => Number(s?.amount ?? 0) > 0);
+  if (hasClientSplits) {
+    paymentSplits = input.paymentSplits!;
+  } else if (
+    (input.paid ?? 0) > 0 &&
+    input.paymentMethod !== "credit" &&
+    input.paymentMethod !== "split"
+  ) {
     const methodId = input.paymentMethodId ?? input.paymentMethod;
     const splitMethod = await resolveWritablePaymentMethod(tx, methodId, "purchases", true);
     if (splitMethod !== input.paymentMethod) {
@@ -229,7 +240,8 @@ export async function createPurchaseInner(
   // التحقق من تجزئة الدفع قبل أي إدراج
   let splitTotal = 0;
   let splitCount = 0;
-  let recordedMethod = input.paymentMethod || "cash";
+  // طريقة "split" تصل من الواجهة مع المقسّطات — القيمة المسجلة تحسمها المقسّطات نفسها.
+  let recordedMethod = input.paymentMethod === "split" ? "split" : input.paymentMethod || "cash";
   if (Array.isArray(paymentSplits) && paymentSplits.length > 0) {
     for (const s of paymentSplits) {
       if (
