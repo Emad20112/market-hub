@@ -1,12 +1,12 @@
 import { supabase } from "@/integrations/supabase/client";
-import { createAndPostProductionOrderFn } from "@/server/api/production/create-and-post-production-order";
-import { reverseProductionOrderFn } from "@/server/api/production/reverse-production-order";
+import { createAndPostProductionOrderFn } from "@/functions/production/create-and-post-production-order";
+import { reverseProductionOrderFn } from "@/functions/production/reverse-production-order";
 import {
   productionOrderCostCheckFn,
   productionOrderCostDetailFn,
   productionCostSourcesFn,
   productionOrderHistoryFn,
-} from "@/server/api/production/production-reads";
+} from "@/functions/production/production-reads";
 
 const db = supabase as any;
 

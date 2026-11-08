@@ -12,7 +12,7 @@ import {
   X,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { setDocumentNumberingFn } from "@/server/api/catalog/set-document-numbering";
+import { setDocumentNumberingFn } from "@/functions/catalog/set-document-numbering";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { QuantityInput } from "@/components/ui/quantity-input";

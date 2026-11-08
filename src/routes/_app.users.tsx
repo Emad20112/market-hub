@@ -1,7 +1,7 @@
 import { useModules } from "@/lib/modules";
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { activateProfile } from "@/server/api/identity/set-profile-active";
+import { activateProfile } from "@/functions/identity/set-profile-active";
 import { PageHeader } from "@/components/page-header";
 import { useI18n } from "@/lib/i18n";
 import { useAuth } from "@/lib/auth";

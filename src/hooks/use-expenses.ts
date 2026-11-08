@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Expense module — data access hooks.
  *
  * Every read goes through a server-side function from
@@ -18,7 +18,7 @@ import {
   type QueryClient,
 } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { createExpenseFn } from "@/server/api/expenses/create-expense";
+import { createExpenseFn } from "@/functions/expenses/create-expense";
 import {
   expenseDetailFn,
   expenseLookupsFn,
@@ -26,7 +26,7 @@ import {
   expenseSummaryFn,
   listExpensesFn,
   millingServiceCostFn,
-} from "@/server/api/reports/expense-reads";
+} from "@/functions/reports/expense-reads";
 import {
   cancelExpenseFn,
   closeExpenseFn,
@@ -37,7 +37,7 @@ import {
   reverseExpensePaymentFn,
   submitExpenseFn,
   updateExpenseFn,
-} from "@/server/api/expenses/expense-transitions";
+} from "@/functions/expenses/expense-transitions";
 import { useI18n } from "@/lib/i18n";
 import { toLegacyPaymentValue } from "@/lib/payments/payment-methods";
 import { toast } from "sonner";

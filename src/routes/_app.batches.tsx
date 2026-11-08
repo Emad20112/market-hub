@@ -1,4 +1,4 @@
-﻿import { ModuleGuard, useModules } from "@/lib/modules";
+import { ModuleGuard, useModules } from "@/lib/modules";
 import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -15,8 +15,8 @@ import {
   Settings2,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { getBatchKpisFn } from "@/server/api/inventory/get-batch-kpis";
-import { deleteProductBatchFn } from "@/server/api/inventory/delete-product-batch";
+import { getBatchKpisFn } from "@/functions/inventory/get-batch-kpis";
+import { deleteProductBatchFn } from "@/functions/inventory/delete-product-batch";
 import { PageHeader } from "@/components/page-header";
 import { useI18n } from "@/lib/i18n";
 import { toast } from "sonner";

@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
   Dialog,
   DialogContent,
@@ -35,7 +35,7 @@ import {
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { supabase } from "@/integrations/supabase/client";
-import { saveProductBatchFn } from "@/server/api/inventory/save-product-batch";
+import { saveProductBatchFn } from "@/functions/inventory/save-product-batch";
 import { toast } from "sonner";
 import { useBatchSettings } from "@/hooks/use-batch-settings";
 

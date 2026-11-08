@@ -17,10 +17,10 @@
  */
 
 import { supabase } from "@/integrations/supabase/client";
-import { receiveCustomerOwnedStockFn } from "@/server/api/inventory/receive-customer-owned-stock";
-import { releaseCustomerOwnedStockFn } from "@/server/api/inventory/release-customer-owned-stock";
-import { postOpeningStockFn } from "@/server/api/stock/post-opening-stock";
-import { postStockAdjustmentFn } from "@/server/api/stock/post-stock-adjustment";
+import { receiveCustomerOwnedStockFn } from "@/functions/inventory/receive-customer-owned-stock";
+import { releaseCustomerOwnedStockFn } from "@/functions/inventory/release-customer-owned-stock";
+import { postOpeningStockFn } from "@/functions/stock/post-opening-stock";
+import { postStockAdjustmentFn } from "@/functions/stock/post-stock-adjustment";
 
 const db = supabase as any;
 

@@ -3,7 +3,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { PageHeader } from "@/components/page-header";
 import { useI18n } from "@/lib/i18n";
-import { chartOfAccountsFn } from "@/server/api/reports/accounting-reads";
+import { chartOfAccountsFn } from "@/functions/reports/accounting-reads";
 import { money } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";

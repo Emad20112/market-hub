@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 import { AmountInput } from "@/components/ui/amount-input";
 import { QuantityInput } from "@/components/ui/quantity-input";
-import { directStockInFn } from "@/server/api/stock/direct-stock-in";
+import { directStockInFn } from "@/functions/stock/direct-stock-in";
 
 type ProductItem = {
   id: string;

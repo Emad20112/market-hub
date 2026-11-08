@@ -9,7 +9,7 @@ import { Boxes, Check, Hash, Layers, Scale, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { setCompanyCostingMethodFn } from "@/server/api/stock/set-company-costing-method";
+import { setCompanyCostingMethodFn } from "@/functions/stock/set-company-costing-method";
 import { COSTING_METHOD_LABELS, type CostingMethod } from "@/lib/items";
 import {
   getStockSettings,

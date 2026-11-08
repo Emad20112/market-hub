@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { saveBatchSettingsFn } from "@/server/api/inventory/save-batch-settings";
+import { saveBatchSettingsFn } from "@/functions/inventory/save-batch-settings";
 import { toast } from "sonner";
 
 export type BatchDispatchStrategy = "FEFO" | "FIFO" | "MANUAL";

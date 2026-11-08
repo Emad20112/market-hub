@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Check, GitBranch, LoaderCircle, Pencil, Plus, X } from "lucide-react";
 import { toast } from "sonner";
-import { saveExpenseDimensionFn } from "@/server/api/expenses/save-expense-dimension";
+import { saveExpenseDimensionFn } from "@/functions/expenses/save-expense-dimension";
 import { ActionButton } from "@/components/ui/action-button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";

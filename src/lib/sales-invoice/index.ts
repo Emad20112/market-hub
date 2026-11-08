@@ -29,7 +29,7 @@
  * one thing the whole custody design exists to prevent.
  */
 import { supabase } from "@/integrations/supabase/client";
-import { createSaleFn } from "@/server/api/sales/create-sale";
+import { createSaleFn } from "@/functions/sales/create-sale";
 
 const db = supabase as any;
 

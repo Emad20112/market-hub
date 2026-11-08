@@ -3,7 +3,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { Gift, Plus, Search, Award } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { adjustLoyaltyFn } from "@/server/api/sales/adjust-loyalty";
+import { adjustLoyaltyFn } from "@/functions/sales/adjust-loyalty";
 import { PageHeader } from "@/components/page-header";
 import { useI18n } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";

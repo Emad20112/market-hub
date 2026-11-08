@@ -31,7 +31,7 @@ import { WarehousePicker, type WarehouseOption } from "@/components/warehouse/wa
 import { WarehouseFormDialog } from "@/components/warehouse/warehouse-form-dialog";
 import { SupplierFormDialog } from "@/components/contacts/supplier-form-dialog";
 import { toLegacyPaymentValue, paymentMethodLabel } from "@/lib/payments/payment-methods";
-import { createPurchaseFn } from "@/server/api/purchasing/create-purchase";
+import { createPurchaseFn } from "@/functions/purchasing/create-purchase";
 import type { PaymentSettlementSelection } from "@/lib/payments/treasury-types";
 import {
   PurchaseProductFinder,

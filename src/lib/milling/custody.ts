@@ -17,7 +17,7 @@
  */
 
 import { supabase } from "@/integrations/supabase/client";
-import { convertStockFn, smartManufactureFn } from "@/server/api/production/smart-manufacture";
+import { convertStockFn, smartManufactureFn } from "@/functions/production/smart-manufacture";
 import { paymentMethodLabel } from "@/lib/payments/payment-methods";
 import { formatFormalDateTime } from "@/lib/format-preferences";
 import type { UnifiedDocumentData } from "@/lib/templates/types";

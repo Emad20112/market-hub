@@ -7,7 +7,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { sessionFromContext } from "@/server/shared/auth/session";
 import { withTransaction } from "@/server/shared/db/transaction";
 import { expenseAssertCapability } from "@/server/domains/expenses/infrastructure/expenses.repository";
-import type { JsonValue } from "@/server/api/expenses/expense-transitions";
+import type { JsonValue } from "@/functions/expenses/expense-transitions";
 
 const inputSchema = z.object({
   kind: z.enum(["cost_center", "project"]),

@@ -12,7 +12,7 @@
  */
 
 import { supabase } from "@/integrations/supabase/client";
-import { saveItemPolicyFn } from "@/server/api/inventory/save-item-policy";
+import { saveItemPolicyFn } from "@/functions/inventory/save-item-policy";
 import type {
   CostingMethod,
   InventoryPolicy,

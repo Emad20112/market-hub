@@ -18,7 +18,7 @@
  */
 
 import { supabase } from "@/integrations/supabase/client";
-import { listExpensesFn, expenseSummaryFn } from "@/server/api/reports/expense-reads";
+import { listExpensesFn, expenseSummaryFn } from "@/functions/reports/expense-reads";
 
 export interface UnifiedExpenseStats {
   postedTotal: number;

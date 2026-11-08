@@ -5,7 +5,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { sessionFromContext } from "@/server/shared/auth/session";
 import { recalcCustomerBalance } from "@/server/domains/treasury/application/treasury.usecases";
-import type { JsonValue } from "@/server/api/expenses/expense-transitions";
+import type { JsonValue } from "@/functions/expenses/expense-transitions";
 
 const inputSchema = z.object({
   customerId: z.string().uuid(),

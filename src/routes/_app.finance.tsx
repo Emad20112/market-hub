@@ -38,7 +38,7 @@ import {
 } from "@/components/expenses/expense-status-badge";
 import { useExpenseLookups } from "@/hooks/use-expenses";
 import { fetchUnifiedExpenseStats } from "@/lib/expenses/financial-bridge";
-import { listExpensesFn } from "@/server/api/reports/expense-reads";
+import { listExpensesFn } from "@/functions/reports/expense-reads";
 import type { ExpenseListRow } from "@/lib/expenses/types";
 
 export const Route = createFileRoute("/_app/finance")({

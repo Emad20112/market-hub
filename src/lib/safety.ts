@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Market Hub — Referential safety.
  *
  * Prevents the data-loss path found in the audit: the schema has
@@ -22,8 +22,8 @@
  * This module reads and writes no business data itself except through the guard.
  */
 
-import { productReferenceCountsFn } from "@/server/api/inventory/product-reference-counts";
-import { productDeleteGuardFn } from "@/server/api/inventory/product-delete-guard";
+import { productReferenceCountsFn } from "@/functions/inventory/product-reference-counts";
+import { productDeleteGuardFn } from "@/functions/inventory/product-delete-guard";
 import { supabase } from "@/integrations/supabase/client";
 
 /**

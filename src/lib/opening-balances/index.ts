@@ -5,7 +5,7 @@
  * يستخدم وحدة الصنف المعرفة في دليل الأصناف، مع توجيه الحسابات إلى دفتر الأستاذ العام.
  */
 import { supabase } from "@/integrations/supabase/client";
-import { openingBalanceFn } from "@/server/api/stock/opening-balance";
+import { openingBalanceFn } from "@/functions/stock/opening-balance";
 
 const db = supabase as any;
 

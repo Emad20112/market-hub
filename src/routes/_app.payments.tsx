@@ -18,8 +18,8 @@ import {
 } from "lucide-react";
 import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
-import { recordCustomerPaymentFn } from "@/server/api/treasury/record-customer-payment";
-import { recordCustomerPaymentSplitsFn } from "@/server/api/treasury/record-customer-payment-splits";
+import { recordCustomerPaymentFn } from "@/functions/treasury/record-customer-payment";
+import { recordCustomerPaymentSplitsFn } from "@/functions/treasury/record-customer-payment-splits";
 import { PageHeader } from "@/components/page-header";
 import { todayKey, dateOnlyIso } from "@/lib/time/business-date";
 import { useI18n } from "@/lib/i18n";

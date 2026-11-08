@@ -16,7 +16,7 @@ import { useState } from "react";
 import { AlertTriangle, CheckCircle2, Info, Loader2, RefreshCw } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "sonner";
-import { recalcCustomerBalanceFn } from "@/server/api/treasury/recalc-customer-balance";
+import { recalcCustomerBalanceFn } from "@/functions/treasury/recalc-customer-balance";
 import { fmtAmount } from "@/lib/statements/format";
 import type { StatementIntegrity } from "@/lib/statements/types";
 import { useI18n } from "@/lib/i18n";

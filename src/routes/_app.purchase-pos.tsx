@@ -67,7 +67,7 @@ import {
   getPaymentMethodDefinition,
   paymentUiText,
 } from "@/lib/payments/payment-methods";
-import { createPurchaseFn } from "@/server/api/purchasing/create-purchase";
+import { createPurchaseFn } from "@/functions/purchasing/create-purchase";
 
 export const Route = createFileRoute("/_app/purchase-pos")({
   head: () => ({ meta: [{ title: "نقطة المشتريات — فورتيكس ERP" }] }),

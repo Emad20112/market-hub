@@ -11,7 +11,7 @@
  */
 
 import { supabase } from "@/integrations/supabase/client";
-import { backupExportFn, backupFingerprintFn, backupRestoreFn } from "@/server/api/reports/backup";
+import { backupExportFn, backupFingerprintFn, backupRestoreFn } from "@/functions/reports/backup";
 import {
   BackupDataPayload,
   BackupFileFormat,

@@ -36,7 +36,7 @@ import {
 } from "@/hooks/use-batch-settings";
 import { useI18n } from "@/lib/i18n";
 import { supabase } from "@/integrations/supabase/client";
-import { reconcileBatchesFn } from "@/server/api/inventory/reconcile-batches";
+import { reconcileBatchesFn } from "@/functions/inventory/reconcile-batches";
 import { toast } from "sonner";
 
 interface BatchSettingsDialogProps {

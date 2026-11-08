@@ -35,7 +35,7 @@ import { InvoiceSectionTabs } from "@/components/invoices/invoice-section-tabs";
 import { createSalesInvoice, type InvoiceLine } from "@/lib/sales-invoice";
 import { toLegacyPaymentValue, paymentMethodLabel } from "@/lib/payments/payment-methods";
 import { translateRpcError } from "@/lib/errors/rpc-errors";
-import { createPurchaseFn } from "@/server/api/purchasing/create-purchase";
+import { createPurchaseFn } from "@/functions/purchasing/create-purchase";
 import {
   CustomerFormDialog,
   type CustomerRecord,

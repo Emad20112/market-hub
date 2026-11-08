@@ -1,9 +1,9 @@
 import { useState, useCallback } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { recordCustomerPaymentFn } from "@/server/api/treasury/record-customer-payment";
-import { recordCustomerAdvancePaymentFn as recordAdvanceFn } from "@/server/api/treasury/record-customer-advance-payment";
-import { recordSupplierPaymentFn } from "@/server/api/treasury/record-supplier-payment";
+import { recordCustomerPaymentFn } from "@/functions/treasury/record-customer-payment";
+import { recordCustomerAdvancePaymentFn as recordAdvanceFn } from "@/functions/treasury/record-customer-advance-payment";
+import { recordSupplierPaymentFn } from "@/functions/treasury/record-supplier-payment";
 import { toast } from "sonner";
 import { useI18n } from "@/lib/i18n";
 import { toLegacyPaymentValue } from "@/lib/payments/payment-methods";

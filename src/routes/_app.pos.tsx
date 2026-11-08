@@ -28,7 +28,7 @@ import {
   FileText,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { createSaleFn } from "@/server/api/sales/create-sale";
+import { createSaleFn } from "@/functions/sales/create-sale";
 import { useI18n } from "@/lib/i18n";
 import { money } from "@/lib/format";
 import { decomposeStock, formatDecomposed } from "@/lib/stock-decompose";

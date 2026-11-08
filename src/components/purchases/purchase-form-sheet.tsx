@@ -26,7 +26,7 @@ import {
 } from "lucide-react";
 
 import { supabase } from "@/integrations/supabase/client";
-import { createPurchaseFn } from "@/server/api/purchasing/create-purchase";
+import { createPurchaseFn } from "@/functions/purchasing/create-purchase";
 import { VortexDrawerDialog } from "@/components/vortex-ui";
 import { FormField } from "@/components/ui/form-field";
 import { FieldInput, NumberInput } from "@/components/ui/input";
