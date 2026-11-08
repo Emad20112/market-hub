@@ -5,6 +5,7 @@ import { PageHeader } from "@/components/page-header";
 import { useI18n } from "@/lib/i18n";
 import { supabase } from "@/integrations/supabase/client";
 import { recordSupplierPaymentFn } from "@/server/api/treasury/record-supplier-payment";
+import { supplierStatementFn } from "@/server/api/reports/accounting-reads";
 import { money } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -205,51 +206,28 @@ function SupplierLedgerPage() {
       if (!supplierId) return;
       setLoadingMovements(true);
       try {
-        const { data, error } = await (supabase as any).rpc("get_supplier_statement", {
-          p_supplier_id: supplierId,
-          p_start_date: startDate ? new Date(startDate).toISOString() : null,
-          p_end_date: endDate ? new Date(endDate).toISOString() : null,
+        // كشف المورد عبر الباك اند (get_supplier_statement المنقولة — المرحلة 12).
+        const data = await supplierStatementFn({
+          data: {
+            supplierId,
+            startDate: startDate ? new Date(startDate).toISOString() : null,
+            endDate: endDate ? new Date(endDate).toISOString() : null,
+          },
         });
-
-        if (error) {
-          // Fallback to direct query on supplier_ledger if RPC unavailable
-          const { data: raw, error: rawErr } = await (supabase as any)
-            .from("supplier_ledger")
-            .select("*")
-            .eq("supplier_id", supplierId)
-            .order("occurred_at", { ascending: false });
-
-          if (rawErr) throw rawErr;
-          setMovements(
-            (raw || []).map((r: any) => ({
-              id: r.id,
-              occurred_at: r.occurred_at,
-              entry_type: r.entry_type,
-              debit: Number(r.debit) || 0,
-              credit: Number(r.credit) || 0,
-              running_balance: Number(r.balance_after) || 0,
-              reference_type: r.reference_type,
-              reference_id: r.reference_id,
-              due_date: r.due_date,
-              note: r.note,
-            })),
-          );
-        } else {
-          setMovements(
-            (data || []).map((r: any) => ({
-              id: r.id,
-              occurred_at: r.occurred_at,
-              entry_type: r.entry_type,
-              debit: Number(r.debit) || 0,
-              credit: Number(r.credit) || 0,
-              running_balance: Number(r.running_balance) || 0,
-              reference_type: r.reference_type,
-              reference_id: r.reference_id,
-              due_date: r.due_date,
-              note: r.note,
-            })),
-          );
-        }
+        setMovements(
+          (data || []).map((r: any) => ({
+            id: r.id,
+            occurred_at: r.occurred_at,
+            entry_type: r.entry_type,
+            debit: Number(r.debit) || 0,
+            credit: Number(r.credit) || 0,
+            running_balance: Number(r.running_balance) || 0,
+            reference_type: r.reference_type,
+            reference_id: r.reference_id,
+            due_date: r.due_date,
+            note: r.note,
+          })),
+        );
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : String(err);
         setActionMessage({

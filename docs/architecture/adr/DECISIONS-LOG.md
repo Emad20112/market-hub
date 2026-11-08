@@ -379,3 +379,43 @@ update_v2 — المرحلة 10b) ومشغلات القاعدة؛ الإسقاط
   phase10b-equivalence + phase11-equivalence قبل اعتماد البوابتين نهائيًا.
 
 
+## المرحلة 12 — التقارير / Backup / Sync (2026-11-08)
+### المنقول (11 دالة → Backend؛ مُسقطة بترحيل 028)
+| الدالة القديمة | الموقع الجديد | ملاحظات |
+|---|---|---|
+| `list_expenses` (17 معاملًا) | `reports/application/reports.usecases.ts` | نفس SQL حرفيًا: keyset pagination، فلاتر الحالة/الدفع/الفئات، LEFT JOIN LATERAL للفئة الرئيسية |
+| `expense_detail` | نفس الملف | نفس jsonb (entry/lines/payments/approvals/attachments) + حساب قدرات can_* خادميًا |
+| `expense_summary` | نفس الملف | FILTER بكل الشرائح (overdue بمسامحة 0.005) |
+| `expense_report` (7 مجموعات) | نفس الملف | نفس الترتيب والتحقق من group_by |
+| `expense_lookups` | نفس الملف | نفس الفلاتر (موظفو بلا منصة، حسابات 11%) |
+| `milling_service_cost_report` | نفس الملف | expense_assert_capability('expense.report') حرفيًا + حل مركز الطحن |
+| `get_supplier_statement` | نفس الملف | can_read_finance صريح + نفس window function |
+| `get_chart_of_accounts_tree` | نفس الملف | recursive CTE + أرصدة POSTED + طبيعة المدين/الدائن |
+| `backup_export_all` | نفس الملف | تصدير ديناميكي لكل جداول public + سقف سجلات السجلات |
+| `backup_restore_all` | نفس الملف | owner فقط، session_replication_role=replica، TRUNCATE كامل، إدراج بالأسماء، setval للتسلسلات، تحذير fingerprint لا إيقاف |
+| `backup_schema_fingerprint` | نفس الملف | SHA-256 على جداول/أعمدة/أنواع public |
+
+### قرارات معمارية مرحلية
+1. **دلالات invoker محفوظة**: دوال القراءة الأصلية (010) لم تكن SECURITY DEFINER —
+   المعاملة الجديدة تفتح بـ `SET LOCAL role = authenticated` + claims، فـ RLS
+   و`auth.uid()` داخل SQL يعملان كما نداء RPC من التطبيق حرفيًا (نموذج مختلف
+   عمدًا عن مراحل الكتابة service_role).
+2. **backup_restore_all ديناميكي في TS**: أسماء الجداول تأتي من information_schema
+   فقط وتُمرر عبر quote-ident صارم (`^[a-z_][a-z0-9_]*$`) — لا إدخال مستخدم في SQL
+   ديناميكي.
+3. **`sync_apply_operation` تبقى في القاعدة** — بلا مستدعي واجهة، وتظل على قائمة
+   التدقيق الحي قبل الحذف (قرار المرحلة 1، لم يتغير).
+4. **أنواع الكشف النصية**: numeric يعود نصًا (`::text`) من SQL وتحوّله الواجهة —
+   مطابق لطبع PostgREST تجنبًا لانحراف float.
+5. الـ107 كشف المورد fallback المباشر على supplier_ledger في الواجهة أزيل — لا
+   حاجة له بعد أن الباك اند هو مصدر الحقيقة.
+
+### بوابات المرحلة 12 (الحالة)
+- tsc نظيف على نطاق الخادم والواجهة المنقولة؛ eslint نظيف؛ الـ21 خطأ الباقي
+  ملفات WIP سابقة خارج النطاق (purchase-invoice-composer.tsx وmilling.records.tsx).
+- ✅ **لم يُنفذ بعد:** اختبار تكافؤ 12 على قاعدة حية وترحيل 028 فعليًا — نفس قيد
+  10b/11: القاعدة غير قائمة (محرك Docker مُصفّر). يُشترط إقلاعها وتطبيق 026→027→028
+  وتشغيل phase10b/11/12-equivalence قبل اعتماد البوابات الثلاث نهائيًا.
+
+
+

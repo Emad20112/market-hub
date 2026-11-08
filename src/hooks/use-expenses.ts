@@ -20,6 +20,14 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { createExpenseFn } from "@/server/api/expenses/create-expense";
 import {
+  expenseDetailFn,
+  expenseLookupsFn,
+  expenseReportFn,
+  expenseSummaryFn,
+  listExpensesFn,
+  millingServiceCostFn,
+} from "@/server/api/reports/expense-reads";
+import {
   cancelExpenseFn,
   closeExpenseFn,
   decideExpenseFn,
@@ -113,18 +121,17 @@ export function useExpenseLookups(enabled = true) {
   return useQuery({
     queryKey: expenseKeys.lookups(),
     queryFn: async (): Promise<ExpenseLookups> => {
-      const { data, error } = await (supabase as any).rpc("expense_lookups", {
-        p_include_archived: false,
-      });
-      if (error) throw error;
-      return (data ?? {
-        categories: [],
-        warehouses: [],
-        cost_centers: [],
-        projects: [],
-        suppliers: [],
-        employees: [],
-      }) as ExpenseLookups;
+      // مراجع النموذج عبر الباك اند (expense_lookups المنقولة — المرحلة 12).
+      const res = await expenseLookupsFn({ data: { includeArchived: false } });
+      const data = (res ?? {}) as unknown as ExpenseLookups;
+      return {
+        categories: data.categories ?? [],
+        warehouses: data.warehouses ?? [],
+        cost_centers: data.cost_centers ?? [],
+        projects: data.projects ?? [],
+        suppliers: data.suppliers ?? [],
+        employees: data.employees ?? [],
+      } as ExpenseLookups;
     },
     enabled,
     // Reference data changes rarely; refetching it on every drawer open would be
@@ -143,13 +150,10 @@ export function useExpenseSummary(
   return useQuery({
     queryKey: expenseKeys.summary(dateFrom, dateTo, warehouseId),
     queryFn: async (): Promise<ExpenseSummary> => {
-      const { data, error } = await (supabase as any).rpc("expense_summary", {
-        p_date_from: dateFrom,
-        p_date_to: dateTo,
-        p_warehouse_id: warehouseId,
+      const res = await expenseSummaryFn({
+        data: { dateFrom, dateTo, warehouseId },
       });
-      if (error) throw error;
-      return data as ExpenseSummary;
+      return (res ?? {}) as unknown as ExpenseSummary;
     },
     enabled,
     staleTime: 30_000,
@@ -168,27 +172,28 @@ export function useExpenseList(filters: ExpenseListFilters, enabled = true) {
     queryKey: expenseKeys.list(filters),
     initialPageParam: null as { date: string; id: string } | null,
     queryFn: async ({ pageParam }): Promise<ExpensePage> => {
-      const { data, error } = await (supabase as any).rpc("list_expenses", {
-        p_search: filters.search.trim() || null,
-        p_status: filters.status.length ? filters.status : null,
-        p_category_id: filters.categoryId,
-        p_warehouse_id: filters.warehouseId,
-        p_cost_center_id: filters.costCenterId,
-        p_project_id: filters.projectId,
-        p_supplier_id: filters.supplierId,
-        p_employee_id: filters.employeeId,
-        p_payment_state: filters.paymentState,
-        p_date_from: filters.dateFrom,
-        p_date_to: filters.dateTo,
-        p_amount_min: filters.amountMin,
-        p_amount_max: filters.amountMax,
-        p_limit: PAGE_SIZE,
-        p_cursor_date: pageParam?.date ?? null,
-        p_cursor_id: pageParam?.id ?? null,
+      const res = await listExpensesFn({
+        data: {
+          search: filters.search.trim() || null,
+          status: filters.status.length ? filters.status : null,
+          categoryId: filters.categoryId,
+          warehouseId: filters.warehouseId,
+          costCenterId: filters.costCenterId,
+          projectId: filters.projectId,
+          supplierId: filters.supplierId,
+          employeeId: filters.employeeId,
+          paymentState: filters.paymentState,
+          dateFrom: filters.dateFrom,
+          dateTo: filters.dateTo,
+          amountMin: filters.amountMin,
+          amountMax: filters.amountMax,
+          limit: PAGE_SIZE,
+          cursorDate: pageParam?.date ?? null,
+          cursorId: pageParam?.id ?? null,
+        },
       });
-      if (error) throw error;
 
-      const rows = (data ?? []) as any[];
+      const rows = (res ?? []) as any[];
       const last = rows[rows.length - 1];
 
       return {
@@ -229,11 +234,8 @@ export function useExpenseDetail(entryId: string | null) {
   return useQuery({
     queryKey: expenseKeys.detail(entryId ?? ""),
     queryFn: async (): Promise<ExpenseDetail | null> => {
-      const { data, error } = await (supabase as any).rpc("expense_detail", {
-        p_entry_id: entryId,
-      });
-      if (error) throw error;
-      return (data ?? null) as ExpenseDetail | null;
+      const res = await expenseDetailFn({ data: { entryId } });
+      return (res ?? null) as ExpenseDetail | null;
     },
     enabled: Boolean(entryId),
     staleTime: 15_000,
@@ -250,14 +252,10 @@ export function useExpenseReport(
   return useQuery({
     queryKey: [...expenseKeys.report(groupBy, dateFrom, dateTo), groupBy] as const,
     queryFn: async (): Promise<ExpenseReportRow[]> => {
-      const { data, error } = await (supabase as any).rpc("expense_report", {
-        p_group_by: groupBy,
-        p_date_from: dateFrom,
-        p_date_to: dateTo,
-        p_limit: 200,
+      const res = await expenseReportFn({
+        data: { groupBy, dateFrom, dateTo, limit: 200 },
       });
-      if (error) throw error;
-      return (data ?? []) as ExpenseReportRow[];
+      return (res ?? []) as unknown as ExpenseReportRow[];
     },
     enabled,
     staleTime: 60_000,
@@ -274,14 +272,10 @@ export function useMillingServiceCostReport(
   return useQuery({
     queryKey: ["expenses", "milling-service-cost", dateFrom, dateTo, costCenterId],
     queryFn: async (): Promise<MillingServiceCostSummary | null> => {
-      const { data, error } = await (supabase as any).rpc("milling_service_cost_report", {
-        p_date_from: dateFrom,
-        p_date_to: dateTo,
-        p_cost_center_id: costCenterId,
+      const res = await millingServiceCostFn({
+        data: { dateFrom, dateTo, costCenterId },
       });
-      if (error) throw error;
-      const row = Array.isArray(data) ? data[0] : data;
-      return (row ?? null) as MillingServiceCostSummary | null;
+      return (res ?? null) as unknown as MillingServiceCostSummary | null;
     },
     enabled,
     staleTime: 30_000,

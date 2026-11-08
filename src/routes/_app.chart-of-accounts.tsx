@@ -3,7 +3,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { PageHeader } from "@/components/page-header";
 import { useI18n } from "@/lib/i18n";
-import { supabase } from "@/integrations/supabase/client";
+import { chartOfAccountsFn } from "@/server/api/reports/accounting-reads";
 import { money } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -81,55 +81,26 @@ function ChartOfAccountsPage() {
   const fetchAccounts = useCallback(async () => {
     setLoading(true);
     try {
-      const { data, error } = await (supabase as any).rpc("get_chart_of_accounts_tree");
-
-      if (error) {
-        // Fallback to direct select from accounts if RPC not yet created
-        const { data: raw, error: rawErr } = await (supabase as any)
-          .from("accounts")
-          .select("*")
-          .order("code");
-
-        if (rawErr) throw rawErr;
-        const mapped = (raw || []).map((a: any) => ({
-          id: a.id,
-          code: a.code,
-          name_ar: a.name_ar,
-          account_type: a.account_type,
-          parent_id: a.parent_id,
-          parent_code: null,
-          level: a.code.length <= 4 && a.code.endsWith("000") ? 1 : a.code.endsWith("00") ? 2 : 3,
-          is_postable: a.is_postable ?? true,
-          is_system: a.is_system ?? false,
-          is_active: a.is_active ?? true,
-          notes: a.notes,
-          total_debit: 0,
-          total_credit: 0,
-          current_balance: 0,
-          children_count: 0,
-        }));
-        setAccounts(mapped);
-      } else {
-        setAccounts(
-          (data || []).map((a: any) => ({
-            id: a.id,
-            code: a.code,
-            name_ar: a.name_ar,
-            account_type: a.account_type,
-            parent_id: a.parent_id,
-            parent_code: a.parent_code,
-            level: Number(a.level) || 1,
-            is_postable: Boolean(a.is_postable),
-            is_system: Boolean(a.is_system),
-            is_active: Boolean(a.is_active),
-            notes: a.notes,
-            total_debit: Number(a.total_debit) || 0,
-            total_credit: Number(a.total_credit) || 0,
-            current_balance: Number(a.current_balance) || 0,
-            children_count: Number(a.children_count) || 0,
-          })),
-        );
-      }
+      // شجرة الدليل عبر الباك اند (get_chart_of_accounts_tree المنقولة — المرحلة 12).
+      const data = await chartOfAccountsFn();
+      const mapped = (data || []).map((a: any) => ({
+        id: a.id,
+        code: a.code,
+        name_ar: a.name_ar,
+        account_type: a.account_type,
+        parent_id: a.parent_id,
+        parent_code: a.parent_code,
+        level: Number(a.level) || 1,
+        is_postable: Boolean(a.is_postable),
+        is_system: Boolean(a.is_system),
+        is_active: Boolean(a.is_active),
+        notes: a.notes,
+        total_debit: Number(a.total_debit) || 0,
+        total_credit: Number(a.total_credit) || 0,
+        current_balance: Number(a.current_balance) || 0,
+        children_count: Number(a.children_count) || 0,
+      }));
+      setAccounts(mapped);
     } catch {
       // keep empty
     } finally {

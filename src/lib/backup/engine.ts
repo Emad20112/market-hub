@@ -11,6 +11,7 @@
  */
 
 import { supabase } from "@/integrations/supabase/client";
+import { backupExportFn, backupFingerprintFn, backupRestoreFn } from "@/server/api/reports/backup";
 import {
   BackupDataPayload,
   BackupFileFormat,
@@ -63,12 +64,9 @@ export interface ServerRestoreResult {
  */
 export async function getSchemaFingerprint(): Promise<string | null> {
   try {
-    const { data, error } = await supabase.rpc("backup_schema_fingerprint" as never);
-    if (error) {
-      console.warn("backup_schema_fingerprint RPC failed:", error.message);
-      return null;
-    }
-    return (data as unknown as string) ?? null;
+    // عبر الباك اند (backup_schema_fingerprint المنقولة — المرحلة 12).
+    const res = await backupFingerprintFn();
+    return (res as unknown as { fingerprint: string | null }).fingerprint ?? null;
   } catch {
     return null;
   }
@@ -83,16 +81,9 @@ export async function getSchemaFingerprint(): Promise<string | null> {
 export async function exportTenantDataServerSide(
   maxLogRows: number = 5000,
 ): Promise<ServerDynamicExport> {
-  const { data, error } = await supabase.rpc(
-    "backup_export_all" as never,
-    {
-      p_max_log_rows: maxLogRows,
-    } as never,
-  );
-  if (error) {
-    throw new Error(`فشل التفريغ الخادمي: ${error.message}`);
-  }
-  const exported = data as unknown as ServerDynamicExport;
+  // عبر الباك اند (backup_export_all المنقولة — المرحلة 12).
+  const res = await backupExportFn({ data: { maxLogRows } });
+  const exported = res as unknown as ServerDynamicExport;
   if (!exported || exported.kind !== "server_dynamic_export" || !exported.tables) {
     throw new Error("الحمولة الخادمية غير صالحة (kind أو tables مفقود)");
   }
@@ -110,16 +101,9 @@ export async function exportTenantDataServerSide(
 export async function restoreTenantDataServerSide(
   payload: ServerDynamicExport,
 ): Promise<ServerRestoreResult> {
-  const { data, error } = await supabase.rpc(
-    "backup_restore_all" as never,
-    {
-      p_payload: payload as never,
-    } as never,
-  );
-  if (error) {
-    throw new Error(`فشلت الاستعادة الخادمية: ${error.message}`);
-  }
-  const restored = data as unknown as ServerRestoreResult;
+  // عبر الباك اند (backup_restore_all المنقولة — المرحلة 12).
+  const res = await backupRestoreFn({ data: { payload: payload as never } });
+  const restored = res as unknown as ServerRestoreResult;
   if (!restored || typeof restored.inserted_rows !== "number") {
     throw new Error("نتيجة الاستعادة الخادمية غير صالحة");
   }
