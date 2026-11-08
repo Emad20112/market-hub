@@ -180,10 +180,10 @@ function getSidebarStyle(category: string, groupKey: string, preferences: Sideba
     ...style,
     iconActive: "text-primary",
     iconInactive: "text-muted-foreground group-hover:text-primary",
-    iconBoxActive: "bg-sidebar-accent text-foreground",
-    iconBoxInactive: "bg-transparent text-muted-foreground group-hover:bg-sidebar-accent",
-    accentPill: "bg-primary",
-    activeBg: "bg-sidebar-accent/70 border-sidebar-border/70",
+    iconBoxActive: "bg-transparent",
+    iconBoxInactive: "bg-transparent",
+    accentPill: "bg-transparent",
+    activeBg: "border-transparent bg-transparent",
   };
 }
 
@@ -326,8 +326,8 @@ const SidebarContents = memo(function SidebarContents({
         {displayGroups.map((sec, secIdx) => {
           const sectionKey = sec.key;
           const sectionOpen = collapsed ? true : isSectionOpen(sectionKey);
-          const activeInSection = activeGroupKey === sectionKey;
-
+          const GroupIcon = routeIcon(sec.entries[0]?.id ?? "dashboard");
+          const isGroupActive = activeGroupKey === sectionKey;
           return (
             <div key={sectionKey}>
               {!collapsed ? (
@@ -339,14 +339,18 @@ const SidebarContents = memo(function SidebarContents({
                   className={cn(
                     "flex min-h-9 w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-xs font-semibold",
                     "transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50",
-                    activeInSection
-                      ? "bg-sidebar-accent/45 text-foreground"
-                      : "text-muted-foreground/80 hover:bg-sidebar-accent/60 hover:text-foreground",
+                    "text-muted-foreground/80 hover:bg-sidebar-accent/40 hover:text-foreground",
                   )}
                 >
                   <span className="min-w-0 flex-1 truncate text-start">
                     {t(`nav.view.group.${sec.key}`)}
                   </span>
+                  <GroupIcon
+                    className={cn(
+                      "size-4 shrink-0",
+                      isGroupActive ? "text-primary" : "text-muted-foreground",
+                    )}
+                  />
                   <span
                     className={cn(
                       "grid size-5 shrink-0 place-items-center rounded-md text-muted-foreground/70 transition-transform duration-200",
@@ -400,8 +404,6 @@ const SidebarContents = memo(function SidebarContents({
                         ? it.titleAr
                         : it.titleEn;
                   const catStyle = getSidebarStyle(sec.styleCategory, sec.key, preferences);
-                  const iconShapeClass =
-                    preferences.iconShape === "circle" ? "rounded-full" : "rounded-lg";
 
                   return (
                     <li key={it.id} className="relative">
@@ -427,39 +429,20 @@ const SidebarContents = memo(function SidebarContents({
                           className={cn(
                             "group relative flex items-center transition-all duration-200 outline-none focus-visible:ring-2 focus-visible:ring-primary/50",
                             collapsed
-                              ? cn(
-                                  "h-10 w-10 mx-auto justify-center p-0",
-                                  preferences.iconShape === "circle"
-                                    ? "rounded-full"
-                                    : "rounded-xl",
-                                )
+                              ? "h-10 w-10 mx-auto justify-center rounded-xl p-0"
                               : "gap-3 ps-3 pe-3 py-2 rounded-lg text-[13px] font-medium",
-                            active
-                              ? collapsed
-                                ? cn("shadow-md ring-2 ring-white/10", catStyle.iconBoxActive)
-                                : cn("text-foreground font-semibold border", catStyle.activeBg)
-                              : collapsed
-                                ? "text-muted-foreground hover:bg-surface-2 hover:text-foreground hover:scale-105"
-                                : "text-muted-foreground hover:bg-sidebar-accent/70 hover:text-foreground",
+                            collapsed
+                              ? "text-muted-foreground hover:bg-surface-2 hover:text-foreground hover:scale-105"
+                              : "text-muted-foreground hover:bg-sidebar-accent/40 hover:text-foreground",
                           )}
                         >
-                          {active && !collapsed && (
-                            <span
-                              className={cn(
-                                "absolute inset-y-2 w-[3.5px] rounded-full",
-                                catStyle.accentPill,
-                                dir === "rtl" ? "right-0" : "left-0",
-                              )}
-                            />
-                          )}
-
                           <div
                             className={cn(
                               "grid place-items-center transition-all duration-200 shrink-0",
                               collapsed
                                 ? "h-full w-full"
                                 : cn(
-                                    cn("h-7 w-7", iconShapeClass),
+                                    "h-7 w-7 rounded-lg",
                                     active ? catStyle.iconBoxActive : catStyle.iconBoxInactive,
                                   ),
                             )}
@@ -468,9 +451,12 @@ const SidebarContents = memo(function SidebarContents({
                               className={cn(
                                 "shrink-0 transition-all duration-200",
                                 collapsed
-                                  ? active
-                                    ? "h-5 w-5 stroke-[2.4]"
-                                    : "h-5 w-5 group-hover:scale-110"
+                                  ? cn(
+                                      "h-5 w-5",
+                                      active
+                                        ? cn("stroke-[2.4]", catStyle.iconActive)
+                                        : catStyle.iconInactive,
+                                    )
                                   : active
                                     ? cn("h-4 w-4", catStyle.iconActive)
                                     : cn("h-4 w-4", catStyle.iconInactive),

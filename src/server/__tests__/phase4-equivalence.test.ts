@@ -117,7 +117,9 @@ async function main() {
     oldAvailable
       ? async () => {
           let oldSnap: Awaited<ReturnType<typeof snapshot>> | null = null;
-          await withTransaction({ userId: OWNER, rollback: true }, async (tx) => {
+          await withTransaction({ rollback: true }, async (tx) => {
+            // المرحلة 13.2: الجسور صارت service_role فقط (030) — الجانب القديم
+            // في اختبار التكافؤ يُشغّل بهوية الخدمة كما في الإنتاج.
             await tx.query(
               "SELECT public.post_stock_delta($1::uuid,$2::uuid,5,10,'RECEIPT','equivalence_test',NULL,'اختبار تكافؤ','COMPANY',NULL,'purchase')",
               [PRODUCT, WAREHOUSE],
@@ -153,7 +155,9 @@ async function main() {
     oldAvailable
       ? async () => {
           let oldSnap: Awaited<ReturnType<typeof snapshot>> | null = null;
-          await withTransaction({ userId: OWNER, rollback: true }, async (tx) => {
+          await withTransaction({ rollback: true }, async (tx) => {
+            // المرحلة 13.2: الجسور صارت service_role فقط (030) — الجانب القديم
+            // في اختبار التكافؤ يُشغّل بهوية الخدمة كما في الإنتاج.
             await tx.query(
               "SELECT public.post_stock_delta($1::uuid,$2::uuid,5,10,'RECEIPT','eq2',NULL,'s1','COMPANY',NULL,'purchase')",
               [PRODUCT, WAREHOUSE],
@@ -206,7 +210,7 @@ async function main() {
     "[تكافؤ] رفض الصرف بلا رصيد — نفس الرسالة",
     oldAvailable
       ? async () => {
-          const oldMsg = await withTransaction({ userId: OWNER, rollback: true }, async (tx) => {
+          const oldMsg = await withTransaction({ rollback: true }, async (tx) => {
             try {
               await tx.query(
                 "SELECT public.post_stock_delta($1::uuid,$2::uuid,-1,NULL,'ISSUE','eq3',NULL,'x','COMPANY',NULL,'sale')",
@@ -256,7 +260,7 @@ async function main() {
             console.log("   (لا يوجد منتج خدمة/غير متتبع — تخطٍ)");
             return;
           }
-          const oldMsg = await withTransaction({ userId: OWNER, rollback: true }, async (tx) => {
+          const oldMsg = await withTransaction({ rollback: true }, async (tx) => {
             try {
               await tx.query(
                 "SELECT public.post_stock_delta($1::uuid,$2::uuid,1,0,'RECEIPT','eq4',NULL,'x','COMPANY',NULL,'purchase')",
@@ -304,7 +308,11 @@ async function main() {
             { product_id: PRODUCT, quantity: 3, unit_cost: 8, note: "تكافؤ 3" },
           ];
           let oldRes: Record<string, unknown> | null = null;
-          await withTransaction({ userId: OWNER, rollback: true }, async (tx) => {
+          await withTransaction({ rollback: true }, async (tx) => {
+            // 13.2: دوال الجسر صارت service_role فقط — نضع claims الجلسة يدويًا.
+            await tx.query("SELECT set_config('request.jwt.claims', $1, true)", [
+              JSON.stringify({ sub: OWNER, role: "authenticated" }),
+            ]);
             const { rows } = await tx.query<{ out: string }>(
               "SELECT public.post_opening_stock($1::uuid, CURRENT_DATE, 'تكافؤ', $2::jsonb) AS out",
               [WAREHOUSE, JSON.stringify(items)],

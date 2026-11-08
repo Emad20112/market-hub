@@ -14,6 +14,7 @@ import { AuthorizationError, BusinessRuleError } from "@/server/shared/errors/do
 import type { ServerSession } from "@/server/shared/auth/session";
 import { withTransaction } from "@/server/shared/db/transaction";
 import { roundN } from "@/server/domains/stock/infrastructure/stock.repository";
+import { createJournalEntryInner } from "@/server/domains/accounting/application/accounting.usecases";
 import {
   applyAdvanceAllocation,
   businessNow,
@@ -743,3 +744,201 @@ export function withTreasuryTransaction<T>(fn: (tx: PoolClient) => Promise<T>): 
 }
 
 export { derivePaymentStatus };
+
+// ── clear_cheque / bounce_cheque (نقل كامل — 13.2، 9b) ─────────────────────
+
+async function lockCheque(
+  tx: PoolClient,
+  chequeId: string,
+): Promise<{
+  id: string;
+  chequeNumber: string;
+  status: string;
+  amount: number;
+  customerId: string | null;
+}> {
+  const { rows } = await tx.query<{
+    id: string;
+    cheque_number: string;
+    status: string;
+    amount: string;
+    customer_id: string | null;
+  }>(
+    "SELECT id, cheque_number, status::text AS status, amount::text AS amount, customer_id FROM public.cheques_register WHERE id = $1::uuid FOR UPDATE",
+    [chequeId],
+  );
+  if (!rows[0]) throw new BusinessRuleError("Cheque not found");
+  return {
+    id: rows[0].id,
+    chequeNumber: rows[0].cheque_number,
+    status: rows[0].status,
+    amount: Number(rows[0].amount),
+    customerId: rows[0].customer_id,
+  };
+}
+
+async function assertChequeRole(tx: PoolClient, userId: string, action: string): Promise<void> {
+  let ok = false;
+  for (const r of ["owner", "manager", "accountant"]) {
+    if (await hasRole(tx, userId, r)) {
+      ok = true;
+      break;
+    }
+  }
+  if (!ok) {
+    throw new AuthorizationError(`Only accountant, manager or owner may ${action} cheques`);
+  }
+}
+
+/** تحصيل شيك — كما في الأصل حرفيًا (011): قيد Dr بنك / Cr أوراق قبض وتحديث السجل. */
+export async function clearCheque(
+  session: ServerSession,
+  input: {
+    chequeId: string;
+    clearingBankAccountId: string;
+    clearedDate?: string | null;
+    notes?: string | null;
+  },
+): Promise<{
+  ok: true;
+  chequeId: string;
+  chequeNumber: string;
+  status: "CLEARED";
+  journalId: string;
+}> {
+  return withTransaction(async (tx) => {
+    const userId = session.userId;
+    await assertChequeRole(tx, userId, "clear");
+    const cheque = await lockCheque(tx, input.chequeId);
+    if (cheque.status !== "UNDER_COLLECTION") {
+      throw new BusinessRuleError(`Cheque ${cheque.chequeNumber} is already ${cheque.status}`);
+    }
+
+    const { rows: bank } = await tx.query<{ code: string | null }>(
+      `SELECT a.code FROM public.company_bank_accounts b
+         JOIN public.accounts a ON a.id = b.account_id
+        WHERE b.id = $1::uuid`,
+      [input.clearingBankAccountId],
+    );
+    const bankCode = bank[0]?.code ?? null;
+    if (!bankCode) {
+      throw new BusinessRuleError("Selected clearing bank account has no valid ledger account");
+    }
+
+    const memo = `تحصيل وإيداع شيك رقم ${cheque.chequeNumber}`;
+    const journalId = await createJournalEntryInner(tx, session, {
+      memo: `تحصيل شيك مصرفي رقم ${cheque.chequeNumber} — ${input.notes ?? ""}`,
+      entryDate: input.clearedDate ?? new Date().toISOString().slice(0, 10),
+      sourceType: "cheque_clearing",
+      sourceId: cheque.id,
+      isSystem: true,
+      lines: [
+        { account_code: bankCode, debit: cheque.amount, memo },
+        {
+          account_code: "1221",
+          credit: cheque.amount,
+          memo: `إقفال أوراق قبض — شيك رقم ${cheque.chequeNumber}`,
+        },
+      ],
+    });
+
+    await tx.query(
+      `UPDATE public.cheques_register
+          SET status = 'CLEARED', clearing_bank_account_id = $2::uuid,
+              clearing_journal_entry_id = $3::uuid, cleared_at = $4::date::timestamptz,
+              notes = coalesce(notes || ' | ', '') || coalesce($5, 'تم التحصيل بالبنك'), updated_at = now()
+        WHERE id = $1::uuid`,
+      [
+        input.chequeId,
+        input.clearingBankAccountId,
+        journalId,
+        input.clearedDate ?? new Date().toISOString().slice(0, 10),
+        input.notes ?? null,
+      ],
+    );
+
+    return {
+      ok: true as const,
+      chequeId: input.chequeId,
+      chequeNumber: cheque.chequeNumber,
+      status: "CLEARED" as const,
+      journalId,
+    };
+  });
+}
+
+/** ارتداد شيك — كما في الأصل حرفيًا (011): Dr ذمم / Cr أوراق قبض + دفتر العميل. */
+export async function bounceCheque(
+  session: ServerSession,
+  input: { chequeId: string; reason?: string | null },
+): Promise<{
+  ok: true;
+  chequeId: string;
+  chequeNumber: string;
+  status: "BOUNCED";
+  journalId: string | null;
+}> {
+  return withTransaction(async (tx) => {
+    const userId = session.userId;
+    await assertChequeRole(tx, userId, "bounce");
+    const cheque = await lockCheque(tx, input.chequeId);
+    if (cheque.status !== "UNDER_COLLECTION") {
+      throw new BusinessRuleError(`Cannot bounce cheque in status ${cheque.status}`);
+    }
+    const reason = input.reason ?? "عدم كفاية الرصيد";
+
+    let journalId: string | null = null;
+    if (cheque.customerId !== null) {
+      const lines = [
+        {
+          account_code: "1211",
+          debit: cheque.amount,
+          memo: `ارتداد شيك رقم ${cheque.chequeNumber} — ${reason}`,
+        },
+        {
+          account_code: "1221",
+          credit: cheque.amount,
+          memo: `إلغاء ورقة قبض لشيك مرتد رقم ${cheque.chequeNumber}`,
+        },
+      ];
+      journalId = await createJournalEntryInner(tx, session, {
+        memo: `ارتداد شيك رقم ${cheque.chequeNumber} — ${reason}`,
+        entryDate: new Date().toISOString().slice(0, 10),
+        sourceType: "cheque_bounce",
+        sourceId: cheque.id,
+        isSystem: true,
+        lines,
+      });
+
+      await tx.query(
+        `INSERT INTO public.customer_ledger
+           (customer_id, entry_type, debit, reference_id, reference_type, occurred_at, created_by, source_key, note)
+         VALUES ($1::uuid, 'adjustment', $2::numeric, $3::uuid, 'cheque_bounce', now(), $4::uuid, $5, $6)
+         ON CONFLICT (source_key) DO NOTHING`,
+        [
+          cheque.customerId,
+          cheque.amount,
+          cheque.id,
+          userId,
+          `cheque_bounce:${cheque.id}`,
+          `ارتداد شيك رقم ${cheque.chequeNumber}`,
+        ],
+      );
+    }
+
+    await tx.query(
+      `UPDATE public.cheques_register
+          SET status = 'BOUNCED', notes = coalesce(notes || ' | ', '') || 'مرتد: ' || $2, updated_at = now()
+        WHERE id = $1::uuid`,
+      [input.chequeId, reason],
+    );
+
+    return {
+      ok: true as const,
+      chequeId: input.chequeId,
+      chequeNumber: cheque.chequeNumber,
+      status: "BOUNCED" as const,
+      journalId,
+    };
+  });
+}

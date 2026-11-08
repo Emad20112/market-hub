@@ -30,6 +30,7 @@ import { cn } from "@/lib/utils";
 import { toSystemDigits } from "@/lib/format-preferences";
 import { productClassTone, type ProductClassTone } from "@/components/products/product-class-meta";
 import { AnchoredPanel } from "@/components/ui/anchored-panel";
+import { moveFieldFocus } from "@/lib/keyboard/form-navigation";
 
 /* ------------------------------------------------------------------ types */
 
@@ -229,6 +230,22 @@ export function ProductPicker<T extends ProductPickerItem = ProductPickerItem>({
     if (event.key === "Escape") {
       event.preventDefault();
       setOpen(false);
+      triggerRef.current?.focus();
+      return;
+    }
+    if (event.key === "Tab") {
+      event.preventDefault();
+      const target = flat[activeIndex];
+      if (target && !event.shiftKey) {
+        choose(target);
+      } else {
+        setOpen(false);
+      }
+      if (triggerRef.current) {
+        requestAnimationFrame(() => {
+          moveFieldFocus(triggerRef.current!, event.shiftKey ? "previous" : "next");
+        });
+      }
       return;
     }
     if (event.key === "ArrowDown") {
@@ -244,7 +261,14 @@ export function ProductPicker<T extends ProductPickerItem = ProductPickerItem>({
     if (event.key === "Enter") {
       event.preventDefault();
       const target = flat[activeIndex];
-      if (target) choose(target);
+      if (target) {
+        choose(target);
+        if (triggerRef.current) {
+          requestAnimationFrame(() => {
+            moveFieldFocus(triggerRef.current!, "next");
+          });
+        }
+      }
     }
   }
 
@@ -382,7 +406,14 @@ export function ProductPicker<T extends ProductPickerItem = ProductPickerItem>({
                           event.preventDefault();
                           event.stopPropagation();
                         }}
-                        onClick={() => choose(item)}
+                        onClick={() => {
+                          choose(item);
+                          if (triggerRef.current) {
+                            requestAnimationFrame(() => {
+                              moveFieldFocus(triggerRef.current!, "next");
+                            });
+                          }
+                        }}
                         className={cn(
                           "flex w-full items-center gap-2.5 rounded-lg border border-transparent px-2 py-1.5 text-start transition-colors",
                           isActive && tone.activeClass,

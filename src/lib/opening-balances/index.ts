@@ -6,6 +6,10 @@
  */
 import { supabase } from "@/integrations/supabase/client";
 import { openingBalanceFn } from "@/functions/stock/opening-balance";
+import {
+  postOpeningBalanceFn,
+  reverseOpeningBalanceFn,
+} from "@/functions/stock/opening-balance-post";
 
 const db = supabase as any;
 
@@ -266,16 +270,13 @@ export async function updateOpeningDocument(input: {
 }
 
 export async function postOpeningDocument(documentId: string): Promise<void> {
-  const { error } = await db.rpc("post_opening_balance", { _document_id: documentId });
-  if (error) throw new Error(error.message);
+  // المرحلة 13.2: نفس الذرّية عبر server function بدل RPC (post_opening_balance سابقًا).
+  await postOpeningBalanceFn({ data: { documentId } });
 }
 
 export async function reverseOpeningDocument(documentId: string, reason: string): Promise<void> {
-  const { error } = await db.rpc("reverse_opening_balance", {
-    _document_id: documentId,
-    _reason: reason,
-  });
-  if (error) throw new Error(error.message);
+  // المرحلة 13.2: نفس الذرّية عبر server function بدل RPC (reverse_opening_balance سابقًا).
+  await reverseOpeningBalanceFn({ data: { documentId, reason } });
 }
 
 /* -------------------------------------------------------------- helpers */

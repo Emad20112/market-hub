@@ -191,7 +191,7 @@ const purchasePosGuideConfig: PageGuideConfig = {
     {
       title: "حفظ سريع باختصار لوحة المفاتيح",
       description:
-        "البحث السريع بـ (F2) وحفظ وتأكيد فاتورة الشراء بالكامل بضغطة زر أو اختصار (F4).",
+        "البحث السريع بـ (F2) وحفظ وتأكيد فاتورة الشراء بالكامل بضغطة زر أو اختصار (Ctrl+↵).",
       icon: <Zap className="h-4 w-4" />,
     },
   ],
@@ -264,8 +264,9 @@ const purchasePosGuideConfig: PageGuideConfig = {
     },
     {
       number: "4",
-      title: "تحديد الدفع والحفظ (F4)",
-      description: "اختر طريقة السداد (نقدي/آجل/بنكي) واضغط زر الحفظ (F4) لترحيل الفاتورة فوراً.",
+      title: "تحديد الدفع والحفظ (Ctrl+↵)",
+      description:
+        "اختر طريقة السداد (نقدي/آجل/بنكي) واضغط زر الحفظ (Ctrl+↵) لترحيل الفاتورة فوراً.",
     },
   ],
   rulesTitle: "ضوابط الرقابة وسلامة التكلفة",
@@ -1220,7 +1221,7 @@ function PurchasePOSPage() {
       if (e.key === "F2") {
         e.preventDefault();
         searchRef.current?.focus();
-      } else if (e.key === "F4") {
+      } else if (e.key === "F4" || (e.ctrlKey && e.key === "Enter")) {
         e.preventDefault();
         void submitPurchase();
       }
@@ -2836,7 +2837,7 @@ function PurchasePOSPage() {
                       ? lang === "ar"
                         ? "جاري تسجيل الشراء..."
                         : "Recording purchase..."
-                      : `${lang === "ar" ? "تسجيل فاتورة الشراء" : "Save purchase"} (F4)`}
+                      : `${lang === "ar" ? "تسجيل فاتورة الشراء" : "Save purchase"} (Ctrl+↵)`}
                   </span>
                 </button>
               </div>

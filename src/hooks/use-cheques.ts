@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { ChequeRecord, ChequeStatus } from "@/lib/payments/treasury-types";
+import { bounceChequeFn, clearChequeFn } from "@/functions/treasury/cheques";
 
 export const CHEQUES_QUERY_KEY = ["treasury", "cheques"] as const;
 
@@ -58,15 +59,15 @@ export function useClearCheque() {
       clearedDate?: string;
       notes?: string;
     }) => {
-      const { data, error } = await db.rpc("clear_cheque", {
-        p_cheque_id: chequeId,
-        p_clearing_bank_account_id: clearingBankAccountId,
-        p_cleared_date: clearedDate || new Date().toISOString().slice(0, 10),
-        p_notes: notes || null,
+      // المرحلة 13.2: نفس الذرّية عبر server function بدل RPC (clear_cheque سابقًا).
+      return clearChequeFn({
+        data: {
+          chequeId,
+          clearingBankAccountId,
+          clearedDate: clearedDate || new Date().toISOString().slice(0, 10),
+          notes: notes || null,
+        },
       });
-
-      if (error) throw error;
-      return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: CHEQUES_QUERY_KEY });
@@ -89,14 +90,14 @@ export function useBounceCheque() {
       reason?: string;
       penaltyAmount?: number;
     }) => {
-      const { data, error } = await db.rpc("bounce_cheque", {
-        p_cheque_id: chequeId,
-        p_reason: reason || "عدم كفاية الرصيد",
-        p_penalty_amount: penaltyAmount,
+      // المرحلة 13.2: نفس الذرّية عبر server function بدل RPC (bounce_cheque سابقًا).
+      // p_penalty_amount لم تكن مدعومة في الدالة الأصلية أصلًا (تجاهلها الواجهة).
+      return bounceChequeFn({
+        data: {
+          chequeId,
+          reason: reason || "عدم كفاية الرصيد",
+        },
       });
-
-      if (error) throw error;
-      return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: CHEQUES_QUERY_KEY });

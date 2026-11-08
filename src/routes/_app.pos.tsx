@@ -3693,7 +3693,7 @@ function POSPage() {
                     ) : (
                       <CheckCircle2 className="h-4 w-4" />
                     )}
-                    <span>{`${t("pos.checkout")} (F9)`}</span>
+                    <span>{`${t("pos.checkout")} (Ctrl+↵)`}</span>
                   </button>
                 </div>
               )}

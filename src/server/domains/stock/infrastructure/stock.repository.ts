@@ -325,6 +325,42 @@ export async function nextStockAdjustmentNumber(tx: PoolClient): Promise<string>
   return rows[0].n;
 }
 
+export async function nextTransferNumber(tx: PoolClient): Promise<string> {
+  // كما في الأصل (012): يمر عبر fn_next_document_number للترقيم المركزي.
+  const { rows } = await tx.query<{ n: string }>(
+    "SELECT public.fn_next_document_number('stock_transfer') AS n",
+  );
+  return rows[0].n;
+}
+
+export async function insertStockTransfer(
+  tx: PoolClient,
+  a: {
+    transferNumber: string;
+    fromWarehouseId: string;
+    toWarehouseId: string;
+    note: string | null;
+    createdBy: string;
+  },
+): Promise<string> {
+  const { rows } = await tx.query<{ id: string }>(
+    `INSERT INTO public.stock_transfers (transfer_number, from_warehouse_id, to_warehouse_id, note, created_by)
+     VALUES ($1, $2::uuid, $3::uuid, $4, $5::uuid) RETURNING id`,
+    [a.transferNumber, a.fromWarehouseId, a.toWarehouseId, a.note, a.createdBy],
+  );
+  return rows[0].id;
+}
+
+export async function insertStockTransferItem(
+  tx: PoolClient,
+  a: { transferId: string; productId: string; quantity: number },
+): Promise<void> {
+  await tx.query(
+    "INSERT INTO public.stock_transfer_items (transfer_id, product_id, quantity) VALUES ($1::uuid, $2::uuid, $3::numeric)",
+    [a.transferId, a.productId, a.quantity],
+  );
+}
+
 export async function insertStockOpening(
   tx: PoolClient,
   a: {
@@ -545,12 +581,31 @@ export async function insertOpeningBalanceLine(
 export async function lockOpeningDocument(
   tx: PoolClient,
   documentId: string,
-): Promise<{ id: string; status: string } | null> {
-  const { rows } = await tx.query<{ id: string; status: string }>(
-    "SELECT id, status::text FROM public.opening_balance_documents WHERE id = $1::uuid FOR UPDATE",
+): Promise<{
+  id: string;
+  status: string;
+  documentNumber: string;
+  effectiveDate: string;
+  fiscalYear: number | null;
+} | null> {
+  const { rows } = await tx.query<{
+    id: string;
+    status: string;
+    document_number: string;
+    effective_date: string;
+    fiscal_year: number | null;
+  }>(
+    "SELECT id, status::text, document_number, effective_date::text AS effective_date, fiscal_year FROM public.opening_balance_documents WHERE id = $1::uuid FOR UPDATE",
     [documentId],
   );
-  return rows[0] ?? null;
+  if (!rows[0]) return null;
+  return {
+    id: rows[0].id,
+    status: rows[0].status,
+    documentNumber: rows[0].document_number,
+    effectiveDate: rows[0].effective_date,
+    fiscalYear: rows[0].fiscal_year,
+  };
 }
 
 export async function updateOpeningDocument(

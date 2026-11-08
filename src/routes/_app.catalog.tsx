@@ -25,6 +25,14 @@ import {
   Boxes,
   Check,
   CheckCircle2,
+  Loader2,
+  Package,
+  Weight,
+  Ruler,
+  Clock,
+  Hash,
+  Droplets,
+  Grid3X3,
 } from "lucide-react";
 import { toast } from "sonner";
 import { QuantityInput } from "@/components/ui/quantity-input";
@@ -471,6 +479,12 @@ function CatalogTable({ tab }: { tab: Tab }) {
     });
   })();
 
+  // Build set of existing unit names for quick-add deduplication
+  const existingUnitNames = useMemo(() => {
+    if (tab !== "units") return new Set<string>();
+    return new Set((data ?? []).map((u) => u.name));
+  }, [data, tab]);
+
   const columns: DataTableColumn<Item>[] = [
     {
       key: "name",
@@ -585,6 +599,16 @@ function CatalogTable({ tab }: { tab: Tab }) {
         ) : null}
       </RecordsToolbar>
 
+      {tab === "units" && (
+        <QuickAddUnits
+          existingNames={existingUnitNames}
+          onAdded={() => {
+            qc.invalidateQueries({ queryKey: ["catalog", "units"] });
+            qc.invalidateQueries({ queryKey: ["catalog-metrics-overview"] });
+          }}
+        />
+      )}
+
       <RecordsView<Item>
         rows={sorted}
         getRowId={(item) => item.id}
@@ -664,6 +688,484 @@ function CatalogTable({ tab }: { tab: Tab }) {
   );
 }
 
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// Quick-add unit shortcut groups
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+type UnitPreset = {
+  name: string;
+  short_name: string;
+  name_ar: string;
+  dimension_code: string;
+  factor_to_reference: number | null;
+};
+
+type UnitGroup = {
+  label: string;
+  icon: any;
+  color: string;
+  units: UnitPreset[];
+};
+
+const UNIT_SHORTCUT_GROUPS: UnitGroup[] = [
+  {
+    label: "وحدات العدّ والتعبئة",
+    icon: Package,
+    color: "text-blue-500 bg-blue-500/10 border-blue-500/20",
+    units: [
+      {
+        name: "قطعة",
+        short_name: "قطعة",
+        name_ar: "قطعة",
+        dimension_code: "COUNT",
+        factor_to_reference: 1,
+      },
+      {
+        name: "حبة",
+        short_name: "حبة",
+        name_ar: "حبة",
+        dimension_code: "COUNT",
+        factor_to_reference: 1,
+      },
+      {
+        name: "زوج",
+        short_name: "زوج",
+        name_ar: "زوج",
+        dimension_code: "COUNT",
+        factor_to_reference: 2,
+      },
+      {
+        name: "دستة",
+        short_name: "دستة",
+        name_ar: "دستة",
+        dimension_code: "COUNT",
+        factor_to_reference: 12,
+      },
+      {
+        name: "طقم",
+        short_name: "طقم",
+        name_ar: "طقم",
+        dimension_code: "PACKAGING",
+        factor_to_reference: null,
+      },
+      {
+        name: "كيس",
+        short_name: "كيس",
+        name_ar: "كيس",
+        dimension_code: "PACKAGING",
+        factor_to_reference: null,
+      },
+      {
+        name: "قطمة",
+        short_name: "قطمة",
+        name_ar: "قطمة",
+        dimension_code: "PACKAGING",
+        factor_to_reference: null,
+      },
+      {
+        name: "قطب",
+        short_name: "قطب",
+        name_ar: "قطب",
+        dimension_code: "PACKAGING",
+        factor_to_reference: null,
+      },
+      {
+        name: "كرتون",
+        short_name: "كرتون",
+        name_ar: "كرتون",
+        dimension_code: "PACKAGING",
+        factor_to_reference: null,
+      },
+      {
+        name: "علبة",
+        short_name: "علبة",
+        name_ar: "علبة",
+        dimension_code: "PACKAGING",
+        factor_to_reference: null,
+      },
+      {
+        name: "عبوة",
+        short_name: "عبوة",
+        name_ar: "عبوة",
+        dimension_code: "PACKAGING",
+        factor_to_reference: null,
+      },
+      {
+        name: "صندوق",
+        short_name: "صندوق",
+        name_ar: "صندوق",
+        dimension_code: "PACKAGING",
+        factor_to_reference: null,
+      },
+      {
+        name: "حزمة",
+        short_name: "حزمة",
+        name_ar: "حزمة",
+        dimension_code: "PACKAGING",
+        factor_to_reference: null,
+      },
+      {
+        name: "رزمة ورق",
+        short_name: "رزمة",
+        name_ar: "رزمة ورق",
+        dimension_code: "PACKAGING",
+        factor_to_reference: null,
+      },
+    ],
+  },
+  {
+    label: "وحدات الوزن",
+    icon: Weight,
+    color: "text-emerald-500 bg-emerald-500/10 border-emerald-500/20",
+    units: [
+      {
+        name: "مليغرام",
+        short_name: "ملجم",
+        name_ar: "مليغرام",
+        dimension_code: "MASS",
+        factor_to_reference: 0.001,
+      },
+      {
+        name: "جرام",
+        short_name: "جم",
+        name_ar: "جرام",
+        dimension_code: "MASS",
+        factor_to_reference: 1,
+      },
+      {
+        name: "كيلوجرام",
+        short_name: "كجم",
+        name_ar: "كيلوجرام",
+        dimension_code: "MASS",
+        factor_to_reference: 1000,
+      },
+      {
+        name: "طن متري",
+        short_name: "طن",
+        name_ar: "طن متري",
+        dimension_code: "MASS",
+        factor_to_reference: 1000000,
+      },
+    ],
+  },
+  {
+    label: "وحدات الحجم",
+    icon: Droplets,
+    color: "text-cyan-500 bg-cyan-500/10 border-cyan-500/20",
+    units: [
+      {
+        name: "مليلتر",
+        short_name: "مل",
+        name_ar: "مليلتر",
+        dimension_code: "VOLUME",
+        factor_to_reference: 1,
+      },
+      {
+        name: "لتر",
+        short_name: "لتر",
+        name_ar: "لتر",
+        dimension_code: "VOLUME",
+        factor_to_reference: 1000,
+      },
+      {
+        name: "متر مكعب",
+        short_name: "م³",
+        name_ar: "متر مكعب",
+        dimension_code: "VOLUME",
+        factor_to_reference: 1000000,
+      },
+    ],
+  },
+  {
+    label: "وحدات الطول والمساحة",
+    icon: Ruler,
+    color: "text-orange-500 bg-orange-500/10 border-orange-500/20",
+    units: [
+      {
+        name: "مليمتر",
+        short_name: "مم",
+        name_ar: "مليمتر",
+        dimension_code: "LENGTH",
+        factor_to_reference: 0.001,
+      },
+      {
+        name: "سنتيمتر",
+        short_name: "سم",
+        name_ar: "سنتيمتر",
+        dimension_code: "LENGTH",
+        factor_to_reference: 0.01,
+      },
+      {
+        name: "متر",
+        short_name: "م",
+        name_ar: "متر",
+        dimension_code: "LENGTH",
+        factor_to_reference: 1,
+      },
+      {
+        name: "كيلومتر",
+        short_name: "كم",
+        name_ar: "كيلومتر",
+        dimension_code: "LENGTH",
+        factor_to_reference: 1000,
+      },
+      {
+        name: "سنتيمتر مربع",
+        short_name: "سم²",
+        name_ar: "سنتيمتر مربع",
+        dimension_code: "AREA",
+        factor_to_reference: 0.0001,
+      },
+      {
+        name: "متر مربع",
+        short_name: "م²",
+        name_ar: "متر مربع",
+        dimension_code: "AREA",
+        factor_to_reference: 1,
+      },
+      {
+        name: "هكتار",
+        short_name: "هكتار",
+        name_ar: "هكتار",
+        dimension_code: "AREA",
+        factor_to_reference: 10000,
+      },
+    ],
+  },
+  {
+    label: "وحدات الزمن",
+    icon: Clock,
+    color: "text-violet-500 bg-violet-500/10 border-violet-500/20",
+    units: [
+      {
+        name: "ثانية",
+        short_name: "ث",
+        name_ar: "ثانية",
+        dimension_code: "TIME",
+        factor_to_reference: 1,
+      },
+      {
+        name: "دقيقة",
+        short_name: "دقيقة",
+        name_ar: "دقيقة",
+        dimension_code: "TIME",
+        factor_to_reference: 60,
+      },
+      {
+        name: "ساعة",
+        short_name: "ساعة",
+        name_ar: "ساعة",
+        dimension_code: "TIME",
+        factor_to_reference: 3600,
+      },
+      {
+        name: "يوم",
+        short_name: "يوم",
+        name_ar: "يوم",
+        dimension_code: "TIME",
+        factor_to_reference: 86400,
+      },
+    ],
+  },
+];
+
+function QuickAddUnits({
+  existingNames,
+  onAdded,
+}: {
+  existingNames: Set<string>;
+  onAdded: () => void;
+}) {
+  const { lang } = useI18n();
+  const [loading, setLoading] = useState<string | null>(null);
+  const [expanded, setExpanded] = useState<number | null>(null);
+
+  const addGroup = async (group: UnitGroup, groupIdx: number) => {
+    const key = group.label;
+    setLoading(key);
+    try {
+      // Filter out already-existing units
+      const toInsert = group.units.filter((u) => !existingNames.has(u.name));
+      if (toInsert.length === 0) {
+        toast.info(
+          lang === "ar"
+            ? "جميع وحدات هذه المجموعة موجودة مسبقاً"
+            : "All units in this group already exist",
+        );
+        setLoading(null);
+        return;
+      }
+      const { error } = await supabase.from("units").upsert(
+        toInsert.map((u) => ({
+          name: u.name,
+          short_name: u.short_name,
+          name_ar: u.name_ar,
+          dimension_code: u.dimension_code,
+          factor_to_reference: u.factor_to_reference,
+        })),
+        { onConflict: "name" },
+      );
+      if (error) throw error;
+      toast.success(
+        lang === "ar"
+          ? `تم إضافة ${toInsert.length} وحدة من ${group.label}`
+          : `Added ${toInsert.length} units from ${group.label}`,
+      );
+      onAdded();
+    } catch (err: any) {
+      toast.error(err?.message || "Error");
+    } finally {
+      setLoading(null);
+    }
+  };
+
+  const addSingle = async (unit: UnitPreset) => {
+    if (existingNames.has(unit.name)) {
+      toast.info(lang === "ar" ? "هذه الوحدة موجودة مسبقاً" : "This unit already exists");
+      return;
+    }
+    setLoading(unit.name);
+    try {
+      const { error } = await supabase.from("units").upsert(
+        [
+          {
+            name: unit.name,
+            short_name: unit.short_name,
+            name_ar: unit.name_ar,
+            dimension_code: unit.dimension_code,
+            factor_to_reference: unit.factor_to_reference,
+          },
+        ],
+        { onConflict: "name" },
+      );
+      if (error) throw error;
+      toast.success(
+        lang === "ar" ? `تم إضافة وحدة «${unit.name_ar}»` : `Added unit "${unit.name}"`,
+      );
+      onAdded();
+    } catch (err: any) {
+      toast.error(err?.message || "Error");
+    } finally {
+      setLoading(null);
+    }
+  };
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center gap-2">
+        <Hash className="size-4 text-primary" />
+        <h3 className="text-sm font-bold text-foreground">
+          {lang === "ar" ? "إضافة سريعة للوحدات" : "Quick Add Units"}
+        </h3>
+        <span className="rounded-full border border-border/60 bg-muted/50 px-2 py-0.5 text-[10px] text-muted-foreground">
+          {lang === "ar" ? "اختصارات" : "Shortcuts"}
+        </span>
+      </div>
+
+      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+        {UNIT_SHORTCUT_GROUPS.map((group, gi) => {
+          const Icon = group.icon;
+          const existCount = group.units.filter((u) => existingNames.has(u.name)).length;
+          const allExist = existCount === group.units.length;
+          const isExpanded = expanded === gi;
+          const isLoading = loading === group.label;
+
+          return (
+            <div
+              key={group.label}
+              className="card-mullak overflow-hidden rounded-2xl border transition-all duration-200 hover:border-primary/30"
+            >
+              {/* Group header — click to expand/collapse */}
+              <button
+                type="button"
+                onClick={() => setExpanded(isExpanded ? null : gi)}
+                className="flex w-full items-center gap-2.5 p-3 text-start transition hover:bg-muted/30"
+              >
+                <div
+                  className={`grid size-8 shrink-0 place-items-center rounded-full border ${group.color}`}
+                >
+                  <Icon className="size-3.5" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-xs font-bold text-foreground">{group.label}</p>
+                  <p className="text-[10px] text-muted-foreground">
+                    {existCount}/{group.units.length} {lang === "ar" ? "مضافة" : "added"}
+                  </p>
+                </div>
+                <ChevronDown
+                  className={`size-3.5 shrink-0 text-muted-foreground transition-transform duration-200 ${isExpanded ? "rotate-180" : ""}`}
+                />
+              </button>
+
+              {/* Add-all button */}
+              <div className="border-t border-border/40 px-3 py-2">
+                <button
+                  type="button"
+                  onClick={() => addGroup(group, gi)}
+                  disabled={allExist || isLoading}
+                  className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-primary/30 bg-primary/10 px-3 py-1.5 text-[11px] font-semibold text-primary transition hover:bg-primary/20 active:scale-95 disabled:opacity-40"
+                >
+                  {isLoading ? (
+                    <Loader2 className="size-3 animate-spin" />
+                  ) : allExist ? (
+                    <CheckCircle2 className="size-3 text-emerald-500" />
+                  ) : (
+                    <Plus className="size-3" />
+                  )}
+                  <span>
+                    {allExist
+                      ? lang === "ar"
+                        ? "مضافة بالكامل"
+                        : "All added"
+                      : lang === "ar"
+                        ? "إضافة الكل"
+                        : "Add all"}
+                  </span>
+                </button>
+              </div>
+
+              {/* Expanded — individual unit pills */}
+              {isExpanded && (
+                <div className="border-t border-border/40 bg-muted/20 p-2">
+                  <div className="flex flex-wrap gap-1.5">
+                    {group.units.map((unit) => {
+                      const exists = existingNames.has(unit.name);
+                      const unitLoading = loading === unit.name;
+                      return (
+                        <button
+                          key={unit.name}
+                          type="button"
+                          onClick={() => addSingle(unit)}
+                          disabled={exists || unitLoading}
+                          className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-medium transition active:scale-95 ${
+                            exists
+                              ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-600"
+                              : "border-border/60 bg-card text-foreground hover:border-primary/40 hover:bg-primary/10"
+                          } disabled:cursor-default`}
+                          title={unit.short_name}
+                        >
+                          {unitLoading ? (
+                            <Loader2 className="size-3 animate-spin" />
+                          ) : exists ? (
+                            <Check className="size-3" />
+                          ) : (
+                            <Plus className="size-3" />
+                          )}
+                          <span>{unit.name_ar}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function CatalogIdentity({ name }: { name: string }) {
   const initial = name.trim().charAt(0) || "?";
   return (
@@ -710,7 +1212,7 @@ function CatalogRecordActions({
   onDelete,
 }: CatalogRecordActionProps) {
   const controlClass =
-    "grid size-8 place-items-center rounded-xl border border-border/60 bg-card text-muted-foreground transition hover:bg-muted hover:text-foreground active:scale-95";
+    "grid size-8 place-items-center rounded-full border border-border/60 bg-card text-muted-foreground transition hover:bg-muted hover:text-foreground active:scale-95";
   return (
     <div className="inline-flex items-center gap-1.5">
       <button
@@ -743,7 +1245,7 @@ function CatalogRecordActions({
           event.stopPropagation();
           onDelete(item);
         }}
-        className="grid size-8 place-items-center rounded-xl border border-destructive/20 bg-destructive/10 text-destructive transition hover:bg-destructive/20 active:scale-95"
+        className="grid size-8 place-items-center rounded-full border border-destructive/20 bg-destructive/10 text-destructive transition hover:bg-destructive/20 active:scale-95"
         title={isRtl ? "حذف" : "Delete"}
         aria-label={isRtl ? "حذف" : "Delete"}
       >
@@ -763,13 +1265,17 @@ interface CatalogRecordProps extends CatalogRecordActionProps {
 function CatalogCard({ item, name, secondaryName, detail, tab, ...actions }: CatalogRecordProps) {
   return (
     <div className="card-mullak group relative flex h-full flex-col justify-between rounded-2xl p-3 transition-all duration-200 hover:border-primary/40 hover:shadow-md sm:p-4">
-      <div className="flex min-w-0 items-start justify-between gap-2">
+      {/* ── Top: identity + info ── */}
+      <div className="space-y-3">
         <CatalogIdentity name={name} />
-        <CatalogRecordActions item={item} {...actions} />
+        <div className="space-y-1.5 border-t border-border/60 pt-3">
+          <p className="truncate font-mono text-xs text-muted-foreground">{secondaryName}</p>
+          {detail !== "—" ? <CatalogDetail value={detail} tab={tab} /> : null}
+        </div>
       </div>
-      <div className="mt-4 space-y-2 border-t border-border/60 pt-3">
-        <p className="truncate font-mono text-xs text-muted-foreground">{secondaryName}</p>
-        {detail !== "—" ? <CatalogDetail value={detail} tab={tab} /> : null}
+      {/* ── Bottom: circular action buttons ── */}
+      <div className="mt-3 flex items-center justify-end border-t border-border/40 pt-3">
+        <CatalogRecordActions item={item} {...actions} />
       </div>
     </div>
   );

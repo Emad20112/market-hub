@@ -4,6 +4,7 @@ import * as React from "react";
 import { AlertCircle, Check, ChevronDown, Hash, Layers, Search } from "lucide-react";
 
 import { cn } from "@/lib/utils";
+import { moveFieldFocus } from "@/lib/keyboard/form-navigation";
 import { useI18n } from "@/lib/i18n";
 import {
   LEDGER_KIND_ACCOUNT_CODE,
@@ -397,10 +398,32 @@ export function PaymentMethodSelect({
       setActiveIndex((i) => Math.max(i - 1, 0));
       return;
     }
+    if (event.key === "Tab") {
+      event.preventDefault();
+      const target = filtered[activeIndex] ?? filtered[0];
+      if (target && !event.shiftKey) choose(target);
+      else setOpen(false);
+      const trigger = rootRef.current?.querySelector<HTMLElement>("[data-pm-trigger]");
+      if (trigger) {
+        requestAnimationFrame(() => {
+          moveFieldFocus(trigger, event.shiftKey ? "previous" : "next");
+        });
+      }
+      return;
+    }
     if (event.key === "Enter") {
       event.preventDefault();
       const target = filtered[activeIndex] ?? filtered[0];
-      if (target) choose(target);
+      if (target) {
+        choose(target);
+        const trigger = rootRef.current?.querySelector<HTMLElement>("[data-pm-trigger]");
+        if (trigger) {
+          requestAnimationFrame(() => {
+            moveFieldFocus(trigger, "next");
+          });
+        }
+      }
+      return;
     }
   }
 
@@ -533,7 +556,16 @@ export function PaymentMethodSelect({
                     aria-selected={isSelected}
                     onMouseEnter={() => setActiveIndex(index)}
                     onMouseDown={(e) => e.preventDefault()}
-                    onClick={() => choose(method)}
+                    onClick={() => {
+                      choose(method);
+                      const trigger =
+                        rootRef.current?.querySelector<HTMLElement>("[data-pm-trigger]");
+                      if (trigger) {
+                        requestAnimationFrame(() => {
+                          moveFieldFocus(trigger, "next");
+                        });
+                      }
+                    }}
                     className={cn(
                       "flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-start transition-colors",
                       isActive ? "bg-primary/10" : "hover:bg-muted/50",

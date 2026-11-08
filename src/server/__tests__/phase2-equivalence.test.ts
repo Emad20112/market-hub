@@ -1,4 +1,4 @@
-﻿/**
+/**
  * اختبار تكافؤ المرحلة 2 (ADR-006 مستوى 4): القديمة (RPC) مقابل الجديدة (Use Case)
  * على بيانات خط الأساس الفعلية.
  *  - الفوكسات تُنجز بصلاحية postgres (خارج RLS) وتُستعاد دائمًا في finally.
@@ -9,6 +9,9 @@
  */
 import assert from "node:assert/strict";
 import net from "node:net";
+// اختبارات التكافؤ تعمل على قاعدة البذور (خط الأساس 5433) — تُضبط قبل أول getPool.
+process.env.SERVER_DATABASE_URL =
+  process.env.SERVER_DATABASE_URL ?? "postgresql://postgres:postgres@127.0.0.1:5433/postgres";
 import { closePool, getPool } from "@/server/shared/db/pool";
 import { withTransaction, withSavepoint } from "@/server/shared/db/transaction";
 import {

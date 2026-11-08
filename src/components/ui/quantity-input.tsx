@@ -245,7 +245,10 @@ export const QuantityInput = React.forwardRef<HTMLInputElement, QuantityInputPro
         onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
           if (e.key === "Enter") {
             commitValue((e.target as HTMLInputElement).value);
-            (e.target as HTMLInputElement).blur();
+            const input = e.target as HTMLInputElement;
+            if (!input.hasAttribute("data-form-nav")) {
+              input.blur();
+            }
           }
           props.onKeyDown?.(e);
         }}

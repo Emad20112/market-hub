@@ -254,6 +254,7 @@ export function ProductLinesEditor<T extends ProductPickerItem>({
 
       <button
         type="button"
+        data-form-nav
         onClick={onAdd}
         className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-dashed border-primary/30 bg-primary/[0.03] py-2 text-xs font-bold text-primary transition hover:bg-primary/[0.07] active:scale-[0.995]"
       >

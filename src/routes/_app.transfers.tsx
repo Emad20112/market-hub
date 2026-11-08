@@ -6,6 +6,7 @@ import { PageHeader } from "@/components/page-header";
 import { useI18n } from "@/lib/i18n";
 import { useAuth } from "@/lib/auth";
 import { supabase } from "@/integrations/supabase/client";
+import { createStockTransferFn } from "@/functions/stock/transfer";
 import {
   AlertTriangle,
   ArrowRightLeft,
@@ -1070,21 +1071,28 @@ function NewTransferDialog({ onClose, onSaved }: { onClose: () => void; onSaved:
       return;
     }
     setSaving(true);
-    const { error } = await supabase.rpc("create_stock_transfer" as any, {
-      _from: from,
-      _to: to,
-      _note: note || null,
-      _items: lines as any,
-    });
-    setSaving(false);
-    if (error) {
-      toast.error(error.message);
-      return;
+    try {
+      // المرحلة 13.2: نفس الذرّية عبر server function بدل RPC (create_stock_transfer سابقًا).
+      await createStockTransferFn({
+        data: {
+          from,
+          to,
+          note: note || null,
+          items: lines.map((l) => ({
+            productId: l.product_id,
+            quantity: Number(l.quantity),
+          })),
+        },
+      });
+      toast.success(t("transfers.done"));
+      setLines([]);
+      setNote("");
+      onSaved();
+    } catch (e: any) {
+      toast.error(e?.message ?? String(e));
+    } finally {
+      setSaving(false);
     }
-    toast.success(t("transfers.done"));
-    setLines([]);
-    setNote("");
-    onSaved();
   }
 
   return (
