@@ -338,3 +338,44 @@ update_v2 — المرحلة 10b) ومشغلات القاعدة؛ الإسقاط
   قاعدتا 5432/5433 غير قائمتين في هذه الجلسة (Docker متوقف). يُشترط إقلاع
   القاعدة وتطبيق 026 وإعادة تشغيل phase10b-equivalence قبل اعتماد البوابة نهائيًا.
 
+
+## المرحلة 11 — الإنتاج (2026-11-08)
+### المنقول (11 دالة → Backend؛ مُسقطة بترحيل 027)
+| الدالة القديمة | الموقع الجديد | ملاحظات |
+|---|---|---|
+| `create_production_order` | `production/application/production.usecases.ts` | أدوار staff+owner/manager/warehouse/accountant، ترقيم MO-YYYYMMDD-#####، فحص المستودع ومركز التكلفة |
+| `complete_production_order` (أكبر دالة في المجال) | نفس الملف | صرف المواد بالدفعات (FEFO/FIFO/يدوي حسب الإعداد والصنف) عبر محرك 4، تخصيص مصروفات صافية بضريبة المدخلات عبر محرك 10a، فاقد كتلي NORMAL/ABNORMAL، ميزان كتلة، توزيع RELATIVE_SALES_VALUE، قيد صرف + قيد إقفال WIP عبر postJournalEntryWithNumber (محرك 9 + رقم صريح = post_journal_entry) |
+| `create_and_post_production_order` | نفس الملف | مفوض: create ثم complete في نفس المعاملة |
+| `reverse_production_order` | نفس الملف | كل بوابات الأمان: لا ناتج مستخدم لاحقًا، لا رصيد سابق، طبقة تكلفة سليمة، دفعات سليمة، مصروف مشترك محمّل على أمر آخر، عكس قيود عبر reverseJournalEntryInner بترتيب الأصل |
+| `smart_manufacture` (الصيغة الموسعة + 3 أغلفة) | نفس الملف | فحص RAW_MATERIAL/TRACKED/ملكية، MOVING_AVERAGE إلزامي، فاقد كتلي، توزيع بقيمة البيع، حسابات 1313/1314/5921/1311 |
+| `convert_stock` | نفس الملف | التحويل المخزني للشركة فقط، توازن نواتج+فاقد = المصدر، بلا قيد (FIXED_MANUAL) |
+| `production_order_history`/`production_cost_sources`/`production_order_cost_check`/`production_order_cost_detail` | نفس الملف (قراءات) | نفس الاستعلامات والتجميع jsonb؛ فحص is_staff/can_read_finance |
+| `production_expense_line_available` | `production/infrastructure/production.repository.ts` | نفس الحساب الصافي (نت يخصم الضريبة غير المستردة) |
+
+### قرارات معمارية مرحلية
+1. **post_journal_entry مُعاد تنفيذه كـ postJournalEntryWithNumber** — createJournalEntryInner
+   (محرك 9) ثم UPDATE entry_number: نفس سلوك الدالة الأصلية (009) حرفيًا، بلا اعتماد
+   خلفي على دالة القاعدة.
+2. **movementKind "PRODUCTION" أضيف لنوع StockDeltaArgs** في محرك 4 — القيمة موجودة
+   في enum القاعدة 001 لكن TypeScript كان يمنعها؛ لا تغيير سلوكي (movementTypeLegacy
+   يحمل production_in/out كما الأصل).
+3. **مساعدات الإنتاج تبقى في القاعدة** (production_quantity_in_base،
+   production_mass_in_kg، production_inventory_account_code،
+   production_output_has_downstream_use، بوّابات المشغلات) — تستهلكها مشغلات
+   وRLS وسياسات؛ استدعاؤها من هنا انتقالي حتى المرحلة 13.
+4. **القراءات عبر server functions** بنفس شكل jsonb الأصلي — الواجهة (production-orders.ts
+   وcustody.ts) حُوّلت من rpc إلى `productionCostSourcesFn/productionOrderHistoryFn/
+   productionOrderCostDetailFn/smartManufactureFn/convertStockFn` مع الحفاظ على
+   fallback رسائل الأخطاء.
+5. **لا مكرر منطق**: كل فحص أمان (canOperateMilling/canReadFinance) ينفذ مرة واحدة
+   في Use Case بصيغة SQL الأصلية نفسها.
+
+### بوابات المرحلة 11 (الحالة)
+- tsc نظيف على نطاق الخادم والواجهة المنقولة (الأخطاء الباقية في ملف WIP سابق:
+  purchase-invoice-composer.tsx — خارج النطاق)؛ eslint نظيف على كل الملفات الجديدة.
+- ✅ **لم يُنفذ بعد:** اختبار تكافؤ 11 على قاعدة حية وترحيل 027 فعليًا — نفس
+  قيد المرحلة 10b: قاعدتا 5432/5433 غير قائمتين (محرك Docker مُصفّر والصورة
+  تحتاج تحميلًا). يُشترط إقلاع القاعدة وتطبيق 026 ثم 027 وإعادة تشغيل
+  phase10b-equivalence + phase11-equivalence قبل اعتماد البوابتين نهائيًا.
+
+

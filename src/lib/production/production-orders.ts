@@ -1,4 +1,12 @@
 import { supabase } from "@/integrations/supabase/client";
+import { createAndPostProductionOrderFn } from "@/server/api/production/create-and-post-production-order";
+import { reverseProductionOrderFn } from "@/server/api/production/reverse-production-order";
+import {
+  productionOrderCostCheckFn,
+  productionOrderCostDetailFn,
+  productionCostSourcesFn,
+  productionOrderHistoryFn,
+} from "@/server/api/production/production-reads";
 
 const db = supabase as any;
 
@@ -95,8 +103,8 @@ export interface ProductionOrderSummary {
 }
 
 export async function loadProductionLookups() {
-  const [warehouses, centers, products, units, productUoms, batches, inventory, costs] =
-    await Promise.all([
+  const [warehouses, centers, products, units, productUoms, batches, inventory] = await Promise.all(
+    [
       db.from("warehouses").select("id,name,name_ar,is_default").eq("is_active", true),
       db
         .from("expense_cost_centers")
@@ -123,10 +131,10 @@ export async function loadProductionLookups() {
         .select("id,product_id,warehouse_id,batch_number,expiry_date,quantity,created_at")
         .gt("quantity", 0),
       db.from("inventory").select("product_id,warehouse_id,quantity").eq("owner_type", "COMPANY"),
-      db.rpc("production_cost_sources"),
-    ]);
+    ],
+  );
 
-  const result = [warehouses, centers, products, units, productUoms, batches, inventory, costs];
+  const result = [warehouses, centers, products, units, productUoms, batches, inventory];
   const failure = result.find((item) => item.error);
   if (failure?.error) throw failure.error;
 
@@ -135,6 +143,17 @@ export async function loadProductionLookups() {
     const list = uomsByProduct.get(uom.product_id) ?? [];
     list.push(uom);
     uomsByProduct.set(uom.product_id, list);
+  }
+
+  // مصادر التكلفة عبر الباك اند (production_cost_sources المنقولة — المرحلة 11).
+  let expenseSources: ProductionExpenseSource[] = [];
+  let canAllocateExpenses = false;
+  let expenseSourcesError: string | null = null;
+  try {
+    expenseSources = (await productionCostSourcesFn()) as unknown as ProductionExpenseSource[];
+    canAllocateExpenses = true;
+  } catch (e) {
+    expenseSourcesError = (e as Error).message ?? "expense sources unavailable";
   }
 
   return {
@@ -151,24 +170,22 @@ export async function loadProductionLookups() {
       warehouse_id: string;
       quantity: number;
     }[],
-    expenseSources: (costs.error ? [] : (costs.data ?? [])) as ProductionExpenseSource[],
-    canAllocateExpenses: !costs.error,
-    expenseSourcesError: costs.error?.message ?? null,
+    expenseSources,
+    canAllocateExpenses,
+    expenseSourcesError,
   };
 }
 
 export async function loadProductionOrderHistory() {
-  // السجل يُقرأ من production_order_history (9918): عمود الصفوف الخفيفة فقط،
-  // فإضافة عمود جديد على production_orders لا تكسر صفحة السجل بعد اليوم.
+  // السجل عبر الباك اند (production_order_history المنقولة — المرحلة 11).
   const [orders, centers] = await Promise.all([
-    db.rpc("production_order_history", { p_limit: 250 }),
+    productionOrderHistoryFn(),
     db.from("expense_cost_centers").select("id,name,name_ar").order("name"),
   ]);
-  if (orders.error) throw orders.error;
   if (centers.error) throw centers.error;
 
   return {
-    orders: (orders.data ?? []) as ProductionOrderSummary[],
+    orders: (orders ?? []) as unknown as ProductionOrderSummary[],
     centers: (centers.data ?? []) as ProductionCostCenter[],
   };
 }
@@ -221,27 +238,24 @@ export async function createAndPostProductionOrder(input: {
   expenses: ProductionExpenseInput[];
   losses: ProductionLossInput[];
 }): Promise<string> {
-  const { data, error } = await db.rpc("create_and_post_production_order", {
-    p_warehouse_id: input.warehouse_id,
-    p_cost_center_id: input.cost_center_id,
-    p_production_date: input.production_date,
-    p_notes: input.notes ?? null,
-    p_materials: input.materials,
-    p_outputs: input.outputs,
-    p_expenses: input.expenses,
-    p_losses: input.losses,
+  const res = await createAndPostProductionOrderFn({
+    data: {
+      warehouseId: input.warehouse_id,
+      costCenterId: input.cost_center_id,
+      productionDate: input.production_date ?? null,
+      notes: input.notes ?? null,
+      materials: input.materials,
+      outputs: input.outputs,
+      expenses: input.expenses ?? [],
+      losses: input.losses ?? [],
+    },
   });
-  if (error) throw error;
-  return data as string;
+  return (res as unknown as { orderId: string }).orderId;
 }
 
 export async function reverseProductionOrder(orderId: string, reason: string): Promise<string> {
-  const { data, error } = await db.rpc("reverse_production_order", {
-    p_order_id: orderId,
-    p_reason: reason,
-  });
-  if (error) throw error;
-  return data as string;
+  const res = await reverseProductionOrderFn({ data: { orderId, reason } });
+  return (res as unknown as { orderId: string }).orderId;
 }
 
 /* ── تفاصيل تكلفة الأمر ─────────────────────────────────────────────────────
@@ -362,9 +376,7 @@ export interface ProductionOrderCostDetail {
 export async function loadProductionOrderCostDetail(
   orderId: string,
 ): Promise<ProductionOrderCostDetail> {
-  const { data, error } = await db.rpc("production_order_cost_detail", {
-    p_order_id: orderId,
-  });
-  if (error) throw error;
-  return data as ProductionOrderCostDetail;
+  // تفاصيل التكلفة عبر الباك اند (production_order_cost_detail المنقولة — المرحلة 11).
+  const res = await productionOrderCostDetailFn({ data: { orderId } });
+  return res as unknown as ProductionOrderCostDetail;
 }

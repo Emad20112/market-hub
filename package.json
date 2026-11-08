@@ -51,7 +51,7 @@
     "test:server:phase9": "npx tsx src/server/__tests__/phase9-equivalence.test.ts",
     "test:server:phase10": "npx tsx src/server/__tests__/phase10-equivalence.test.ts",
     "test:server:phase10b": "npx tsx src/server/__tests__/phase10b-equivalence.test.ts",
-    "test:server:phase10b": "npx tsx src/server/__tests__/phase10b-equivalence.test.ts",
+    "test:server:phase11": "npx tsx src/server/__tests__/phase11-equivalence.test.ts",
     "audit:customer-balances": "node scripts/audit-customer-balances.mjs"
   },
   "dependencies": {

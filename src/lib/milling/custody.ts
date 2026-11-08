@@ -17,6 +17,7 @@
  */
 
 import { supabase } from "@/integrations/supabase/client";
+import { convertStockFn, smartManufactureFn } from "@/server/api/production/smart-manufacture";
 import { paymentMethodLabel } from "@/lib/payments/payment-methods";
 import { formatFormalDateTime } from "@/lib/format-preferences";
 import type { UnifiedDocumentData } from "@/lib/templates/types";
@@ -1483,16 +1484,18 @@ export async function convertStock(input: {
     };
   }
 
-  const { data, error } = await db.rpc("convert_stock", {
-    _warehouse_id: input.warehouseId,
-    _source_item_id: input.sourceItemId,
-    _source_qty: input.sourceQty,
-    _outputs: validOutputs.map((o) => ({ item_id: o.itemId, qty: o.qty })),
-    _loss_qty: lossQty,
-    _notes: input.notes ?? null,
+  // التحويل عبر الباك اند (convert_stock المنقولة — المرحلة 11).
+  const res = await convertStockFn({
+    data: {
+      warehouseId: input.warehouseId,
+      sourceItemId: input.sourceItemId,
+      sourceQty: input.sourceQty,
+      outputs: validOutputs.map((o) => ({ item_id: o.itemId, qty: o.qty })),
+      lossQty,
+      notes: input.notes ?? null,
+    },
   });
-  if (error) return { ok: false, message: translateCustodyError(error.message) };
-  return { ok: true, data: data as string };
+  return { ok: true, data: (res as unknown as { ref: string }).ref };
 }
 
 export async function smartManufacture(input: {
@@ -1517,20 +1520,22 @@ export async function smartManufacture(input: {
 
   // الوحدات تُرسل صراحةً لكل سطر؛ القاعدة الآن في SQL: تحويل كل كمية إلى وحدة
   // أساس الصنف قبل مقارنة الكتل واحتساب الفاقد. إغفال الوحدة = وحدة الأساس.
-  const { data, error } = await db.rpc("smart_manufacture", {
-    _warehouse_id: input.warehouseId,
-    _grain_item_id: input.grainItemId,
-    _grain_qty: input.grainQty,
-    _grain_uom_id: input.grainUomId || null,
-    _outputs: validOutputs.map((o) => ({
-      item_id: o.itemId,
-      qty: o.qty,
-      uom_id: o.uomId || null,
-    })),
-    _notes: input.notes ?? null,
+  // التصنيع الذكي عبر الباك اند (smart_manufacture المنقولة — المرحلة 11).
+  const res = await smartManufactureFn({
+    data: {
+      warehouseId: input.warehouseId,
+      grainItemId: input.grainItemId,
+      grainQty: input.grainQty,
+      grainUomId: input.grainUomId || null,
+      outputs: validOutputs.map((o) => ({
+        item_id: o.itemId,
+        qty: o.qty,
+        uom_id: o.uomId || null,
+      })),
+      notes: input.notes ?? null,
+    },
   });
-  if (error) return { ok: false, message: translateCustodyError(error.message) };
-  return { ok: true, data: data as string };
+  return { ok: true, data: (res as unknown as { ref: string }).ref };
 }
 
 /* V5 (rebuild-plan-v2 §6): مسار «مستهلكات تعبئة» من المخزون ملغى رسمياً.

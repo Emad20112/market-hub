@@ -33,7 +33,8 @@ export interface StockDeltaArgs extends StockKeys {
   /** كمية موقعة: موجب يزيد، سالب ينقص. */
   signedQty: number;
   unitCost: number | null;
-  movementKind: "RECEIPT" | "ISSUE" | "ADJUSTMENT" | "OPENING" | "TRANSFER_IN" | "TRANSFER_OUT";
+  movementKind:
+    "RECEIPT" | "ISSUE" | "ADJUSTMENT" | "OPENING" | "TRANSFER_IN" | "TRANSFER_OUT" | "PRODUCTION";
   sourceType: string | null;
   sourceId: string | null;
   note: string | null;
