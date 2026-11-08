@@ -38,6 +38,7 @@ import {
 } from "@/components/expenses/expense-status-badge";
 import { useExpenseLookups } from "@/hooks/use-expenses";
 import { fetchUnifiedExpenseStats } from "@/lib/expenses/financial-bridge";
+import { listExpensesFn } from "@/server/api/reports/expense-reads";
 import type { ExpenseListRow } from "@/lib/expenses/types";
 
 export const Route = createFileRoute("/_app/finance")({
@@ -90,7 +91,15 @@ function FinancePage() {
         .select("total,paid,payment_method")
         .order("created_at", { ascending: false })
         .limit(3000),
-      (supabase as any).rpc("list_expenses", { p_limit: 50 }),
+      listExpensesFn({
+        data: {
+          search: null,
+          status: null,
+          limit: 50,
+          cursorDate: null,
+          cursorId: null,
+        },
+      }),
       fetchUnifiedExpenseStats(),
       supabase
         .from("customers")
@@ -129,7 +138,7 @@ function FinancePage() {
       cashOut: purchasesPaid + expenseCashPaid,
     });
 
-    setExpenses((expRes.data ?? []) as ExpenseListRow[]);
+    setExpenses((expRes ?? []) as unknown as ExpenseListRow[]);
     setDebtors(custs.data ?? []);
     setCreditors(supps.data ?? []);
   }, []);

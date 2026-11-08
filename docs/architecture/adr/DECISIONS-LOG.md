@@ -415,7 +415,52 @@ update_v2 — المرحلة 10b) ومشغلات القاعدة؛ الإسقاط
   ملفات WIP سابقة خارج النطاق (purchase-invoice-composer.tsx وmilling.records.tsx).
 - ✅ **لم يُنفذ بعد:** اختبار تكافؤ 12 على قاعدة حية وترحيل 028 فعليًا — نفس قيد
   10b/11: القاعدة غير قائمة (محرك Docker مُصفّر). يُشترط إقلاعها وتطبيق 026→027→028
-  وتشغيل phase10b/11/12-equivalence قبل اعتماد البوابات الثلاث نهائيًا.
+  وتشغيل   phase10b/11/12-equivalence قبل اعتماد البوابات الثلاث نهائيًا.
+
+
+  ## المرحلة 13 — الإغلاق (جزء 1: الحظر الصارم) (2026-11-08)
+  ### ما تم (ترحيل 029)
+  1. **rpc_allowlist() أعيد بناؤها مقلّمة**: خرجت منها كل الأسماء المنقولة إلى
+     Backend (018-028) والميتة (018)، وبقيت الحية. أُضيفت أسماء حية كانت غائبة
+     عن القائمة القديمة: custody_intake_multi، custody_milling_multi،
+     custody_adjustment، custody_delivery، custody_grain_items،
+     custody_output_items، milling_document_process،
+     create_milling_service_document_multi_priced، save_expense_dimension،
+     expense_role_rank (تستدعى من قراءات الباك اند تحت authenticated).
+  2. **الحظر صار error**: كل دالة public غير مدرجة في القائمة سُحبت منها
+     EXECUTE من PUBLIC وanon — نداءها عبر PostgREST يُرفض صراحةً بدل الاعتماد
+     على توثيق القائمة.
+  3. **service_role يملك EXECUTE صريحًا** على كل دوال public — الجسور الداخلية
+     للباك اند (post_sales_invoice، post_purchase_invoice، post_stock_delta،
+     create_journal_entry، recalculate_customer_balance، post_opening_balance…)
+     تعمل عبر SQL داخل معاملات service بلا تأثر.
+  4. **المدرجة مُنحت EXECUTE صريحًا لـ authenticated** (إسقاط GRANT الافتراضي
+     عبر PUBLIC يُفقد الموروث).
+
+  ### اكتشافات قبل الحظر (تصحيح سجل المراحل السابقة)
+  تدقيق grep شامل بعد تحويل التقارير كشف نداءات RPC حية لم تُوثق في سجلات
+  المراحل 4/8 (كانت عبارة «لم يبق أي استدعاء RPC حي» غير دقيقة جزئيًا):
+  - `create_purchase` ×4: purchases.tsx (legacy path)، purchase-pos.tsx،
+    standard-invoice-composer.tsx، purchase-invoice-composer.tsx.
+  - `post_stock_delta`: direct-stock-in-dialog.tsx.
+  - `recalculate_customer_balance`: statement-integrity-badge.tsx.
+  - `save_expense_dimension` ×2: expense-cost-centers-section.tsx.
+  **القرار:** بقيت في القائمة، والسحب الكامل من authenticated مؤجل للجزء 2
+  بعد تحويلها أو إسقاط شاشاتها الميتة.
+
+  ### حدود الجزء 1 (المؤجل للجزء 2)
+  - السحب الكامل من authenticated: ينتظر نقل الطحن/العهدة (012 — الأضخم) و9b
+    (الأصول/الضرائب/الإقفال/الشيكات) وتحويل المتبقي أعلاه.
+  - إسقاط الجسور (post_stock_delta، create_journal_entry، assert_period_open،
+    مساعدات 010): كلها ما زال لها مستدعون SQL داخل دوال باقية (الطحن والإقفال
+    ونشر الأرصدة) — إسقاطها الآن يكسر التطبيق؛ موعدها بعد الجزء 2.
+  - sync_apply_operation: بلا مستدعي واجهة؛ تدقيق حي قبل الحذف (قرار المرحلة 1).
+
+  ### بوابات المرحلة 13.1 (الحالة)
+  - tsc نظيف على النطاق (المتبقي ملفات WIP سابقة)؛ eslint نظيف؛ الواجهة صفر
+    استدعاء RPC لدوال 018-028 المنقولة (تحقق grep نهائي بعد إصلاح
+    financial-bridge.ts و_finance.tsx — متبقيات المرحلة 12).
+  - ✅ **لم يُنفذ بعد:** تطبيق 029 على قاعدة حية — نفس قيد 10b/11/12.
 
 
 

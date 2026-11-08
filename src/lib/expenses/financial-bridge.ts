@@ -18,6 +18,7 @@
  */
 
 import { supabase } from "@/integrations/supabase/client";
+import { listExpensesFn, expenseSummaryFn } from "@/server/api/reports/expense-reads";
 
 export interface UnifiedExpenseStats {
   postedTotal: number;
@@ -31,72 +32,19 @@ export async function fetchUnifiedExpenseStats(options?: {
   dateTo?: string | null;
   warehouseId?: string | null;
 }): Promise<UnifiedExpenseStats> {
-  let rpcError: unknown = null;
-  try {
-    const { data, error } = await (supabase as any).rpc("expense_summary", {
-      p_date_from: options?.dateFrom || null,
-      p_date_to: options?.dateTo || null,
-      p_warehouse_id: options?.warehouseId || null,
-    });
-
-    if (!error && data) {
-      return {
-        postedTotal: Number(data.posted_total ?? 0),
-        paidCashOut: Number(data.paid_total ?? 0),
-        outstandingTotal: Number(data.outstanding_total ?? 0),
-        overdueTotal: Number(data.overdue_total ?? 0),
-      };
-    }
-    rpcError = error;
-  } catch (error) {
-    rpcError = error;
-    // Proceed to direct query fallback
-  }
-
-  // Safe fallback querying expense_entries directly
-  let query = (supabase as any)
-    .from("expense_entries")
-    .select("total_amount, paid_amount, remaining_amount, status, due_date")
-    .in("status", ["POSTED", "PARTIALLY_PAID", "PAID", "CLOSED"]);
-
-  if (options?.dateFrom) query = query.gte("expense_date", options.dateFrom);
-  if (options?.dateTo) query = query.lte("expense_date", options.dateTo);
-  if (options?.warehouseId) query = query.eq("warehouse_id", options.warehouseId);
-
-  const { data: rows, error: queryError } = await query;
-  if (queryError) {
-    const detail = queryError instanceof Error ? queryError.message : String(queryError);
-    const source = rpcError instanceof Error ? `expense_summary: ${rpcError.message}; ` : "";
-    throw new Error(`${source}expense_entries fallback: ${detail}`);
-  }
-  if (!rows || !rows.length) {
-    return { postedTotal: 0, paidCashOut: 0, outstandingTotal: 0, overdueTotal: 0 };
-  }
-
-  const todayStr = new Date().toISOString().slice(0, 10);
-  let posted = 0;
-  let paid = 0;
-  let outstanding = 0;
-  let overdue = 0;
-
-  for (const r of rows) {
-    posted += Number(r.total_amount || 0);
-    paid += Number(r.paid_amount || 0);
-    const rem = Number(r.remaining_amount || 0);
-    if (rem > 0.005) {
-      outstanding += rem;
-      if (r.due_date && r.due_date < todayStr) {
-        overdue += rem;
-      }
-    }
-  }
-
-  const round2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
-
+  // عبر الباك اند (expense_summary المنقولة — المرحلة 12) — بلا fallback مباشر.
+  const data = await expenseSummaryFn({
+    data: {
+      dateFrom: options?.dateFrom || null,
+      dateTo: options?.dateTo || null,
+      warehouseId: options?.warehouseId || null,
+    },
+  });
+  const row = (data ?? {}) as unknown as Record<string, unknown>;
   return {
-    postedTotal: round2(posted),
-    paidCashOut: round2(paid),
-    outstandingTotal: round2(outstanding),
-    overdueTotal: round2(overdue),
+    postedTotal: Number(row.posted_total ?? 0),
+    paidCashOut: Number(row.paid_total ?? 0),
+    outstandingTotal: Number(row.outstanding_total ?? 0),
+    overdueTotal: Number(row.overdue_total ?? 0),
   };
 }
